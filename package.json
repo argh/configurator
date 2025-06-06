@@ -1,0 +1,27 @@
+{
+  "name": "@v0.net/argh-configurator",
+  "version": "0.1.0",
+  "description": "A simple configuration utility for Node.js",
+  "main": "src/configurator.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/v0-net/argh-configurator.git"
+  },
+  "keywords": [
+    "configuration",
+    "command line",
+    "argh-configurator"
+  ],
+  "author": "argh",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "mocha --recursive --exit --node-option=--experimental-vm-modules"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0"
+  }
+}

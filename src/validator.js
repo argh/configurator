@@ -1,0 +1,496 @@
+import { lookup } from 'node:dns/promises';
+
+import fs from 'node:fs/promises';
+
+import { constants } from 'node:fs';
+
+export class Validator {
+  constructor() {
+    this.validators = new Map();
+    this._registerBuiltInValidators();
+  }
+
+  /**
+   * Register a custom validator keyword
+   * @param {string} keyword - Validator keyword (without $)
+   * @param {Function} validatorFn - Validation function (sync or async)
+   */
+  register(keyword, validatorFn) {
+    if (typeof validatorFn !== 'function') {
+      throw new Error(`Validator for keyword '${keyword}' must be a function`);
+    }
+    this.validators.set(keyword, validatorFn);
+    return this;
+  }
+
+  /**
+   * Get a validator by keyword
+   * @param {string} keyword - Validator keyword (without $)
+   * @returns {Function|null} Validator function or null if not found
+   */
+  get(keyword) {
+    return this.validators.get(keyword) || null;
+  }
+
+  /**
+   * Check if a validator keyword exists
+   * @param {string} keyword - Validator keyword (without $)
+   * @returns {boolean} True if validator exists
+   */
+  has(keyword) {
+    return this.validators.has(keyword);
+  }
+
+  /**
+   * Create a child registry that inherits from this one
+   * @returns {Validator} New registry with inherited validators
+   */
+  createChild() {
+    const child = new Validator();
+    // Copy all validators from parent
+    for (const [keyword, validator] of this.validators) {
+      child.validators.set(keyword, validator);
+    }
+    return child;
+  }
+
+  async validate(value, validatorSpec) {
+
+    try {
+      if (!validatorSpec) {
+        return value;
+      }
+      let validatorFunction = this.getValidatorFunction(validatorSpec);
+
+      if (!validatorFunction) {
+        return value;
+      }
+
+      const validated = await validatorFunction(value);
+
+      if ((value !== undefined) && (validated === undefined)) {
+        // return value;  // only devmode error?
+        throw new Error('Internal validation error: bad validator!')
+      }
+
+      if (validated instanceof Error) {
+        throw validated;
+      }
+
+      return validated;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Wrap a user-provided validator specification into a validation function
+   * @param {*} validatorSpec - The validator specification
+   * @returns {Function} Async validation function that returns true or error message
+   */
+  getValidatorFunction(validatorSpec) {
+    // Already a function - wrap to ensure it's async
+    if (typeof validatorSpec === 'function') {
+      return async (value) => await validatorSpec(value);
+    }
+
+    // Regular expression object
+    if (validatorSpec instanceof RegExp) {
+      return async (value) => {
+        if (!validatorSpec.test(String(value))) {
+          throw new Error(`Value does not match pattern ${validatorSpec}`);
+        }
+        return value;
+      };
+    }
+
+    // String handling
+    if (typeof validatorSpec === 'string') {
+      // String regex pattern "/pattern/flags"
+      if (validatorSpec.startsWith('/') && validatorSpec.lastIndexOf('/') > 0) {
+        const lastSlash = validatorSpec.lastIndexOf('/');
+        const pattern = validatorSpec.slice(1, lastSlash);
+        const flags = validatorSpec.slice(lastSlash + 1);
+
+        try {
+          const regex = new RegExp(pattern, flags);
+          return async (value) => {
+            if (!regex.test(String(value))) {
+              throw new Error(`Value does not match pattern ${validatorSpec}`);
+            }
+            return value;
+          };
+        } catch (error) {
+          throw new Error(`Invalid regex pattern: ${validatorSpec}`);
+        }
+      }
+
+      // Keyword validator starting with $
+      if (validatorSpec.startsWith('$')) {
+        const keyword = validatorSpec.slice(1);
+        const validator = this.get(keyword);
+
+        if (!validator) {
+          throw new Error(`Unknown validator keyword: ${validatorSpec}`);
+        }
+
+        // Wrap to ensure async
+        return async (value) => await validator(value);
+      }
+
+      // Plain string - treat as exact match
+      return async (value) => {
+        if (String(value) !== validatorSpec) {
+          throw new Error(`Value must be exactly "${validatorSpec}"`);
+        }
+        return value;
+      };
+    }
+
+    // Object-based validators
+    if (typeof validatorSpec === 'object' && validatorSpec !== null) {
+      return this._createObjectValidator(validatorSpec);
+    }
+
+    throw new Error(`Invalid validator specification: ${validatorSpec}`);
+  }
+
+  /**
+   * Execute validator and return standardized result
+   * @param {Function} validator - Validation function
+   * @param {*} value - Value to validate
+   * @param {string} fieldName - Field name for error context
+   * @returns {Promise<true|string>} Promise resolving to true if valid, error message if invalid
+   */
+  async executeValidator(validator, value, fieldName = 'field') {
+    try {
+      return await validator(value);
+    }
+    catch (error) {
+      throw new Error(`${fieldName} validation failed: ${error.message}`, {cause:error});
+    }
+  }
+
+  /**
+   * Register built-in validators
+   * @private
+   */
+  _registerBuiltInValidators() {
+    // Synchronous validators
+    this.register('hostname', (value) => {
+      const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+      if (!hostnameRegex.test(value)) {
+        throw new Error('Invalid hostname format');
+      }
+      return value;
+    });
+
+    this.register('url', (value) => {
+      try {
+        return new URL(value).toString();
+      } catch {
+        throw new Error('Invalid URL format');
+      }
+    });
+
+    this.register('email', (value) => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        throw new Error('Invalid email format');
+      }
+      return value;
+    });
+
+    this.register('port', (value) => {
+      const num = Number(value);
+      if (!(Number.isInteger(num) && num >= 1 && num <= 65535)) {
+        throw new Error('Port must be between 1 and 65535');
+      }
+      return num;
+    });
+
+    this.register('ipv4', (value) => {
+      const ipv4Regex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
+      if (!ipv4Regex.test(value)) {
+        throw new Error('Invalid IPv4 address');
+      }
+      return value;
+    });
+
+    this.register('ipv6', (value) => {
+      const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+      if (!ipv6Regex.test(value)) {
+        throw new Error('Invalid IPv6 address');
+      }
+      return value;
+    });
+
+    this.register('uuid', (value) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(value)) {
+        throw new Error('Invalid UUID format');
+      }
+      return value;
+    });
+
+    this.register('alphanum', (value) => {
+      const alphanumRegex = /^[a-zA-Z0-9]+$/;
+      if (!alphanumRegex.test(value)) {
+        throw new Error('Must contain only alphanumeric characters');
+      }
+      return value;
+    });
+
+    this.register('alpha', (value) => {
+      const alphaRegex = /^[a-zA-Z]+$/;
+      if (!alphaRegex.test(value)) {
+        throw new Error('Must contain only letters');
+      }
+      return value;
+    });
+
+    this.register('numeric', (value) => {
+      const numericRegex = /^[0-9]+$/;
+      if (!numericRegex.test(value)) {
+        throw new Error('Must contain only numbers');
+      }
+      return value;
+    });
+
+    this.register('nonempty', (value) => {
+      if (!(value && value.toString().trim().length > 0)) {
+        throw new Error('Value cannot be empty');
+      }
+      return value;
+    });
+
+    this.register('positive', (value) => {
+      const num = Number(value);
+      if (!(Number.isFinite(num) && num > 0)) {
+        throw new Error('Must be a positive number');
+      }
+      return num;
+    });
+
+    this.register('negative', (value) => {
+      const num = Number(value);
+      if (!(Number.isFinite(num) && num < 0)) {
+        throw new Error('Must be a negative number');
+      }
+      return num;
+    });
+
+    this.register('integer', (value) => {
+      const num = Number(value);
+      if (!Number.isInteger(num)) {
+        throw new Error('Must be an integer');
+      }
+      return num;
+    });
+
+    // Asynchronous validators for file system operations
+    this.register('existingfile', async (value) => {
+      try {
+        const stat = await fs.stat(value);
+        if (!stat.isFile()) {
+          throw new Error('Path exists but is not a file');
+        }
+        return value;
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          throw new Error('File does not exist');
+        }
+        throw new Error(`Cannot access file: ${error.message}`);
+      }
+    });
+
+    this.register('existingdir', async (value) => {
+      try {
+        const stat = await fs.stat(value);
+        if (!stat.isDirectory()) {
+          throw new Error('Path exists but is not a directory');
+        }
+        return value;
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          throw new Error('Directory does not exist');
+        }
+        throw new Error(`Cannot access directory: ${error.message}`);
+      }
+    });
+
+    this.register('readable', async (value) => {
+      try {
+        await fs.access(value, constants.R_OK);
+        return value;
+      } catch {
+        throw new Error('File is not readable');
+      }
+    });
+
+    this.register('writable', async (value) => {
+      try {
+        await fs.access(value, constants.W_OK);
+        return value;
+      } catch {
+        throw new Error('File is not writable');
+      }
+    });
+
+    // Async network validators
+    this.register('reachable', async (value) => {
+      try {
+        await lookup(value);
+        return value;
+      } catch {
+        throw new Error('Host is not reachable');
+      }
+    });
+
+    this.register('httpurl', async (value) => {
+      try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          throw new Error('URL must use HTTP or HTTPS protocol');
+        }
+
+        // Optional: Actually test the URL
+        // const response = await fetch(value, { method: 'HEAD' });
+        // if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+        return value;
+      } catch (error) {
+        if (error.message.includes('URL must use HTTP')) {
+          throw error;
+        }
+        throw new Error('Invalid HTTP URL format');
+      }
+    });
+  }
+
+  /**
+   * Create validator function from object specification
+   * @param {Object} spec - Object validator specification
+   * @returns {Function} Async validation function
+   * @private
+   */
+  _createObjectValidator(spec) {
+    const keys = Object.keys(spec);
+    if (keys.length !== 1) {
+      throw new Error('Validator object must have exactly one key');
+    }
+
+    const [keyword] = keys;
+    const args = spec[keyword];
+
+    switch (keyword) {
+      case '$and':
+        if (!Array.isArray(args)) {
+          throw new Error('$and validator requires an array of validators');
+        }
+        const andValidators = args.map(v => this.getValidatorFunction(v));
+        return async (value) => {
+          for (const validator of andValidators) {
+            await this.executeValidator(validator, value);
+          }
+          return value;
+        };
+
+      case '$or':
+        if (!Array.isArray(args)) {
+          throw new Error('$or validator requires an array of validators');
+        }
+        const orValidators = args.map(v => this.getValidatorFunction(v));
+        return async (value) => {
+          const errors = [];
+          for (const validator of orValidators) {
+            try {
+              await this.executeValidator(validator, value);
+              return value;
+            } catch (error) {
+              errors.push(error.message);
+            }
+          }
+          throw new Error(`None of the alternatives matched: ${errors.join(', ')}`);
+        };
+
+      case '$not':
+        const notValidator = this.getValidatorFunction(args);
+        return async (value) => {
+          try {
+            await this.executeValidator(notValidator, value);
+          } catch (error) {
+            // For $not, a validation error is a success
+            return value;
+          }
+          throw new Error('Value must not match the specified condition');
+        };
+
+      case '$length':
+        if (typeof args !== 'object' || args === null) {
+          throw new Error('$length validator requires an object with min/max properties');
+        }
+        const { min, max, exact } = args;
+        return async (value) => {
+          const length = String(value).length;
+          if (exact !== undefined && length !== exact) {
+            throw new Error(`Length must be exactly ${exact} characters`);
+          }
+          if (min !== undefined && length < min) {
+            throw new Error(`Length must be at least ${min} characters`);
+          }
+          if (max !== undefined && length > max) {
+            throw new Error(`Length must be at most ${max} characters`);
+          }
+          return value;
+        };
+
+      case '$range':
+        if (typeof args !== 'object' || args === null) {
+          throw new Error('$range validator requires an object with min/max properties');
+        }
+        const { min: minVal, max: maxVal } = args;
+        return async (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num)) {
+            throw new Error('Value must be a number');
+          }
+          if (minVal !== undefined && num < minVal) {
+            throw new Error(`Value must be at least ${minVal}`);
+          }
+          if (maxVal !== undefined && num > maxVal) {
+            throw new Error(`Value must be at most ${maxVal}`);
+          }
+          return value;
+        };
+
+      case '$oneof':
+        if (!Array.isArray(args)) {
+          throw new Error('$oneof validator requires an array of allowed values');
+        }
+        return async (value) => {
+          if (!args.includes(value)) {
+            throw new Error(`Value must be one of: ${args.join(', ')}`);
+          }
+          return value;
+        };
+
+      default:
+        // Check if it's a registered validator with arguments
+        if (keyword.startsWith('$')) {
+          const validatorName = keyword.slice(1);
+          const validator = this.get(validatorName);
+
+          if (validator) {
+            return async (value) => await validator(value)
+          }
+        }
+
+        throw new Error(`Unknown validator keyword: ${keyword}`);
+    }
+  }
+}
+
+
