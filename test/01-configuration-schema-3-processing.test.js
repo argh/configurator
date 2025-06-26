@@ -20,7 +20,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should process valid input configuration', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         requiredField: 'value1',
         optionalField: 'value2'
       });
@@ -31,7 +31,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should use default values when fields are not provided', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         requiredField: 'value1'
       });
 
@@ -42,7 +42,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should throw error when required field is missing', async function() {
       await assert.rejects(async () => {
-        await schema.process({
+        await schema.validate({
           optionalField: 'value2'
         });
       }, /Required field 'requiredField' is missing/);
@@ -57,7 +57,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should validate fields with validator when validator is provided', async function() {
-      const result = await schema.process(
+      const result = await schema.validate(
         { validatedField: 'valid' },
         { validator }
       );
@@ -67,7 +67,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should throw when validation fails', async function() {
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           { validatedField: '123' },
           { validator }
         );
@@ -76,7 +76,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should not validate when no validator is provided', async function() {
       // This should pass even though validation would fail
-      const result = await schema.process({ validatedField: '123' });
+      const result = await schema.validate({ validatedField: '123' });
       assert.equal(result.validatedField, '123');
     });
   });
@@ -87,7 +87,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should allow known fields in non-strict mode', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         knownField: 'value',
         unknownField: 'value'
       });
@@ -98,7 +98,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should throw on unknown fields in strict mode', async function() {
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             knownField: 'value',
             unknownField: 'value'
@@ -124,7 +124,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
         overriddenField: 'parent-override-value'
       };
 
-      const result = await schema.process(
+      const result = await schema.validate(
         {
           // Only override one of the inheritable fields
           overriddenField: 'child-override-value'

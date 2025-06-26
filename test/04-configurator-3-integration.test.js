@@ -35,8 +35,8 @@ describe('Configurator Integration Tests', function() {
       schema: schema,
       sources: [
         new ObjectSource(),
-        new EnvironmentSource('MYAPP'),
-        new CommandLineSource()
+        new EnvironmentSource('MyApp'),
+        new CommandLineSource('MyApp')
       ]
     });
   });

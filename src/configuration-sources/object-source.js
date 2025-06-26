@@ -5,7 +5,7 @@ import { ConfigurationSource } from './configuration-source.js'
 export class ObjectSource extends ConfigurationSource
 {
   constructor(options) {
-    super('object-source', options?.sequence || ConfigurationSource.DefaultSequence.BASE);
+    super('object-source', options?.sequence || ConfigurationSource.DefaultSequence.APP_DEFAULTS);
     this.contextFieldName = options?.contextFieldName ?? 'data';
   }
 

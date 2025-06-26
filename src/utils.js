@@ -23,6 +23,14 @@ function wordsToCamelCase(words) {
   ).join('');
 }
 
+// Convert normalized words array to camelCase
+function wordsToPascalCase(words) {
+  if (words.length === 0) return '';
+  return words.map(word =>
+         word.charAt(0).toUpperCase() + word.slice(1)
+  ).join('');
+}
+
 // Convert normalized words array to CONSTANT_CASE
 function wordsToConstantCase(words) {
   return words.map(word => word.toUpperCase()).join('_');
@@ -38,12 +46,21 @@ export function toCamelCase(str) {
   return wordsToCamelCase(normalizeToWords(str));
 }
 
+export function toPascalCase(str) {
+  return wordsToPascalCase(normalizeToWords(str));
+}
+
 export function toConstantCase(str) {
   return wordsToConstantCase(normalizeToWords(str));
 }
 
 export function toKebabCase(str) {
   return wordsToKebabCase(normalizeToWords(str));
+}
+
+function isPlainObject(obj) {
+  return Object.prototype.toString.call(obj) === '[object Object]' &&
+         (obj.constructor === Object || obj.constructor === undefined);
 }
 
 export function deepMerge(target, ...sources) {
@@ -53,7 +70,7 @@ export function deepMerge(target, ...sources) {
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (isObject(source[key])) {
+      if (isPlainObject(source[key])) {
         if (!target[key]) Object.assign(target, { [key]: {} });
         deepMerge(target[key], source[key]);
       } else {
@@ -104,7 +121,7 @@ export function deepAssign(object, path, value) {
 }
 
 /**
- * Convert value to specified type
+ * Convert value to the specified type
  * @private
  */
 export function convertValue(value, type) {
@@ -133,6 +150,10 @@ export function convertValue(value, type) {
       return [value]; // Single value becomes array
     case 'string':
       return String(value);
+    case 'module':
+      if (typeof value === 'object') return value;
+
+      throw new Error(`invalid module value ${value}`);
     default:
       throw new Error(`Unknown schema value type '${type}'`)
   }

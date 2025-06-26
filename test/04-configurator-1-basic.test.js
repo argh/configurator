@@ -12,7 +12,7 @@ describe('Configurator - Basic', function() {
 
   describe('#constructor', function() {
     it('should create a configurator with default options', function() {
-      assert.equal(configurator.APP_NAME, 'TEST_APP');
+      assert.equal(configurator.appName, 'TEST_APP');
       assert.ok(configurator.schema instanceof ConfigurationSchema);
       assert.equal(configurator.sources.length, 3); // Default sources
     });
@@ -25,7 +25,7 @@ describe('Configurator - Basic', function() {
         sources
       });
 
-      assert.equal(customConfigurator.APP_NAME, 'CUSTOM_APP');
+      assert.equal(customConfigurator.appName, 'CustomApp');
       assert.strictEqual(customConfigurator.schema, schema);
       assert.strictEqual(customConfigurator.sources, sources);
     });

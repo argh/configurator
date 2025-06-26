@@ -29,7 +29,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
     });
 
     it('should process hierarchical configuration correctly', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         rootString: 'root string',
         rootNumber: 42,
         section1: {
@@ -56,7 +56,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
     });
 
     it('should handle missing sections', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         rootString: 'root string',
         rootNumber: 42,
         // section1 is missing
@@ -70,7 +70,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
     });
 
     it('should handle partial sections', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         rootString: 'root string',
         section1: {
           nestedBoolean: true
@@ -103,7 +103,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
     });
 
     it('should validate all levels when provided validator', async function() {
-      const result = await schema.process(
+      const result = await schema.validate(
         {
           rootField: 'valid',
           section: {
@@ -119,7 +119,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
     it('should throw when validation fails at root level', async function() {
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             rootField: 'INVALID',
             section: {
@@ -133,7 +133,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
     it('should throw when validation fails at nested level', async function() {
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             rootField: 'valid',
             section: {
@@ -175,7 +175,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
     });
 
     it('should process a complete configuration with all levels', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         appName: 'TestApp',
         version: '2.0.0',
         debug: true,
@@ -218,7 +218,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
     it('should use defaults for missing values', async function() {
       // Provide only required fields
-      const result = await schema.process({
+      const result = await schema.validate({
         appName: 'MinimalApp',
         database: {
           name: 'minimaldb'
@@ -248,7 +248,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
     it('should throw when required fields are missing', async function() {
       await assert.rejects(async () => {
-        await schema.process({
+        await schema.validate({
           // appName is missing (required)
           database: {
             // name is missing (required)
@@ -260,7 +260,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
       }, /Required field 'appName' is missing/);
 
       await assert.rejects(async () => {
-        await schema.process({
+        await schema.validate({
           appName: 'MissingDBApp',
           // database section is present but missing required field
           database: {}
@@ -284,7 +284,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
         });
 
       // Valid configuration
-      const validResult = await schema.process(
+      const validResult = await schema.validate(
         {
           appName: 'ValidApp',
           version: '2.1.0',
@@ -303,7 +303,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
       // Invalid version format
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             appName: 'InvalidApp',
             version: 'not-semver',
@@ -315,7 +315,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
       // Invalid port range
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             appName: 'InvalidApp',
             server: { port: 80 }, // Below min of 1024

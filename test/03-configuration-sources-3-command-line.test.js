@@ -7,7 +7,7 @@ describe('CommandLineSource', function() {
   let schema;
 
   beforeEach(function() {
-    source = new CommandLineSource();
+    source = new CommandLineSource('myapp');
     schema = new ConfigurationSchema();
   });
 

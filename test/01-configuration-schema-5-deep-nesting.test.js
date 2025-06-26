@@ -52,7 +52,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
     });
 
     it('should process a complete deeply nested configuration', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         appName: 'DeepApp',
         version: '3.0.0',
         server: {
@@ -116,7 +116,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should use defaults for missing deep properties', async function() {
       // Provide only required fields and a few customizations
-      const result = await schema.process({
+      const result = await schema.validate({
         appName: 'MinimalDeepApp',
         server: {
           ssl: {
@@ -162,7 +162,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
     });
 
     it('should handle completely empty sections', async function() {
-      const result = await schema.process({
+      const result = await schema.validate({
         appName: 'EmptySectionsApp',
         server: {},
         database: {
@@ -239,7 +239,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should validate fields at all levels', async function() {
       // All valid values
-      const result = await schema.process(
+      const result = await schema.validate(
         {
           rootField: 'valid',
           level1: {
@@ -263,7 +263,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should detect validation errors at the deepest level', async function() {
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             rootField: 'valid',
             level1: {
@@ -283,7 +283,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should detect unknown fields in strict mode at any level', async function() {
       await assert.rejects(async () => {
-        await schema.process(
+        await schema.validate(
           {
             rootField: 'valid',
             level1: {

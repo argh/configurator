@@ -23,5 +23,8 @@
   },
   "devDependencies": {
     "mocha": "^10.2.0"
+  },
+  "dependencies": {
+    "@v0.net/argh-logger": "^0.1.0"
   }
 }

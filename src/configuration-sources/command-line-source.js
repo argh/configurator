@@ -1,4 +1,4 @@
-import { deepAssign, toKebabCase } from '../utils.js';
+import { deepAssign, toCamelCase, toKebabCase } from '../utils.js';
 import { ConfigurationSource } from './configuration-source.js';
 
 /**
@@ -10,16 +10,39 @@ export class CommandLineSource extends ConfigurationSource
     super('command-line-source', options?.sequence || ConfigurationSource.DefaultSequence.ARGUMENTS);
 
     this.contextFieldName = options?.contextFieldName ?? 'argv'
+
+    this.helpOption = options?.helpOption ?? 'help';
+    this.helpFlag = options?.helpFlag ?? 'h';
+
+    this.configOption = options?.configOption ?? 'config';
+    this.configFlag = options?.configFlag ?? 'C';
+
+    this.configContextFieldName = options?.configContextFieldName ?? 'config';
   }
 
-  generateOptions(schema) {
+  generateOptions(schema, context) {
 
     // generate long options;
     const options = new Map();
 
-    for (const [fieldPath, fieldOptions] of schema.getAllFieldPaths()) {
-      const longOption = toKebabCase(fieldPath);
-      options.set(longOption, {...fieldOptions, longOption})
+    const appName = context?.appName;
+
+    const allowedTypes = ['boolean', 'string', 'number', 'array'];
+
+    for (const [fieldPath, fieldOptions] of schema.getAllFieldPaths({hidden: false})) {
+      if (allowedTypes.indexOf(fieldOptions.type) === -1) {
+        continue;
+      }
+
+      let longOption;
+      if (appName && fieldPath.indexOf(`${toCamelCase(appName)}.`) === 0) {
+        longOption = toKebabCase(fieldPath.substring(fieldPath.indexOf('.') + 1));
+      }
+      else {
+        longOption = toKebabCase(fieldPath);
+      }
+
+      options.set(longOption, {...fieldOptions, longOption, isTopLevel: fieldPath.indexOf('.') === -1})
     }
 
     const flags = new Map();
@@ -76,7 +99,7 @@ export class CommandLineSource extends ConfigurationSource
     const argv = context[this.contextFieldName] ?? process.argv;
 
 // Skip 'node' and script name if this looks like process.argv
-    const args = argv.length > 2 && argv[0].includes('node') ? argv.slice(2) : argv;
+    const args = argv.length >= 2 && argv[0].includes('node') ? argv.slice(2) : argv;
 
 //    const config = {};
 
@@ -84,7 +107,7 @@ export class CommandLineSource extends ConfigurationSource
     const mainField = schema.getMainField();
     const mainValues = [];
 
-    const {options, aliases, flags} = this.generateOptions(schema);
+    const {options, aliases, flags} = this.generateOptions(schema, context);
 
     let i = 0;
 
@@ -98,9 +121,13 @@ export class CommandLineSource extends ConfigurationSource
         return null;
       }
     }
-    const peekArgumentValue = () => {
+    const peekArgumentValue = (incrementIfFound = false) => {
       try {
-        return (i < args.length && `${args[i]}`.charAt(0) !== '-') ? args[i] : null
+        let ret = (i < args.length && `${args[i]}`.charAt(0) !== '-') ? args[i] : null;
+        if (ret && incrementIfFound) {
+          i++;
+        }
+        return ret;
       }
       catch (err) {
         return null;
@@ -119,27 +146,44 @@ export class CommandLineSource extends ConfigurationSource
       }
 
       if (arg.startsWith('--')) {
-        // Handle help flags specially
-        if (arg === '--help') {
-
-          let showAdvanced = false;
-          if (peekArgumentValue() === 'advanced') {
-            i++;
-            showAdvanced = true;
-          }
-          if (showAdvanced) {
-            console.log(this.help('command', true));
-          } else {
-            console.log(this.help('command', false));
-          }
-          process.exit(0);
-        }
-
         // Long option: --option or --option=value
         const [optionPart, ...valueParts] = arg.slice(2).split('=');
         const kebabName = optionPart;
         const hasInlineValue = valueParts.length > 0;
         const inlineValue = valueParts.join('=');
+
+        // Handle help flags specially
+        if (this.helpOption && arg === `--${this.helpOption}`) {
+          let showAdvanced = false;
+          if (hasInlineValue && inlineValue === 'advanced') {
+            showAdvanced = true;
+          }
+          else if (peekArgumentValue(true) === 'advanced') {
+            showAdvanced = true;
+          }
+          console.log(this.help(schema, context, showAdvanced));
+          process.exit(0);
+        }
+
+        if (this.configOption && arg === `--${this.configOption}`) {
+          let configPath;
+
+          if (hasInlineValue) {
+            configPath = inlineValue;
+          }
+          else {
+            configPath = getArgument();
+          }
+          if (!configPath) {
+            throw new Error(`missing path for ${this.configOption}`);
+          }
+          if (configPath.startsWith('-')) {
+            throw new Error(`invalid path for --${this.configOption}: "${configPath}"`);
+          }
+          context[this.configContextFieldName] = configPath;   // setting config path in context for use in downstream source(s)
+          continue;
+        }
+
 
         let value;
 
@@ -201,6 +245,24 @@ export class CommandLineSource extends ConfigurationSource
           const isLastOption = (j === shortOptions.length - 1);
 
           let optionData;
+
+          if (this.helpFlag && shortOption === this.helpFlag) {
+            const showAdvanced = (isLastOption && peekArgumentValue(true) === 'advanced');
+
+            console.log(this.help(schema, context, showAdvanced));
+            process.exit(0);
+          }
+
+          if (this.configFlag && shortOption === this.configFlag) {
+            const configPath = isLastOption ? peekArgumentValue(true) : null;
+
+            if (!configPath) {
+              throw new Error(`missing path for -${this.configFlag}`);
+            }
+
+            context[this.configContextFieldName] = configPath;   // setting config path in context for use in downstream source(s)
+            continue;
+          }
 
           if (flags.has(shortOptions[j])) {
             optionData = flags.get(shortOptions[j]);
@@ -265,154 +327,16 @@ export class CommandLineSource extends ConfigurationSource
 
   /**
    * Generate help text based on schema
-   * @param {string} programName - Name of the program
+   * @param {ConfigurationSchema} schema - Schema to use for generating help text
+   * @param {object} context - Context to use for generating help text
    * @param {boolean} showAdvanced - Whether to show advanced options
    * @returns {string} Formatted help text
    */
-  help(programName = 'command', showAdvanced = false) {
-    const fields = this.schema.getFields();
-    const allPaths = this.schema.getAllFieldPaths();
-    const mainField = this.schema.getMainField();
+  help(schema, context, showAdvanced = false) {
 
-    let help = `Usage: ${programName}`;
+    let help = '';
 
-    // Add main field to usage if it exists
-    if (mainField && !mainField.options.hidden &&
-        (!mainField.options.advanced || showAdvanced)) {
-      const mainName = mainField.name;
-      help += mainField.options.required ? ` <${mainName}>` : ` [${mainName}]`;
-      if (mainField.options.type === 'array') {
-        help += '...';
-      }
-    }
-
-    help += ' [options]\n\n';
-
-    // Main field description
-    if (mainField && !mainField.options.hidden &&
-        (!mainField.options.advanced || showAdvanced)) {
-      help += 'Arguments:\n';
-      help += `  ${mainField.name.padEnd(30)} ${mainField.options.description}`;
-      if (mainField.options.inherit) {
-        help += ' [inherited]';
-      }
-      help += '\n\n';
-    }
-
-    // Options section
-    help += 'Options:\n';
-
-    // Root fields first
-    for (const [fieldName, fieldOptions] of fields) {
-      // Skip hidden fields
-      if (fieldOptions.hidden) continue;
-      // Skip advanced fields unless requested
-      if (fieldOptions.advanced && !showAdvanced) continue;
-      // Skip main field (already handled above)
-      if (fieldOptions.main) continue;
-
-      const kebabName = this._camelToKebab(fieldName);
-      let optionLine = '  ';
-
-      // Find the flag alias for this field
-      const flagAlias = [...this.flagAliases.entries()]
-        .find(([flag, name]) => name === fieldName)?.[0];
-
-      if (flagAlias) {
-        optionLine += `-${flagAlias}, `;
-      } else {
-        optionLine += '    ';
-      }
-
-      if (fieldOptions.type === 'boolean') {
-        optionLine += `--${kebabName}`;
-      } else {
-        optionLine += `--${kebabName} <value>`;
-      }
-
-      optionLine = optionLine.padEnd(35);
-      optionLine += fieldOptions.description;
-
-      if (fieldOptions.default !== undefined) {
-        optionLine += ` (default: ${fieldOptions.default})`;
-      }
-
-      if (fieldOptions.required) {
-        optionLine += ' [required]';
-      }
-
-      if (fieldOptions.advanced) {
-        optionLine += ' [advanced]';
-      }
-
-      help += optionLine + '\n';
-    }
-
-    // Child fields grouped by child name
-    const childGroups = new Map();
-    for (const [path, fieldOptions] of allPaths) {
-      if (fieldOptions.childName) {
-        // Skip hidden fields
-        if (fieldOptions.hidden) continue;
-        // Skip advanced fields unless requested
-        if (fieldOptions.advanced && !showAdvanced) continue;
-
-        if (!childGroups.has(fieldOptions.childName)) {
-          childGroups.set(fieldOptions.childName, []);
-        }
-        childGroups.get(fieldOptions.childName).push({ path, fieldOptions });
-      }
-    }
-
-    for (const [childName, childFields] of childGroups) {
-      help += `\n${childName.charAt(0).toUpperCase() + childName.slice(1)} Options:\n`;
-
-      for (const { path, fieldOptions } of childFields) {
-        const kebabName = `${this._camelToKebab(fieldOptions.childName)}-${this._camelToKebab(fieldOptions.fieldName)}`;
-        let optionLine = '  ';
-
-        // Find child alias
-        const childAlias = [...this.childAliases.entries()]
-          .find(([alias, aliasPath]) => aliasPath === path)?.[0];
-
-        if (childAlias) {
-          optionLine += `-${childAlias}, `;
-        } else {
-          optionLine += '    ';
-        }
-
-        if (fieldOptions.type === 'boolean') {
-          optionLine += `--${kebabName}`;
-        } else {
-          optionLine += `--${kebabName} <value>`;
-        }
-
-        optionLine = optionLine.padEnd(35);
-        optionLine += fieldOptions.description;
-
-        if (fieldOptions.default !== undefined) {
-          optionLine += ` (default: ${fieldOptions.default})`;
-        }
-
-        if (fieldOptions.required) {
-          optionLine += ' [required]';
-        }
-
-        if (fieldOptions.advanced) {
-          optionLine += ' [advanced]';
-        }
-
-        if (fieldOptions.inherit) {
-          optionLine += ' [inherited]';
-        }
-
-        if (fieldOptions.inheritable) {
-          optionLine += ' [inheritable]';
-        }
-
-        help += optionLine + '\n';
-      }
-    }
+    // TODO
 
     // Add footer for advanced options if not showing them
     if (!showAdvanced && this.schema.hasAdvancedFields()) {
