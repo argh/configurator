@@ -31,6 +31,14 @@ function wordsToPascalCase(words) {
   ).join('');
 }
 
+function wordsToHeadline(words) {
+  if (words.length === 0) return '';
+  return words.map(word =>
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+
+}
+
 // Convert normalized words array to CONSTANT_CASE
 function wordsToConstantCase(words) {
   return words.map(word => word.toUpperCase()).join('_');
@@ -56,6 +64,10 @@ export function toConstantCase(str) {
 
 export function toKebabCase(str) {
   return wordsToKebabCase(normalizeToWords(str));
+}
+
+export function toHeadline(str) {
+  return wordsToHeadline(normalizeToWords(str));
 }
 
 function isPlainObject(obj) {

@@ -1,13 +1,26 @@
 import { randomUUID } from 'node:crypto';
 import { convertValue, deepAssign, toCamelCase, toKebabCase } from './utils.js';
+import { Types } from './types.js';
+import { Validator } from './validator.js';
 /**
  * Configuration field definition and validation schema
  */
 export class ConfigurationSchema {
-  constructor() {
+  constructor(options) {
     this.fields = new Map();
     this.children = new Map();
-    this.id = randomUUID()
+    this.id = randomUUID();
+
+    this.types = options?.types ?? new Types();
+    if (!this.types) {
+      throw new Error('ConfigurationSchema requires Types');
+    }
+
+    this.validator = options?.validator ?? new Validator()
+    if (!this.validator) {
+      throw new Error('ConfigurationSchema requires Validator');
+    }
+    this.category = options?.category;
   }
 
   /** @typedef {Object} FieldOptions
@@ -42,27 +55,10 @@ export class ConfigurationSchema {
     // todo - allow private extended options and don't smoosh everything together into one object
     //        e.g. make moduleName a private contract with its type handler
 
-    let fieldOptions = {
-      name,
-      type: options.type || 'string',
-      default: options.default,
-      required: options.required || false,
-      description: options.description || '',
-      flagHint: options.flagHint,
-      validator: options.validator,
-      main: options.main || false,                // todo - rename
-      advanced: options.advanced || false,
-      hidden: options.hidden || false,
-      inherit: options.inherit || false
-    };
-    if (fieldOptions.type === 'module') {
-      fieldOptions.moduleName = options.moduleName ?? toKebabCase(name);
-      fieldOptions.required = options.required ?? true;  // modules default to required
-    }
-    if (options.category) {
-      fieldOptions.category = options.category;
-    }
+    let fieldOptions = {...options, name, type: options.type || 'string', required: options.required ?? false, description: options.description ?? ''};
+
     this.fields.set(name, fieldOptions);
+    this._fpCache = null;
     return this;
   }
 
@@ -87,22 +83,19 @@ export class ConfigurationSchema {
       throw new Error(`configuration schema child ${name} already defined as a field`);
     }
 
-    const childSchema = options.schema ?? new ConfigurationSchema();
-    if (options.category) {
-      childSchema.exclusive(options.category);
-    }
+    const childSchema = options.schema ?? new ConfigurationSchema({validator: this.validator, types: this.types, category: options.category});
 
     this.children.set(name, childSchema);
-
+    this._fpCache = null;
     return childSchema;
   }
 
 
   async processAssignments(fieldPathAssignmentsList, options) {
-
-    let validator = options?.validator;
-    let types = options?.types;
     let strict = options?.strict || false;
+
+    let types = options?.types ?? this.types;
+    let validator = options?.validator ?? this.validator;
     const configuration = options?.configuration ?? {};
 
     let allFields = this.getAllFieldPaths();
@@ -178,16 +171,14 @@ export class ConfigurationSchema {
     }
 
     // note: we deliberately don't pass "types" down, as we've already done type resolution.
-    return await this.validate(configuration, {validator, strict, categories});
+    return await this.validate(configuration, {types: null, strict, categories});
   }
 
   // maybe this should be renamed to validate?
   async validate(inputConfig, options) {
-
-    let validator = options?.validator;
-    let types = options?.types;
-
     let strict = options?.strict || false;
+    let types = options?.types ?? this.types;
+    let validator = options?.validator ?? this.validator;
 
     // todo - validate is hard to call correctly, you need to precompute category/schema associations.
     //        without it being pre-populated, it thinks that missing required fields inside pruned children are an error.
@@ -206,6 +197,11 @@ export class ConfigurationSchema {
     for (const [fieldName, fieldOptions] of this.fields) {
       let value = inputConfig[fieldName];
 
+      // todo - consider adding a "resolveDefaults" flag instead of checking whether types is set
+      if (value === undefined && fieldOptions.default !== undefined && types) {
+        value = fieldOptions.default;
+      }
+
       // Skip undefined optional fields
       if (value === undefined) {
         if (fieldOptions.required) {
@@ -214,6 +210,9 @@ export class ConfigurationSchema {
         else {
           continue;
         }
+      }
+      if (strict && types && !types.getType(fieldOptions.type)) {
+        throw new Error(`Unknown type '${fieldOptions.type}' for field '${fieldName}'`);
       }
       try {
         if (types) {
@@ -244,7 +243,7 @@ export class ConfigurationSchema {
 
       try {
         const childOutputConfig = await childSchema.validate(childInputConfig,
-          {validator, types, strict, categories});
+          {types, validator, strict, categories});
 
         if (Object.keys(childOutputConfig).length > 0) {
           outputConfig[childName] = childOutputConfig;
@@ -274,16 +273,13 @@ export class ConfigurationSchema {
     return new Map(this.children);
   }
 
-  /**
-   * Get the main field (field with main: true)
-   */
-  getMainField() {
-    for (const [fieldName, fieldOptions] of this.fields) {
-      if (fieldOptions.main) {
-        return { name: fieldName, options: fieldOptions };
+  getTaggedField(tag) {
+    for (const [fieldName, fieldOptions] of this.getAllFieldPaths()) {
+      if (fieldOptions[tag]) {
+        return fieldOptions;
       }
     }
-    return null;
+    return undefined;
   }
 
   /**
@@ -299,10 +295,15 @@ export class ConfigurationSchema {
     return false;
   }
 
+
+  _fpCache = null;
   /**
    * Get all field paths including nested ones
    */
   getAllFieldPaths(query = {}) {
+    if (this._fpCache) {
+      return this._fpCache;
+    }
     const paths = new Map();
 
     function skip(fo = {}) {
@@ -337,7 +338,7 @@ export class ConfigurationSchema {
         })
       }
     }
-
+    this._fpCache = paths;
     return paths;
 
   }

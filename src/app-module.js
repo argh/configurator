@@ -266,12 +266,13 @@ export class AppModule extends EventEmitter
     }
 
     if (!this.devMode) {
+      /*
       this._uncaughtExceptionHandler = this._handleUncaughtException.bind(this);
       process.on('uncaughtException', this._uncaughtExceptionHandler);
 
       this._unhandledRejectionHandler = this._handleUnhandledRejection.bind(this);
       process.on('unhandledRejection', this._unhandledRejectionHandler);
-
+*/
       this._sigintHandler = this._handleSIGINT.bind(this);
       process.on('SIGINT', this._sigintHandler);
 

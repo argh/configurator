@@ -4,11 +4,9 @@ import { Validator } from '../src/validator.js';
 
 describe('ConfigurationSchema - Hierarchical Schemas', function() {
   let schema;
-  let validator;
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validator();
   });
 
   describe('Basic hierarchy', function() {
@@ -109,8 +107,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
           section: {
             nestedField: '123'
           }
-        },
-        { validator }
+        }
       );
 
       assert.equal(result.rootField, 'valid');
@@ -125,8 +122,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
             section: {
               nestedField: '123'
             }
-          },
-          { validator }
+          }
         );
       }, /Bad value for field 'rootField'/);
     });
@@ -140,7 +136,6 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
               nestedField: 'abc' // Should be digits only
             }
           },
-          { validator }
         );
       }, /Bad value for field 'nestedField'/);
     });
@@ -270,13 +265,13 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
 
     it('should apply validators on all levels when provided', async function() {
       // Add some simple validators
-      schema.field('version', { 
+      schema.field('subversion', {
         validator: /^\d+\.\d+\.\d+$/, // Semver format
         type: 'string', 
         default: '1.0.0' 
       });
 
-      schema.child('server')
+      schema.child('swerver')
         .field('port', { 
           validator: { $range: { min: 1024, max: 65535 } },
           type: 'number', 
@@ -288,40 +283,37 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
         {
           appName: 'ValidApp',
           version: '2.1.0',
-          server: {
+          swerver: {
             port: 8080
           },
           database: {
             name: 'validdb'
           }
-        },
-        { validator }
+        }
       );
 
       assert.equal(validResult.version, '2.1.0');
-      assert.equal(validResult.server.port, 8080);
+      assert.equal(validResult.swerver.port, 8080);
 
       // Invalid version format
       await assert.rejects(async () => {
         await schema.validate(
           {
             appName: 'InvalidApp',
-            version: 'not-semver',
+            subversion: 'not-semver',
             database: { name: 'testdb' }
-          },
-          { validator }
+          }
         );
-      }, /Bad value for field 'version'/);
+      }, /Bad value for field 'subversion'/);
 
       // Invalid port range
       await assert.rejects(async () => {
         await schema.validate(
           {
             appName: 'InvalidApp',
-            server: { port: 80 }, // Below min of 1024
+            swerver: { port: 80 }, // Below min of 1024
             database: { name: 'testdb' }
           },
-          { validator }
         );
       }, /Bad value for field 'port'/);
     });

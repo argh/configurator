@@ -291,7 +291,7 @@ export class Validator {
     });
 
     // Asynchronous validators for file system operations
-    this.register('existingfile', async (value) => {
+    this.register('file', async (value) => {
       try {
         const stat = await fs.stat(value);
         if (!stat.isFile()) {
@@ -306,7 +306,7 @@ export class Validator {
       }
     });
 
-    this.register('existingdir', async (value) => {
+    this.register('directory', async (value) => {
       try {
         const stat = await fs.stat(value);
         if (!stat.isDirectory()) {
@@ -476,6 +476,18 @@ export class Validator {
           }
           return value;
         };
+
+      case '$each':
+        const validatorFunction = this.getValidatorFunction(args);
+        return async (value) => {
+          if (!Array.isArray(value)) {
+            throw new Error('Value must be an array');
+          }
+          for (const item of value) {
+            await this.executeValidator(validatorFunction, item);
+          }
+          return value;
+        }
 
       default:
         // Check if it's a registered validator with arguments

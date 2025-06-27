@@ -95,7 +95,7 @@ export class ModuleManager extends ConfigurationSource
 
     const definition = { name: moduleName, ModuleClass, schema, managed: !!instance, dependencies: new Set()};
 
-    this.configurator.types.defineType(moduleName,
+    schema.types.defineType(moduleName,
       (value, config, type) => {
         return this.resolve(value, config, type);
       },
@@ -119,7 +119,7 @@ export class ModuleManager extends ConfigurationSource
       let aliasModule = this._modules.get(provides);
 
       if (aliasModule && !aliasModule.providers instanceof Set) {
-        throw new Error(`cannot register ${moduleName} with conflicting provides alias ${provides}`);
+        throw new Error(`Cannot register ${moduleName} with conflicting provides alias ${provides}`);
       }
 
       if (!aliasModule) {
@@ -207,7 +207,7 @@ export class ModuleManager extends ConfigurationSource
 
     let module = { name: moduleName, instanceResolver, dependencies: new Set()};
 
-    this.configurator.types.defineType(moduleName,
+    this.configurator.schema.types.defineType(moduleName,
       (value, config, type) => {
         return this.resolve(value, config, type);
       },
@@ -225,7 +225,7 @@ export class ModuleManager extends ConfigurationSource
 
     let module = { name: moduleName, value, dependencies: new Set()};
 
-    this.configurator.types.defineType(moduleName, () => value, v => { return v === value }, {module: true, lifecycle: false});
+    this.configurator.schema.types.defineType(moduleName, () => value, v => { return v === value }, {module: true, lifecycle: false});
     this._modules.set(moduleName, module);
     return module;
   }
@@ -288,7 +288,7 @@ export class ModuleManager extends ConfigurationSource
       module.instance = new module.ModuleClass();
 
       for (let [, field] of module.schema.getAllFieldPaths()) {
-        let type = this.configurator.types.getType(field.type);
+        let type = this.configurator.schema.types.getType(field.type);
 
         if (type?.options?.module) {
           module.dependencies.add(toKebabCase(field.type));
@@ -376,7 +376,7 @@ export class ModuleManager extends ConfigurationSource
     const fieldValues = new Map();
 
     for (let [path, field] of fieldPaths) {
-      let type = this.configurator.types.getType(field.type);
+      let type = schema.types.getType(field.type);
 
       if (!type?.options?.module) {
         continue;
@@ -522,7 +522,10 @@ function processConfigurables(schema, configurables) {
     let c = {...configurable};
 
     if (configurable.field) {
-      if (typeof configurable.type === 'function') {
+      if (!configurable.type) {
+        c.type = 'string';
+      }
+      else if (typeof configurable.type === 'function') {
         const moduleName = toKebabCase(getModuleSetting(configurable.type, 'name') ?? configurable.type?.name );
 
         if (!moduleName) {

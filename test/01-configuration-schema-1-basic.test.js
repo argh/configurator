@@ -79,21 +79,21 @@ describe('ConfigurationSchema - Basic', function() {
     });
   });
 
-  describe('#getMainField()', function() {
-    it('should return null when no main field exists', function() {
+  describe('#getGeneralField()', function() {
+    it('should return undefined when no general field exists', function() {
       schema.field('field1').field('field2');
-      assert.equal(schema.getMainField(), null);
+      assert.equal(schema.getTaggedField('general'), undefined);
     });
 
-    it('should return the main field when one exists', function() {
+    it('should return the general field when one exists', function() {
       schema
         .field('field1')
-        .field('mainField', { main: true })
+        .field('mainField', { general: true })
         .field('field2');
 
-      const mainField = schema.getMainField();
+      const mainField = schema.getTaggedField('general');
       assert.equal(mainField.name, 'mainField');
-      assert.equal(mainField.options.main, true);
+      assert.equal(mainField.general, true);
     });
   });
 

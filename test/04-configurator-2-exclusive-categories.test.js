@@ -22,11 +22,11 @@ describe('Configurator - Exclusive Categories', function() {
     remoteSchema.field('credentials', { type: 'string' });
 
     // Add a non-exclusive section
-    schema.child('general')
+    schema.child('blah')
       .field('name', { type: 'string' })
       .field('debug', { type: 'boolean', default: false });
 
-    configurator = new Configurator('TestApp', {
+    configurator = new Configurator({
       schema: schema,
       sources: [
         new ObjectSource({contextFieldName: 'low'}),
@@ -40,7 +40,7 @@ describe('Configurator - Exclusive Categories', function() {
     it('should handle exclusive categories within a single source', async function() {
       const context = {
         low: {
-          general: {
+          blah: {
             name: 'Test App',
             debug: true
           },
@@ -56,8 +56,8 @@ describe('Configurator - Exclusive Categories', function() {
 
       const config = await configurator.configure(context);
 
-      assert.equal(config.general.name, 'Test App');
-      assert.equal(config.general.debug, true);
+      assert.equal(config.blah.name, 'Test App');
+      assert.equal(config.blah.debug, true);
       assert.equal(config.fileStorage.path, '/var/data');
       assert.equal(config.fileStorage.quota, 1000);
       assert.equal(config.remoteStorage, undefined);
@@ -65,6 +65,7 @@ describe('Configurator - Exclusive Categories', function() {
 
     it('should override exclusive categories from different sources', async function() {
       const context = {
+
         low: {
           fileStorage: {
             path: '/var/data',
@@ -91,6 +92,7 @@ describe('Configurator - Exclusive Categories', function() {
 
     it('should handle multiple overrides of exclusive categories', async function() {
       const context = {
+
         low: {
           fileStorage: {
             path: '/var/data',
@@ -122,8 +124,9 @@ describe('Configurator - Exclusive Categories', function() {
 
     it('should keep non-exclusive sections from all sources', async function() {
       const context = {
+
         low: {
-          general: {
+          blah: {
             name: 'Low Priority'
           },
           fileStorage: {
@@ -132,7 +135,7 @@ describe('Configurator - Exclusive Categories', function() {
           }
         },
         medium: {
-          general: {
+          blah: {
             debug: true
           },
           remoteStorage: {
@@ -146,8 +149,8 @@ describe('Configurator - Exclusive Categories', function() {
       const config = await configurator.configure(context);
 
       // Non-exclusive sections should merge normally
-      assert.equal(config.general.name, 'Low Priority'); // From low
-      assert.equal(config.general.debug, true); // From medium
+      assert.equal(config.blah.name, 'Low Priority'); // From low
+      assert.equal(config.blah.debug, true); // From medium
 
       // But exclusive sections should override
       assert.equal(config.remoteStorage.url, 'https://storage.example.com');

@@ -34,8 +34,8 @@ describe('CommandLineSource', function() {
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
     });
 
-    it('should handle main field', async function() {
-      schema.field('file', { main: true });
+    it('should handle general field', async function() {
+      schema.field('file', { general: true });
 
       const context = { argv: ['filename.txt'] };
 

@@ -29,7 +29,7 @@ class UserLocalStorage {
   static moduleInfo = {
     configurables: [
       {field: 'logger', type: 'Logger'},
-      {field: 'path', validator: '$existingdir', default: '/tmp'},
+      {field: 'path', validator: '$directory', default: '/tmp'},
       {field: 'quota', type: 'number', validator: '$integer', default: 100}
     ],
     provides: 'user-storage'
@@ -62,20 +62,21 @@ class MyAppModule extends AppModule {
   static moduleInfo = {
     name: 'myapp',
     configurables: [
-      { field: 'debug', type: 'boolean', default: false },
+      { field: 'debug', type: 'boolean', default: false, description: 'enable debugging' },
       { field: 'cluster', type: 'string', required: true },
-      { field: 'etcd', type: 'string', validator: '$url' },
+      { field: 'etcd', type: 'string', validator: '$url', advanced: true },
       { child: 'web', configurables: [
           { field: 'hostname', type: 'string', validator: {$and: ['$hostname', /.+example\.com$/]}, required: true },
           { field: 'port', type: 'number', validator: '$port', default: 443 }
         ]
       },
       { child: 'catalog', configurables: [
-          { field: 'path', type: 'string', flagHint: 'P', validator: '$existingdir' },
+          { field: 'path', type: 'string', flagHint: 'P', validator: '$directory' },
           { field: 'rating', type: 'number', validator: '$integer' }
         ]
       },
       { field: 'userManager', type: 'user-manager' },
+      { field: 'files', type: 'array', general: true, validator: {$each: '$file'} }
     ],
     inject: true
   }
@@ -190,12 +191,12 @@ mm2.registerAlias('Pet', (alias, config, type) => {
 mm2.register(PetGreeter);
 mm2.registerConstant('WOOT', 'yeah yeah yeah')
 
-mm2.run({
+await mm2.run({
   argv: [
     '--cat-enabled'
   ]
 })
 
 
-await moduleManager.run();
+await moduleManager.run({appName: 'myapp'});
 

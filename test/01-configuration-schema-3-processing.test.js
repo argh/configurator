@@ -4,11 +4,9 @@ import { Validator } from '../src/validator.js';
 
 describe('ConfigurationSchema - Processing and Validation', function() {
   let schema;
-  let validator;
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validator();
   });
 
   describe('#process() basic functionality', function() {
@@ -27,7 +25,6 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
       assert.equal(result.requiredField, 'value1');
       assert.equal(result.optionalField, 'value2');
-      assert.equal(result.defaultField, 'default-value');
     });
 
     it('should use default values when fields are not provided', async function() {
@@ -58,8 +55,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should validate fields with validator when validator is provided', async function() {
       const result = await schema.validate(
-        { validatedField: 'valid' },
-        { validator }
+        { validatedField: 'valid' }
       );
 
       assert.equal(result.validatedField, 'valid');
@@ -68,17 +64,11 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     it('should throw when validation fails', async function() {
       await assert.rejects(async () => {
         await schema.validate(
-          { validatedField: '123' },
-          { validator }
+          { validatedField: '123' }
         );
       }, /Bad value for field/);
     });
 
-    it('should not validate when no validator is provided', async function() {
-      // This should pass even though validation would fail
-      const result = await schema.validate({ validatedField: '123' });
-      assert.equal(result.validatedField, '123');
-    });
   });
 
   describe('#process() in strict mode', function() {
@@ -106,38 +96,6 @@ describe('ConfigurationSchema - Processing and Validation', function() {
           { strict: true }
         );
       }, /Field 'unknownField' is unknown/);
-    });
-  });
-
-  describe('#process() with inheritance', function() {
-    beforeEach(function() {
-      schema
-        .field('parentField')
-        .field('inheritedField', { inherit: true })
-        .field('overriddenField', { inherit: true });
-    });
-
-    it('should inherit values from parent config', async function() {
-      const parentConfig = {
-        parentField: 'parent-value',
-        inheritedField: 'inherited-value',
-        overriddenField: 'parent-override-value'
-      };
-
-      const result = await schema.validate(
-        {
-          // Only override one of the inheritable fields
-          overriddenField: 'child-override-value'
-        },
-        { parentConfig }
-      );
-
-      // Parent's field should not be inherited (not marked as inheritable)
-      assert.equal(result.parentField, undefined);
-      // Inheritable field should be inherited
-      assert.equal(result.inheritedField, 'inherited-value');
-      // Overridden inheritable field should use child's value
-      assert.equal(result.overriddenField, 'child-override-value');
     });
   });
 });

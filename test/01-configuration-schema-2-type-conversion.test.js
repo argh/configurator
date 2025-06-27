@@ -1,14 +1,13 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { Validator } from '../src/validator.js';
+import { Types } from '../src/types.js';
 
 describe('ConfigurationSchema - Type Conversion', function() {
   let schema;
-  let validator;
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validator();
   });
 
   describe('String type', function() {
@@ -161,8 +160,10 @@ describe('ConfigurationSchema - Type Conversion', function() {
 
     it('should throw error for unknown type', async function() {
       await assert.rejects(async () => {
-        await schema.validate({ unknownField: 'any-value' });
-      }, /Unknown schema value type/);
+        await schema.validate({unknownField: 'any-value'}, {strict: true});
+      }, {
+        message: /Unknown type/
+      });
     });
   });
 });

@@ -7,7 +7,7 @@ describe('EnvironmentSource', function() {
   let schema;
 
   beforeEach(function() {
-    source = new EnvironmentSource('APP');
+    source = new EnvironmentSource();
     schema = new ConfigurationSchema();
   });
 
@@ -16,7 +16,8 @@ describe('EnvironmentSource', function() {
       schema.field('port', { type: 'number' });
       schema.field('debug', { type: 'boolean' });
 
-      const context = { 
+      const context = {
+        appName: 'APP',
         env: { 
           'APP_PORT': '3000', 
           'APP_DEBUG': 'true' 
@@ -34,7 +35,8 @@ describe('EnvironmentSource', function() {
       dbSchema.field('host');
       dbSchema.field('port', { type: 'number' });
 
-      const context = { 
+      const context = {
+        appName: 'APP',
         env: { 
           'APP_DATABASE_HOST': 'localhost', 
           'APP_DATABASE_PORT': '5432' 
@@ -50,7 +52,8 @@ describe('EnvironmentSource', function() {
     it('should ignore environment variables that don\'t match schema fields', async function() {
       schema.field('port', { type: 'number' });
 
-      const context = { 
+      const context = {
+        appName: 'APP',
         env: { 
           'APP_PORT': '3000', 
           'APP_UNKNOWN': 'value' 
@@ -77,20 +80,13 @@ describe('EnvironmentSource', function() {
       dbSchema2.field('host');
       dbSchema2.field('port', { type: 'number' });
 
-      const context = { 
-        env: { 
-          'APP_MYSQL_HOST': 'mysql.example.com', 
+      const context = {
+        appName: 'APP',
+        env: {
+          'APP_MYSQL_HOST': 'mysql.example.com',
           'APP_POSTGRES_HOST': 'postgres.example.com' 
         } 
       };
-
-      // When we load with settings from both schemas in the same exclusive category,
-      // we should get an error after calling load (not _load)
-      const fieldValues = await source._load(schema, context);
-
-      // Verify both values are in the result from _load
-      assert.equal(fieldValues.get('mysql.host'), 'mysql.example.com');
-      assert.equal(fieldValues.get('postgres.host'), 'postgres.example.com');
 
       // When we call load, it should throw an error due to exclusive category conflict
       await assert.rejects(async () => {
@@ -104,7 +100,8 @@ describe('EnvironmentSource', function() {
       dbSchema.field('host');
       dbSchema.field('port', { type: 'number' });
 
-      const context = { 
+      const context = {
+        appName: 'APP',
         env: { 
           'APP_MYSQL_HOST': 'mysql.example.com', 
           'APP_MYSQL_PORT': '3306' 

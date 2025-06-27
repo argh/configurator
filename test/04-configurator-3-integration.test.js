@@ -4,6 +4,7 @@ import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { ObjectSource } from '../src/configuration-sources/object-source.js';
 import { EnvironmentSource } from '../src/configuration-sources/environment-source.js';
 import { CommandLineSource } from '../src/configuration-sources/command-line-source.js';
+import { DefaultsSource } from '../src/configuration-sources/defaults-source.js';
 
 describe('Configurator Integration Tests', function() {
   let configurator;
@@ -31,12 +32,13 @@ describe('Configurator Integration Tests', function() {
     schema.field('debug', { type: 'boolean', default: false });
 
     // Create configurator with custom sources
-    configurator = new Configurator('MyApp', {
+    configurator = new Configurator({
       schema: schema,
       sources: [
+        new DefaultsSource(),
         new ObjectSource(),
-        new EnvironmentSource('MyApp'),
-        new CommandLineSource('MyApp')
+        new EnvironmentSource(),
+        new CommandLineSource()
       ]
     });
   });
@@ -44,6 +46,7 @@ describe('Configurator Integration Tests', function() {
   describe('#configure() with multiple sources', function() {
     it('should load and merge configuration from multiple sources', async function() {
       const context = {
+        appName: 'myapp',
         data: {
           appName: 'TestApp',
           port: 3000,
@@ -74,6 +77,7 @@ describe('Configurator Integration Tests', function() {
 
     it('should handle source value overrides in different sources', async function() {
       const context = {
+        appName: 'myapp',
         data: {
           port: 3000,
           debug: false,
@@ -98,6 +102,7 @@ describe('Configurator Integration Tests', function() {
       // Object source sets local storage
       // Environment source sets web storage (should override local storage)
       const context = {
+        appName: 'myapp',
         data: {
           userLocalStorage: {
             storagePath: '/tmp/local-storage',
@@ -127,6 +132,7 @@ describe('Configurator Integration Tests', function() {
       // Environment source sets web storage
       // Command line source sets local storage (should override web storage)
       const context = {
+        appName: 'myapp',
         data: {},
         env: {
           'MYAPP_USER_WEB_STORAGE_URL': 'https://storage.example.com',
@@ -152,6 +158,7 @@ describe('Configurator Integration Tests', function() {
     it('should throw error when conflicting exclusive categories exist within a single source', async function() {
       // Command line source contains settings from both schemas in the same exclusive category
       const context = {
+        appName: 'myapp',
         data: {},
         env: {},
         argv: [
@@ -170,6 +177,7 @@ describe('Configurator Integration Tests', function() {
 
     it('should handle a full configuration example with all sources', async function() {
       const context = {
+        appName: 'myapp',
         // Low priority source
         data: {
           appName: 'BaseApp',

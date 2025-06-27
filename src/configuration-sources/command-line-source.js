@@ -1,4 +1,4 @@
-import { deepAssign, toCamelCase, toKebabCase } from '../utils.js';
+import { deepAssign, toCamelCase, toConstantCase, toHeadline, toKebabCase } from '../utils.js';
 import { ConfigurationSource } from './configuration-source.js';
 
 /**
@@ -6,6 +6,20 @@ import { ConfigurationSource } from './configuration-source.js';
  */
 export class CommandLineSource extends ConfigurationSource
 {
+  /**
+   * @typedef {object} CommandLineSourceOptions
+   * @property {string?} [contextFieldName] - Name of the field in the context object that contains the command line arguments
+   * @property {string?} [helpOption] - Name of the option that shows help
+   * @property {string?} [helpFlag] - Short name of the flag that shows help
+   * @property {string?} [configOption] - Name of the option that specifies the configuration file path
+   * @property {string?} [configFlag] - Short name of the flag that specifies the configuration file path
+   * @property {string?} [configContextFieldName] - Name of the field in the context object that contains the configuration file path
+   */
+
+
+  /**
+   * @param {CommandLineSourceOptions?} options
+   */
   constructor(options) {
     super('command-line-source', options?.sequence || ConfigurationSource.DefaultSequence.ARGUMENTS);
 
@@ -20,7 +34,7 @@ export class CommandLineSource extends ConfigurationSource
     this.configContextFieldName = options?.configContextFieldName ?? 'config';
   }
 
-  generateOptions(schema, context) {
+  _generateOptions(schema, context) {
 
     // generate long options;
     const options = new Map();
@@ -34,15 +48,21 @@ export class CommandLineSource extends ConfigurationSource
         continue;
       }
 
+      if (fieldOptions.general) {
+        continue;
+      }
+
       let longOption;
+      let isTopLevel = fieldPath.indexOf('.') === -1;
       if (appName && fieldPath.indexOf(`${toCamelCase(appName)}.`) === 0) {
         longOption = toKebabCase(fieldPath.substring(fieldPath.indexOf('.') + 1));
+        isTopLevel = true;
       }
       else {
         longOption = toKebabCase(fieldPath);
       }
 
-      options.set(longOption, {...fieldOptions, longOption, isTopLevel: fieldPath.indexOf('.') === -1})
+      options.set(longOption, {...fieldOptions, longOption, isTopLevel})
     }
 
     const flags = new Map();
@@ -96,6 +116,8 @@ export class CommandLineSource extends ConfigurationSource
    */
   async _load(schema, context) {
 
+    const appName = context?.appName;
+    
     const argv = context[this.contextFieldName] ?? process.argv;
 
 // Skip 'node' and script name if this looks like process.argv
@@ -104,10 +126,11 @@ export class CommandLineSource extends ConfigurationSource
 //    const config = {};
 
     const fieldValues = new Map();
-    const mainField = schema.getMainField();
-    const mainValues = [];
 
-    const {options, aliases, flags} = this.generateOptions(schema, context);
+    const generalField = schema.getTaggedField('general');
+    const generalValues = [];
+
+    const {options, aliases, flags} = this._generateOptions(schema, context);
 
     let i = 0;
 
@@ -138,9 +161,9 @@ export class CommandLineSource extends ConfigurationSource
       const arg = getArgument();
 
       if (arg === '--') {
-        // Everything after -- goes to main field
-        if (mainField) {
-          mainValues.push(...args.slice(i + 1));
+        // Everything after -- goes to general field
+        if (generalField) {
+          generalValues.push(...args.slice(i + 1));
         }
         break;
       }
@@ -161,7 +184,7 @@ export class CommandLineSource extends ConfigurationSource
           else if (peekArgumentValue(true) === 'advanced') {
             showAdvanced = true;
           }
-          console.log(this.help(schema, context, showAdvanced));
+          console.log(this._help(schema, context, showAdvanced));
           process.exit(0);
         }
 
@@ -249,7 +272,7 @@ export class CommandLineSource extends ConfigurationSource
           if (this.helpFlag && shortOption === this.helpFlag) {
             const showAdvanced = (isLastOption && peekArgumentValue(true) === 'advanced');
 
-            console.log(this.help(schema, context, showAdvanced));
+            console.log(this._help(schema, context, showAdvanced));
             process.exit(0);
           }
 
@@ -305,8 +328,8 @@ export class CommandLineSource extends ConfigurationSource
       }
       else {
         // Non-option argument - add to main field if it exists
-        if (mainField) {
-          mainValues.push(arg);
+        if (generalField) {
+          generalValues.push(arg);
         } else {
           throw new Error(`Unexpected argument: ${arg}`);
         }
@@ -314,9 +337,8 @@ export class CommandLineSource extends ConfigurationSource
     }
 
     // Assign main values to main field
-    if (mainField && mainValues.length > 0) {
-      // FIXME ? mainField has no path
-      fieldValues.set(mainField.name, mainField.options.type === 'array' ? mainValues : mainValues[0]);
+    if (generalField && generalValues.length > 0) {
+      fieldValues.set(generalField.path, generalField.type === 'array' ? generalValues : generalValues[0]);
     }
 
     // Validate the complete configuration
@@ -327,22 +349,184 @@ export class CommandLineSource extends ConfigurationSource
 
   /**
    * Generate help text based on schema
-   * @param {ConfigurationSchema} schema - Schema to use for generating help text
-   * @param {object} context - Context to use for generating help text
+   * @param {ConfigurationSchema} schema - Schema to use for parsing
+   * @param {object} context - collection of source-specific fields (argv, env, etc.)
    * @param {boolean} showAdvanced - Whether to show advanced options
    * @returns {string} Formatted help text
    */
-  help(schema, context, showAdvanced = false) {
+  _help(schema, context, showAdvanced = false) {
 
-    let help = '';
+    const appName = context?.appName;
 
-    // TODO
+    const {options, aliases, flags} = this._generateOptions(schema, context);
+    const generalField = schema.getTaggedField('general');
+    const generalValues = [];
+
+    let help = `Usage: ${appName} [options]`;
+
+    if (generalField) {
+      help += ` ${this._formatArgumentType(generalField)}`;
+    }
+
+    help += '\n\nOptions:\n';
+
+    // Add built-in options
+    if (this.helpOption) {
+      const helpSyntax = `  --${this.helpOption}${this.helpFlag ? `, -${this.helpFlag}` : ''}`
+        .padEnd(60);
+      help += `${helpSyntax}Show this help message\n`;
+    }
+
+    if (this.configOption) {
+      const configSyntax = `  --${this.configOption}${this.configFlag ? `, -${this.configFlag}` : ''} <path>`
+        .padEnd(60);
+      help += `${configSyntax}Specify configuration file path\n`;
+    }
+
+
+
+    let foundAdvanced = false;
+
+    // Convert options to array and sort them
+    const sortedOptions = Array.from(options.values()).sort((a, b) => {
+      // Sort by top level first
+      if (a.isTopLevel !== b.isTopLevel) {
+        return b.isTopLevel - a.isTopLevel;
+      }
+
+      if (a.schema.category !== b.schema.category) {
+        if (a.schema.category === undefined) {
+          return -1;
+        }
+        else if (b.schema.category === undefined) {
+          return 1;
+        }
+        else {
+          return a.schema.category.localeCompare(b.schema.category);
+        }
+      }
+
+      // Then alphabetically by long option name
+      return a.longOption.localeCompare(b.longOption);
+    });
+
+
+    let lastCategory = undefined;
+    let lastSchema = undefined;
+
+    // Process each option
+    for (const option of sortedOptions) {
+      // Skip hidden options and handle advanced options based on showAdvanced flag
+      if (option.hidden) continue;
+      if (option.advanced) {
+        foundAdvanced = true;
+        if (!showAdvanced) continue;
+      }
+
+      if (option.schema.category !== lastCategory) {
+        help += `\n\nCategory: ${toHeadline(option.schema.category)}\n`
+        lastCategory = option.schema.category;
+        lastSchema = option.schema.id;
+      }
+      else if (lastSchema !== option.schema.id) {
+        lastSchema = option.schema.id;
+        help += '\n';
+      }
+
+
+      // Build the option syntax
+      let optionSyntax = `  --${option.longOption}`;
+    
+      // Add any aliases
+      if (option.alias) {
+        optionSyntax += `, --${option.alias}`;
+      }
+    
+      // Add any flags
+      if (option.flag) {
+        optionSyntax += `, -${option.flag}`;
+      }
+
+      optionSyntax += ` ${this._formatArgumentType(option)}`;
+
+      // Pad the syntax column to align descriptions
+      optionSyntax = optionSyntax.padEnd(60);
+
+      // Add the option description
+      const description = option.description || '';
+
+      let markers = [];
+      if (option.advanced) {
+        markers.push('advanced');
+      }
+      if (option.required) {
+        markers.push('required');
+      }
+
+      // Add advanced marker if needed
+      const markersText = markers.length ? `(${markers.join(', ')})` : ''
+
+      help += `${optionSyntax} ${description}${markersText}\n`;
+    }
 
     // Add footer for advanced options if not showing them
-    if (!showAdvanced && this.schema.hasAdvancedFields()) {
-      help += '\nUse --help --advanced to see additional options\n';
+    if (!showAdvanced && foundAdvanced) {
+      help += '\nUse --help advanced to see additional options\n';
     }
 
     return help;
   }
+
+  _formatArgumentType(fieldData) {
+
+    let argumentTypeString;
+
+    if (fieldData.type === 'string') {
+
+      if (typeof fieldData.validator === 'string') {
+        argumentTypeString = fieldData.validator.substring(1);
+      }
+      else {
+        argumentTypeString = 'string-value'
+      }
+    }
+    else if (fieldData.type === 'number') {
+      if (typeof fieldData.validator === 'string') {
+        argumentTypeString = fieldData.validator.substring(1);
+      }
+      else {
+        argumentTypeString = 'number'
+      }
+    }
+    else if (fieldData.type === 'boolean') {
+      argumentTypeString = 'true|false'
+    }
+    else if (fieldData.type === 'array') {
+      if (typeof fieldData.validator === 'string') {
+        argumentTypeString = fieldData.validator.substring(1);  // implied $each for simple arrays
+      }
+      if (typeof fieldData.validator === 'object' && fieldData.validator['$each']) {
+        if (typeof fieldData.validator['$each'] === 'string') {
+          argumentTypeString = `${fieldData.validator['$each'].substring(1)}...`;
+        }
+        else {
+          argumentTypeString = 'value...';
+        }
+      }
+      else {
+        argumentTypeString = 'value...';
+      }
+    }
+    else {
+      argumentTypeString = 'value';
+    }
+
+    if (fieldData.required) {
+      return `<${argumentTypeString}>`;
+    }
+    else {
+      return `[${argumentTypeString}]`;
+    }
+  }
 }
+
