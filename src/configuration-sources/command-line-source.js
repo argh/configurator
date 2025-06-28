@@ -236,12 +236,13 @@ export class CommandLineSource extends ConfigurationSource
         }
         else if (optionData.type === 'array') {
           if (hasInlineValue) {
-            value = inlineValue;
+            value = inlineValue.split(',');
           }
           else {
             value = [];
             while (peekArgumentValue()) {
-              value.push(getArgument());
+              let a = getArgument();
+              value = value.concat(a.split(','));
             }
             if (value.length === 0) {
               throw new Error(`Option ${kebabName} requires one or more values`);

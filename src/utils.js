@@ -10,6 +10,7 @@ function normalizeToWords(str) {
     .split(/[^a-zA-Z0-9]+/)
     // Split on lowercase-to-uppercase transitions (but not uppercase-to-uppercase)
     .flatMap(part => part.split(/(?<=[a-z])(?=[A-Z])/))
+    .flatMap(part => part.split(/(?<=[0-9])(?=[A-Za-z])/))
     // Filter out empty strings and convert to lowercase
     .filter(word => word.length > 0)
     .map(word => word.toLowerCase());

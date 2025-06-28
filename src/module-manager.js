@@ -34,7 +34,6 @@ export class ModuleManager extends ConfigurationSource
     this.configurator.registerConfigurationSource(this);
 
     this._modules = new Map();    // name -> { ModuleClass, dependencies, configurables }
-    this._instances = new Map();      // name -> { instance, managed }
 
     // Self-register ourselves as a module
     this.registerInstance(this);
@@ -141,11 +140,10 @@ export class ModuleManager extends ConfigurationSource
       }
       aliasModule.providers.add(moduleName);
     }
-
-    this._modules.set(moduleName, definition);
     if (instance) {
-      this._instances.set(moduleName, instance);
+      definition.instance = instance;
     }
+    this._modules.set(moduleName, definition);
 
     return definition;
   }
@@ -460,8 +458,10 @@ export class ModuleManager extends ConfigurationSource
     const args = options?.args ?? [];
 
     const instances = this.instances.values().filter(instance => typeof instance[methodName] === 'function');
-    const promises = instances.map(instance => instance[methodName].apply(instance, ...args));
-
+    const promises = Array.from(instances.map(instance => instance[methodName].apply(instance, ...args)));
+    if (promises.length === 0) {
+      return;
+    }
     return Promise.race(promises);
   }
 

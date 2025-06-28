@@ -16,7 +16,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=20.9.0"
   },
   "scripts": {
     "test": "mocha --recursive --exit --node-option=--experimental-vm-modules"
