@@ -1,12 +1,11 @@
 "use strict";
 import { EventEmitter } from 'node:events';
 
-import { Logger } from '@v0.net/argh-logger';
 import { setTimeout } from 'node:timers/promises';
 
 /**
  * @module AppModule
- * Provides application-level services, including a Bunyan logger and a shutdown signal.
+ * Provides application-level services, including a logger and a shutdown signal.
  */
 
 export class AppModule extends EventEmitter
@@ -17,8 +16,8 @@ export class AppModule extends EventEmitter
       configurables: [
         {field: 'devMode', type: 'boolean', hidden: true},
         {field: 'logger', type: 'Logger'},
-        {field: 'moduleManager', type: 'ModuleManager'},
-        {field: 'tickRate', type: 'number', default: 30000, hidden: true},
+        {field: 'moduleManager', type: 'ModuleManager', hidden: true, system: true},
+        {field: 'tickRate', type: 'number', default: 30000, hidden: true, advanced: true},
       ],
       inject: true
     }
@@ -106,7 +105,9 @@ export class AppModule extends EventEmitter
    * Lifecycle terminate hook.
    */
   async terminate() {
-    this.logger.info('Application terminated');
+    if (this.logger) {
+      this.logger.info('Application terminated');
+    }
   }
 
 
@@ -146,18 +147,24 @@ export class AppModule extends EventEmitter
     try {
       await this.stop();
     } catch (err) {
-      this.logger.warn(err);
+      if (this.logger) {
+        this.logger.warn(err);
+      }
     }
     try {
       await this.terminate();
     } catch (err) {
-      this.logger.warn(err);
+      if (this.logger) {
+        this.logger.warn(err);
+      }
     }
     process.exit(code);
   }
 
   _handleUncaughtException(err) {
-    this.logger.fatal({err}, 'uncaught exception');
+    if (this.logger) {
+      this.logger.fatal({err}, 'uncaught exception');
+    }
 
     if (err && !(err instanceof Error)) {
       err = new Error(err.toString());
@@ -168,7 +175,9 @@ export class AppModule extends EventEmitter
   }
 
   _handleUnhandledRejection(err, promise) {
-    this.logger.fatal('unhandled rejection', err, promise);
+    if (this.logger) {
+      this.logger.fatal('unhandled rejection', err, promise);
+    }
     this.fatal(new Error('unhandled rejection'), 1);
 
     //        this._ste(1);

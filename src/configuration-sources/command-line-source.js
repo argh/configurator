@@ -8,14 +8,20 @@ export class CommandLineSource extends ConfigurationSource
 {
   /**
    * @typedef {object} CommandLineSourceOptions
-   * @property {string?} [contextFieldName] - Name of the field in the context object that contains the command line arguments
-   * @property {string?} [helpOption] - Name of the option that shows help
-   * @property {string?} [helpFlag] - Short name of the flag that shows help
-   * @property {string?} [configOption] - Name of the option that specifies the configuration file path
-   * @property {string?} [configFlag] - Short name of the flag that specifies the configuration file path
-   * @property {string?} [configContextFieldName] - Name of the field in the context object that contains the configuration file path
-   */
+   * @property {string} [contextFieldName] - Name of the field (default:"argv") in the context object that contains the command line arguments
+   * @property {boolean} [helpEnabled] - Enable/disable the help options.  Defaults to true.
+   * @property {string} [helpOption] - Name of the option that shows help (--help)
+   * @property {string} [helpFlag] - Short name of the flag that shows help (-h)
+   * @property {string} [helpDescription] - Override description of the help option
+   * @property {string} [helpValueDescription] - Override description of the help option value
 
+   * @property {boolean} [configEnabled] - Enable/disable the config file option. Defaults to true.
+   * @property {string} [configOption] - Name of the long option that specifies the configuration file path (--config)
+   * @property {string} [configFlag] - Short name of the flag that specifies the configuration file path (-C)
+   * @property {string} [configDescription] - Override description of the configuration file path option
+   * @property {string} [configValueDescription] - Override description of the configuration file path option value
+   * @property {string} [configContextFieldName] - Name of the field in the context object that will be set any the configuration file path
+   */
 
   /**
    * @param {CommandLineSourceOptions?} options
@@ -25,18 +31,36 @@ export class CommandLineSource extends ConfigurationSource
 
     this.contextFieldName = options?.contextFieldName ?? 'argv'
 
+    this.helpEnabled = options?.helpEnabled ?? true;
     this.helpOption = options?.helpOption ?? 'help';
     this.helpFlag = options?.helpFlag ?? 'h';
+    this.helpDescription = options?.helpDescription ?? `display help text and exit`;
+    this.helpValueDescription = options?.helpValueDescription ?? 'basic|required|advanced'
 
+    this.configEnabled = options?.configEnabled ?? true;
     this.configOption = options?.configOption ?? 'config';
     this.configFlag = options?.configFlag ?? 'C';
-
+    this.configDescription = options?.configDescription ?? 'load additional configuration from a file';
+    this.configValueDescription = options?.configValueDescription ?? 'config-path'
     this.configContextFieldName = options?.configContextFieldName ?? 'config';
   }
 
+  /** @typedef {ExtendedFieldOptions} CommandLineOption
+   * @property {string} longOption - Long option name (e.g. --help)
+   * @property {string} flag - Short option name (e.g. -h)
+   * @property {string} alias - Alias for the option (e.g. -h)
+   * @property {boolean} isTopLevel
+   */
+
+  /** generate command line options, including flags and aliases
+   * @param {ConfigurationSchema} schema
+   * @param {object} context
+   * @returns {{options:Map<string,CommandLineOption>, aliases: Map<string, CommandLineOption>, flags: Map<string, CommandLineOption>}}
+   * @private
+   */
   _generateOptions(schema, context) {
 
-    // generate long options;
+    /** @type {Map<string, CommandLineOption>} */
     const options = new Map();
 
     const appName = context?.appName;
@@ -44,9 +68,15 @@ export class CommandLineSource extends ConfigurationSource
     const allowedTypes = ['boolean', 'string', 'number', 'array'];
 
     for (const [fieldPath, fieldOptions] of schema.getAllFieldPaths({hidden: false})) {
-      if (allowedTypes.indexOf(fieldOptions.type) === -1) {
+
+      let type = schema.types.getType(fieldOptions.type);
+      if (!type || type.options?.hidden) {
         continue;
       }
+
+//      if (allowedTypes.indexOf(fieldOptions.type) === -1) {
+//        continue;
+//      }
 
       if (fieldOptions.general) {
         continue;
@@ -75,7 +105,7 @@ export class CommandLineSource extends ConfigurationSource
       }
     }
     for (let [longOption, optionData] of options) {
-      if (optionData.advanced || optionData.hidden) {
+      if (optionData.advanced || optionData.hidden || optionData.flag) {
         continue;
       }
 
@@ -114,7 +144,20 @@ export class CommandLineSource extends ConfigurationSource
    * @returns {Promise<Map<string, any>>}
    * @private
    */
-  async _load(schema, context) {
+  async _load(schema, context, sourceOptions) {
+
+    // hack the schema so that we can automatically get options / help for help and config, even though they
+    // are magic options intercepted by the parser.
+    schema = schema.copy(); // we make some destructive changes to the schema, so make a copy
+
+    if (this.helpEnabled) {
+      let helpField = {empty: true, description: this.helpDescription, flagHint: this.helpFlag, valueDescription: this.helpValueDescription};
+      schema.field(this.helpOption, helpField);
+    }
+    if (this.configEnabled) {
+      let configField = {description: this.configDescription, flagHint: this.configFlag, valueDescription: this.configValueDescription};
+      schema.field(this.configOption, configField);
+    }
 
     const appName = context?.appName;
     
@@ -140,6 +183,7 @@ export class CommandLineSource extends ConfigurationSource
         i++;
         return ret;
       }
+      /* c8 ignore next 3: should never happen */
       else {
         return null;
       }
@@ -152,6 +196,7 @@ export class CommandLineSource extends ConfigurationSource
         }
         return ret;
       }
+      /* c8 ignore next 3 */
       catch (err) {
         return null;
       }
@@ -163,7 +208,7 @@ export class CommandLineSource extends ConfigurationSource
       if (arg === '--') {
         // Everything after -- goes to general field
         if (generalField) {
-          generalValues.push(...args.slice(i + 1));
+          generalValues.push(...args.slice(i));
         }
         break;
       }
@@ -176,7 +221,7 @@ export class CommandLineSource extends ConfigurationSource
         const inlineValue = valueParts.join('=');
 
         // Handle help flags specially
-        if (this.helpOption && arg === `--${this.helpOption}`) {
+        if (this.helpEnabled && arg === `--${this.helpOption}`) {
           let showAdvanced = false;
           if (hasInlineValue && inlineValue === 'advanced') {
             showAdvanced = true;
@@ -220,7 +265,12 @@ export class CommandLineSource extends ConfigurationSource
         }
 
         if (!optionData) {
-          throw new Error(`Unknown option: --${kebabName}`);
+          if (sourceOptions?.strict) {
+            throw new Error(`Unknown option: --${kebabName}`);
+          }
+          else {
+            continue;
+          }
         }
 
         if (optionData.type === 'boolean') {
@@ -250,10 +300,19 @@ export class CommandLineSource extends ConfigurationSource
           }
         }
         else {
-          if (!peekArgumentValue()) {
+          if (hasInlineValue) {
+            value = inlineValue;
+          }
+          else if (peekArgumentValue()) {
+            value = getArgument();
+          }
+          else if (optionData.allowEmpty) {
+            value = '';
+          }
+          else {
             throw new Error(`Option ${kebabName} requires a value`)
           }
-          value = getArgument();
+
         }
 
         fieldValues.set(optionData.path, value);
@@ -293,7 +352,12 @@ export class CommandLineSource extends ConfigurationSource
           }
 
           if (!optionData) {
-            throw new Error(`unknown option -${shortOption}`);
+            if (sourceOptions?.strict) {
+              throw new Error(`unknown option -${shortOption}`);
+            }
+            else {
+              continue;
+            }
           }
 
           let value;
@@ -339,6 +403,16 @@ export class CommandLineSource extends ConfigurationSource
 
     // Assign main values to main field
     if (generalField && generalValues.length > 0) {
+      if (generalField.type === 'array') {
+        fieldValues.set(generalField.path, generalValues);
+      }
+      else if (generalValues.length === 1) {
+        fieldValues.set(generalField.path, generalValues[0]);
+      }
+      else {
+        throw new Error(`Too many arguments provided for ${generalField.name}: [${generalValues.join(', ')}]`)
+      }
+
       fieldValues.set(generalField.path, generalField.type === 'array' ? generalValues : generalValues[0]);
     }
 
@@ -366,25 +440,10 @@ export class CommandLineSource extends ConfigurationSource
     let help = `Usage: ${appName} [options]`;
 
     if (generalField) {
-      help += ` ${this._formatArgumentType(generalField)}`;
+      help += ` ${this._formatArgumentType(generalField, schema.types.getType(generalField.type))}`;
     }
 
     help += '\n\nOptions:\n';
-
-    // Add built-in options
-    if (this.helpOption) {
-      const helpSyntax = `  --${this.helpOption}${this.helpFlag ? `, -${this.helpFlag}` : ''}`
-        .padEnd(60);
-      help += `${helpSyntax}Show this help message\n`;
-    }
-
-    if (this.configOption) {
-      const configSyntax = `  --${this.configOption}${this.configFlag ? `, -${this.configFlag}` : ''} <path>`
-        .padEnd(60);
-      help += `${configSyntax}Specify configuration file path\n`;
-    }
-
-
 
     let foundAdvanced = false;
 
@@ -416,6 +475,7 @@ export class CommandLineSource extends ConfigurationSource
     let lastSchema = undefined;
 
     // Process each option
+
     for (const option of sortedOptions) {
       // Skip hidden options and handle advanced options based on showAdvanced flag
       if (option.hidden) continue;
@@ -435,26 +495,24 @@ export class CommandLineSource extends ConfigurationSource
       }
 
 
-      // Build the option syntax
       let optionSyntax = `  --${option.longOption}`;
-    
-      // Add any aliases
-      if (option.alias) {
-        optionSyntax += `, --${option.alias}`;
-      }
-    
-      // Add any flags
+
       if (option.flag) {
-        optionSyntax += `, -${option.flag}`;
+        optionSyntax += ` (-${option.flag})`;
+      }
+      if (option.alias) {
+        optionSyntax += ` (--${option.alias})`;
       }
 
-      optionSyntax += ` ${this._formatArgumentType(option)}`;
+      // Add any flags
+
+      optionSyntax += ` ${this._formatArgumentType(option, schema.types.getType(option.type))}`;
 
       // Pad the syntax column to align descriptions
       optionSyntax = optionSyntax.padEnd(60);
 
       // Add the option description
-      const description = option.description || '';
+      const description = (option.description || '').trim();
 
       let markers = [];
       if (option.advanced) {
@@ -463,29 +521,36 @@ export class CommandLineSource extends ConfigurationSource
       if (option.required) {
         markers.push('required');
       }
+      if (option.default) {
+        markers.push(`default: ${option.default}`);
+      }
 
       // Add advanced marker if needed
       const markersText = markers.length ? `(${markers.join(', ')})` : ''
 
-      help += `${optionSyntax} ${description}${markersText}\n`;
-    }
+      const d = [description, markersText].filter(item => !!item).join(' ');
 
-    // Add footer for advanced options if not showing them
-    if (!showAdvanced && foundAdvanced) {
-      help += '\nUse --help advanced to see additional options\n';
+      help += `${optionSyntax} - ${d}\n`;
     }
 
     return help;
   }
 
-  _formatArgumentType(fieldData) {
+  _formatArgumentType(fieldData, type) {
 
     let argumentTypeString;
 
-    if (fieldData.type === 'string') {
+    if (fieldData.valueDescription) {
+      argumentTypeString = typeof fieldData.valueDescription === 'function' ? fieldData.valueDescription() : fieldData.valueDescription;
+    }
+    else if (fieldData.type === 'string') {
 
       if (typeof fieldData.validator === 'string') {
         argumentTypeString = fieldData.validator.substring(1);
+      }
+      else if (typeof fieldData.validator === 'object'
+               && Array.isArray(fieldData.validator['$oneof'])) {
+        argumentTypeString = fieldData.validator['$oneof'].join('|')
       }
       else {
         argumentTypeString = 'string-value'
@@ -518,15 +583,18 @@ export class CommandLineSource extends ConfigurationSource
         argumentTypeString = 'value...';
       }
     }
+    else if (type?.options?.valueDescription) {
+      argumentTypeString = typeof type.options.valueDescription === 'function' ? type.options.valueDescription() : type.options.valueDescription;
+    }
     else {
       argumentTypeString = 'value';
     }
 
-    if (fieldData.required) {
-      return `<${argumentTypeString}>`;
+    if (fieldData.type === 'boolean' || fieldData.empty) {
+      return `[${argumentTypeString}]`;
     }
     else {
-      return `[${argumentTypeString}]`;
+      return `<${argumentTypeString}>`;
     }
   }
 }

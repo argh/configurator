@@ -20,14 +20,14 @@ export class EnvironmentSource extends ConfigurationSource {
 
     const appName = context?.appName;
 
-    const appPrefix = appName? `${appName}.` : '';
+    const appPrefix = toConstantCase(appName? appName : '');
 
     const allFields = schema.getAllFieldPaths();
 
     const env = context[this.contextFieldName] ?? process.env;
 
     if (this.configContextFieldName) {
-      const configPath = env[toConstantCase(`${appPrefix}${this.configContextFieldName}`)];
+      const configPath = env[toConstantCase(`${appPrefix}_${this.configContextFieldName}`)];
 
       if (configPath) {
         context[this.configContextFieldName] = configPath;
@@ -48,11 +48,12 @@ export class EnvironmentSource extends ConfigurationSource {
 
       let envVar;
 
-      if (fieldData.path.indexOf(appPrefix) === 0) {
-        envVar = toConstantCase(fieldData.path);
+      const suffix = toConstantCase(fieldData.path);
+      if (suffix.indexOf(appPrefix) === 0) {
+        envVar = suffix;
       }
       else {
-        envVar = toConstantCase(`${appPrefix}${fieldData.path}`);
+        envVar = (`${appPrefix}_${suffix}`);
       }
 
       const envVal = env[envVar]

@@ -8,11 +8,11 @@ export class Types
     this._defineBuiltInTypes();
   }
 
-  defineType(typeName, resolver, validator, options = {}) {
+  defineType(typeName, resolver, options = {}) {
 
     typeName = toKebabCase(typeName);
     let type = {
-      typeName, resolver, validator, options
+      typeName, resolver, options
     }
 
     this._types.set(typeName, type);

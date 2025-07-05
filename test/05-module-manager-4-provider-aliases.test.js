@@ -17,6 +17,7 @@ describe('ModuleManager - Provider Aliases', function() {
           ],
           provides: 'storage'
         };
+        getIdentity() { return 'file'; }
       }
 
       class S3Storage {
@@ -26,6 +27,7 @@ describe('ModuleManager - Provider Aliases', function() {
           ],
           provides: 'storage'
         };
+        getIdentity() { return 's3'; }
       }
 
       class App {
@@ -47,7 +49,7 @@ describe('ModuleManager - Provider Aliases', function() {
 
       // Test with file storage
       await moduleManager.run({
-        argv: [],
+        argv: ['--storage=file-storage'],
         defaults: {
           fileStorage: { path: '/custom/path' }
         }
@@ -64,7 +66,7 @@ describe('ModuleManager - Provider Aliases', function() {
       moduleManager.register(App);
 
       await moduleManager.run({
-        argv: [],
+        argv: ['--storage', 's3-storage'],
         defaults: {
           s3Storage: { bucket: 'my-bucket' }
         }
@@ -73,6 +75,17 @@ describe('ModuleManager - Provider Aliases', function() {
       app = moduleManager.resolve('app');
       let s3Storage = moduleManager.resolve('s3storage');
       assert.strictEqual(app.storage, s3Storage);
+
+      // Reset and test a single matching storage
+
+      moduleManager = new ModuleManager();
+      moduleManager.register(FileStorage);
+      moduleManager.register(App);
+
+      await moduleManager.run({argv:[]});
+
+      app = moduleManager.resolve('app');
+      assert.strictEqual(app.storage?.getIdentity(), 'file' );
     });
 
     it('should maintain exclusivity between providers', async function() {
@@ -84,6 +97,9 @@ describe('ModuleManager - Provider Aliases', function() {
       }
 
       class RedisCache {
+        constructor() {
+          console.log('RedisCache constructor');
+        }
         static moduleInfo = {
           configurables: [{ field: 'host', type: 'string', default: 'localhost' }],
           provides: 'cache'
@@ -93,18 +109,9 @@ describe('ModuleManager - Provider Aliases', function() {
       moduleManager.register(LocalCache);
       moduleManager.register(RedisCache);
 
-      // Should not allow configuring both
-      await assert.rejects(async () => {
-        await moduleManager.configurator.configure({
-          argv: [],
-          defaults: {
-            localCache: { size: 500 },
-            redisCache: { host: 'redis.example.com' }
-          }
-        }, true);
-      });
+      moduleManager.resolve('localCache');  // first one to resolve wins
 
-      // But configuring one should work
+      // Configuring one should work
       const config = await moduleManager.configurator.configure({
         argv: [],
         defaults: {
@@ -113,16 +120,17 @@ describe('ModuleManager - Provider Aliases', function() {
       }, true);
 
       assert.equal(config.localCache.size, 500);
+      assert.equal(config.redisCache?.host, undefined);
     });
 
-    it('should register a custom provider alias resolver', async function() {
+    it('should register a custom provider resolver', async function() {
       class FileLogger {}
       class ConsoleLogger {}
 
       moduleManager.register(FileLogger);
       moduleManager.register(ConsoleLogger);
 
-      moduleManager.registerAlias('logger', (alias, config) => {
+      moduleManager.registerResolver('logger', (alias, config) => {
         if (config.app?.useFileLogging === true) {
           return 'file-logger';
         } else if (config.app?.useFileLogging === false) {
@@ -164,7 +172,7 @@ describe('ModuleManager - Provider Aliases', function() {
       moduleManager = new ModuleManager();
       moduleManager.register(FileLogger);
       moduleManager.register(ConsoleLogger);
-      moduleManager.registerAlias('logger', (alias, config) => {
+      moduleManager.registerResolver('logger', (alias, config) => {
         if (config.app?.useFileLogging === undefined) {
           return undefined;
         }
@@ -188,6 +196,7 @@ describe('ModuleManager - Provider Aliases', function() {
       app = moduleManager.resolve('app');
       let consoleLogger = moduleManager.resolve('console-logger');
       assert.strictEqual(app.logger, consoleLogger);
+
     });
   });
 });

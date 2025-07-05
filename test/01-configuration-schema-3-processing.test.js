@@ -30,7 +30,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     it('should use default values when fields are not provided', async function() {
       const result = await schema.validate({
         requiredField: 'value1'
-      });
+      }, {populateDefaults: true});
 
       assert.equal(result.requiredField, 'value1');
       assert.equal(result.optionalField, undefined);

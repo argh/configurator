@@ -13,20 +13,30 @@ describe('Configurator Integration Tests', function() {
   beforeEach(function() {
     schema = new ConfigurationSchema();
 
+    let condition = (field, value, configuration) => {
+      if (field.path.includes('userLocalStorage')) {
+        return (configuration.storage === 'local')? true : undefined;
+      }
+      else if (field.path.includes('userWebStorage')) {
+        return (configuration.storage === 'web')? true : undefined;
+      }
+      else {
+        return true;
+      }
+    }
+
     // Setup a schema with exclusive categories for storage options
-    const localStorageSchema = schema.child('userLocalStorage');
-    localStorageSchema.exclusive('storage');
+    const localStorageSchema = schema.child('userLocalStorage', {condition});
     localStorageSchema.field('storagePath', { description: 'Local file system path' });
     localStorageSchema.field('quota', { type: 'number', description: 'Storage quota in MB' });
 
-    const webStorageSchema = schema.child('userWebStorage');
-    webStorageSchema.exclusive('storage');
+    const webStorageSchema = schema.child('userWebStorage', {condition});
     webStorageSchema.field('url', { description: 'Web storage server URL' });
     webStorageSchema.field('username');
     webStorageSchema.field('password');
 
     // Add some basic fields
-    schema.field('appName', { default: 'MyApp' });
+    schema.field('storage', { default: 'local' });
     schema.field('cluster', { description: 'Cluster name' });
     schema.field('port', { type: 'number', default: 8080 });
     schema.field('debug', { type: 'boolean', default: false });
@@ -71,7 +81,6 @@ describe('Configurator Integration Tests', function() {
       assert.equal(config.cluster, 'dev');
 
       // Object source has lowest priority but still sets values not defined elsewhere
-      assert.equal(config.appName, 'TestApp');
       assert.equal(config.userLocalStorage.storagePath, '/var/data');
     });
 
@@ -98,82 +107,10 @@ describe('Configurator Integration Tests', function() {
       assert.equal(config.cluster, 'local'); // Only in object source
     });
 
-    it('should handle exclusive categories across different sources', async function() {
-      // Object source sets local storage
-      // Environment source sets web storage (should override local storage)
-      const context = {
-        appName: 'myapp',
-        data: {
-          userLocalStorage: {
-            storagePath: '/tmp/local-storage',
-            quota: 1000
-          }
-        },
-        env: {
-          'MYAPP_USER_WEB_STORAGE_URL': 'https://storage.example.com',
-          'MYAPP_USER_WEB_STORAGE_USERNAME': 'user1',
-          'MYAPP_USER_WEB_STORAGE_PASSWORD': 'secret'
-        },
-        argv: []
-      };
 
-      const config = await configurator.configure(context);
 
-      // Web storage settings should be present (from environment)
-      assert.equal(config.userWebStorage.url, 'https://storage.example.com');
-      assert.equal(config.userWebStorage.username, 'user1');
-      assert.equal(config.userWebStorage.password, 'secret');
 
-      // Local storage settings should be excluded (overridden by web storage)
-      assert.equal(config.userLocalStorage, undefined);
-    });
 
-    it('should handle exclusive categories being overridden by later source', async function() {
-      // Environment source sets web storage
-      // Command line source sets local storage (should override web storage)
-      const context = {
-        appName: 'myapp',
-        data: {},
-        env: {
-          'MYAPP_USER_WEB_STORAGE_URL': 'https://storage.example.com',
-          'MYAPP_USER_WEB_STORAGE_USERNAME': 'user1',
-          'MYAPP_USER_WEB_STORAGE_PASSWORD': 'secret'
-        },
-        argv: [
-          '--user-local-storage-storage-path', '/opt/local-data',
-          '--user-local-storage-quota', '5000'
-        ]
-      };
-
-      const config = await configurator.configure(context);
-
-      // Local storage settings from command line should be present
-      assert.equal(config.userLocalStorage.storagePath, '/opt/local-data');
-      assert.equal(config.userLocalStorage.quota, 5000);
-
-      // Web storage settings should be excluded (overridden by local storage)
-      assert.equal(config.userWebStorage, undefined);
-    });
-
-    it('should throw error when conflicting exclusive categories exist within a single source', async function() {
-      // Command line source contains settings from both schemas in the same exclusive category
-      const context = {
-        appName: 'myapp',
-        data: {},
-        env: {},
-        argv: [
-          '--user-local-storage-storage-path', '/tmp/local',
-          '--user-web-storage-url', 'https://storage.example.com'
-        ]
-      };
-
-      // Should throw an error because the command line source has settings from
-      // two different schemas in the same exclusive category
-      await assert.rejects(
-        async () => await configurator.configure(context),
-        /incompatible with previous settings in storage category/
-      );
-    });
 
     it('should handle a full configuration example with all sources', async function() {
       const context = {
@@ -200,18 +137,17 @@ describe('Configurator Integration Tests', function() {
         },
         // High priority source
         argv: [
-          '--app-name', 'CLIApp',
           '--port', '5000',
           '--debug',
           // Complete password from web storage config
-          '--user-web-storage-password', 'secure-password'
+          '--user-web-storage-password', 'secure-password',
+          '--storage=web'
         ]
       };
 
       const config = await configurator.configure(context);
 
       // Check final configuration values
-      assert.equal(config.appName, 'CLIApp');      // From CLI (highest)
       assert.equal(config.cluster, 'production');  // From ENV (not overridden by CLI)
       assert.equal(config.port, 5000);            // From CLI (overrides ENV and data)
       assert.equal(config.debug, true);           // From CLI (overrides data)

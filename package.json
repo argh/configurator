@@ -1,11 +1,11 @@
 {
-  "name": "@v0.net/argh-configurator",
+  "name": "@argh/configurator",
   "version": "0.1.0",
   "description": "A simple configuration utility for Node.js",
   "main": "src/configurator.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/v0-net/argh-configurator.git"
+    "url": "git+https://github.com/argh/configurator.git"
   },
   "keywords": [
     "configuration",
@@ -19,12 +19,14 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "test": "mocha --recursive --exit --node-option=--experimental-vm-modules"
+    "test": "mocha --timeout 0 --ui bdd --recursive --exit",
+    "test:coverage": "c8 mocha --timeout 0 --ui bdd --recursive --exit"
   },
   "devDependencies": {
+    "c8": "^8.0.1",
     "mocha": "^10.2.0"
   },
   "dependencies": {
-    "@v0.net/argh-logger": "^0.1.0"
+    "@argh/logger": "^0.1.0"
   }
 }

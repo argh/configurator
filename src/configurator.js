@@ -34,18 +34,16 @@ export class Configurator {
       this.registerConfigurationSource(new ObjectSource({contextFieldName: 'defaults'}));  // app defaults
       this.registerConfigurationSource(new EnvironmentSource());
       this.registerConfigurationSource(new CommandLineSource({
-        configField: options?.configField ?? 'config',
-        configContextFieldName: options?.configContextFieldName ?? 'config',
-        configFlag: options?.configFlag ?? 'C'})
+          configEnabled: options?.configEnabled ?? true,
+          configField: options?.configField ?? 'config',
+          configFlag: options?.configFlag ?? 'C',
+          configContextFieldName: options?.configContextFieldName ?? 'config'
+        })
       );
       this.registerConfigurationSource(new JsonFileSource({
         contextFieldName: options?.configField ?? 'config'
       }))
       this.registerConfigurationSource(new ObjectSource({contextFieldName: 'overrides', sequence: ConfigurationSource.DefaultSequence.OVERRIDES}));
-
-      this.schema.field(options?.configField ?? 'config', {
-        flagHint: options?.configFlag ?? 'C', validator: '$filename'
-      })
     }
 
     this.context = {};
@@ -68,18 +66,17 @@ export class Configurator {
 
   static get moduleInfo() { return MODULE_INFO }
 
+  /** @type {ConfigurationSchema} */
   get schema() {
     return this._schema;
   }
 
+  /** @type {Validator} */
   get validator() {
     return this.schema.validator;
   }
 
-  /**
-   * @type {Types}
-   * @returns {Types}
-   */
+  /** @type {Types} */
   get types() {
     return this.schema.types;
   }
@@ -102,7 +99,7 @@ export class Configurator {
     let sourceAssignmentsList = [];
 
     for (let source of sources) {
-      let sourceAssignments = await source.load(this.schema, mergedContext);
+      let sourceAssignments = await source.load(this.schema, mergedContext, {strict});
 
       sourceAssignmentsList.push(sourceAssignments);
     }

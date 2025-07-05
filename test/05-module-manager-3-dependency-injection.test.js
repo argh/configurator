@@ -10,7 +10,7 @@ describe('ModuleManager - Dependency Injection', function() {
 
   describe('Module Dependencies', function() {
     it('should inject module dependencies based on type field', async function() {
-      class Logger {
+      class MyLogger {
         static moduleName = 'logger';
         log(message) { return message; }
       }
@@ -28,7 +28,7 @@ describe('ModuleManager - Dependency Injection', function() {
         }
       }
 
-      moduleManager.register(Logger);
+      moduleManager.register(MyLogger);
       moduleManager.register(Service);
 
       await moduleManager.run({argv:[]});
@@ -135,9 +135,10 @@ describe('ModuleManager - Dependency Injection', function() {
       assert.strictEqual(resolved, original);
     });
 
-    it('should return undefined for unknown modules', function() {
-      const result = moduleManager.resolve('non-existent');
-      assert.strictEqual(result, undefined);
+    it('should return throw for unknown modules', function() {
+      assert.throws(() => {
+        moduleManager.resolve('non-existent');
+      }, /Module non-existent not registered/);
     });
   });
 });

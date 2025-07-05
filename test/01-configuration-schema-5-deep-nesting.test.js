@@ -128,7 +128,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
           name: 'minimaldb'
           // All other DB settings use defaults
         }
-      });
+      }, {populateDefaults: true});
 
       // Root level
       assert.equal(result.appName, 'MinimalDeepApp');
@@ -169,7 +169,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
           name: 'emptydb', // Required field
           connection: {}
         }
-      });
+      }, {populateDefaults: true});
 
       // Server section should be populated with defaults
       assert.equal(result.server.host, 'localhost');

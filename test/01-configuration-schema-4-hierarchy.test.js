@@ -187,7 +187,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
             credentials: 'secret'
           }
         }
-      });
+      }, {populateDefaults: true});
 
       // Root level
       assert.equal(result.appName, 'TestApp');
@@ -218,7 +218,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
         database: {
           name: 'minimaldb'
         }
-      });
+      }, {populateDefaults: true});
 
       // Root level
       assert.equal(result.appName, 'MinimalApp');

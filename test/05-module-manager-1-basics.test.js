@@ -14,7 +14,9 @@ describe('ModuleManager - Basic Functionality', function() {
         static moduleName = 'test-module';
       }
 
-      const definition = moduleManager.register(TestModule);
+      moduleManager.register(TestModule);
+
+      const definition = moduleManager.getModule('test-module');
       assert.equal(definition.name, 'test-module');
       assert(moduleManager._modules.has('test-module'));
     });
@@ -22,7 +24,8 @@ describe('ModuleManager - Basic Functionality', function() {
     it('should register a module with name from class name', function() {
       class UserManager {}
 
-      const definition = moduleManager.register(UserManager);
+      moduleManager.register(UserManager);
+      const definition = moduleManager.getModule('UserManager');
       assert.equal(definition.name, 'user-manager');
       assert(moduleManager._modules.has('user-manager'));
     });
@@ -30,7 +33,8 @@ describe('ModuleManager - Basic Functionality', function() {
     it('should register a module with explicit name', function() {
       class SomeClass {}
 
-      const definition = moduleManager.register(SomeClass, { name: 'explicit-name' });
+      moduleManager.register(SomeClass, { name: 'explicit-name' });
+      const definition = moduleManager.getModule('explicit-name');
       assert.equal(definition.name, 'explicit-name');
       assert(moduleManager._modules.has('explicit-name'));
     });
@@ -41,13 +45,15 @@ describe('ModuleManager - Basic Functionality', function() {
       }, /ModuleClass needs to be registered with a name/);
     });
 
-    it('should throw when registering a duplicate module', function() {
+    it('should throw when registering a duplicate module, unless they are identical', function() {
       class DuplicateModule {}
+      class AnotherDuplicateModule {}
 
       moduleManager.register(DuplicateModule);
+      moduleManager.register(DuplicateModule);
       assert.throws(() => {
-        moduleManager.register(DuplicateModule);
-      }, /Module already registered/);
+        moduleManager.register(AnotherDuplicateModule, { name: 'duplicate-module' });
+      }, /Module duplicate-module already registered/);
     });
   });
 

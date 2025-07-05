@@ -118,16 +118,14 @@ describe('ModuleManager - Advanced Patterns', function() {
     it('should support dynamic provider selection based on configuration', async function() {
       class FileStorage {
         static moduleInfo = {
-          configurables: [{ field: 'path', type: 'string', default: '/tmp' }],
-          provides: 'storage'
+          configurables: [{ field: 'path', type: 'string', default: '/tmp' }]
         };
         getType() { return 'file'; }
       }
 
       class S3Storage {
         static moduleInfo = {
-          configurables: [{ field: 'bucket', type: 'string' }],
-          provides: 'storage'
+          configurables: [{ field: 'bucket', type: 'string' }]
         };
         getType() { return 's3'; }
       }
@@ -146,8 +144,8 @@ describe('ModuleManager - Advanced Patterns', function() {
       moduleManager.register(FileStorage);
       moduleManager.register(S3Storage);
 
-      // Replace the default provider resolver with a custom one
-      moduleManager.registerAlias('storage', (alias, config) => {
+      // Register a resolver to enable dynamic resolution
+      moduleManager.registerResolver('storage', (alias, config) => {
         if (config.app?.storageType === undefined) {
           return undefined;
         }
@@ -170,7 +168,10 @@ describe('ModuleManager - Advanced Patterns', function() {
       moduleManager = new ModuleManager();
       moduleManager.register(FileStorage);
       moduleManager.register(S3Storage);
-      moduleManager.registerAlias('storage', (alias, config) => {
+      moduleManager.registerResolver('storage', (value, config) => {
+        if (value !== 'storage') {
+          return value;
+        }
         if (config.app?.storageType === undefined) {
           return undefined;
         }
@@ -187,11 +188,14 @@ describe('ModuleManager - Advanced Patterns', function() {
         defaults: {
           app: { storageType: 's3' },
           s3Storage: { bucket: 'my-bucket' }
+        },
+        overrides: {
+        app: { storage: 's3-storage'}
         }
       });
 
       app = moduleManager.resolve('app');
-      assert.equal(app.storage.getType(), 's3');
+      assert.equal(app.storage?.getType(), 's3');
     });
   });
 });

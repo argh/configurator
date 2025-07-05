@@ -11,9 +11,10 @@ export class ConfigurationSource {
    * Parse configuration from this source
    * @param {ConfigurationSchema} schema - Schema to use for parsing
    * @param {object} context - collection of source-specific fields (argv, env, etc.)
+   * @param {object} [options] - options for parsing
    * @returns {Promise<Object>} Parsed configuration object
    */
-  async load(schema, context) {
+  async load(schema, context, options) {
 
     const fieldPaths = schema.getAllFieldPaths();
 
@@ -33,14 +34,14 @@ export class ConfigurationSource {
     return fieldValues;
   }
 
-  async _load(schema, context) {
+  async _load(schema, context, options) {
     throw new Error(`ConfigurationSource._load() in ${this.name} must be implemented by subclass`);
   }
 
   static DefaultSequence = Object.freeze({
     SYSTEM_DEFAULTS: 100,
+    MODULES: 150,
     APP_DEFAULTS: 200,
-    MODULES: 300,
     ENVIRONMENT: 400,
     ARGUMENTS: 500,
     SERVER: 600,
