@@ -1,6 +1,6 @@
 {
   "name": "@versionzero/configurator",
-  "version": "0.1.0",
+  "version": "0.1.1-main.0",
   "description": "A simple configuration utility for Node.js",
   "main": "src/configurator.js",
   "repository": {
@@ -14,7 +14,6 @@
     "argh",
     "versionzero",
     "v0"
-
   ],
   "author": "argh",
   "license": "MIT",
@@ -30,5 +29,4 @@
     "c8": "^8.0.1",
     "mocha": "^10.2.0"
   }
-
 }
