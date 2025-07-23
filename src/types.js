@@ -1,6 +1,5 @@
 import { toKebabCase } from './utils.js';
 
-
 export class Types
 {
   constructor() {
@@ -24,7 +23,7 @@ export class Types
     return this._types.get(toKebabCase(typeName));
   }
 
-  resolveTypeValue(typeName, value, configuration) {
+  async resolveTypeValue(typeName, value, configuration) {
     const type = this.getType(typeName);
 
     if (!type) {
@@ -36,14 +35,14 @@ export class Types
       if (!configuration) {
         throw new Error('Cannot resolve type value without configuration');
       }
-      v = value(configuration, type);
+      v = await (async () => value(configuration, type))();
     }
 
     if (v === undefined) {
       return undefined;
     }
 
-    return type.resolver(v, configuration, type);
+    return (async () => type.resolver(v, configuration, type))();
   }
 
   _defineBuiltInTypes() {
@@ -52,7 +51,7 @@ export class Types
       (value) => { return typeof value === 'string' }
       )
     this.defineType('number',
-      (value) => {
+       (value) => {
         if (typeof value === 'number') return value;
         const num = Number(value);
         if (isNaN(num)) {
@@ -60,7 +59,7 @@ export class Types
         }
         return num;
       },
-      (value => { return typeof value === 'number' })
+      (value => { return typeof value === 'number' })  // FIXME!
       );
     this.defineType('boolean', (value) => {
       if (typeof value === 'boolean') return value;
@@ -70,7 +69,7 @@ export class Types
         if (lower === 'false' || lower === '0' || lower === 'no') return false;
       }
       return Boolean(value);
-    }, (value => { return typeof value === 'boolean' }));
+    }, (value => { return typeof value === 'boolean' })); // FIXME
     this.defineType('array', (value) => {
       // todo - recursively handle member types?
       if (Array.isArray(value)) return value;
@@ -80,7 +79,7 @@ export class Types
       }
       return [value]; // Single value becomes array
     },
-      (value) => { return Array.isArray(value) }
+      (value) => { return Array.isArray(value) } // FIXME
     )
 
 

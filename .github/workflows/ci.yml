@@ -1,0 +1,303 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+      - release
+      - 'hotfix-*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # Don't set registry-url to avoid npmrc override
+
+      - name: Extract package info
+        id: package-info
+        run: |
+          echo "name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          echo "private=$(node -p "require('./package.json').private || false")" >> $GITHUB_OUTPUT
+          echo "scope=$(node -p "const name = require('./package.json').name; name.startsWith('@') ? name.split('/')[0] : ''")" >> $GITHUB_OUTPUT
+
+      - name: Determine registry configuration
+        id: registry-config
+        run: |
+          PACKAGE_SCOPE="${{ steps.package-info.outputs.scope }}"
+          REPO_OWNER="@${{ github.repository_owner }}"
+          IS_PRIVATE="${{ steps.package-info.outputs.private }}"
+          BRANCH="${{ github.ref_name }}"
+          
+          # Determine where this package will be published
+          if [[ "$PACKAGE_SCOPE" == "$REPO_OWNER" ]]; then
+            echo "target=ghcr" >> $GITHUB_OUTPUT
+            echo "registry=https://npm.pkg.github.com" >> $GITHUB_OUTPUT
+          elif [[ ("$BRANCH" == "release" || "$BRANCH" == hotfix-*) && "$IS_PRIVATE" == "false" ]]; then
+            echo "target=npm" >> $GITHUB_OUTPUT
+            echo "registry=https://registry.npmjs.org" >> $GITHUB_OUTPUT
+          else
+            echo "target=verdaccio" >> $GITHUB_OUTPUT
+            echo "registry=${{ secrets.VERDACCIO_URL }}" >> $GITHUB_OUTPUT
+          fi
+          
+          # Determine npm dist-tag for publishing
+          if [[ "$BRANCH" == "release" ]]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            CLEAN_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
+            echo "tag=${CLEAN_BRANCH}-latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Configure npm authentication
+        run: |
+          # Check if project has existing .npmrc and back it up
+          if [[ -f .npmrc ]]; then
+            echo "⚠️ Found existing .npmrc, backing up to .npmrc.backup"
+            cp .npmrc .npmrc.backup
+          fi
+          
+          # Create project-level .npmrc (this takes precedence)
+          echo "" > .npmrc
+          
+          # If using Verdaccio as primary registry, set it as default
+          if [[ "${{ steps.registry-config.outputs.target }}" == "verdaccio" ]]; then
+            VERDACCIO_URL="${{ secrets.VERDACCIO_URL }}"
+            echo "registry=${VERDACCIO_URL}" >> .npmrc
+          
+            # Extract host for auth token (remove protocol and path)
+            VERDACCIO_HOST=$(echo "$VERDACCIO_URL" | sed -E 's|^https?://||' | sed 's|/.*$||')
+          
+            # Check if we have VERDACCIO_AUTH (basic auth) or VERDACCIO_TOKEN
+            if [[ -n "${{ secrets.VERDACCIO_AUTH }}" ]]; then
+              # Use basic auth format (for Cloudflare compatibility)
+              echo "//${VERDACCIO_HOST}/:_auth=${{ secrets.VERDACCIO_AUTH }}" >> .npmrc
+              echo "//${VERDACCIO_HOST}/:always-auth=true" >> .npmrc
+            else
+              # Use token format
+              echo "//${VERDACCIO_HOST}/:_authToken=${{ secrets.VERDACCIO_TOKEN }}" >> .npmrc
+              echo "//${VERDACCIO_HOST}:_authToken=${{ secrets.VERDACCIO_TOKEN }}" >> .npmrc
+            fi
+          
+            # Add email if provided (some Verdaccio configs need this)
+            if [[ -n "${{ secrets.VERDACCIO_EMAIL }}" ]]; then
+              echo "//${VERDACCIO_HOST}/:email=${{ secrets.VERDACCIO_EMAIL }}" >> .npmrc
+            fi
+          fi
+          
+          # Configure GitHub Packages for @repo-owner scope
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+          echo "@${{ github.repository_owner }}:registry=https://npm.pkg.github.com" >> .npmrc
+          
+          # If package scope is different from repo owner and Verdaccio is configured,
+          # route that scope through Verdaccio
+          PACKAGE_SCOPE="${{ steps.package-info.outputs.scope }}"
+          if [[ -n "$PACKAGE_SCOPE" && "$PACKAGE_SCOPE" != "@${{ github.repository_owner }}" && -n "${{ secrets.VERDACCIO_URL }}" ]]; then
+            echo "${PACKAGE_SCOPE}:registry=${{ secrets.VERDACCIO_URL }}" >> .npmrc
+          fi
+          
+          # Configure NPM registry auth if token provided (for publishing)
+          if [[ -n "${{ secrets.NPM_TOKEN }}" ]]; then
+            echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
+          fi
+          
+          # Debug: Show .npmrc content (without tokens)
+          echo "=== .npmrc configuration (tokens hidden) ==="
+          cat .npmrc | sed -E 's/(_authToken|_auth|email)=.*$/\1=***/'
+          
+          # Also check where npm is reading config from
+          echo -e "\n=== NPM config locations ==="
+          npm config get userconfig
+          npm config get globalconfig
+
+      - name: Determine version bump
+        id: version
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          CURRENT_VERSION="${{ steps.package-info.outputs.version }}"
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          MAX_ATTEMPTS=10
+          
+          # Function to check if version exists in registry
+          check_version_exists() {
+            local version=$1
+            npm view "${PACKAGE_NAME}@${version}" version 2>/dev/null || return 1
+          }
+          
+          if [[ "$BRANCH" == "release" ]]; then
+            # For release branches, bump patch version and remove prerelease
+            NEW_VERSION=$(npm version patch --no-git-tag-version)
+          
+            # Loop until we find an unpublished version
+            ATTEMPT=1
+            while check_version_exists "${NEW_VERSION#v}" && [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+              echo "Version ${NEW_VERSION#v} already exists in registry, trying next patch version..."
+              NEW_VERSION=$(npm version patch --no-git-tag-version)
+              ATTEMPT=$((ATTEMPT + 1))
+            done
+          
+            if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+              echo "Error: Could not find available release version after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+          
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            # For all other branches (including hotfix), bump prerelease with branch name
+            # Clean branch name for valid semver
+            CLEAN_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
+          
+            # Determine starting version
+            if [[ "$CURRENT_VERSION" =~ -${CLEAN_BRANCH}\.[0-9]+$ ]]; then
+              # Increment existing prerelease counter
+              NEW_VERSION=$(npm version prerelease --preid="$CLEAN_BRANCH" --no-git-tag-version)
+            elif [[ "$CURRENT_VERSION" =~ -[a-zA-Z0-9-]+\.[0-9]+$ ]]; then
+              # Has different prerelease, start new one with current patch version
+              BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-.*$//')
+              npm version "$BASE_VERSION" --no-git-tag-version --allow-same-version
+              NEW_VERSION=$(npm version prerelease --preid="$CLEAN_BRANCH" --no-git-tag-version)
+            else
+              # No prerelease, start new prerelease sequence
+              NEW_VERSION=$(npm version prerelease --preid="$CLEAN_BRANCH" --no-git-tag-version)
+            fi
+          
+            # Loop until we find an unpublished prerelease version
+            ATTEMPT=1
+            while check_version_exists "${NEW_VERSION#v}" && [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+              echo "Version ${NEW_VERSION#v} already exists in registry, trying next prerelease..."
+              NEW_VERSION=$(npm version prerelease --preid="$CLEAN_BRANCH" --no-git-tag-version)
+              ATTEMPT=$((ATTEMPT + 1))
+            done
+          
+            if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+              echo "Error: Could not find available prerelease version after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+          
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Found available version: ${NEW_VERSION#v}"
+          echo "new_version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+          
+          # Commit version bump for all branches
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${NEW_VERSION#v} [skip ci]" || echo "No version changes to commit"    
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build --if-present
+
+      - name: Extract package info
+        id: package
+        run: |
+          echo "name=${{ steps.package-info.outputs.name }}" >> $GITHUB_OUTPUT
+          echo "version=${{ steps.package-info.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "private=${{ steps.package-info.outputs.private }}" >> $GITHUB_OUTPUT
+          echo "scope=${{ steps.package-info.outputs.scope }}" >> $GITHUB_OUTPUT
+
+      - name: Determine publishing target
+        id: publish-target
+        run: |
+          echo "target=${{ steps.registry-config.outputs.target }}" >> $GITHUB_OUTPUT
+          echo "registry=${{ steps.registry-config.outputs.registry }}" >> $GITHUB_OUTPUT
+          echo "tag=${{ steps.registry-config.outputs.tag }}" >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG for release
+        if: steps.version.outputs.is_release == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          # Create CHANGELOG entry
+          ENTRY="## [$VERSION] - $DATE\n\n### Changes\n"
+          
+          # Get commit messages since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -n "$LAST_TAG" ]]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" "$LAST_TAG"..HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)")
+          fi
+          
+          ENTRY="${ENTRY}${COMMITS}\n\n"
+          
+          # Update or create CHANGELOG.md
+          if [[ -f CHANGELOG.md ]]; then
+            # Insert after header
+            awk -v entry="$ENTRY" 'NR==1{print; print ""; print entry} NR>1' CHANGELOG.md > CHANGELOG.tmp
+            mv CHANGELOG.tmp CHANGELOG.md
+          else
+            echo -e "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n$ENTRY" > CHANGELOG.md
+          fi
+          
+          # Commit CHANGELOG and create tag
+          git add CHANGELOG.md
+          git commit --amend --no-edit
+          git tag "v$VERSION"
+
+      - name: Publish to registry
+        env:
+          NODE_AUTH_TOKEN: ${{ steps.publish-target.outputs.target == 'npm' && secrets.NPM_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Publishing to ${{ steps.publish-target.outputs.target }} registry..."
+          echo "Registry URL: ${{ steps.publish-target.outputs.registry }}"
+          echo "Using dist-tag: ${{ steps.publish-target.outputs.tag }}"
+          
+          npm publish --registry ${{ steps.publish-target.outputs.registry }} --tag ${{ steps.publish-target.outputs.tag }}
+
+      - name: Push changes
+        if: github.event_name == 'push'
+        run: |
+          # Push commits back to the branch
+          git push origin HEAD:${{ github.ref_name }} || echo "No changes to push"
+          
+          # Push tags only for releases
+          if [[ "${{ steps.version.outputs.is_release }}" == "true" ]]; then
+            git push origin --tags
+          fi
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.is_release == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.new_version }}
+          release_name: Release ${{ steps.version.outputs.new_version }}
+          body: |
+            See [CHANGELOG.md](CHANGELOG.md) for details.
+          draft: false
+          prerelease: false

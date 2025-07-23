@@ -43,6 +43,17 @@ describe('CommandLineSource', function() {
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
       assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     });
+    it('should handle array values specified with a flag', async function() {
+      schema.field('tags', { type: 'array' });
+//      schema.field('fruit', { type: 'array' });
+
+      const context = { argv: ['-t', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
+
+      const result = await source._load(schema, context);
+
+      assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
+//      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    });
 
     it('should handle general field', async function() {
       schema.field('file', { general: true });
@@ -149,22 +160,6 @@ describe('CommandLineSource', function() {
       assert(files.includes('after2.txt'), 'Should include argument after2.txt after --');
     });
 
-    it('should throw error when config option is missing path', async function() {
-
-      const context = { argv: ['--config'] };
-      await assert.rejects(async () => {
-        await source._load(schema, context);
-      }, /missing path for config/);
-    });
-
-    it('should throw error when config path starts with dash', async function() {
-
-      const context = { argv: ['--config', '-invalid'] };
-      await assert.rejects(async () => {
-        await source._load(schema, context);
-      }, /invalid path for --config/);
-    });
-
     it('should throw error for unknown options in strict mode', async function() {
       schema.field('known');
       const context = { argv: ['--unknown'] };
@@ -178,7 +173,7 @@ describe('CommandLineSource', function() {
       const context = { argv: ['--tags'] };
       await assert.rejects(async () => {
         await source._load(schema, context);
-      }, /Option tags requires one or more values/);
+      }, /Option --tags requires one or more values/);
     });
 
     it('should throw error for missing option value', async function() {
@@ -186,11 +181,21 @@ describe('CommandLineSource', function() {
       const context = { argv: ['--port'] };
       await assert.rejects(async () => {
         await source._load(schema, context);
-      }, /Option port requires a value/);
+      }, /Option --port requires a value/);
     });
   });
+
+  it('should throw error when config option is missing path', async function() {
+    schema.field('config', {context: true});
+
+    const context = { argv: ['--config'] };
+    await assert.rejects(async () => {
+      await source._load(schema, context);
+    }, /Option --config requires a value/);
+  });
+
   it('should handle config file option correctly', async function() {
-    //schema.field('config');
+    schema.field('config', {context: true});
     const context = { argv: ['--config', 'test.json'] };
     const result = await source._load(schema, context);
     assert.equal(context.config, 'test.json');
@@ -219,7 +224,7 @@ describe('CommandLineSource', function() {
       { field: { type: 'boolean' }, expected: '[true|false]' },
       { field: { type: 'number' }, expected: '<number>' },
       { field: { type: 'array' }, expected: '<value...>' },
-      { field: { type: 'string', validator: '$oneof:a|b' }, expected: '<oneof:a|b>' }
+      { field: { type: 'string', validators: '$oneof:a|b' }, expected: '<oneof:a|b>' }
     ];
 
     for (const test of tests) {

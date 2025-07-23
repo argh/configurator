@@ -18,11 +18,14 @@ export class ConfigurationSource {
 
     const fieldPaths = schema.getAllFieldPaths();
 
-    let fieldValues = await this._load(schema, context);
+    let fieldAssignments = await this._load(schema, context, options);
 
     const categories = new Map();
-    for (let [fieldPath, fieldValue] of fieldValues) {
+    for (let [fieldPath, fieldValue] of fieldAssignments) {
       const field = fieldPaths.get(fieldPath);
+      if (!field) {
+        throw new Error(`Unknown field reference "${fieldPath}"`);
+      }
       if (field.schema.category) {
         if (categories.has(field.schema.category)
             && categories.get(field.schema.category) !== field.schema.id) {
@@ -31,7 +34,7 @@ export class ConfigurationSource {
         categories.set(field.schema.category, field.schema.id);
       }
     }
-    return fieldValues;
+    return fieldAssignments;
   }
 
   async _load(schema, context, options) {
@@ -41,12 +44,12 @@ export class ConfigurationSource {
   static DefaultSequence = Object.freeze({
     SYSTEM_DEFAULTS: 100,
     MODULES: 150,
+    SECRETS: 170,
     APP_DEFAULTS: 200,
     ENVIRONMENT: 400,
     ARGUMENTS: 500,
     SERVER: 600,
     CONFIGURATION: 700,
-    SECRETS: 800,
     OVERRIDES: 900
   });
 

@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 
 export class JsonFileSource extends ObjectSource {
   constructor(options) {
-    super('json-file-source',
+    super(
       {
         ...options,
         sequence: options?.sequence || ConfigurationSource.DefaultSequence.CONFIGURATION,

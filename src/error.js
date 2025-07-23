@@ -1,9 +1,10 @@
 import { STATUS_CODES } from "node:http"
 
-export class ModuleError extends Error {
+export class ConfiguratorError extends Error {
 
   constructor(message, data, preserveStack = false) {
-    super(message);
+    // noinspection JSCheckFunctionSignatures
+    super(message, data?.cause? {cause: data.cause} : undefined);
     this.data = data;
     // restore prototype chain
     const actualProto = new.target.prototype;
@@ -14,28 +15,28 @@ export class ModuleError extends Error {
       this.__proto__ = actualProto;
     }
 
-    //    const preserveStack = data && data.preserveStack;
+    //    const preserveStack = data?.preserveStack;
     if (!preserveStack) {
-      delete this .stack;
+      delete this.stack;
     }
   }
   get name() {
     return this.constructor.name;
   }
-  get stack() {
-    return "";
-  }
+//  get stack() {
+//    return "";
+//  }
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  set stack(str) {}
+//  set stack(str) {}
   get cause() {
-    return this.data ?? this.data.cause;
+    return super.cause ?? this.data?.cause;
   }
 
   get code() {
     return (
-      (this.data && this.data.code) ??
-      (this.cause && this.cause instanceof ModuleError && this.cause.code) ??
-      500
+      (this.data?.code)
+      ?? (this.cause && this.cause instanceof ConfiguratorError && this.cause.code)
+      ?? 500
     );
   }
 
@@ -50,13 +51,13 @@ export class ModuleError extends Error {
   }
 }
 
-export class FrameworkHttpError extends ModuleError {
+export class FrameworkHttpError extends ConfiguratorError {
   constructor(message, data) {
     super(message, data);
   }
 }
 
-export class InternalError extends ModuleError {
+export class InternalError extends ConfiguratorError {
   constructor(message, data) {
     const d = Object.assign({ code: 500 }, data);
     super(message ?? STATUS_CODES[500], d, true);
@@ -76,7 +77,7 @@ export class NotFoundError extends FrameworkHttpError {
   }
 }
 
-export class TimeoutError extends ModuleError {
+export class TimeoutError extends ConfiguratorError {
   constructor(message, data) {
     super(message, data);
   }

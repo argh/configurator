@@ -7,8 +7,8 @@ import { ConfigurationSource } from './configuration-source.js'
  */
 export class DefaultsSource extends ConfigurationSource
 {
-  constructor(appName, options) {
-    super('defaults-source', options?.sequence || ConfigurationSource.DefaultSequence.SYSTEM_DEFAULTS);
+  constructor(options = {}) {
+    super({...options, name: 'defaults-source', sequence: options.sequence || ConfigurationSource.DefaultSequence.SYSTEM_DEFAULTS});
   }
 
   /**
@@ -20,15 +20,15 @@ export class DefaultsSource extends ConfigurationSource
   async load(schema, context) {
     const allFields = schema.getAllFieldPaths();
 
-    const fieldValues = new Map();
+    const fieldAssignments = new Map();
     for (let [fieldName, fieldData] of allFields) {
       if (fieldData.default) {
 
-        fieldValues.set(fieldName, fieldData.default);
+        fieldAssignments.set(fieldName, fieldData.default);
       }
     }
 
-    return fieldValues;
+    return fieldAssignments;
 
   }
 }

@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validator } from '../src/validator.js';
+import { Validators } from '../src/validators.js';
 
 describe('ConfigurationSchema - Deep Nesting', function() {
   let schema;
@@ -8,7 +8,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validator();
+    validator = new Validators();
   });
 
   describe('Three-level deep schema', function() {

@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validator } from '../src/validator.js';
+import { Validators } from '../src/validators.js';
 
 describe('ConfigurationSchema - Hierarchical Schemas', function() {
   let schema;
@@ -252,7 +252,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
             }
           }
         });
-      }, /Required field 'appName' is missing/);
+      }, /Required field "appName" is missing/);
 
       await assert.rejects(async () => {
         await schema.validate({
@@ -260,7 +260,7 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
           // database section is present but missing required field
           database: {}
         });
-      }, /Required field 'name' is missing/);
+      }, /Required field "name" is missing/);
     });
 
     it('should apply validators on all levels when provided', async function() {

@@ -1,5 +1,5 @@
 {
-  "name": "@argh/configurator",
+  "name": "@versionzero/configurator",
   "version": "0.1.0",
   "description": "A simple configuration utility for Node.js",
   "main": "src/configurator.js",
@@ -10,7 +10,11 @@
   "keywords": [
     "configuration",
     "command line",
-    "argh-configurator"
+    "configurator",
+    "argh",
+    "versionzero",
+    "v0"
+
   ],
   "author": "argh",
   "license": "MIT",
@@ -25,8 +29,6 @@
   "devDependencies": {
     "c8": "^8.0.1",
     "mocha": "^10.2.0"
-  },
-  "dependencies": {
-    "@argh/logger": "^0.1.0"
   }
+
 }

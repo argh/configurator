@@ -4,8 +4,8 @@ import { ConfigurationSource } from './configuration-source.js'
 
 export class ObjectSource extends ConfigurationSource
 {
-  constructor(options) {
-    super('object-source', options?.sequence || ConfigurationSource.DefaultSequence.APP_DEFAULTS);
+  constructor(options = {}) {
+    super({...options, name: 'object-source', sequence: options?.sequence || ConfigurationSource.DefaultSequence.APP_DEFAULTS});
     this.contextFieldName = options?.contextFieldName ?? 'data';
   }
 
@@ -22,7 +22,7 @@ export class ObjectSource extends ConfigurationSource
 
     const allFields = schema.getAllFieldPaths({hidden: true, advanced: true, system: true});
 
-    const fieldValues = new Map();
+    const fieldAssignments = new Map();
 
     function walk(object, prefix) {
 
@@ -32,11 +32,11 @@ export class ObjectSource extends ConfigurationSource
 
         const path = prefix ? `${prefix}.${canonicalFieldName}` : canonicalFieldName;
 
-        if (typeof value === 'object' && !Array.isArray(value)) {
-          walk(value, path);
+        if (allFields.has(path)) {
+          fieldAssignments.set(path, value);
         }
-        else if (allFields.has(path)) {
-          fieldValues.set(path, value);
+        else if (typeof value === 'object' && !Array.isArray(value)) {
+          walk(value, path);
         }
         else if (options?.strict) {
           throw new Error(`Unknown field reference "${path}"`);
@@ -45,6 +45,6 @@ export class ObjectSource extends ConfigurationSource
     }
     walk(object);
 
-    return fieldValues;
+    return fieldAssignments;
   }
 }

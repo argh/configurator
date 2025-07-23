@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validator } from '../src/validator.js';
+import { Validators } from '../src/validators.js';
 
 describe('ConfigurationSchema - Basic', function() {
   let schema;
@@ -8,7 +8,7 @@ describe('ConfigurationSchema - Basic', function() {
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validator();
+    validator = new Validators();
   });
 
   describe('#field()', function() {
@@ -73,6 +73,19 @@ describe('ConfigurationSchema - Basic', function() {
 
       const childSchema = schema.getChildren().get('section');
       const fields = childSchema.getFields();
+
+      assert.equal(fields.has('field1'), true);
+      assert.equal(fields.has('field2'), true);
+    });
+
+    it('should support cloning schemas that have children', function() {
+      schema.child('section')
+            .field('field1')
+            .field('field2');
+
+      let clone = schema.copy();
+
+      const fields = clone.getChildren().get('section').getFields();
 
       assert.equal(fields.has('field1'), true);
       assert.equal(fields.has('field2'), true);

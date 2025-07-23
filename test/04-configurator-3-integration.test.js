@@ -58,7 +58,6 @@ describe('Configurator Integration Tests', function() {
       const context = {
         appName: 'myapp',
         data: {
-          appName: 'TestApp',
           port: 3000,
           userLocalStorage: {
             storagePath: '/var/data'
@@ -117,7 +116,6 @@ describe('Configurator Integration Tests', function() {
         appName: 'myapp',
         // Low priority source
         data: {
-          appName: 'BaseApp',
           cluster: 'default',
           port: 3000,
           debug: false,
@@ -128,7 +126,6 @@ describe('Configurator Integration Tests', function() {
         },
         // Medium priority source
         env: {
-          'MYAPP_APP_NAME': 'EnvApp',
           'MYAPP_CLUSTER': 'production',
           'MYAPP_PORT': '4000',
           // Override storage mechanism

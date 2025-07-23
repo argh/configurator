@@ -1,17 +1,17 @@
 import { strict as assert } from 'assert';
-import { Validator } from '../src/validator.js';
+import { Validators } from '../src/validators.js';
 
 describe('Validator - Complex Scenarios', function() {
-  let validator;
+  let validators;
 
   beforeEach(function() {
-    validator = new Validator();
+    validators = new Validators();
   });
 
   describe('#validate() with custom validators', function() {
     it('should register and use custom validator', async function() {
       // Register a custom validator
-      validator.register('customFormat', (value) => {
+      validators.register('customFormat', (value) => {
         if (!value.match(/^[A-Z]-\d{3}$/)) {
           throw new Error('Must be in format X-000');
         }
@@ -19,17 +19,17 @@ describe('Validator - Complex Scenarios', function() {
       });
 
       // Test it passes with valid format
-      await assert.doesNotReject(async () => { await validator.validate('A-123', '$customFormat'); });
+      await assert.doesNotReject(async () => { await validators.validate('A-123', '$customFormat'); });
 
       // Test it fails with invalid format
       await assert.rejects(async () => {
-        await validator.validate('invalid', '$customFormat');
+        await validators.validate('invalid', '$customFormat');
       }, /Must be in format X-000/);
     });
 
     it('should handle custom validators with complex logic', async function() {
       // Register a custom validator with more complex logic
-      validator.register('passwordStrength', (value) => {
+      validators.register('passwordStrength', (value) => {
         if (value.length < 8) throw new Error('Password must be at least 8 characters');
         if (!/[A-Z]/.test(value)) throw new Error('Password must contain uppercase letters');
         if (!/[a-z]/.test(value)) throw new Error('Password must contain lowercase letters');
@@ -39,13 +39,13 @@ describe('Validator - Complex Scenarios', function() {
       });
 
       // Test it passes with strong password
-      const result1 = await validator.validate('P@ssw0rd123', '$passwordStrength');
+      const result1 = await validators.validate('P@ssw0rd123', '$passwordStrength');
       assert.notEqual(result1, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('P@ssw0rd123', '$passwordStrength'); });
+      await assert.doesNotReject(async () => { await validators.validate('P@ssw0rd123', '$passwordStrength'); });
 
       // Test it fails with weak password
       await assert.rejects(async () => {
-        await validator.validate('password', '$passwordStrength');
+        await validators.validate('password', '$passwordStrength');
       }, /Password must contain uppercase letters/);
     });
   });
@@ -64,23 +64,23 @@ describe('Validator - Complex Scenarios', function() {
       };
 
       // Test it passes
-      const result1 = await validator.validate('abc456', complexSpec);
+      const result1 = await validators.validate('abc456', complexSpec);
       assert.notEqual(result1, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('abc456', complexSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('abc456', complexSpec); });
 
       // Test it fails length check
       await assert.rejects(async () => {
-        await validator.validate('abc', complexSpec);
+        await validators.validate('abc', complexSpec);
       }, /Length must be at least/);
 
       // Test it fails alphanum check
       await assert.rejects(async () => {
-        await validator.validate('abc_def', complexSpec);
+        await validators.validate('abc_def', complexSpec);
       }, /Must contain only alphanumeric characters/);
 
       // Test it fails custom condition
       await assert.rejects(async () => {
-        await validator.validate('abc123', complexSpec);
+        await validators.validate('abc123', complexSpec);
       }, /Must not contain 123/);
     });
 
@@ -94,23 +94,23 @@ describe('Validator - Complex Scenarios', function() {
       };
 
       // Test it passes email
-      const result1 = await validator.validate('test@example.com', complexSpec);
+      const result1 = await validators.validate('test@example.com', complexSpec);
       assert.notEqual(result1, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('test@example.com', complexSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('test@example.com', complexSpec); });
 
       // Test it passes URL
-      const result2 = await validator.validate('https://example.com', complexSpec);
+      const result2 = await validators.validate('https://example.com', complexSpec);
       assert.notEqual(result2, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('https://example.com', complexSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('https://example.com', complexSpec); });
 
       // Test it passes exact length
-      const result3 = await validator.validate('1234567890', complexSpec);
+      const result3 = await validators.validate('1234567890', complexSpec);
       assert.notEqual(result3, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('1234567890', complexSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('1234567890', complexSpec); });
 
       // Test it fails all conditions
       await assert.rejects(async () => {
-        await validator.validate('invalid', complexSpec);
+        await validators.validate('invalid', complexSpec);
       }, /None of the alternatives matched/);
     });
 
@@ -129,28 +129,28 @@ describe('Validator - Complex Scenarios', function() {
       };
 
       // Test it passes email
-      const result1 = await validator.validate('test@example.com', nestedSpec);
+      const result1 = await validators.validate('test@example.com', nestedSpec);
       assert.notEqual(result1, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('test@example.com', nestedSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('test@example.com', nestedSpec); });
 
       // Test it passes URL
-      const result2 = await validator.validate('https://example.com', nestedSpec);
+      const result2 = await validators.validate('https://example.com', nestedSpec);
       assert.notEqual(result2, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('https://example.com', nestedSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('https://example.com', nestedSpec); });
 
       // Test it passes regex
-      const result3 = await validator.validate('ABC123', nestedSpec);
+      const result3 = await validators.validate('ABC123', nestedSpec);
       assert.notEqual(result3, undefined);
-      await assert.doesNotReject(async () => { await validator.validate('ABC123', nestedSpec); });
+      await assert.doesNotReject(async () => { await validators.validate('ABC123', nestedSpec); });
 
       // Test it fails length but would pass OR
       await assert.rejects(async () => {
-        await validator.validate('a@b', nestedSpec);
+        await validators.validate('a@b', nestedSpec);
       }, /Length must be at least/);
 
       // Test it passes length but fails OR
       await assert.rejects(async () => {
-        await validator.validate('invalid', nestedSpec);
+        await validators.validate('invalid', nestedSpec);
       }, /None of the alternatives matched/);
     });
   });
@@ -158,7 +158,7 @@ describe('Validator - Complex Scenarios', function() {
   describe('#validate() with child validators', function() {
     it('should use validators from parent in child validator', async function() {
       // Create a child validator
-      const childValidator = validator.createChild();
+      const childValidator = validators.createChild();
 
       // Register a new validator in the child
       childValidator.register('childOnly', (value) => {
@@ -183,7 +183,7 @@ describe('Validator - Complex Scenarios', function() {
 
       // Verify parent doesn't have child's validator
       await assert.rejects(async () => {
-        await validator.validate('anything', '$childOnly');
+        await validators.validate('anything', '$childOnly');
       }, /Unknown validator keyword/);
     });
   });

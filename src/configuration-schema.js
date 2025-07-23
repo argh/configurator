@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { convertValue, deepAssign, toCamelCase, toKebabCase } from './utils.js';
 import { Types } from './types.js';
-import { Validator } from './validator.js';
+import { Validators } from './validators.js';
 /**
  * Configuration field definition and validation schema
  */
@@ -9,7 +9,7 @@ export class ConfigurationSchema {
   /**
    * @typedef {Object} SchemaOptions
    * @property {Types} [types] - override for default field type registry
-   * @property {Validator} [validator] - override for default field validator registry
+   * @property {Validators} [validators] - override for default field validator registry
    * @property {Function} [condition] - optional condition to check before processing anything associated with this schema
    */
 
@@ -29,9 +29,9 @@ export class ConfigurationSchema {
       throw new Error('ConfigurationSchema requires Types');
     }
 
-    this.validator = options?.validator ?? new Validator()
-    if (!this.validator) {
-      throw new Error('ConfigurationSchema requires Validator');
+    this.validators = options?.validators ?? new Validators()
+    if (!this.validators) {
+      throw new Error('ConfigurationSchema requires Validators');
     }
     this.condition = options?.condition;
   }
@@ -93,7 +93,7 @@ export class ConfigurationSchema {
       throw new Error(`configuration schema child ${name} already defined as a field`);
     }
 
-    const childSchema = new ConfigurationSchema({...options, validator: this.validator, types: this.types, condition: options.condition ?? this.condition});
+    const childSchema = new ConfigurationSchema({...options, validators: this.validators, types: this.types, condition: options.condition ?? this.condition});
 
     this.children.set(name, childSchema);
     this._fpCache = null;
@@ -105,7 +105,7 @@ export class ConfigurationSchema {
    * @returns {ConfigurationSchema}
    */
   copy() {
-    let clone = new ConfigurationSchema({types: this.types, validator: this.validator, condition: this.condition});
+    let clone = new ConfigurationSchema({types: this.types, validators: this.validators, condition: this.condition});
 
     for (let [fieldName, fieldOptions] of this.fields) {
       clone.field(fieldName, fieldOptions);
@@ -187,7 +187,7 @@ export class ConfigurationSchema {
           }
         }
 
-        let resolvedValue = types.resolveTypeValue(field.type, value, configuration);
+        let resolvedValue = await types.resolveTypeValue(field.type, value, configuration);
         if (resolvedValue !== undefined) {
           deepAssign(configuration, path, resolvedValue);
           remaining.delete(path);
@@ -218,7 +218,7 @@ export class ConfigurationSchema {
   /**
    * @typedef {Object} ValidationOptions
    * @property {Types} [types]
-   * @property {Validator} [validator]
+   * @property {Validators} [validators]
    * @property {boolean} [strict]
    * @property {boolean} [populateDefaults]
    */
@@ -233,7 +233,7 @@ export class ConfigurationSchema {
   async validate(inputConfig, options) {
     let strict = options?.strict || false;
     let types = options?.types ?? this.types;
-    let validator = options?.validator ?? this.validator;
+    let validators = options?.validators ?? this.validators;
     let populateDefaults = options?.populateDefaults ?? false;
     let rootConfig = options?.config ?? inputConfig;
 
@@ -271,7 +271,7 @@ export class ConfigurationSchema {
       // Skip undefined optional fields
       if (value === undefined) {
         if (field.required) {
-          throw new Error(`Required field '${fieldName}' is missing`);
+          throw new Error(`Required field "${fieldName}" is missing`);
         }
         else {
           continue;
@@ -282,10 +282,10 @@ export class ConfigurationSchema {
       }
       try {
         if (types) {
-          value = types.resolveTypeValue(field.type, value, rootConfig);
+          value = await types.resolveTypeValue(field.type, value, rootConfig);
         }
-        if (validator) {
-          value = await validator.validate(value, field.validator);  // throws if invalid
+        if (validators && field.validator !== undefined) {
+          value = await validators.validate(value, field.validator);  // throws if invalid
         }
       }
       catch (err) {

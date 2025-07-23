@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 describe('Examples', () => {
-  const examplesDir = './src/examples';
+  const examplesDir = './examples';
   const exampleFiles = fs.readdirSync(examplesDir).filter(file => file.endsWith('.js'));
 
   exampleFiles.forEach(file => {

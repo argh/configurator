@@ -14,41 +14,69 @@ export class Configurator {
 
   /**
    * @typedef {Object} ConfiguratorOptions
-   * @property {ConfigurationSchema?} schema
-   * @property {Validator?} validator
-   * @property {Array<ConfigurationSource>?} sources
-   * @property {string} configField
-   * @property {string} configFlag
+   * @property {ConfigurationSchema} [schema]
+   * @property {Validators} [validator]
+   * @property {Array<ConfigurationSource>} [sources]
+   * @property {boolean} [configEnabled]
+   * @property {string} [configField]
+   * @property {string} [configFlag]
+   * @property {string} [configContextFieldName]
+   * @property {object} [defaults] - optional ObjectSource configuration source data to use as defaults
    */
 
   /**
    * @param {ConfiguratorOptions?} options
    */
-  constructor(options) {
-    this._schema = options?.schema ?? new ConfigurationSchema();
-    this._sources = options?.sources;
+  constructor(options = {}) {
+    this._schema = options.schema ?? new ConfigurationSchema();
+    this._sources = options.sources;
+
+    let configField = options.configField ?? 'config';
+    let configFlag = options.configFlag ?? 'C';
+    let configDescription = options.configDescription ?? 'load configuration from file';
+    let configValueDescription = options.configValueDescription ?? 'path';
+
+    let configContextFieldName = options.configContextFieldName ?? 'config';
+
+    if (options.configEnabled) {
+      this._schema.field(configField, {
+        flagHint: configFlag,
+        validator: '$file',
+        context: configContextFieldName,
+        description: configDescription,
+        valueDescription: configValueDescription
+      });
+    }
+
 
     if (!this._sources) {
       this._sources = [];
       this.registerConfigurationSource(new DefaultsSource());                                     // system/schema defaults
       this.registerConfigurationSource(new ObjectSource({contextFieldName: 'defaults'}));  // app defaults
       this.registerConfigurationSource(new EnvironmentSource());
+      let commandLineSourceOptions = {};
+      if (options.configEnabled) {
+
+      }
+      this.registerConfigurationSource(new CommandLineSource(commandLineSourceOptions));
+      /*
       this.registerConfigurationSource(new CommandLineSource({
-          configEnabled: options?.configEnabled ?? true,
-          configField: options?.configField ?? 'config',
-          configFlag: options?.configFlag ?? 'C',
-          configContextFieldName: options?.configContextFieldName ?? 'config'
+          configEnabled: options.configEnabled ?? true,
+          configField: options.configField ?? 'config',
+          configFlag: options.configFlag ?? 'C',
+          configContextFieldName: options.configContextFieldName ?? 'config'
         })
       );
+       */
       this.registerConfigurationSource(new JsonFileSource({
-        contextFieldName: options?.configField ?? 'config'
+        contextFieldName: options.configField ?? 'config'
       }))
       this.registerConfigurationSource(new ObjectSource({contextFieldName: 'overrides', sequence: ConfigurationSource.DefaultSequence.OVERRIDES}));
     }
 
     this.context = {};
 
-    if (options?.defaults) {
+    if (options.defaults) {
       this.context['defaults'] = options.defaults; // app defaults; todo - rename to avoid confusion?
     }
 
@@ -71,9 +99,9 @@ export class Configurator {
     return this._schema;
   }
 
-  /** @type {Validator} */
+  /** @type {Validators} */
   get validator() {
-    return this.schema.validator;
+    return this.schema.validators;
   }
 
   /** @type {Types} */
@@ -81,7 +109,7 @@ export class Configurator {
     return this.schema.types;
   }
 
-  async configure(context, strict = false) {
+  async configure(context, strict = true) {
 
     // todo - deepMerge?
     const mergedContext = Object.assign({}, this.context, context)

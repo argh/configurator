@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validator } from '../src/validator.js';
+import { Validators } from '../src/validators.js';
 
 describe('ConfigurationSchema - Processing and Validation', function() {
   let schema;
@@ -42,7 +42,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
         await schema.validate({
           optionalField: 'value2'
         });
-      }, /Required field 'requiredField' is missing/);
+      }, /Required field "requiredField" is missing/);
     });
   });
 

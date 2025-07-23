@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 
 import { constants } from 'node:fs';
 
-export class Validator {
+export class Validators
+{
   constructor() {
     this.validators = new Map();
     this._registerBuiltInValidators();
@@ -43,10 +44,10 @@ export class Validator {
 
   /**
    * Create a child registry that inherits from this one
-   * @returns {Validator} New registry with inherited validators
+   * @returns {Validators} New registry with inherited validators
    */
   createChild() {
-    const child = new Validator();
+    const child = new Validators();
     // Copy all validators from parent
     for (const [keyword, validator] of this.validators) {
       child.validators.set(keyword, validator);
@@ -148,7 +149,7 @@ export class Validator {
       };
     }
 
-    // Object-based validators
+    // Object-based validators -- todo rewrite as registered validators
     if (typeof validatorSpec === 'object' && validatorSpec !== null) {
       return this._createObjectValidator(validatorSpec);
     }
@@ -251,10 +252,19 @@ export class Validator {
       return value;
     });
 
+    this.register('number', (value) => {
+      const num = Number(value);
+      if (Number.isNaN(num) || !Number.isFinite(num)) {
+        throw new Error('Must be a number');
+      }
+      return num;
+    })
     this.register('numeric', (value) => {
+      let v = `${value}`
+
       const numericRegex = /^[0-9]+$/;
-      if (!numericRegex.test(value)) {
-        throw new Error('Must contain only numbers');
+      if (!numericRegex.test(v)) {
+        throw new Error('Must contain only digits');
       }
       return value;
     });
@@ -392,10 +402,11 @@ export class Validator {
         }
         const andValidators = args.map(v => this.getValidatorFunction(v));
         return async (value) => {
+          let v = value;
           for (const validator of andValidators) {
-            await this.executeValidator(validator, value);
+            v = await this.executeValidator(validator, v);
           }
-          return value;
+          return v;
         };
 
       case '$or':
@@ -404,11 +415,12 @@ export class Validator {
         }
         const orValidators = args.map(v => this.getValidatorFunction(v));
         return async (value) => {
+          let v = value;
           const errors = [];
           for (const validator of orValidators) {
             try {
-              await this.executeValidator(validator, value);
-              return value;
+              v = await this.executeValidator(validator, v);
+              return v;
             } catch (error) {
               errors.push(error.message);
             }
@@ -466,9 +478,9 @@ export class Validator {
           return value;
         };
 
-      case '$oneof':
+      case '$in':
         if (!Array.isArray(args)) {
-          throw new Error('$oneof validator requires an array of allowed values');
+          throw new Error('$in validator requires an array of allowed values');
         }
         return async (value) => {
           if (!args.includes(value)) {

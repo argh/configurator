@@ -7,7 +7,7 @@ describe('Configurator - Basic', function() {
   let configurator;
 
   beforeEach(function() {
-    configurator = new Configurator('TestApp');
+    configurator = new Configurator();
   });
 
   describe('#constructor', function() {
