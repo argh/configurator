@@ -61,8 +61,8 @@ types.defineType('timestamp', (value) => {
 // provided.  It also accepts explicit assignment of a compatible instance.
 
 class Logger {}
-class FooLogger extends Logger { log(message) { console.log('foo!', message) } }
-class BarLogger extends Logger { log(message) { console.log('bar!', message) } }
+class FooLogger extends Logger { log(message) { console.log('foo!', message) };  }
+class BarLogger extends Logger { log(message) { console.log('bar!', message) };  }
 
 let loggerSingleton = undefined;
 
@@ -84,6 +84,47 @@ types.defineType('Logger', (value) => {
     throw new Error('unknown logger type');
   }
   return loggerSingleton;
+})
+
+class Cheese {}
+class Cheddar extends Cheese { }
+class Mozzarella extends Cheese { }
+class Parmesan extends Cheese {  }
+class Stilton extends Cheese {  }
+class Gouda extends Cheese {  }
+class Emmental extends Cheese {  }
+class Brie extends Cheese {  }
+
+const cheeses = new Map([Cheddar, Mozzarella, Parmesan, Stilton, Gouda, Emmental, Brie].map(c => [c.name.toLowerCase(), c]));
+
+types.defineType('Cheese', (value) => {
+  if (typeof value === 'string') {
+    value = value.toLowerCase();
+    if (cheeses.has(value)) {
+      value = cheeses.get(value);
+    }
+    else {
+      throw new Error('unsupported cheese');
+    }
+  }
+
+  try {
+    class test extends value {}
+  }
+  catch (err) {
+    throw new Error('invalid cheese constructor');
+  }
+
+  if (typeof value !== 'function' || !value.prototype instanceof Cheese) {
+    throw new Error('not a cheese!')
+  }
+
+  if (value.name) {
+    return value;
+  }
+  else {
+    throw new Error('cannot use unnamed cheese')
+  }
 })
 
 // VALIDATORS
@@ -161,6 +202,7 @@ schema.child('worker')
       .field('repo', { validator: {$and: ['$directory', '$inside-git-repo']}})
       .field('modified', { type: 'timestamp', default: 'now' })
 
+.field('cheese', {type: '[Cheese]', default: ['brie', Parmesan, 'cheddar']})
 
 
 
@@ -264,7 +306,27 @@ try {
   if (logger) {
     logger.log('hello!');
   }
-  console.log('Configuration results: ', JSON.stringify(config, null, 2));
+  console.log('Configuration results: ', JSON.stringify(config, (key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Handle class instances
+      if (value.constructor && value.constructor.name !== 'Object') {
+        return {
+          __className: value.constructor.name,
+          ...value
+        };
+      }
+      // Handle class constructors/functions
+      return value;
+    }
+    else if (typeof value === 'function' && value.prototype && value.prototype.constructor === value) {
+      return {
+        __className: value.name,
+        __type: 'class'
+      };
+    }
+
+    return value;
+  }, 2));
 }
 catch (error) {
   console.log(error.message);

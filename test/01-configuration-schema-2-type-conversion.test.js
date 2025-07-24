@@ -153,6 +153,23 @@ describe('ConfigurationSchema - Type Conversion', function() {
     });
   });
 
+  describe('Typed Arrays', function() {
+    beforeEach(function() {
+      schema.field('typedArrayField', { type: '[number]' });
+    });
+
+    it('should keep array values as arrays', async function() {
+      const value = [1, 2, 3];
+
+      const result = await schema.validate({ typedArrayField: value });
+      assert.deepEqual(result.typedArrayField, value);
+    })
+    it('should convert single values to array', async function() {
+      const result = await schema.validate({ typedArrayField: 123 });
+      assert.deepEqual(result.typedArrayField, [123]);
+    });
+  })
+
   describe('Unknown type', function() {
     beforeEach(function() {
       schema.field('unknownField', { type: 'unknown-type' });

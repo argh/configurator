@@ -24,6 +24,32 @@ export class Types
   }
 
   async resolveTypeValue(typeName, value, configuration) {
+    if (typeName.startsWith('[') && typeName.endsWith(']')) {
+      typeName = typeName.substring(1, typeName.length - 1);
+      if (typeName.trim() === '') {
+        typeName = 'string';
+      }
+
+      let result = [];
+      try {
+        if (value && typeof value[Symbol.iterator] !== 'function') {
+          value = [value];
+        }
+
+        for (const v of value) {
+          let resolved = await this.resolveTypeValue(typeName, v, configuration);
+          if (resolved === undefined) {
+            return undefined;
+          }
+          result.push(resolved);
+        }
+        return result;
+      }
+      catch (err) {
+        throw new Error(`Cannot resolve array of ${typeName}: ${err.message}`);
+      }
+    }
+
     const type = this.getType(typeName);
 
     if (!type) {
@@ -31,11 +57,15 @@ export class Types
     }
 
     let v = value;
+
     if (typeof value === 'function') {
       if (!configuration) {
         throw new Error('Cannot resolve type value without configuration');
       }
-      v = await (async () => value(configuration, type))();
+      let isConstructor = value.prototype && value.prototype.constructor === value;
+      if (!isConstructor) {
+        v = await (async () => value(configuration, type))();
+      }
     }
 
     if (v === undefined) {

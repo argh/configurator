@@ -70,7 +70,7 @@ export class ConfigurationSchema {
     // todo - allow private extended options and don't smoosh everything together into one object
     //        e.g. make moduleName a private contract with its type handler
 
-    let fieldOptions = {...options, name, type: options.type || 'string', required: options.required ?? false, description: options.description ?? ''};
+    let fieldOptions = {...options, name, type: options.type?.trim() || 'string', required: options.required ?? false, description: options.description ?? ''};
 
     this.fields.set(name, fieldOptions);
     this._fpCache = null;
