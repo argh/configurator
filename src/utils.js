@@ -135,8 +135,7 @@ export function deepAssign(object, path, value) {
 
 /**
  * Convert value to the specified type
- * @private
- */
+  */
 export function convertValue(value, type) {
   switch (type) {
     case 'number':

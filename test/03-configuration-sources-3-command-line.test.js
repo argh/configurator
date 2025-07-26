@@ -43,11 +43,33 @@ describe('CommandLineSource', function() {
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
       assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     });
+    it('should handle array values specified with []', async function() {
+      schema.field('tags', { type: '[string]' });
+      schema.field('fruit', { type: '[string]' });
+
+      const context = { argv: ['--tags', 'tag1', 'tag2', 'tag3', '--fruit=apple,banana,orange'] };
+
+      const result = await source._load(schema, context);
+
+      assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    });
     it('should handle array values specified with a flag', async function() {
       schema.field('tags', { type: 'array' });
 //      schema.field('fruit', { type: 'array' });
 
       const context = { argv: ['-t', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
+
+      const result = await source._load(schema, context);
+
+      assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
+//      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    });
+    it('should (grudgingly) handle array values specified with the last flag', async function() {
+      schema.field('excitement', { type: 'boolean', flagHint: 'x'})
+      schema.field('tags', { type: 'array' });
+
+      const context = { argv: ['-xt', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
 
       const result = await source._load(schema, context);
 

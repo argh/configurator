@@ -8,8 +8,17 @@ export class Types
   }
 
   defineType(typeName, resolver, options = {}) {
+    if (typeName.startsWith('[') && typeName.endsWith(']')) {
+      typeName = typeName.substring(1, typeName.length - 1).trim();
 
-    typeName = toKebabCase(typeName);
+      if (typeName === '') {
+        typeName = 'string';
+      }
+      typeName = `${toKebabCase(typeName)}-list`
+    }
+    else {
+      typeName = toKebabCase(typeName);
+    }
     let type = {
       typeName, resolver, options
     }
@@ -24,39 +33,6 @@ export class Types
   }
 
   async resolveTypeValue(typeName, value, configuration) {
-    if (typeName.startsWith('[') && typeName.endsWith(']')) {
-      typeName = typeName.substring(1, typeName.length - 1);
-      if (typeName.trim() === '') {
-        typeName = 'string';
-      }
-
-      let result = [];
-      try {
-        if (value && typeof value[Symbol.iterator] !== 'function') {
-          value = [value];
-        }
-
-        for (const v of value) {
-          let resolved = await this.resolveTypeValue(typeName, v, configuration);
-          if (resolved === undefined) {
-            return undefined;
-          }
-          result.push(resolved);
-        }
-        return result;
-      }
-      catch (err) {
-        throw new Error(`Cannot resolve array of ${typeName}: ${err.message}`);
-      }
-    }
-
-    const type = this.getType(typeName);
-
-    if (!type) {
-      return undefined;
-    }
-
-    let v = value;
 
     if (typeof value === 'function') {
       if (!configuration) {
@@ -64,15 +40,40 @@ export class Types
       }
       let isConstructor = value.prototype && value.prototype.constructor === value;
       if (!isConstructor) {
-        v = await (async () => value(configuration, type))();
+        value = await (async () => value(configuration, typeName))();
       }
     }
 
-    if (v === undefined) {
+    if (value === undefined) {
       return undefined;
     }
+    let type;
 
-    return (async () => type.resolver(v, configuration, type))();
+    if (typeName.startsWith('[') && typeName.endsWith(']')) {
+      typeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim());
+      if (typeName === '') {
+        typeName = 'string';
+      }
+      if (!Array.isArray(value)) {
+        value = [value];
+      }
+
+      // if we have a registered type handler for this type, use it.
+
+      type = this.getType(`${typeName}-list`);
+
+      if (type) {
+        return (async () => type.resolver(value, configuration, type))();
+      }
+      else {
+        return Promise.all(value.map(async v => await this.resolveTypeValue(typeName, v, configuration)));
+      }
+    }
+    type = this.getType(toKebabCase(typeName));
+    if (!type) {
+      return undefined;
+    }
+    return (async () => type.resolver(value, configuration, type))();
   }
 
   _defineBuiltInTypes() {

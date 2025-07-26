@@ -277,7 +277,7 @@ export class CommandLineSource extends ConfigurationSource
             value = true;
           }
         }
-        else if (optionData.type === 'array') {
+        else if (optionData.type === 'array' || (optionData.type.startsWith('[') && optionData.type.endsWith(']'))) {
           value = [];
           if (hasInlineValue) {
             value = inlineValue.split(',').filter(item => item.length);
@@ -310,6 +310,7 @@ export class CommandLineSource extends ConfigurationSource
 
         fieldAssignments.set(optionData.path, value);
 
+        // we sometimes want to pass a value downstream to other configuration sources:
         if (optionData.context) {
           if (typeof optionData.context === 'string') {
             context[optionData.context] = value;
@@ -372,7 +373,7 @@ export class CommandLineSource extends ConfigurationSource
               value = true;
             }
           }
-          else if (optionData.type === 'array') {
+          else if (optionData.type === 'array' || (optionData.type.startsWith('[') && optionData.type.endsWith(']'))) {
             if (isLastOption) {
               value = [];
               while (peekArgumentValue()) {
@@ -417,7 +418,7 @@ export class CommandLineSource extends ConfigurationSource
 
     // Assign main values to main field
     if (generalField && generalValues.length > 0) {
-      if (generalField.type === 'array') {
+      if (generalField.type === 'array' || (generalField.type.startsWith('[') && generalField.type.endsWith(']'))) {
         fieldAssignments.set(generalField.path, generalValues);
       }
       else if (generalValues.length === 1) {
@@ -427,7 +428,9 @@ export class CommandLineSource extends ConfigurationSource
         throw new CommandLineError(`Too many arguments provided for ${generalField.name}: [${generalValues.join(', ')}]`)
       }
 
-      fieldAssignments.set(generalField.path, generalField.type === 'array' ? generalValues : generalValues[0]);
+      const isArray = generalField.type === 'array' || (generalField.type.startsWith('[') && generalField.type.endsWith(']'));
+
+      fieldAssignments.set(generalField.path, isArray? generalValues : generalValues[0]);
     }
 
     // Validate the complete configuration
@@ -580,6 +583,9 @@ export class CommandLineSource extends ConfigurationSource
     }
     else if (fieldData.type === 'boolean') {
       argumentTypeString = 'true|false'
+    }
+    else if (fieldData.type.startsWith('[') && fieldData.type.endsWith(']')) {
+      argumentTypeString = `${fieldData.type.substring(1, fieldData.type.length - 1) || 'string'}...`
     }
     else if (fieldData.type === 'array') {
       if (typeof fieldData.validators === 'string') {

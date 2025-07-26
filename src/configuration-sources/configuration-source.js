@@ -2,9 +2,13 @@
  * Configuration source interface - all sources should implement this
  */
 export class ConfigurationSource {
-  constructor(name, sequence) {
-    this.name = name;  // todo - migrate to using this name to track field assignments by storing an origin tuple of { name, value, "formatted origin info" }
-    this.sequence = sequence ?? 1000;
+  constructor(nameOrOptions, options) {
+    if (typeof nameOrOptions === 'string') {
+      options = options ?? {};
+      options.name = nameOrOptions;
+    }
+    this.name = nameOrOptions ?? options.name;  // todo - migrate to using this name to track field assignments by storing an origin tuple of { name, value, "formatted origin info" }
+    this.sequence = options?.sequence ?? 1000;
   }
 
   /**

@@ -45,11 +45,18 @@ export class EnvironmentSource extends ConfigurationSource {
         envVar = (`${appPrefix}_${suffix}`);
       }
 
-      const envVal = env[envVar]
+      let envVal = env[envVar]
+
+      if (fieldData.type === 'array' || (fieldData.type.startsWith('[') && fieldData.type.endsWith(']'))) {
+        if (envVal) {
+          envVal = envVal.split(',').map(v => v.trim());
+        }
+      }
 
       if (envVal !== undefined) {
         fieldAssignments.set(fieldData.path, envVal)
       }
+      // we sometimes want to pass a configured value to other configuration sources downstream:
       if (fieldData.context) {
         if (typeof fieldData.context === 'string') {
           context[fieldData.context] = envVal;

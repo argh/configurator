@@ -30,6 +30,22 @@ describe('EnvironmentSource', function() {
       assert.equal(result.get('debug'), 'true');
     });
 
+    it('should handle array values', async function () {
+      schema.field('tags', {type: 'array'});
+      schema.field('fruit', {type: '[string]'});
+
+      const context = {
+        appName: 'APP',
+        env: {
+          'APP_TAGS': 'tag1,tag2,tag3',
+          'APP_FRUIT': 'apple,banana,orange'
+        }
+      }
+      const result = await source._load(schema, context);
+      assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    })
+
     it('should handle nested fields with proper naming convention', async function () {
       const dbSchema = schema.child('database');
       dbSchema.field('host');

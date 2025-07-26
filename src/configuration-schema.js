@@ -166,9 +166,14 @@ export class ConfigurationSchema {
       for (let [path, value] of remaining) {
         const field = allFields.get(path);
 
-        // Conditions will get re-checked multiple times if they fail as it is possible they may change
+        // Conditions will get re-checked multiple times if they fail, as it is possible they may change
         // value based on updates to configuration state.  Once the configuration has stabilized, we
         // will remove any remaining assignments that failed their condition check.
+        //
+        // (Note: we don't retroactively reconsider conditional assignments that were previously resolved.
+        // This seemed like a reasonable constraint on conditionals in order to avoid the possibility
+        // of flapping assignments.  It also seemed unlikely that any real-world scenarios would require
+        // that kind of behavior.)
 
         let condition = field.condition ?? field.schema.condition;
 
@@ -277,7 +282,19 @@ export class ConfigurationSchema {
           continue;
         }
       }
-      if (strict && types && !types.getType(field.type)) {
+      let typeName = field.type;
+
+      if (!typeName) {
+        throw new Error(`Field "${fieldName}" has no type`);
+      }
+
+      if (typeName.startsWith('[') && typeName.endsWith(']')) {
+        // note: we will assume that if the inner typeName exists, then the outer array type exists as well.
+        // (we check the type using this inner type to simplify the logic, but resolve using the original field.type)
+        typeName = typeName.substring(1, typeName.length - 1);
+      }
+
+      if (strict && types && !types.getType(typeName)) {
         throw new Error(`Unknown type '${field.type}' for field '${fieldName}'`);
       }
       try {
