@@ -4,7 +4,7 @@ import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { ObjectSource } from '../src/configuration-sources/object-source.js';
 import { EnvironmentSource } from '../src/configuration-sources/environment-source.js';
 import { CommandLineSource } from '../src/configuration-sources/command-line-source.js';
-import { DefaultsSource } from '../src/configuration-sources/defaults-source.js';
+import { SchemaDefaultsSource } from '../src/configuration-sources/schema-defaults-source.js';
 
 describe('Configurator Integration Tests', function() {
   let configurator;
@@ -25,6 +25,12 @@ describe('Configurator Integration Tests', function() {
       }
     }
 
+    // Add some basic fields
+    schema.field('storage', { default: 'local' });
+    schema.field('cluster', { description: 'Cluster name' });
+    schema.field('port', { type: 'number', default: 8080 });
+    schema.field('debug', { type: 'boolean', default: false });
+
     // Setup a schema with exclusive categories for storage options
     const localStorageSchema = schema.child('userLocalStorage', {condition});
     localStorageSchema.field('storagePath', { description: 'Local file system path' });
@@ -35,17 +41,16 @@ describe('Configurator Integration Tests', function() {
     webStorageSchema.field('username');
     webStorageSchema.field('password');
 
-    // Add some basic fields
-    schema.field('storage', { default: 'local' });
-    schema.field('cluster', { description: 'Cluster name' });
-    schema.field('port', { type: 'number', default: 8080 });
-    schema.field('debug', { type: 'boolean', default: false });
+    const randomSchema = schema.child('random');
+    randomSchema.field('number', { type: 'number' });
+    randomSchema.field('debug', { type: 'boolean', inherit: true })
+
 
     // Create configurator with custom sources
     configurator = new Configurator({
       schema: schema,
       sources: [
-        new DefaultsSource(),
+        new SchemaDefaultsSource(),
         new ObjectSource(),
         new EnvironmentSource(),
         new CommandLineSource()
@@ -106,7 +111,22 @@ describe('Configurator Integration Tests', function() {
       assert.equal(config.cluster, 'local'); // Only in object source
     });
 
-
+    it('should handle inherited fields', async function() {
+      const context = {
+        appName: 'myapp',
+        data: {
+          debug: false
+        },
+        env: {
+          'MYAPP_DEBUG': 'true'
+        },
+        argv: ['--random-number', 5678]
+      }
+      const config = await configurator.configure(context);
+      assert.equal(config.debug, true);
+      assert.equal(config.random.number, 5678);
+      assert.equal(config.random.debug, true);
+    })
 
 
 

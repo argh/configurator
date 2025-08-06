@@ -10,17 +10,17 @@ export class EnvironmentSource extends ConfigurationSource {
   }
   /**
    * Parse configuration from this source
-   * @param {ConfigurationSchema} schema - Schema to use for parsing
+   * @param {Configurator} configurator
    * @param {object} context - collection of source-specific fields (argv, env, etc.)
    * @returns {Promise<Map<string,any>>} Parsed configuration object
    */
-  async _load(schema, context) {
+  async _load(configurator, context) {
 
     const appName = context?.appName;
 
     const appPrefix = toConstantCase(appName? appName : '');
 
-    const allFields = schema.getAllFieldPaths();
+    const allFields = configurator.schema.getAllFieldPaths();
 
     const env = context[this.contextFieldName] ?? process.env;
 

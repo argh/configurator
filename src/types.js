@@ -1,4 +1,5 @@
 import { toKebabCase } from './utils.js';
+import { ConfiguratorError} from './configurator-error.js';
 
 export class Types
 {
@@ -36,7 +37,7 @@ export class Types
 
     if (typeof value === 'function') {
       if (!configuration) {
-        throw new Error('Cannot resolve type value without configuration');
+        throw new ConfiguratorError('Cannot resolve type value without configuration');
       }
       let isConstructor = value.prototype && value.prototype.constructor === value;
       if (!isConstructor) {

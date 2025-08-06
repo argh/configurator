@@ -1,14 +1,17 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { EnvironmentSource } from '../src/configuration-sources/environment-source.js';
+import { Configurator } from '../src/index.js';
 
 describe('EnvironmentSource', function() {
   let source;
   let schema;
+  let configurator;
 
   beforeEach(function () {
     source = new EnvironmentSource();
     schema = new ConfigurationSchema();
+    configurator = new Configurator({schema});
   });
 
   describe('#_load()', function () {
@@ -24,7 +27,7 @@ describe('EnvironmentSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('port'), '3000');
       assert.equal(result.get('debug'), 'true');
@@ -41,7 +44,7 @@ describe('EnvironmentSource', function() {
           'APP_FRUIT': 'apple,banana,orange'
         }
       }
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
       assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     })
@@ -59,7 +62,7 @@ describe('EnvironmentSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('database.host'), 'localhost');
       assert.equal(result.get('database.port'), '5432');
@@ -76,7 +79,7 @@ describe('EnvironmentSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('port'), '3000');
       assert.equal(result.has('unknown'), false);

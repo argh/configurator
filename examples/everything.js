@@ -1,24 +1,16 @@
-import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validators } from '../src/validators.js';
-import { Types } from '../src/types.js';
-import { DefaultsSource } from '../src/configuration-sources/defaults-source.js';
-import { ObjectSource } from '../src/configuration-sources/object-source.js';
-import { EnvironmentSource } from '../src/configuration-sources/environment-source.js';
-import { CommandLineSource } from '../src/configuration-sources/command-line-source.js';
-import { JsonFileSource } from '../src/configuration-sources/json-file-source.js';
-import { ConfigurationSource } from '../src/configuration-sources/configuration-source.js';
 import { stat, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
+import path from 'node:path';
+import { Configurator, ConfigurationSchema, Types, Validators } from '../src/index.js';
+import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { toConstantCase } from '../src/utils.js';
-import { Configurator } from '../src/configurator.js';
 
 
 // TYPES
 const types = new Types();
 
 // Type definitions are simply a name, a (potentially async) resolver function,
-// and an optional type-specific options object.  Type names are kebab-cased for
+// and an optional type-specific options object.  Type names are internally kebab-cased for
 // consistency.  (The default Types registry pre-defines common primitive types.)
 //
 // When an assignment to a typed configuration field is being finalized, the type's resolver
@@ -56,34 +48,38 @@ types.defineType('timestamp', (value) => {
   }
 });
 
-// Here is an example where we define a Logger type that will resolve to a
-// singleton of a Logger type instance, selected based on the string name
+// Here is an example where we define a Printer type that will resolve to a
+// singleton of a Printer type instance, selected based on the string name
 // provided.  It also accepts explicit assignment of a compatible instance.
 
-class Logger {}
-class FooLogger extends Logger { log(message) { console.log('foo!', message) };  }
-class BarLogger extends Logger { log(message) { console.log('bar!', message) };  }
+class Printer {}
+class FooPrinter extends Printer { print(message) { console.log('foo!', message) };  }
+class BarPrinter extends Printer { print(message) { console.log('bar!', message) };  }
+class BazPrinter extends Printer { print(message) { console.log('baz!', message) };  }
 
-let loggerSingleton = undefined;
+let printerSingleton = undefined;
 
-types.defineType('Logger', (value) => {
-  if (loggerSingleton) {
-    return loggerSingleton;
+types.defineType('Printer', (value) => {
+  if (printerSingleton) {
+    return printerSingleton;
   }
-  if (value instanceof Logger) {
-    loggerSingleton = value;
+  if (value instanceof Printer) {
+    printerSingleton = value;
     return value;
   }
   if (value === 'foo') {
-    loggerSingleton = new FooLogger();
+    printerSingleton = new FooPrinter();
   }
   else if (value === 'bar') {
-    loggerSingleton = new BarLogger();
+    printerSingleton = new BarPrinter();
+  }
+  else if (value === 'baz') {
+    printerSingleton = new BazPrinter();
   }
   else {
-    throw new Error('unknown logger type');
+    throw new Error('unknown printer type');
   }
-  return loggerSingleton;
+  return printerSingleton;
 })
 
 class Cheese {}
@@ -188,9 +184,12 @@ schema.child('app')
       .field('verbose', { type: 'boolean', default: false, flagHint: 'V', advanced: true })
       .field('devMode', { type: 'boolean', flagHint: 'D', advanced: true })
       .field('foo', { type: 'boolean', default: false })
-      .field('logger', { type: 'Logger', validator: (v => {
-        if (v instanceof Logger) return v;
-        throw new Error('invalid logger');
+      .field('printer', { type: 'Printer', validator: (v => {
+        // inline validator
+        if (v instanceof BazPrinter) {
+          throw new Error('PC LOAD LETTER')
+        }
+          return v;
       })})
       .field('fakeSecretDelay', {type: 'number', default: 500, hidden: true});
 
@@ -201,9 +200,7 @@ schema.child('worker')
       .field('token', { required: true, validator: /[0-9|a-f]{12}/i, secret: true})
       .field('repo', { validator: {$and: ['$directory', '$inside-git-repo']}})
       .field('modified', { type: 'timestamp', default: 'now' })
-
-.field('cheese', {type: '[Cheese]', default: ['brie', Parmesan, 'cheddar']})
-
+      .field('cheese', {type: '[Cheese]', default: ['brie', Parmesan, 'cheddar']})
 
 
 class FakeSecretsSource extends ConfigurationSource {
@@ -221,13 +218,13 @@ class FakeSecretsSource extends ConfigurationSource {
     }
   }
 
-  async load(schema, context, loadOptions) {
+  async load(configurator, context, loadOptions) {
 
     const assignments = new Map();
 
     const appName = context.appName;
     const appPrefix = toConstantCase(appName? appName : '');
-    const allFields = schema.getAllFieldPaths();
+    const allFields = configurator.schema.getAllFieldPaths();
 
     let secretKey;
     for (const fieldData of allFields.values()) {
@@ -271,10 +268,10 @@ class FakeSecretsSource extends ConfigurationSource {
 // You can pass in your own set of ConfigurationSources.  (If you just want to add a single
 // custom source to the default list, you can just call Configurator.registerConfigurationSource.
 // The source's sequence number property will dictate the processing order relative to the
-// existing sources.
+// existing sources.  The built-in sources allow you to override their default sequence if necessary.
 
 const sources = [
-  new DefaultsSource(),     // you almost always want this one, it turns default values into low-priority assignments
+  new SchemaDefaultsSource(),     // you almost always want this one, it turns default values into low-priority assignments
   new FakeSecretsSource(),  // secrets will be loaded at a low priority level in case we want to override them
   new EnvironmentSource(),
   new CommandLineSource(),
@@ -282,6 +279,7 @@ const sources = [
   new ObjectSource({sequence: ConfigurationSource.DefaultSequence.OVERRIDES, contextFieldName: 'overrides'}),
 ];
 
+// This demonstrates a Configurator being provided all custom values, even redefining the default config file field name:
 const configurator = new Configurator({
   schema: schema,
   types: types,
@@ -293,18 +291,19 @@ const configurator = new Configurator({
   configFlag: 'P',
 });
 
-await writeFile('./profile.json', JSON.stringify({user: { nickname: 'bob' }}))
+// Write a demo profile file for the example...
+await writeFile('./example-profile.json', JSON.stringify({user: { nickname: 'bob' }}))
 
 try {
   const config = await configurator.configure({
     appName: 'app',    // env var prefix, also used to make cmd line args for matching schema more concise
-    argv: ['--worker-repo=./src', '-VD', '--fake-secret-delay=1000', '--profile=./profile.json', '--logger=bar'],
-    overrides: { app: { logger: new FooLogger() }}
+    argv: ['--worker-repo=./src', '-VD', '--fake-secret-delay=1000', '--profile=./example-profile.json', '--printer=bar'],
+    overrides: { app: { printer: new FooPrinter() }}
   })
-  let logger = config.app?.logger;
+  let printer = config.app?.printer;
 
-  if (logger) {
-    logger.log('hello!');
+  if (printer) {
+    printer.print('hello!');
   }
   console.log('Configuration results: ', JSON.stringify(config, (key, value) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {

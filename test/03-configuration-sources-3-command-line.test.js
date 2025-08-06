@@ -1,14 +1,17 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { CommandLineSource } from '../src/configuration-sources/command-line-source.js';
+import { Configurator } from '../src/index.js';
 
 describe('CommandLineSource', function() {
   let source;
   let schema;
+  let configurator;
 
   beforeEach(function() {
     source = new CommandLineSource('myapp');
     schema = new ConfigurationSchema();
+    configurator = new Configurator({schema});
   });
 
   describe('#_load()', function() {
@@ -22,7 +25,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['--port', '3000', '--verbose', '-Xr', '--advanced=true', '--hostname=localhost'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('hostname'), 'localhost');
       assert.equal(result.get('port'), '3000');
@@ -38,7 +41,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['--tags', 'tag1', 'tag2', 'tag3', '--fruit=apple,banana,orange'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
       assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
@@ -49,7 +52,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['--tags', 'tag1', 'tag2', 'tag3', '--fruit=apple,banana,orange'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
       assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
@@ -60,7 +63,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['-t', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
 //      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
@@ -71,7 +74,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['-xt', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
 //      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
@@ -82,7 +85,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['filename.txt'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('file'), 'filename.txt');
     });
@@ -94,7 +97,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['--database-host', 'localhost', '--database-port', '5432'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('database.host'), 'localhost');
       assert.equal(result.get('database.port'), '5432');
@@ -106,7 +109,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['--verbose', '--', 'file1.txt', 'file2.txt'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('verbose'), true);
       assert.deepEqual(result.get('file'), ['file1.txt', 'file2.txt']);
@@ -118,7 +121,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['-X', 'config.json', '-v'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('configuration'), 'config.json');
       assert.equal(result.get('verbose'), true);
@@ -130,7 +133,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['-p', '8080', '-v'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('port'), '8080');
       assert.equal(result.get('verbose'), true);
@@ -143,7 +146,7 @@ describe('CommandLineSource', function() {
 
       const context = { argv: ['--dp', '5432', '--database-host', 'localhost'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('database.port'), '5432');
       assert.equal(result.get('database.host'), 'localhost');
@@ -156,7 +159,7 @@ describe('CommandLineSource', function() {
 
       const context = { appName: 'welcome', argv: ['--message', 'Hello World', '--timeout', '30'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('welcome.message'), 'Hello World');
       assert.equal(result.get('welcome.timeout'), '30');
@@ -169,7 +172,7 @@ describe('CommandLineSource', function() {
       // Have general field values both as positional arguments and after --
       const context = { argv: ['before1.txt', 'before2.txt', '--verbose', '--', 'after1.txt', 'after2.txt'] };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('verbose'), true);
 
@@ -186,7 +189,7 @@ describe('CommandLineSource', function() {
       schema.field('known');
       const context = { argv: ['--unknown'] };
       await assert.rejects(async () => {
-        await source._load(schema, context, { strict: true });
+        await source._load(configurator, context, { strict: true });
       }, /Unknown option: --unknown/);
     });
 
@@ -194,7 +197,7 @@ describe('CommandLineSource', function() {
       schema.field('tags', { type: 'array' });
       const context = { argv: ['--tags'] };
       await assert.rejects(async () => {
-        await source._load(schema, context);
+        await source._load(configurator, context);
       }, /Option --tags requires one or more values/);
     });
 
@@ -202,7 +205,7 @@ describe('CommandLineSource', function() {
       schema.field('port', { type: 'number' });
       const context = { argv: ['--port'] };
       await assert.rejects(async () => {
-        await source._load(schema, context);
+        await source._load(configurator, context);
       }, /Option --port requires a value/);
     });
   });
@@ -212,20 +215,20 @@ describe('CommandLineSource', function() {
 
     const context = { argv: ['--config'] };
     await assert.rejects(async () => {
-      await source._load(schema, context);
+      await source._load(configurator, context);
     }, /Option --config requires a value/);
   });
 
   it('should handle config file option correctly', async function() {
     schema.field('config', {context: true});
     const context = { argv: ['--config', 'test.json'] };
-    const result = await source._load(schema, context);
+    const result = await source._load(configurator, context);
     assert.equal(context.config, 'test.json');
   });
   it('should handle empty values with allowEmpty option', async function() {
     schema.field('name', { allowEmpty: true });
     const context = { argv: ['--name'] };
-    const result = await source._load(schema, context);
+    const result = await source._load(configurator, context);
     assert.equal(result.get('name'), '');
   });
   it('should format help text with categories and advanced options', async function() {
@@ -233,7 +236,7 @@ describe('CommandLineSource', function() {
     schema.field('advanced', { description: 'Advanced option', advanced: true });
     schema.field('required', { description: 'Required option', required: true });
     const context = { appName: 'test' };
-    const helpText = source._help(schema, context, true);
+    const helpText = source._help(configurator, context, true);
     assert(helpText.includes('Usage: test [options]'));
     assert(helpText.includes('--basic'));
     assert(helpText.includes('--advanced'));
@@ -246,7 +249,7 @@ describe('CommandLineSource', function() {
       { field: { type: 'boolean' }, expected: '[true|false]' },
       { field: { type: 'number' }, expected: '<number>' },
       { field: { type: 'array' }, expected: '<value...>' },
-      { field: { type: 'string', validators: '$oneof:a|b' }, expected: '<oneof:a|b>' }
+      { field: { type: 'string', validator: '$oneof:a|b' }, expected: '<oneof:a|b>' }
     ];
 
     for (const test of tests) {

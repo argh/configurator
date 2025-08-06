@@ -1,14 +1,17 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { Validators } from '../src/validators.js';
+import { Configurator } from '../src/index.js';
 
 describe('ConfigurationSchema - Deep Nesting', function() {
   let schema;
-  let validator;
+  let validators;
+  let configurator;
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validators();
+    validators = new Validators();
+    configurator = new Configurator({schema, validators})
   });
 
   describe('Three-level deep schema', function() {
@@ -52,7 +55,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
     });
 
     it('should process a complete deeply nested configuration', async function() {
-      const result = await schema.validate({
+      const result = await configurator.validate({
         appName: 'DeepApp',
         version: '3.0.0',
         server: {
@@ -116,7 +119,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should use defaults for missing deep properties', async function() {
       // Provide only required fields and a few customizations
-      const result = await schema.validate({
+      const result = await configurator.validate({
         appName: 'MinimalDeepApp',
         server: {
           ssl: {
@@ -162,7 +165,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
     });
 
     it('should handle completely empty sections', async function() {
-      const result = await schema.validate({
+      const result = await configurator.validate({
         appName: 'EmptySectionsApp',
         server: {},
         database: {
@@ -239,7 +242,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should validate fields at all levels', async function() {
       // All valid values
-      const result = await schema.validate(
+      const result = await configurator.validate(
         {
           rootField: 'valid',
           level1: {
@@ -251,8 +254,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
               }
             }
           }
-        },
-        { validator }
+        }
       );
 
       assert.equal(result.rootField, 'valid');
@@ -263,7 +265,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
 
     it('should detect validation errors at the deepest level', async function() {
       await assert.rejects(async () => {
-        await schema.validate(
+        await configurator.validate(
           {
             rootField: 'valid',
             level1: {
@@ -275,15 +277,14 @@ describe('ConfigurationSchema - Deep Nesting', function() {
                 }
               }
             }
-          },
-          { validator }
+          }
         );
       }, /Bad value for field 'field3'/);
     });
 
     it('should detect unknown fields in strict mode at any level', async function() {
       await assert.rejects(async () => {
-        await schema.validate(
+        await configurator.validate(
           {
             rootField: 'valid',
             level1: {
@@ -297,7 +298,7 @@ describe('ConfigurationSchema - Deep Nesting', function() {
               }
             }
           },
-          { validator, strict: true }
+          { strict: true }
         );
       }, /Field 'unknownField' is unknown/);
     });

@@ -3,20 +3,19 @@
 A **schema-oriented** configuration management library for Node.js applications that exposes a rich API for 
 customization and extension.
 
-It forms the internal core of [`@versionzero/module-manager`](https://github.com/argh/module-manager), a library 
-that simplifies the lifecycle management (of which configuration is one phase) of complex applications.
+Developers have control over the entire configuration pipeline, from input to output.
 
-_No external runtime dependencies!_
+For full documentation, see <https://docs.v0.net/configurator>.
 
 ## Philosophy
 
-Unlike typical command-line oriented libraries that primarily emphasize expressive argument parsing, 
-Configurator takes a schema-first approach, and focuses on the "correctness" of the configured data
-that will be used by your application and its subsystems.
+Unlike command-line oriented libraries that focus on expressive argument parsing, Configurator takes a
+data-first approach, and focuses on the "correctness" of the configured data that will be consumed by your
+application and its subsystems.
 
-The idea is that if configuration data can be trusted to be sufficiently validated up front, the
-collection of configurable fields exposed by an application starts to be feel more like an API.
-The data in the final populated configuration should be exactly what was expected, no more, no less.
+The idea is that if the configuration system offers a strong contract for validating inputs
+against well-defined configurable fields, then the output can be trusted, and treated more like
+a data model.  The final populated configuration should be exactly what was expected, no more, no less.
 
 ## Basic Usage
 
@@ -24,117 +23,116 @@ The data in the final populated configuration should be exactly what was expecte
 npm install --save @versionzero/configurator
 ```
 
-#### basics.js ####
-```javascript
+#### Example
+(Source can be found in the [examples directory](https://github.com/argh/configurator/tree/main/examples)
+```javascript title="basics.js"
 import { ConfigurationSchema, Configurator } from '@versionzero/configurator';
 
+const appName = 'basics';
 // Define your configuration schema
 const schema = new ConfigurationSchema();
 
 schema.field('debug', { type: 'boolean', flagHint: 'D', advanced: true })
-      
-schema.child('basics')      
-           .field('verbose', { type: 'boolean' })
-           .field('codes', { type: 'array', validator: {$each: '$alphanum'}, required: true})
+
+schema.child(appName)
+      .field('verbose', { type: 'boolean' })
+      .field('codes', { type: 'array', validator: {$each: '$alphanum'}, required: true})
 schema.child('server')
-           .field('host', { default: 'localhost' })
-           .field('port', { type: 'number', default: 80, validator: '$positive'})
-           .field('protocol', { validator: {$in: ['tcp', 'udp', 'https', 'http']}})
+      .field('host', { default: '127.0.0.1' })
+      .field('port', { type: 'number', default: 80, validator: '$positive'})
+      .field('protocol', { validator: {$in: ['tcp', 'udp', 'https', 'http']}})
 
 // Initialize the configurator with your schema
 const config = await new Configurator({schema}).configure({
-  appName: 'basics',
-  defaults: { basics: { verbose: true }, server: { protocol: 'https' } }
+  appName,                                                 // application name
+  defaults: { [appName]: { verbose: true }},               // low priority, but higher than field defaults
+  env: process.env,                                        // (unnecessary, this is the default value)
+  argv: process.argv,                                      // (unnecessary, this is the default value)
+  overrides: { server: { protocol: 'https', port: 443 } }  // highest priority
 });
 
 console.log('Configuration results:', config);
 ```
-emits:
-```aiignore
-% export BASICS_SERVER_HOST=127.0.0.1
+Try running it with a mix of environment variables and command line options:
+```bash
+% export BASICS_SERVER_HOST=localhost
 % node basics.js -D --server-port 8081 --codes 5xx z10 123
 
 Configuration results:  {
-  "debug": true,
-  "verbose": true,
-  "codes": [
-    "5xx",
-    "z10",
-    "123"
-  ],
-  "server": {
-    "host": "127.0.0.1",
-    "port": 8081,
-    "protocol": "https"
-  }
+  debug: true,
+  basics: { verbose: true, codes: [ '5xx', 'z10', '123' ] },
+  server: { host: 'localhost', port: 443, protocol: 'https' }
 }
-
 ```
+See the full [documentation](https://docs.v0.net/configurator) for details on how the schema's configurables are
+mapped to environment variables and command line arguments.
+
+Also see the [examples directory](https://github.com/argh/configurator/tree/main/examples) for more advanced usage patterns:
+
+- Custom types and validators
+- Custom configuration sources
+- Conditional configuration
+- Dynamic configuration resolution
+- Configuration file loading
 
 
 ## Key Features
 
 **Reasonable Defaults, "Batteries Included", etc.**
 
-: The basic `Configurator` setup is completely adequate for quickly providing configuration for most simple
-  applications.  The schema API is superficially similar to that of most command-line focused libraries.  
+: The default `Configurator` setup is a great starting point for quickly providing configuration hooks for
+typical applications.  The schema API is superficially similar to that of most command-line focused libraries,
+so adoption is easy.  Out of the box, you get a command line parser with help text generation, environment
+variable parsing, configuration file loading, and a library of field validators that cover many common needs.
 
-**Extensible Schema System**
+**Extensible Schema Types and Validation**
 
-: The `Configurator` manages a `ConfigurationSchema`, which by default is pre-loaded to understand basic 
-  primitive types and common extensions (`string`, `number`, `boolean`, `array`, `object`, `date`, `buffer`),
-  as well as many basic field validators (e.g. `$positive`, `$alphanum`, etc.) but developers can define their own.
-  Custom types and validators may provide arbitrary (potentially asynchronous!) transformations from configuration
-  inputs to finalized outputs.
- 
-**Sequenced Configuration Sources** 
+: The `Configurator` manages a `ConfigurationSchema`, which by default is pre-loaded to understand basic
+primitive types and common extensions (`string`, `number`, `boolean`, `array`, `object`, `date`, `buffer`),
+as well as many useful field validators (e.g. `$positive`, `$alphanum`, `$directory`, etc.) but developers
+can also define their own implementations.  Custom types and validators can provide arbitrary (potentially
+asynchronous!) transformations from *configuration inputs* to *validated outputs*.
+
+**Sequenced Configuration Sources**
 
 : Central to the `Configurator` is the concept of a `ConfigurationSource`.  Each source encapsulates the
-  functionality of discovering configuration field assignments from a single origin; a basic object,
-  environment variables, command line arguments, configuration file, etc.
-
+functionality of discovering configuration field assignments from a single origin: `ObjectSource` understands simple
+objects, `EnvironmentSource` reads environment variables, `CommandLineSource` parses command line arguments,
+and so forth.
 : Each `ConfigurationSource` is loaded in sequence.  Field assignments discovered later in the sequence
-  override assignments from earlier in the sequence. 
+override assignments from earlier in the sequence.
+: The `Configurator` provides a default sequence of predefined sources, but this sequence can be changed,
+and the sources individually provide options to tune their behavior.  The sequence can also be extended with
+additional sources, either fully custom, or provided by optional external packages.
 
-: The `Configurator` has a default sequence of predefined sources, but this is completely customizable; 
-  some individual sources provide options to tune their behavior, and the loading sequence itself can be
-  rearranged, simplified, or extended with custom sources.
+**Single Source of Truth: Configuration as a Data Model**
 
-**Single Source of Truth**
-
-: The generated configuration object mimics the structure of an "idealized" config file for the whole
-  application; if the schema is set up as a hierarchy that matches the structure of the application
-  and its subsystems, each subsystem's configurable fields will be are enclosed inside a child property
-  object, and can be safely used to configure that subsystem, without extraneous data leaking in.
-  This reduces the "dig through this random bag of whatever" result generated by many other configuration
-  libraries.
+: The validated output configuration object mimics the structure of an "idealized" config file for the whole
+application; if the schema is set up as a hierarchy that matches the structure of the application
+and its subsystems, each subsystem's configurable fields will be are enclosed inside a child property
+object, and can be safely used to configure that subsystem, without extraneous data leaking in.
+This reduces the *"dig through a random bag of whatever"* output generated by many other configuration
+libraries.
 
 **Built to be Embedded**
 
 : The observant reader may have noticed that if there was a way for subsystems to declare their own
-  schema internally, one could wrap the `Configurator` up such that these subsystems are introspected,
-  their internal schemas discovered, and they could be initialized with a validated object containing
-  only their requested configurables.  In fact, those subsystems could register themselves as types, so
-  that singleton instances of those subsystems could be assigned to matching configurable fields.
+schema internally, one could wrap the `Configurator` up such that these subsystems are introspected,
+their internal schemas discovered, and each subsystem could be initialized with a validated object containing
+only their requested configurables.  In fact, those subsystems could register *themselves* as types, with
+a type resolver that returns singleton instances of those subsystems, allowing them to be assigned to
+matching configurable fields... 🤔
+: Good news, this exists!  It's called [`ModuleManager`](/module-manager), and it has its own section in the [documentation](./module-manager).
+: It is a separately installed library [`@versionzero/module-manager`](https://github.com/argh/module-manager) that 
+embeds `Configurator`, and still provides all the `Configurator` capabilities described in this documentation, but 
+with a bias towards serving applications structured as a dependency graph of modular subsystems.  As a quick pitch,
+`ModuleManager` provides **embedded declarative schemas**, **strongly typed references**, **dependency injection**, 
+and **lifecycle management**.  It enables you to keep your configurable field definitions fully colocated with the
+modules that consume them, and provides a structured approach to wiring everything together.  While the `Configurator`
+is a fine library for direct use on its own, it really shines for larger applications when embedded in an active "smart"
+layer -- like `ModuleManager` -- that understands how your functionality is partitioned.
 
-: Good news, this exists!  It's called `ModuleManager` ([`@versionzero/module-manager`](https://github.com/argh/module-manager)), and
-  it provides **embedded declarative schemas**, **strongly typed references**, **dependency injection**, 
-  and **lifecycle management**.  While the `Configurator` is a fine library for direct use, it really shines
-  for larger applications when embedded in an active "smart" layer -- like `ModuleManager` -- that
-  understands how your functionality is partitioned.
 
-## 
-
-### Define Schema Fields
-
-```javascript
-schema.field('port', { 
-  type: 'number', 
-  default: 3000,
-  description: 'Server port',
-  validator: '$positive'
-})
-```
 
 ### Multiple Configuration Sources
 

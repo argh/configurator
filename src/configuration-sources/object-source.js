@@ -1,4 +1,6 @@
-import { deepAssign, toCamelCase, toConstantCase, toKebabCase } from '../utils.js';
+import { toCamelCase } from '../utils.js';
+import { ConfiguratorError } from '../configurator-error.js';
+
 
 import { ConfigurationSource } from './configuration-source.js'
 
@@ -11,16 +13,16 @@ export class ObjectSource extends ConfigurationSource
 
   /**
    * Parse configuration from this source
-   * @param {ConfigurationSchema} schema - Schema to use for parsing
+   * @param {Configurator} configurator
    * @param {object} context - collection of source-specific fields (argv, env, etc.)
    * @param {object} [options] - options for parsing
    * @returns {Promise<Map<string,any>>} Parsed configuration object
    */
-  async _load(schema, context, options) {
+  async _load(configurator, context, options) {
 
     const object = context[this.contextFieldName] ?? {};
 
-    const allFields = schema.getAllFieldPaths({hidden: true, advanced: true, system: true});
+    const allFields = configurator.schema.getAllFieldPaths({hidden: true, advanced: true, system: true});
 
     const fieldAssignments = new Map();
 
@@ -39,7 +41,7 @@ export class ObjectSource extends ConfigurationSource
           walk(value, path);
         }
         else if (options?.strict) {
-          throw new Error(`Unknown field reference "${path}"`);
+          throw new ConfiguratorError(`Unknown field reference "${path}"`);
         }
       }
     }

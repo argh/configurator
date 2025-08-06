@@ -110,28 +110,6 @@ describe('ConfigurationSchema - Basic', function() {
     });
   });
 
-  describe('#hasAdvancedFields()', function() {
-    it('should return false when no advanced fields exist', function() {
-      schema.field('field1').field('field2');
-      assert.equal(schema.hasAdvancedFields(), false);
-    });
-
-    it('should return true when advanced fields exist', function() {
-      schema.field('field1', { advanced: true });
-      assert.equal(schema.hasAdvancedFields(), true);
-    });
-
-    it('should return true when child schema has advanced fields', function() {
-      schema.child('section').field('field1', { advanced: true });
-      assert.equal(schema.hasAdvancedFields(), true);
-    });
-
-    it('should not count hidden advanced fields', function() {
-      schema.field('field1', { advanced: true, hidden: true });
-      assert.equal(schema.hasAdvancedFields(), false);
-    });
-  });
-
   describe('#getAllFieldPaths()', function() {
     it('should return paths for root level fields', function() {
       schema.field('field1').field('field2');

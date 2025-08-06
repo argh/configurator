@@ -1,14 +1,17 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { ObjectSource } from '../src/configuration-sources/object-source.js';
+import { Configurator } from '../src/index.js';
 
 describe('ObjectSource', function() {
   let source;
   let schema;
+  let configurator;
 
   beforeEach(function () {
     source = new ObjectSource();
     schema = new ConfigurationSchema();
+    configurator = new Configurator({schema})
   });
 
   describe('#_load()', function () {
@@ -23,7 +26,7 @@ describe('ObjectSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('port'), 3000);
       assert.equal(result.get('debug'), true);
@@ -43,7 +46,7 @@ describe('ObjectSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('database.host'), 'localhost');
       assert.equal(result.get('database.port'), 5432);
@@ -59,7 +62,7 @@ describe('ObjectSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('serverPort'), 3000);
     });
@@ -74,7 +77,7 @@ describe('ObjectSource', function() {
         }
       };
 
-      const result = await source._load(schema, context);
+      const result = await source._load(configurator, context);
 
       assert.equal(result.get('port'), 3000);
       assert.equal(result.has('unknown'), false);

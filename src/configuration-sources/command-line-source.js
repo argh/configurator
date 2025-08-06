@@ -1,6 +1,6 @@
 import { deepAssign, toCamelCase, toConstantCase, toHeadline, toKebabCase } from '../utils.js';
 import { ConfigurationSource } from './configuration-source.js';
-import { ConfiguratorError } from '../error.js';
+import { ConfiguratorError } from '../configurator-error.js';
 
 /**
  * Command line argument parser strategy
@@ -41,21 +41,21 @@ export class CommandLineSource extends ConfigurationSource
    */
 
   /** generate command line options, including flags and aliases
-   * @param {ConfigurationSchema} schema
+   * @param {Configurator} configurator
    * @param {object} context
    * @returns {{options:Map<string,CommandLineOption>, aliases: Map<string, CommandLineOption>, flags: Map<string, CommandLineOption>}}
    * @private
    */
-  _generateOptions(schema, context) {
+  _generateOptions(configurator, context) {
 
     /** @type {Map<string, CommandLineOption>} */
     const options = new Map();
 
     const appName = context?.appName;
 
-    for (const [fieldPath, fieldDescriptor] of schema.getAllFieldPaths({hidden: false})) {
+    for (const [fieldPath, fieldDescriptor] of configurator.schema.getAllFieldPaths({hidden: false})) {
 
-      let type = schema.types.getType(fieldDescriptor.type);
+      let type = configurator.types.getType(fieldDescriptor.type);
       if (!type || type.options?.hidden) {
         continue;
       }
@@ -125,13 +125,13 @@ export class CommandLineSource extends ConfigurationSource
 
 
   /**
-   * @param {ConfigurationSchema} schema
+   * @param {Configurator} configurator
    * @param {Object} context
    * @param {{strict: [boolean]}} [loadOptions]
    * @returns {Promise<Map<string, any>>}
    * @private
    */
-  async _load(schema, context, loadOptions) {
+  async _load(configurator, context, loadOptions) {
     const appName = context?.appName;
     
     const argv = context[this.contextFieldName] ?? process.argv;
@@ -143,10 +143,10 @@ export class CommandLineSource extends ConfigurationSource
 
     const fieldAssignments = new Map();
 
-    const generalField = schema.getTaggedField('general');
+    const generalField = configurator.schema.getTaggedField('general');
     const generalValues = [];
 
-    const {options, aliases, flags} = this._generateOptions(schema, context);
+    const {options, aliases, flags} = this._generateOptions(configurator, context);
 
     let i = 0;
 
@@ -202,7 +202,7 @@ export class CommandLineSource extends ConfigurationSource
           else if (peekArgumentValue(true) === 'advanced') {
             showAdvanced = true;
           }
-          console.log(this._help(schema, context, showAdvanced));
+          console.log(this._help(configurator, context, showAdvanced));
           process.exit(0);
         }
 
@@ -336,7 +336,7 @@ export class CommandLineSource extends ConfigurationSource
           if (this.helpFlag && shortOption === this.helpFlag) {
             const showAdvanced = (isLastOption && peekArgumentValue(true) === 'advanced');
 
-            console.log(this._help(schema, context, showAdvanced));
+            console.log(this._help(configurator, context, showAdvanced));
             process.exit(0);
           }
 
@@ -440,24 +440,24 @@ export class CommandLineSource extends ConfigurationSource
 
 
   /**
-   * Generate help text based on schema
-   * @param {ConfigurationSchema} schema - Schema to use for parsing
+   * Generate help text based on configurator schema
+   * @param {Configurator} configurator
    * @param {object} context - collection of source-specific fields (argv, env, etc.)
    * @param {boolean} showAdvanced - Whether to show advanced options
    * @returns {string} Formatted help text
    */
-  _help(schema, context, showAdvanced = false) {
+  _help(configurator, context, showAdvanced = false) {
 
     const appName = context.appName ?? 'command';
 
-    const {options, aliases, flags} = this._generateOptions(schema, context);
-    const generalField = schema.getTaggedField('general');
+    const {options, aliases, flags} = this._generateOptions(configurator, context);
+    const generalField = configurator.schema.getTaggedField('general');
     const generalValues = [];
 
     let help = `Usage: ${appName} [options]`;
 
     if (generalField) {
-      help += ` ${this._formatArgumentType(generalField, schema.types.getType(generalField.type))}`;
+      help += ` ${this._formatArgumentType(generalField, configurator.types.getType(generalField.type))}`;
     }
 
     help += '\n\nOptions:\n';
@@ -523,7 +523,7 @@ export class CommandLineSource extends ConfigurationSource
 
       // Add any flags
 
-      optionSyntax += ` ${this._formatArgumentType(option, schema.types.getType(option.type))}`;
+      optionSyntax += ` ${this._formatArgumentType(option, configurator.types.getType(option.type))}`;
 
       // Pad the syntax column to align descriptions
       optionSyntax = optionSyntax.padEnd(60);
@@ -562,20 +562,20 @@ export class CommandLineSource extends ConfigurationSource
     }
     else if (fieldData.type === 'string') {
 
-      if (typeof fieldData.validators === 'string') {
-        argumentTypeString = fieldData.validators.substring(1);
+      if (typeof fieldData.validator === 'string') {
+        argumentTypeString = fieldData.validator.substring(1);
       }
-      else if (typeof fieldData.validators === 'object'
-               && Array.isArray(fieldData.validators['$oneof'])) {
-        argumentTypeString = fieldData.validators['$oneof'].join('|')
+      else if (typeof fieldData.validator === 'object'
+               && Array.isArray(fieldData.validator['$oneof'])) {
+        argumentTypeString = fieldData.validator['$oneof'].join('|')
       }
       else {
         argumentTypeString = 'string-value'
       }
     }
     else if (fieldData.type === 'number') {
-      if (typeof fieldData.validators === 'string') {
-        argumentTypeString = fieldData.validators.substring(1);
+      if (typeof fieldData.validator === 'string') {
+        argumentTypeString = fieldData.validator.substring(1);
       }
       else {
         argumentTypeString = 'number'
@@ -588,12 +588,12 @@ export class CommandLineSource extends ConfigurationSource
       argumentTypeString = `${fieldData.type.substring(1, fieldData.type.length - 1) || 'string'}...`
     }
     else if (fieldData.type === 'array') {
-      if (typeof fieldData.validators === 'string') {
-        argumentTypeString = fieldData.validators.substring(1);  // implied $each for simple arrays
+      if (typeof fieldData.validator === 'string') {
+        argumentTypeString = fieldData.validator.substring(1);  // implied $each for simple arrays
       }
-      if (typeof fieldData.validators === 'object' && fieldData.validators['$each']) {
-        if (typeof fieldData.validators['$each'] === 'string') {
-          argumentTypeString = `${fieldData.validators['$each'].substring(1)}...`;
+      if (typeof fieldData.validator === 'object' && fieldData.validator['$each']) {
+        if (typeof fieldData.validator['$each'] === 'string') {
+          argumentTypeString = `${fieldData.validator['$each'].substring(1)}...`;
         }
         else {
           argumentTypeString = 'value...';

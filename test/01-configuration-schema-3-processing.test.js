@@ -1,12 +1,15 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { Validators } from '../src/validators.js';
+import { Configurator } from '../src/index.js';
 
 describe('ConfigurationSchema - Processing and Validation', function() {
   let schema;
+  let configurator;
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
+    configurator = new Configurator({schema})
   });
 
   describe('#process() basic functionality', function() {
@@ -18,7 +21,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should process valid input configuration', async function() {
-      const result = await schema.validate({
+      const result = await configurator.validate({
         requiredField: 'value1',
         optionalField: 'value2'
       });
@@ -28,7 +31,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should use default values when fields are not provided', async function() {
-      const result = await schema.validate({
+      const result = await configurator.validate({
         requiredField: 'value1'
       }, {populateDefaults: true});
 
@@ -39,7 +42,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should throw error when required field is missing', async function() {
       await assert.rejects(async () => {
-        await schema.validate({
+        await configurator.validate({
           optionalField: 'value2'
         });
       }, /Required field "requiredField" is missing/);
@@ -54,7 +57,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should validate fields with validator when validator is provided', async function() {
-      const result = await schema.validate(
+      const result = await configurator.validate(
         { validatedField: 'valid' }
       );
 
@@ -63,7 +66,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should throw when validation fails', async function() {
       await assert.rejects(async () => {
-        await schema.validate(
+        await configurator.validate(
           { validatedField: '123' }
         );
       }, /Bad value for field/);
@@ -77,7 +80,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
     });
 
     it('should allow known fields in non-strict mode', async function() {
-      const result = await schema.validate({
+      const result = await configurator.validate({
         knownField: 'value',
         unknownField: 'value'
       });
@@ -88,7 +91,7 @@ describe('ConfigurationSchema - Processing and Validation', function() {
 
     it('should throw on unknown fields in strict mode', async function() {
       await assert.rejects(async () => {
-        await schema.validate(
+        await configurator.validate(
           {
             knownField: 'value',
             unknownField: 'value'

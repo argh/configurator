@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { convertValue, deepAssign, toCamelCase, toKebabCase } from './utils.js';
-import { Types } from './types.js';
-import { Validators } from './validators.js';
+import { deepAssign, toKebabCase } from './utils.js';
+import { ConfiguratorError } from './configurator-error.js';
+
+export class ConfigurationSchemaError extends ConfiguratorError {}
+
 /**
  * Configuration field definition and validation schema
  */
 export class ConfigurationSchema {
   /**
    * @typedef {Object} SchemaOptions
-   * @property {Types} [types] - override for default field type registry
-   * @property {Validators} [validators] - override for default field validator registry
-   * @property {Function} [condition] - optional condition to check before processing anything associated with this schema
+   * @property {Function} [condition] - optional conditional to check before processing anything associated with this schema
    */
 
   /**
@@ -18,36 +18,26 @@ export class ConfigurationSchema {
    *
    * @param {SchemaOptions} [options]
    */
-
   constructor(options) {
     this.fields = new Map();
     this.children = new Map();
     this.id = randomUUID();
-
-    this.types = options?.types ?? new Types();
-    if (!this.types) {
-      throw new Error('ConfigurationSchema requires Types');
-    }
-
-    this.validators = options?.validators ?? new Validators()
-    if (!this.validators) {
-      throw new Error('ConfigurationSchema requires Validators');
-    }
     this.condition = options?.condition;
   }
 
   /** @typedef {Object} FieldOptions
-   * @property {string} [type]
-   * @property {any} [default]
-   * @property {boolean} [allowEmpty]
-   * @property {boolean} [required]
-   * @property {string} [description]
-   * @property {string} [flagHint]
-   * @property {Function|string|RegExp|object|undefined} validator
-   * @property {boolean} [advanced]
-   * @property {boolean} [hidden]
-   * @property {boolean} [inherit]
-   * @property {Function} [condition]
+   * @property {string} [type] - resolver name in the Types registry; defaults to "string".
+   * @property {Function|string|RegExp|object|undefined} validator - validator specification; see Validators.
+   * @property {Function} [condition] - per-field conditional; overrides schema condition
+   * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
+   * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
+   * @property {boolean} [required] - flag indicating whether this field is required
+   * @property {any} [default] - default value; used by SchemaDefaultsSource.
+   * @property {string} [description] - help text description; used by CommandLineSource
+   * @property {string} [flagHint] - request a specific flag character; used by CommandLineSource
+   * @property {boolean} [advanced] - filter from basic help text; used by CommandLineSource
+   * @property {boolean} [hidden] - hide from help; used by CommandLineSource
+   * @property {...*} [otherProperties] - custom attributes that may be interpreted by configuration sources
    */
 
   /**
@@ -60,15 +50,14 @@ export class ConfigurationSchema {
     //name = toCamelCase(name);  // normalize
 
     if (this.fields.has(name)) {
-      throw new Error(`configuration schema field ${name} already defined`);
+      throw new ConfigurationSchemaError(`configuration schema field ${name} already defined`);
     }
 
     if (this.children.has(name)) {
-      throw new Error(`configuration schema field ${name} already defined as a child schema`);
+      throw new ConfigurationSchemaError(`configuration schema field ${name} already defined as a child schema`);
     }
 
     // todo - allow private extended options and don't smoosh everything together into one object
-    //        e.g. make moduleName a private contract with its type handler
 
     let fieldOptions = {...options, name, type: options.type?.trim() || 'string', required: options.required ?? false, description: options.description ?? ''};
 
@@ -87,25 +76,25 @@ export class ConfigurationSchema {
 //    name = toCamelCase(name);  // normalize
 
     if (this.children.has(name)) {
-      throw new Error(`configuration schema child ${name} already defined`);
+      throw new ConfigurationSchemaError(`configuration schema child ${name} already defined`);
     }
     if (this.fields.has(name)) {
-      throw new Error(`configuration schema child ${name} already defined as a field`);
+      throw new ConfigurationSchemaError(`configuration schema child ${name} already defined as a field`);
     }
 
-    const childSchema = new ConfigurationSchema({...options, validators: this.validators, types: this.types, condition: options.condition ?? this.condition});
+    const childSchema = new ConfigurationSchema({...options, condition: options.condition ?? this.condition});
 
     this.children.set(name, childSchema);
     this._fpCache = null;
     return childSchema;
   }
 
-  /** Make a copy of a schema that allows for field/child extension.  Fields are copied by reference.
-   *
+  /**
+   * Make a copy of a schema that allows for field/child extension.  Fields are copied by reference.
    * @returns {ConfigurationSchema}
    */
   copy() {
-    let clone = new ConfigurationSchema({types: this.types, validators: this.validators, condition: this.condition});
+    let clone = new ConfigurationSchema({condition: this.condition});
 
     for (let [fieldName, fieldOptions] of this.fields) {
       clone.field(fieldName, fieldOptions);
@@ -119,226 +108,6 @@ export class ConfigurationSchema {
     return clone;
   }
 
-
-  /**
-   * @param {Array[Map<string,any>]} fieldPathAssignmentsList
-   * @param {object} [options]
-   * @returns {Promise<object>}
-   */
-  async processAssignments(fieldPathAssignmentsList, options) {
-    let strict = options?.strict || false;
-
-    let types = options?.types ?? this.types;
-    const configuration = options?.configuration ?? {};
-
-    let allFields = this.getAllFieldPaths();
-
-    /**
-     * @type {Map<string, any>}
-     */
-    let assignments = new Map();
-
-    // We iterate these in reverse to simplify computing the "last (highest priority) definition wins" aspect
-    // of exclusive schema categories.  Otherwise, we'd need to bulk-remove multiple assignments associated
-    // with the overridden child schema.  (TODO - categories are an obsolete schema concept, is it still necessary to reverse?)
-
-    for (let fieldPathAssignments of fieldPathAssignmentsList.reverse()) {
-      for (let [path, value] of Array.from(fieldPathAssignments).reverse()) {
-        if (assignments.has(path)) {
-          continue;
-        }
-        assignments.set(path, value)
-      }
-    }
-
-    // Value resolution phase:
-    // Iterate assignments in original definition order (does this actually matter?)
-    // Repeat resolution until everything is defined or the set of values is stable.
-
-    const remaining = new Map([...assignments].reverse());
-
-    let done = false;
-    let final = false;
-
-    while (!done) {
-      let beforeSize = remaining.size;
-
-      for (let [path, value] of remaining) {
-        const field = allFields.get(path);
-
-        // Conditions will get re-checked multiple times if they fail, as it is possible they may change
-        // value based on updates to configuration state.  Once the configuration has stabilized, we
-        // will remove any remaining assignments that failed their condition check.
-        //
-        // (Note: we don't retroactively reconsider conditional assignments that were previously resolved.
-        // This seemed like a reasonable constraint on conditionals in order to avoid the possibility
-        // of flapping assignments.  It also seemed unlikely that any real-world scenarios would require
-        // that kind of behavior.)
-
-        let condition = field.condition ?? field.schema.condition;
-
-        if (condition !== undefined) {
-          // A negative condition cancels the "required" field check and even blocks default assignments.
-          // Interpret it as "this field is deliberately omitted from all processing".
-
-          if (typeof condition === 'function') {
-            condition = condition(field, value, configuration);
-          }
-          if (!condition) {
-            if (final) {
-              remaining.delete(path);
-            }
-            continue;
-          }
-        }
-
-        let resolvedValue = await types.resolveTypeValue(field.type, value, configuration);
-        if (resolvedValue !== undefined) {
-          deepAssign(configuration, path, resolvedValue);
-          remaining.delete(path);
-        }
-
-        if (final && resolvedValue === undefined && field.required === false) {
-          remaining.delete(path);
-        }
-      }
-      if (remaining.size === 0 || remaining.size === beforeSize) {
-        if (final) {
-          done = true;
-        }
-        else {
-          final = true;  // do one final cleanup pass to remove anything filtered by condition
-        }
-      }
-    }
-
-    if (strict && remaining.size > 0) {
-      throw new Error(`Failed to resolve fields: ${Array.from(remaining.keys()).join(', ')}`);
-    }
-
-    // note: we deliberately don't pass "types" down, as we've already done type resolution.
-    return await this.validate(configuration, {types: null, strict});
-  }
-
-  /**
-   * @typedef {Object} ValidationOptions
-   * @property {Types} [types]
-   * @property {Validators} [validators]
-   * @property {boolean} [strict]
-   * @property {boolean} [populateDefaults]
-   */
-
-  /**
-   * Validate a configuration object against the schema - (consider renaming to processObject?)
-   *
-   * @param {object} inputConfig - a configuration object to validate
-   * @param {ValidationOptions} options
-   * @returns {Promise<object>} - validated configuration object
-   */
-  async validate(inputConfig, options) {
-    let strict = options?.strict || false;
-    let types = options?.types ?? this.types;
-    let validators = options?.validators ?? this.validators;
-    let populateDefaults = options?.populateDefaults ?? false;
-    let rootConfig = options?.config ?? inputConfig;
-
-    let prefix = options?.prefix ? `${options.prefix}.` : '';
-
-    let outputConfig = {};
-
-    for (const [fieldName, schemaField] of this.fields) {
-      let field = {...schemaField, path: `${prefix}${fieldName}`};
-      let value = inputConfig[fieldName];
-
-      let condition = field.condition ?? this.condition;
-
-      if (condition !== undefined) {
-        // A negative condition cancels the "required" field check and even blocks default assignments.
-        // Interpret it as "this field is deliberately omitted from all processing".
-
-        if (typeof condition === 'function') {
-          condition = condition(field, value, rootConfig);
-        }
-        if (!condition) {
-          continue;
-        }
-      }
-
-      // With the normal configurator setup, we have a DefaultsSource that synthesizes assignments
-      // for all default values.  This has the benefit of overriding and pruning assignments upstream
-      // from here.  In case someone is calling validate on their own object and wants to explicitly fill
-      // in missing defaults, they can set the "populateDefaults" option.
-
-      if (value === undefined && field.default !== undefined && populateDefaults) {
-        value = field.default;
-      }
-
-      // Skip undefined optional fields
-      if (value === undefined) {
-        if (field.required) {
-          throw new Error(`Required field "${fieldName}" is missing`);
-        }
-        else {
-          continue;
-        }
-      }
-      let typeName = field.type;
-
-      if (!typeName) {
-        throw new Error(`Field "${fieldName}" has no type`);
-      }
-
-      if (typeName.startsWith('[') && typeName.endsWith(']')) {
-        // note: we will assume that if the inner typeName exists, then the outer array type exists as well.
-        // (we check the type using this inner type to simplify the logic, but resolve using the original field.type)
-        typeName = typeName.substring(1, typeName.length - 1);
-      }
-
-      if (strict && types && !types.getType(typeName)) {
-        throw new Error(`Unknown type '${field.type}' for field '${fieldName}'`);
-      }
-      try {
-        if (types) {
-          value = await types.resolveTypeValue(field.type, value, rootConfig);
-        }
-        if (validators && field.validator !== undefined) {
-          value = await validators.validate(value, field.validator);  // throws if invalid
-        }
-      }
-      catch (err) {
-        throw new Error(`Bad value for field '${fieldName}': ${err.message}`, {cause: err});
-      }
-
-      outputConfig[fieldName] = value;
-    }
-
-    if (strict) {
-      for (const fieldName of Object.keys(inputConfig)) {
-        if (!this.fields.has(fieldName) && !this.children.has(fieldName)) {
-          throw new Error(`Field '${fieldName}' is unknown`);
-        }
-      }
-    }
-
-    // Validate child schemas
-    for (const [childName, childSchema] of this.children) {
-      const childInputConfig = inputConfig[childName] || {};
-
-      try {
-        const childOutputConfig = await childSchema.validate(childInputConfig, {...options, prefix: `${prefix}${childName}`, config: rootConfig});
-
-        if (Object.keys(childOutputConfig).length > 0) {
-          outputConfig[childName] = childOutputConfig;
-        }
-      }
-      catch (error) {
-        throw new Error(`Failed to validate "${childName}" (${error.message})`, {cause: error})
-      }
-
-    }
-
-    return outputConfig;
-  }
 
 
   /**
@@ -364,21 +133,6 @@ export class ConfigurationSchema {
     return undefined;
   }
 
-  /**
-   * Return true if any field is marked as "advanced"
-   * @returns {boolean}
-   */
-  hasAdvancedFields() {
-    for (const [, fieldOptions] of this.fields) {
-      if (fieldOptions.advanced && !fieldOptions.hidden) return true;
-    }
-    for (const [, childSchema] of this.children) {
-      if (childSchema.hasAdvancedFields()) return true;
-    }
-    return false;
-  }
-
-
   /** @typedef {FieldOptions} ExtendedFieldOptions
    * @property {string} path
    */
@@ -399,6 +153,11 @@ export class ConfigurationSchema {
     const paths = new Map();
 
     function skip(fo = {}) {
+      for (let flag of ['inherit']) {
+        if (fo[flag] === true && query[flag] !== true) {
+          return true;  // some flags must be explicitly queried
+        }
+      }
       for (let flag of ['hidden', 'advanced', 'system']) {
         if (fo[flag] === true && query[flag] === false) {
           return true;
@@ -416,7 +175,7 @@ export class ConfigurationSchema {
     }
 
     for (const [childName, childSchema] of this.children) {
-      const childPaths = childSchema.getAllFieldPaths();
+      const childPaths = childSchema.getAllFieldPaths(query);
 
       for (const [relativePath, fieldOptions] of childPaths) {
         if (skip(fieldOptions)) {
@@ -432,6 +191,71 @@ export class ConfigurationSchema {
     }
     this._fpCache = paths;
     return paths;
+
+  }
+
+
+  /** @typedef {{field: FieldOptions} | {child: string, configurables: [Configurable] }} Configurable
+   */
+
+  /**
+   * Create a new configuration schema
+   * @param {[Configurable]} configurables
+   * @param {ConfigurationSchema} [schema]
+   * @param {SchemaOptions} [options]
+   */
+  static build(configurables, schema, options) {
+
+    if (!schema) {
+      schema = new ConfigurationSchema(options);
+    }
+
+    function processConfigurables(schema, configurables) {
+      for (let configurable of configurables) {
+        let c = {...configurable};
+
+        if (configurable.field) {
+          if (!configurable.type) {
+            c.type = 'string';
+          }
+          else if (typeof configurable.type === 'function') {
+            // todo - kill this code path, as it doesn't really know about module names
+            const moduleName = toKebabCase(configurable.type.prototype?.constructor?.name);
+            // moved out of module manager, so we can't really trust this name...
+            //const moduleName = toKebabCase(getModuleSetting(configurable.type, 'name') ?? configurable.type?.name);
+
+            if (!moduleName) {
+              throw new ConfiguratorError(`unable to determine a type name for "${configurable.type}"`)
+            }
+            c.type = moduleName;
+          }
+          else {
+            if (configurable.type.startsWith('[') && configurable.type.endsWith(']')) {
+              const arrayType = toKebabCase(configurable.type.substring(1, configurable.type.length - 1).trim() || 'string');
+              c.type = `[${arrayType}]`;
+            }
+            else {
+              c.type = toKebabCase(configurable.type);
+            }
+          }
+
+          schema.field(configurable.field, c)
+
+//      if (configurable.type === 'module') {
+//        dependencies.add(configurable.moduleName ?? toKebabCase(configurable.field));
+//      }
+        }
+        else if (configurable.child) {
+          let childSchema = schema.child(configurable.child, configurable);
+          processConfigurables(childSchema, configurable.configurables);
+        }
+        // todo - handle errors and weird values
+      }
+//  return dependencies;
+    }
+
+
+    return processConfigurables(schema, options);
 
   }
 }
