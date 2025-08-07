@@ -59,7 +59,7 @@ export class ConfigurationSchema {
 
     // todo - allow private extended options and don't smoosh everything together into one object
 
-    let fieldOptions = {...options, name, type: options.type?.trim() || 'string', required: options.required ?? false, description: options.description ?? ''};
+    let fieldOptions = {...options, name, type: normalizeTypeName(options.type), required: options.required ?? false, description: options.description ?? ''};
 
     this.fields.set(name, fieldOptions);
     this._fpCache = null;
@@ -199,64 +199,46 @@ export class ConfigurationSchema {
    */
 
   /**
-   * Create a new configuration schema
+   * Load declarative configurables into schema
    * @param {[Configurable]} configurables
-   * @param {ConfigurationSchema} [schema]
-   * @param {SchemaOptions} [options]
    */
-  static build(configurables, schema, options) {
-
-    if (!schema) {
-      schema = new ConfigurationSchema(options);
-    }
+  loadConfigurables(configurables) {
 
     function processConfigurables(schema, configurables) {
       for (let configurable of configurables) {
         let c = {...configurable};
 
         if (configurable.field) {
-          if (!configurable.type) {
-            c.type = 'string';
-          }
-          else if (typeof configurable.type === 'function') {
-            // todo - kill this code path, as it doesn't really know about module names
-            const moduleName = toKebabCase(configurable.type.prototype?.constructor?.name);
-            // moved out of module manager, so we can't really trust this name...
-            //const moduleName = toKebabCase(getModuleSetting(configurable.type, 'name') ?? configurable.type?.name);
-
-            if (!moduleName) {
-              throw new ConfiguratorError(`unable to determine a type name for "${configurable.type}"`)
-            }
-            c.type = moduleName;
-          }
-          else {
-            if (configurable.type.startsWith('[') && configurable.type.endsWith(']')) {
-              const arrayType = toKebabCase(configurable.type.substring(1, configurable.type.length - 1).trim() || 'string');
-              c.type = `[${arrayType}]`;
-            }
-            else {
-              c.type = toKebabCase(configurable.type);
-            }
-          }
-
+          c.type = normalizeTypeName(configurable.type);
           schema.field(configurable.field, c)
-
-//      if (configurable.type === 'module') {
-//        dependencies.add(configurable.moduleName ?? toKebabCase(configurable.field));
-//      }
         }
         else if (configurable.child) {
           let childSchema = schema.child(configurable.child, configurable);
-          processConfigurables(childSchema, configurable.configurables);
+          processConfigurables(childSchema, configurable.configurables ?? []);
         }
-        // todo - handle errors and weird values
       }
-//  return dependencies;
     }
 
-
-    return processConfigurables(schema, options);
-
+    processConfigurables(this, configurables);
+    return this;
   }
 }
 
+function normalizeTypeName(typeName) {
+  if (!typeName) {
+    return 'string';
+  }
+  if (typeof typeName !== 'string') {
+    throw new ConfigurationSchemaError(`Type name must be a string, got ${typeName}`);
+  }
+
+  typeName = typeName.trim();
+
+  if (typeName.startsWith('[') && typeName.endsWith(']')) {
+    const arrayType = toKebabCase(typeName.substring(1, typeName.length - 1).trim() || 'string');
+    return `[${arrayType}]`;
+  }
+  else {
+    return toKebabCase(typeName);
+  }
+}

@@ -321,4 +321,245 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
       }, /Bad value for field 'port'/);
     });
   });
+  describe('Complex hierarchy with all types and defaults (declarative)', function() {
+    beforeEach(function() {
+      schema.loadConfigurables([
+        {
+          // Root configuration
+          field: 'appName',
+          type: 'string',
+          required: true
+        },
+        {
+          field: 'version',
+          type: 'string',
+          default: '1.0.0'
+        },
+        {
+          field: 'debug',
+          type: 'boolean',
+          default: false
+        },
+        {
+          field: 'tags',
+          type: 'array',
+          default: []
+        },
+        {
+          // Server configuration section
+          child: 'server',
+          configurables: [
+            {
+              field: 'host',
+              type: 'string',
+              default: 'localhost'
+            },
+            {
+              field: 'port',
+              type: 'number',
+              default: 3000
+            },
+            {
+              field: 'secure',
+              type: 'boolean',
+              default: false
+            },
+            {
+              field: 'maxConnections',
+              type: 'number',
+              default: 100
+            }
+          ]
+        },
+        {
+          // Database configuration section with subsection
+          child: 'database',
+          configurables: [
+            {
+              field: 'type',
+              type: 'string',
+              default: 'mysql'
+            },
+            {
+              field: 'name',
+              type: 'string',
+              required: true
+            },
+            {
+              child: 'connection',
+              configurables: [
+                {
+                  field: 'host',
+                  type: 'string',
+                  default: 'localhost'
+                },
+                {
+                  field: 'port',
+                  type: 'number'
+                },
+                {
+                  field: 'credentials',
+                  type: 'string'
+                }
+              ]
+            }
+          ]
+        }
+      ]);
+    });
+
+    it('should process a complete configuration with all levels', async function() {
+      const result = await configurator.validate({
+        appName: 'TestApp',
+        version: '2.0.0',
+        debug: true,
+        tags: ['test', 'example'],
+        server: {
+          host: 'example.com',
+          port: 8080,
+          secure: true
+        },
+        database: {
+          name: 'testdb',
+          connection: {
+            port: 3306,
+            credentials: 'secret'
+          }
+        }
+      }, {populateDefaults: true});
+
+      // Root level
+      assert.equal(result.appName, 'TestApp');
+      assert.equal(result.version, '2.0.0');
+      assert.equal(result.debug, true);
+      assert.deepEqual(result.tags, ['test', 'example']);
+
+      // Server section
+      assert.equal(result.server.host, 'example.com');
+      assert.equal(result.server.port, 8080);
+      assert.equal(result.server.secure, true);
+      assert.equal(result.server.maxConnections, 100); // Using default
+
+      // Database section
+      assert.equal(result.database.type, 'mysql'); // Using default
+      assert.equal(result.database.name, 'testdb');
+
+      // Database connection subsection
+      assert.equal(result.database.connection.host, 'localhost'); // Using default
+      assert.equal(result.database.connection.port, 3306);
+      assert.equal(result.database.connection.credentials, 'secret');
+    });
+
+    it('should use defaults for missing values', async function() {
+      // Provide only required fields
+      const result = await configurator.validate({
+        appName: 'MinimalApp',
+        database: {
+          name: 'minimaldb'
+        }
+      }, {populateDefaults: true});
+
+      // Root level
+      assert.equal(result.appName, 'MinimalApp');
+      assert.equal(result.version, '1.0.0'); // Default
+      assert.equal(result.debug, false); // Default
+      assert.deepEqual(result.tags, []); // Default
+
+      // Server section (all defaults)
+      assert.equal(result.server.host, 'localhost');
+      assert.equal(result.server.port, 3000);
+      assert.equal(result.server.secure, false);
+      assert.equal(result.server.maxConnections, 100);
+
+      // Database section
+      assert.equal(result.database.type, 'mysql'); // Default
+      assert.equal(result.database.name, 'minimaldb');
+
+      // Database connection subsection has no required fields
+      assert.equal(result.database.connection.host, 'localhost'); // Default
+    });
+
+    it('should throw when required fields are missing', async function() {
+      await assert.rejects(async () => {
+        await configurator.validate({
+          // appName is missing (required)
+          database: {
+            // name is missing (required)
+            connection: {
+              host: 'dbhost'
+            }
+          }
+        });
+      }, /Required field "appName" is missing/);
+
+      await assert.rejects(async () => {
+        await configurator.validate({
+          appName: 'MissingDBApp',
+          // database section is present but missing required field
+          database: {}
+        });
+      }, /Required field "name" is missing/);
+    });
+
+    it('should apply validators on all levels when provided', async function() {
+      schema.loadConfigurables([
+        {
+          field: 'subversion',
+          validator: /^\d+\.\d+\.\d+$/,
+          type: 'string',
+          default: '1.0.0'
+        },
+        {
+          child: 'swerver',
+          configurables: [
+            {
+              field: 'port',
+              validator: { $range: { min: 1024, max: 65535 } },
+              type: 'number',
+              default: 3000
+            }
+          ]
+        }
+      ]);
+
+      // Valid configuration
+      const validResult = await configurator.validate(
+        {
+          appName: 'ValidApp',
+          version: '2.1.0',
+          swerver: {
+            port: 8080
+          },
+          database: {
+            name: 'validdb'
+          }
+        }
+      );
+
+      assert.equal(validResult.version, '2.1.0');
+      assert.equal(validResult.swerver.port, 8080);
+
+      // Invalid version format
+      await assert.rejects(async () => {
+        await configurator.validate(
+          {
+            appName: 'InvalidApp',
+            subversion: 'not-semver',
+            database: { name: 'testdb' }
+          }
+        );
+      }, /Bad value for field 'subversion'/);
+
+      // Invalid port range
+      await assert.rejects(async () => {
+        await configurator.validate(
+          {
+            appName: 'InvalidApp',
+            swerver: { port: 80 }, // Below min of 1024
+            database: { name: 'testdb' }
+          },
+        );
+      }, /Bad value for field 'port'/);
+    });
+  });
 });

@@ -54,7 +54,7 @@ export class SchemaDefaultsSource
               }
             }
             catch (err) {
-              console.error('woops')
+              console.error('woops')  // FIXME - debug spam
             }
 
             if (prefix === '') {

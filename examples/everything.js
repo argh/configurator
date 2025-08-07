@@ -328,5 +328,5 @@ try {
   }, 2));
 }
 catch (error) {
-  console.log(error.message);
+  console.log(error.message);  // FIXME
 }

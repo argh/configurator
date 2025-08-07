@@ -9,19 +9,19 @@ export class Types
   }
 
   defineType(typeName, resolver, options = {}) {
+    const typeOptions = {...options};
     if (typeName.startsWith('[') && typeName.endsWith(']')) {
-      typeName = typeName.substring(1, typeName.length - 1).trim();
+      const elementTypeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim()) ?? 'string';
 
-      if (typeName === '') {
-        typeName = 'string';
-      }
-      typeName = `${toKebabCase(typeName)}-list`
+      typeName = `${elementTypeName}-list`
+      typeOptions.isListType = true;
+      typeOptions.elementTypeName = elementTypeName;
     }
     else {
       typeName = toKebabCase(typeName);
     }
     let type = {
-      typeName, resolver, options
+      typeName, resolver, typeOptions
     }
 
     this._types.set(typeName, type);
@@ -30,50 +30,72 @@ export class Types
   }
 
   getType(typeName) {
-    return this._types.get(toKebabCase(typeName));
+    // fixme - handle array types?
+
+    if (typeName.startsWith('[') && typeName.endsWith(']')) {
+      const elementTypeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim()) ?? 'string';
+      typeName = `${elementTypeName}-list`
+    }
+    else {
+      typeName = toKebabCase(typeName);
+    }
+    return this._types.get(typeName);
   }
 
   async resolveTypeValue(typeName, value, configuration) {
+
+    let type;
+
+    // normalize type name
+    if (typeName.startsWith('[') && typeName.endsWith(']')) {
+      const elementTypeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim()) ?? 'string';
+
+      const elementType = this.getType(elementTypeName);
+
+      if (!elementType) {
+        return undefined;
+      }
+
+      typeName = `${elementTypeName}-list`
+
+      type = this.getType(typeName);
+
+      if (!type) {
+        // synthesize an ephemeral type we can use below
+        type = {
+          typeName,
+          resolver: (rv, rc) => Promise.all(rv.map(async v => await this.resolveTypeValue(elementTypeName, v, rc))),
+          typeOptions: {isListType: true, elementTypeName}
+        };
+      }
+    }
+    else {
+      typeName = toKebabCase(typeName);
+      type = this.getType(typeName);
+    }
 
     if (typeof value === 'function') {
       if (!configuration) {
         throw new ConfiguratorError('Cannot resolve type value without configuration');
       }
-      let isConstructor = value.prototype && value.prototype.constructor === value;
+      const isConstructor = value.prototype?.constructor === value;
       if (!isConstructor) {
         value = await (async () => value(configuration, typeName))();
       }
     }
 
-    if (value === undefined) {
-      return undefined;
-    }
-    let type;
-
-    if (typeName.startsWith('[') && typeName.endsWith(']')) {
-      typeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim());
-      if (typeName === '') {
-        typeName = 'string';
-      }
-      if (!Array.isArray(value)) {
-        value = [value];
-      }
-
-      // if we have a registered type handler for this type, use it.
-
-      type = this.getType(`${typeName}-list`);
-
-      if (type) {
-        return (async () => type.resolver(value, configuration, type))();
-      }
-      else {
-        return Promise.all(value.map(async v => await this.resolveTypeValue(typeName, v, configuration)));
-      }
-    }
-    type = this.getType(toKebabCase(typeName));
     if (!type) {
       return undefined;
     }
+
+    if (value === undefined && !type.typeOptions?.allowUndefined) {
+      return undefined;
+    }
+
+    if (type.typeOptions?.isListType && !Array.isArray(value)) {
+      value = value? [value] : [];
+    }
+
     return (async () => type.resolver(value, configuration, type))();
   }
 
