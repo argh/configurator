@@ -9,7 +9,7 @@ import {
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './configurator-error.js';
 import { Validators } from './validators.js';
-import { Types } from './types.js';
+import { TypeRegistry } from './type-registry.js';
 import { deepAssign } from './utils.js';
 
 const MODULE_INFO = {
@@ -20,7 +20,7 @@ export class Configurator {
   /**
    * @typedef {Object} ConfiguratorOptions
    * @property {ConfigurationSchema} [schema]
-   * @property {Types} [types]
+   * @property {TypeRegistry} [types]
    * @property {Validators} [validators]
    * @property {Array<ConfigurationSource>} [sources]
    * @property {string} [configField] - name of the field to use for the config file path
@@ -37,7 +37,7 @@ export class Configurator {
    */
   constructor(options = {}) {
     this._schema = options.schema ?? new ConfigurationSchema();
-    this._types = options.types ?? new Types();
+    this._types = options.types ?? new TypeRegistry();
     this._validators = options.validators ?? new Validators();
     this._sources = options.sources;
 
@@ -119,7 +119,7 @@ export class Configurator {
 
   /**
    * Type registry used by this Configurator
-   * @returns {Types}
+   * @returns {TypeRegistry}
    */
   get types() {
     return this._types;
@@ -160,7 +160,7 @@ export class Configurator {
    * @param {Array[Map<string,any>]} fieldPathAssignmentsList
    * @param {object} [options] - processing options; currently only used for "strict"
    * @param {boolean} [options.strict] - if true, throw an error if any fields are not resolved.
-   * @param {Types} [options.types]
+   * @param {TypeRegistry} [options.types]
    * @param {Validators} [options.validators]
    * @returns {Promise<object>}
    */

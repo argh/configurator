@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
 import { Validators } from '../src/validators.js';
-import { Types } from '../src/types.js';
+import { TypeRegistry } from '../src/type-registry.js';
 import { Configurator } from '../src/index.js';
 
 describe('ConfigurationSchema - Type Conversion', function() {

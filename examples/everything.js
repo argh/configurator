@@ -1,13 +1,13 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import path from 'node:path';
-import { Configurator, ConfigurationSchema, Types, Validators } from '../src/index.js';
+import { Configurator, ConfigurationSchema, TypeRegistry, Validators } from '../src/index.js';
 import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { toConstantCase } from '../src/utils.js';
 
 
 // TYPES
-const types = new Types();
+const types = new TypeRegistry();
 
 // Type definitions are simply a name, a (potentially async) resolver function,
 // and an optional type-specific options object.  Type names are internally kebab-cased for

@@ -1,7 +1,7 @@
 import { toKebabCase } from './utils.js';
 import { ConfiguratorError} from './configurator-error.js';
 
-export class Types
+export class TypeRegistry
 {
   constructor() {
     this._types = new Map();
@@ -29,9 +29,7 @@ export class Types
     return type;
   }
 
-  getType(typeName) {
-    // fixme - handle array types?
-
+  hasType(typeName) {
     if (typeName.startsWith('[') && typeName.endsWith(']')) {
       const elementTypeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim()) ?? 'string';
       typeName = `${elementTypeName}-list`
@@ -39,39 +37,50 @@ export class Types
     else {
       typeName = toKebabCase(typeName);
     }
-    return this._types.get(typeName);
+    return this._types.has(typeName);
+  }
+
+  getType(typeName) {
+    if (typeName.startsWith('[') && typeName.endsWith(']')) {
+      const elementTypeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim()) ?? 'string';
+      if (!this.hasType(elementTypeName)) {
+        return undefined;
+      }
+
+      typeName = `${elementTypeName}-list`
+
+      if (this.hasType(typeName)) {
+        return this._types.get(typeName);
+      }
+      else {
+        return {
+          typeName,
+          resolver: (rv, rc) => {
+            if (!rv || rv.length === 0) {
+              return [];
+            }
+            if (!Array.isArray(rv)) {
+              rv = [rv];
+            }
+            return Promise.all(rv.map(async v => await this.resolveTypeValue(elementTypeName, v, rc)))
+          },
+          typeOptions: {isListType: true, elementTypeName}
+        };
+      }
+    }
+    else {
+      return this._types.get(toKebabCase(typeName));
+    }
   }
 
   async resolveTypeValue(typeName, value, configuration) {
 
     let type;
 
-    // normalize type name
-    if (typeName.startsWith('[') && typeName.endsWith(']')) {
-      const elementTypeName = toKebabCase(typeName.substring(1, typeName.length - 1).trim()) ?? 'string';
+    type = this.getType(typeName);
 
-      const elementType = this.getType(elementTypeName);
-
-      if (!elementType) {
-        return undefined;
-      }
-
-      typeName = `${elementTypeName}-list`
-
-      type = this.getType(typeName);
-
-      if (!type) {
-        // synthesize an ephemeral type we can use below
-        type = {
-          typeName,
-          resolver: (rv, rc) => Promise.all(rv.map(async v => await this.resolveTypeValue(elementTypeName, v, rc))),
-          typeOptions: {isListType: true, elementTypeName}
-        };
-      }
-    }
-    else {
-      typeName = toKebabCase(typeName);
-      type = this.getType(typeName);
+    if (!type) {
+      return undefined;
     }
 
     if (typeof value === 'function') {
@@ -83,11 +92,6 @@ export class Types
         value = await (async () => value(configuration, typeName))();
       }
     }
-
-    if (!type) {
-      return undefined;
-    }
-
     if (value === undefined && !type.typeOptions?.allowUndefined) {
       return undefined;
     }

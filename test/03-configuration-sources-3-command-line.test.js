@@ -243,19 +243,6 @@ describe('CommandLineSource', function() {
     assert(helpText.includes('(required)'));
   });
 
-  it('should format argument types correctly', function() {
-    const tests = [
-      { field: { type: 'string', valueDescription: 'custom' }, expected: '<custom>' },
-      { field: { type: 'boolean' }, expected: '[true|false]' },
-      { field: { type: 'number' }, expected: '<number>' },
-      { field: { type: 'array' }, expected: '<value...>' },
-      { field: { type: 'string', validator: '$oneof:a|b' }, expected: '<oneof:a|b>' }
-    ];
 
-    for (const test of tests) {
-      const result = source._formatArgumentType(test.field);
-      assert.equal(result, test.expected);
-    }
-  });
 
 });

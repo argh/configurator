@@ -56,7 +56,7 @@ export class CommandLineSource extends ConfigurationSource
     for (const [fieldPath, fieldDescriptor] of configurator.schema.getAllFieldPaths({hidden: false})) {
 
       let type = configurator.types.getType(fieldDescriptor.type);
-      if (!type || type.options?.hidden) {
+      if (!type || type.typeOptions.hidden) {
         continue;
       }
 
@@ -78,7 +78,7 @@ export class CommandLineSource extends ConfigurationSource
         longOption = toKebabCase(fieldPath);
       }
 
-      options.set(longOption, {...fieldDescriptor, longOption, isTopLevel})
+      options.set(longOption, {...fieldDescriptor, typeName: fieldDescriptor.type, type, longOption, isTopLevel })
     }
 
     const flags = new Map();
@@ -120,7 +120,13 @@ export class CommandLineSource extends ConfigurationSource
       }
     }
 
-    return {options, aliases, flags}
+    const generalField = configurator.schema.getTaggedField('general');
+
+    const generalFieldType = generalField?.type? configurator.types.getType(generalField.type) : undefined;
+
+    const general = generalFieldType? {...generalField, typeName: generalField.type, type: generalFieldType } : undefined;
+
+    return {options, aliases, flags, general}
   }
 
 
@@ -143,10 +149,9 @@ export class CommandLineSource extends ConfigurationSource
 
     const fieldAssignments = new Map();
 
-    const generalField = configurator.schema.getTaggedField('general');
     const generalValues = [];
 
-    const {options, aliases, flags} = this._generateOptions(configurator, context);
+    const {options, aliases, flags, general} = this._generateOptions(configurator, context);
 
     let i = 0;
 
@@ -180,7 +185,7 @@ export class CommandLineSource extends ConfigurationSource
 
       if (arg === '--') {
         // Everything after -- goes to general field
-        if (generalField) {
+        if (general) {
           generalValues.push(...args.slice(i));
         }
         break;
@@ -266,7 +271,7 @@ export class CommandLineSource extends ConfigurationSource
           continue;
         }
 
-        if (optionData.type === 'boolean') {
+        if (optionData.typeName === 'boolean') {
           if (hasInlineValue) {
             value = inlineValue;
           }
@@ -277,7 +282,7 @@ export class CommandLineSource extends ConfigurationSource
             value = true;
           }
         }
-        else if (optionData.type === 'array' || (optionData.type.startsWith('[') && optionData.type.endsWith(']'))) {
+        else if (optionData.typeName === 'array' || optionData.type?.typeOptions.isListType || (optionData.typeName.startsWith('[') && optionData.typeName.endsWith(']'))) {
           value = [];
           if (hasInlineValue) {
             value = inlineValue.split(',').filter(item => item.length);
@@ -365,7 +370,7 @@ export class CommandLineSource extends ConfigurationSource
           }
 
           let value;
-          if (optionData.type === 'boolean') {
+          if (optionData.typeName === 'boolean') {
             if (isLastOption && peekArgumentValue()) {
               value = getArgument();
             }
@@ -373,7 +378,7 @@ export class CommandLineSource extends ConfigurationSource
               value = true;
             }
           }
-          else if (optionData.type === 'array' || (optionData.type.startsWith('[') && optionData.type.endsWith(']'))) {
+          else if (optionData.typeName === 'array' || optionData.type?.typeOptions.isListType || (optionData.typeName.startsWith('[') && optionData.typeName.endsWith(']'))) {
             if (isLastOption) {
               value = [];
               while (peekArgumentValue()) {
@@ -405,7 +410,7 @@ export class CommandLineSource extends ConfigurationSource
       }
       else {
         // Non-option argument - add to main field if it exists
-        if (generalField) {
+        if (general) {
           generalValues.push(arg);
         } else {
           if (loadOptions?.strict) {
@@ -417,20 +422,20 @@ export class CommandLineSource extends ConfigurationSource
     }
 
     // Assign main values to main field
-    if (generalField && generalValues.length > 0) {
-      if (generalField.type === 'array' || (generalField.type.startsWith('[') && generalField.type.endsWith(']'))) {
-        fieldAssignments.set(generalField.path, generalValues);
+    if (general && generalValues.length > 0) {
+      if (general.typeName === 'array' || general.type?.typeOptions.isListType || (general.typeName.startsWith('[') && general.typeName.endsWith(']'))) {
+        fieldAssignments.set(general.path, generalValues);
       }
       else if (generalValues.length === 1) {
-        fieldAssignments.set(generalField.path, generalValues[0]);
+        fieldAssignments.set(general.path, generalValues[0]);
       }
       else {
-        throw new CommandLineError(`Too many arguments provided for ${generalField.name}: [${generalValues.join(', ')}]`)
+        throw new CommandLineError(`Too many arguments provided for ${general.name}: [${generalValues.join(', ')}]`)
       }
 
-      const isArray = generalField.type === 'array' || (generalField.type.startsWith('[') && generalField.type.endsWith(']'));
+      const isArray = general.typeName === 'array' || general.type?.typeOptions.isListType || (general.typeName.startsWith('[') && general.typeName.endsWith(']'));
 
-      fieldAssignments.set(generalField.path, isArray? generalValues : generalValues[0]);
+      fieldAssignments.set(general.path, isArray? generalValues : generalValues[0]);
     }
 
     // Validate the complete configuration
@@ -450,14 +455,14 @@ export class CommandLineSource extends ConfigurationSource
 
     const appName = context.appName ?? 'command';
 
-    const {options, aliases, flags} = this._generateOptions(configurator, context);
+    const {options, aliases, flags, general} = this._generateOptions(configurator, context);
     const generalField = configurator.schema.getTaggedField('general');
     const generalValues = [];
 
     let help = `Usage: ${appName} [options]`;
 
-    if (generalField) {
-      help += ` ${this._formatArgumentType(generalField, configurator.types.getType(generalField.type))}`;
+    if (general) {
+      help += ` ${this._formatArgumentType(general, general.typeName)}`;
     }
 
     help += '\n\nOptions:\n';
@@ -523,7 +528,7 @@ export class CommandLineSource extends ConfigurationSource
 
       // Add any flags
 
-      optionSyntax += ` ${this._formatArgumentType(option, configurator.types.getType(option.type))}`;
+      optionSyntax += ` ${this._formatArgumentType(option, option.type)}`;
 
       // Pad the syntax column to align descriptions
       optionSyntax = optionSyntax.padEnd(60);
@@ -560,7 +565,7 @@ export class CommandLineSource extends ConfigurationSource
     if (fieldData.valueDescription) {
       argumentTypeString = typeof fieldData.valueDescription === 'function' ? fieldData.valueDescription() : fieldData.valueDescription;
     }
-    else if (fieldData.type === 'string') {
+    else if (fieldData.typeName === 'string') {
 
       if (typeof fieldData.validator === 'string') {
         argumentTypeString = fieldData.validator.substring(1);
@@ -573,7 +578,7 @@ export class CommandLineSource extends ConfigurationSource
         argumentTypeString = 'string-value'
       }
     }
-    else if (fieldData.type === 'number') {
+    else if (fieldData.typeName === 'number') {
       if (typeof fieldData.validator === 'string') {
         argumentTypeString = fieldData.validator.substring(1);
       }
@@ -581,13 +586,13 @@ export class CommandLineSource extends ConfigurationSource
         argumentTypeString = 'number'
       }
     }
-    else if (fieldData.type === 'boolean') {
+    else if (fieldData.typeName === 'boolean') {
       argumentTypeString = 'true|false'
     }
-    else if (fieldData.type.startsWith('[') && fieldData.type.endsWith(']')) {
-      argumentTypeString = `${fieldData.type.substring(1, fieldData.type.length - 1) || 'string'}...`
+    else if (fieldData.typeName.startsWith('[') && fieldData.typeName.endsWith(']')) {
+      argumentTypeString = `${fieldData.typeName.substring(1, fieldData.typeName.length - 1) || 'string'}...`
     }
-    else if (fieldData.type === 'array') {
+    else if (fieldData.typeName === 'array') {
       if (typeof fieldData.validator === 'string') {
         argumentTypeString = fieldData.validator.substring(1);  // implied $each for simple arrays
       }
@@ -603,8 +608,11 @@ export class CommandLineSource extends ConfigurationSource
         argumentTypeString = 'value...';
       }
     }
-    else if (type?.options?.valueDescription) {
-      argumentTypeString = typeof type.options.valueDescription === 'function' ? type.options.valueDescription() : type.options.valueDescription;
+    else if (fieldData.type.typeOptions.isListType) {
+      argumentTypeString = `${fieldData.type.typeOptions.itemType?.name || 'string'}...`
+    }
+    else if (fieldData.type.typeOptions.valueDescription) {
+      argumentTypeString = typeof type.typeOptions.valueDescription === 'function' ? type.typeOptions.valueDescription() : type.typeOptions.valueDescription;
     }
     else {
       argumentTypeString = 'value';
