@@ -1,11 +1,11 @@
 import { strict as assert } from 'assert';
-import { Validators } from '../src/validators.js';
+import { ValidatorRegistry } from '../src/validator-registry.js';
 
 describe('Validator - Complex Scenarios', function() {
   let validators;
 
   beforeEach(function() {
-    validators = new Validators();
+    validators = new ValidatorRegistry();
   });
 
   describe('#validate() with custom validators', function() {

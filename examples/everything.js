@@ -1,7 +1,7 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import path from 'node:path';
-import { Configurator, ConfigurationSchema, TypeRegistry, Validators } from '../src/index.js';
+import { Configurator, ConfigurationSchema, TypeRegistry, ValidatorRegistry } from '../src/index.js';
 import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { toConstantCase } from '../src/utils.js';
 
@@ -124,7 +124,7 @@ types.defineType('Cheese', (value) => {
 })
 
 // VALIDATORS
-const validators = new Validators();
+const validators = new ValidatorRegistry();
 
 // Validators are used to provide constraints on top of the type system, by checking
 // whether the typed value meets one or more provided criteria.  Validators may also

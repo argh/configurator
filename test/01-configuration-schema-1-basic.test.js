@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validators } from '../src/validators.js';
+import { ValidatorRegistry } from '../src/validator-registry.js';
 
 describe('ConfigurationSchema - Basic', function() {
   let schema;
@@ -8,7 +8,7 @@ describe('ConfigurationSchema - Basic', function() {
 
   beforeEach(function() {
     schema = new ConfigurationSchema();
-    validator = new Validators();
+    validator = new ValidatorRegistry();
   });
 
   describe('#field()', function() {

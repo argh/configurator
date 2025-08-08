@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { ConfigurationSchema } from '../src/configuration-schema.js';
-import { Validators } from '../src/validators.js';
+import { ValidatorRegistry } from '../src/validator-registry.js';
 import { Configurator } from '../src/configurator.js';
 
 describe('ConfigurationSchema - Hierarchical Schemas', function() {

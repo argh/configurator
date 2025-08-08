@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 
 import { constants } from 'node:fs';
 
-export class Validators
+export class ValidatorRegistry
 {
   constructor() {
     this.validators = new Map();
@@ -44,10 +44,10 @@ export class Validators
 
   /**
    * Create a child registry that inherits from this one
-   * @returns {Validators} New registry with inherited validators
+   * @returns {ValidatorRegistry} New registry with inherited validators
    */
   createChild() {
-    const child = new Validators();
+    const child = new ValidatorRegistry();
     // Copy all validators from parent
     for (const [keyword, validator] of this.validators) {
       child.validators.set(keyword, validator);

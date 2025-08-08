@@ -8,7 +8,7 @@ import {
   JsonFileSource
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './configurator-error.js';
-import { Validators } from './validators.js';
+import { ValidatorRegistry } from './validator-registry.js';
 import { TypeRegistry } from './type-registry.js';
 import { deepAssign } from './utils.js';
 
@@ -21,7 +21,7 @@ export class Configurator {
    * @typedef {Object} ConfiguratorOptions
    * @property {ConfigurationSchema} [schema]
    * @property {TypeRegistry} [types]
-   * @property {Validators} [validators]
+   * @property {ValidatorRegistry} [validators]
    * @property {Array<ConfigurationSource>} [sources]
    * @property {string} [configField] - name of the field to use for the config file path
    * @property {string} [configFlag] - flag to use for the config file path
@@ -38,7 +38,7 @@ export class Configurator {
   constructor(options = {}) {
     this._schema = options.schema ?? new ConfigurationSchema();
     this._types = options.types ?? new TypeRegistry();
-    this._validators = options.validators ?? new Validators();
+    this._validators = options.validators ?? new ValidatorRegistry();
     this._sources = options.sources;
 
     let configField = options.configField ?? 'config';
@@ -111,7 +111,7 @@ export class Configurator {
 
   /**
    * Validator registry used by this Configurator
-   * @returns {Validators}
+   * @returns {ValidatorRegistry}
    */
   get validators() {
     return this._validators;
@@ -161,7 +161,7 @@ export class Configurator {
    * @param {object} [options] - processing options; currently only used for "strict"
    * @param {boolean} [options.strict] - if true, throw an error if any fields are not resolved.
    * @param {TypeRegistry} [options.types]
-   * @param {Validators} [options.validators]
+   * @param {ValidatorRegistry} [options.validators]
    * @returns {Promise<object>}
    */
   async processAssignments(fieldPathAssignmentsList, options) {
