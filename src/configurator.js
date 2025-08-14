@@ -153,7 +153,12 @@ export class Configurator {
 
       sourceAssignmentsList.push(sourceAssignments);
     }
-    return await this.processAssignments(sourceAssignmentsList, {types: this.types, validators: this.validators, strict})
+    const config = await this.processAssignments(sourceAssignmentsList, {types: this.types, validators: this.validators, strict});
+
+    if (mergedContext.dumpConfig) {
+
+    }
+    return config;
   }
 
   /**
@@ -289,13 +294,14 @@ export class Configurator {
     let rootConfig = options?.config ?? inputConfig;
     let prefix = options?.prefix ? `${options.prefix}.` : '';
     let schema = options?.schema ?? this.schema;
+    let childName = options?.childName;
 
     let outputConfig = {};
 
     let ptr = { parent: options?.ptr ?? null, current: outputConfig };
 
     for (const [fieldName, schemaField] of schema.fields) {
-      let field = {...schemaField, path: `${prefix}${fieldName}`};
+      let field = {...schemaField, path: `${prefix}${fieldName}`, schema, childName};
       let value = inputConfig[fieldName];
 
       let condition = field.condition ?? schema.condition;
@@ -393,7 +399,7 @@ export class Configurator {
       const childInputConfig = inputConfig[childName] || {};
 
       try {
-        const childOutputConfig = await this.validate(childInputConfig, {...options, schema: childSchema, prefix: `${prefix}${childName}`, config: rootConfig, ptr});
+        const childOutputConfig = await this.validate(childInputConfig, {...options, childName, schema: childSchema, prefix: `${prefix}${childName}`, config: rootConfig, ptr});
 
         if (Object.keys(childOutputConfig).length > 0) {
           outputConfig[childName] = childOutputConfig;

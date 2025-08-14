@@ -88,6 +88,115 @@ describe('ConfigurationSchema - Hierarchical Schemas', function() {
       assert.equal(result.section2, undefined);
     });
   });
+  describe('Basic hierarchy but with separately defined children', function() {
+    beforeEach(function () {
+      // Root level fields
+      schema
+        .field('rootString', {type: 'string'})
+        .field('rootNumber', {type: 'number'});
+
+      const child1 = new ConfigurationSchema()
+        .field('nestedBoolean', {type: 'boolean'})
+        .field('nestedArray', {type: 'array'});
+
+      // First level child
+      schema.child('section1', child1)
+
+      const child2 = new ConfigurationSchema()
+
+      const child3 = new ConfigurationSchema()
+        .field('deeplyNested', {type: 'string'});
+
+      // Second level child
+      schema.child('section2', child2).child('subsection', child3)
+    });
+
+    it('should process hierarchical configuration correctly', async function () {
+      const result = await configurator.validate({
+        rootString: 'root string',
+        rootNumber: 42,
+        section1: {
+          nestedBoolean: true,
+          nestedArray: [1, 2, 3]
+        },
+        section2: {
+          subsection: {
+            deeplyNested: 'deep value'
+          }
+        }
+      });
+
+
+      // Root level
+      assert.equal(result.rootString, 'root string');
+      assert.equal(result.rootNumber, 42);
+
+      // First level
+      assert.equal(result.section1.nestedBoolean, true);
+      assert.deepEqual(result.section1.nestedArray, [1, 2, 3]);
+
+      // Second level
+      assert.equal(result.section2.subsection.deeplyNested, 'deep value');
+    });
+  });
+
+  describe('Reusing child schemas', function() {
+    beforeEach(function () {
+
+      schema.field('region', { type: 'string'})
+            .field('command', { type: 'string' });
+
+      const storageSchema = schema.child('storage')
+                                  .field('command', { type: 'string' });
+
+      const storageCommandSchema = new ConfigurationSchema()
+        .field('bucket', { type: 'string' })
+
+
+      const storageListCommandSchema = storageSchema.child('list', storageCommandSchema.copy())
+                                                    .field('recursive', { type: 'boolean' })
+      const storageGetCommandSchema = storageSchema.child('get', storageCommandSchema.copy())
+                                                   .field('key', { type: 'string' })
+
+      const storagePutCommandSchema = storageSchema.child('put', storageCommandSchema.copy());
+
+      const computeSchema = new ConfigurationSchema()
+        .field('cluster', { type: 'string'})
+
+      const computeListCommandSchema = computeSchema.child('list', storageCommandSchema.copy())
+
+      const computeGetCommandSchema = computeSchema.child('describe', storageCommandSchema.copy())
+                                                   .field('id', { type: 'string' })
+
+      const computeCreateCommandSchema = computeSchema.child('create', storageCommandSchema.copy())
+                                                      .field('image', { type: 'string' })
+                                                      .field('type', { type: 'string' })
+    });
+
+    it('should process hierarchical configuration correctly', async function () {
+      const result = await configurator.validate({
+        region: 'us-east',
+        command: 'storage',
+        storage: {
+          command: 'list',
+          list: {
+            bucket: 'data',
+            recursive: true
+          }
+        },
+
+      });
+
+      assert.equal(result.command, 'storage');
+      assert.equal(result.storage.command, 'list');
+      assert.equal(result.storage.list.bucket, 'data');
+      assert.equal(result.storage.list.recursive, true);
+
+
+    });
+
+
+  });
 
   describe('Validation in hierarchy', function() {
     beforeEach(function() {

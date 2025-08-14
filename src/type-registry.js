@@ -16,6 +16,21 @@ export class TypeRegistry
       typeName = `${elementTypeName}-list`
       typeOptions.isListType = true;
       typeOptions.elementTypeName = elementTypeName;
+
+      if (!typeOptions.format) {
+        typeOptions.format = (resolvedValue) => {
+          if (resolvedValue === undefined || resolvedValue === null) {
+            return undefined;
+          }
+          try {
+            return JSON.stringify(resolvedValue);
+          }
+          catch (err) {
+            return undefined;
+          }
+        }
+      }
+
     }
     else {
       typeName = toKebabCase(typeName);

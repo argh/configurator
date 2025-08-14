@@ -3,6 +3,8 @@ import { lookup } from 'node:dns/promises';
 import fs from 'node:fs/promises';
 
 import { constants } from 'node:fs';
+import { ConfiguratorError } from './configurator-error.js';
+export class ValidatorError extends ConfiguratorError {}
 
 export class ValidatorRegistry
 {
@@ -15,22 +17,24 @@ export class ValidatorRegistry
    * Register a custom validator keyword
    * @param {string} keyword - Validator keyword (without $)
    * @param {Function} validatorFn - Validation function (sync or async)
+   * @returns {ValidatorRegistry} This registry instance
+   * @throws {ValidatorError}
    */
   register(keyword, validatorFn) {
     if (typeof validatorFn !== 'function') {
-      throw new Error(`Validator for keyword '${keyword}' must be a function`);
+      throw new ValidatorError(`Validator for keyword '${keyword}' must be a function`);
     }
     this.validators.set(keyword, validatorFn);
     return this;
   }
 
   /**
-   * Get a validator by keyword
+   * Get a validator function by keyword
    * @param {string} keyword - Validator keyword (without $)
    * @returns {Function|null} Validator function or null if not found
    */
   get(keyword) {
-    return this.validators.get(keyword) || null;
+    return this.validators.get(keyword) ?? null;
   }
 
   /**
@@ -71,11 +75,11 @@ export class ValidatorRegistry
 
       if ((value !== undefined) && (validated === undefined)) {
         // return value;  // only devmode error?
-        throw new Error('Internal validation error: bad validator!')
+        throw new ValidatorError('Internal validation error: bad validator!')
       }
 
       if (validated instanceof Error) {
-        throw validated;
+        throw new ValidatorError(validated.message);
       }
 
       return validated;
@@ -100,7 +104,7 @@ export class ValidatorRegistry
     if (validatorSpec instanceof RegExp) {
       return async (value) => {
         if (!validatorSpec.test(String(value))) {
-          throw new Error(`Value does not match pattern ${validatorSpec}`);
+          throw new ValidatorError(`Value does not match pattern ${validatorSpec}`);
         }
         return value;
       };
@@ -118,12 +122,12 @@ export class ValidatorRegistry
           const regex = new RegExp(pattern, flags);
           return async (value) => {
             if (!regex.test(String(value))) {
-              throw new Error(`Value does not match pattern ${validatorSpec}`);
+              throw new ValidatorError(`Value does not match pattern ${validatorSpec}`);
             }
             return value;
           };
         } catch (error) {
-          throw new Error(`Invalid regex pattern: ${validatorSpec}`);
+          throw new ValidatorError(`Invalid regex pattern: ${validatorSpec}`);
         }
       }
 
@@ -133,7 +137,7 @@ export class ValidatorRegistry
         const validator = this.get(keyword);
 
         if (!validator) {
-          throw new Error(`Unknown validator keyword: ${validatorSpec}`);
+          throw new ValidatorError(`Unknown validator keyword: ${validatorSpec}`);
         }
 
         // Wrap to ensure async
@@ -143,7 +147,7 @@ export class ValidatorRegistry
       // Plain string - treat as exact match
       return async (value) => {
         if (String(value) !== validatorSpec) {
-          throw new Error(`Value must be exactly "${validatorSpec}"`);
+          throw new ValidatorError(`Value must be exactly "${validatorSpec}"`);
         }
         return value;
       };
@@ -154,7 +158,7 @@ export class ValidatorRegistry
       return this._createObjectValidator(validatorSpec);
     }
 
-    throw new Error(`Invalid validator specification: ${validatorSpec}`);
+    throw new ValidatorError(`Invalid validator specification: ${validatorSpec}`);
   }
 
   /**
@@ -169,7 +173,7 @@ export class ValidatorRegistry
       return await validator(value);
     }
     catch (error) {
-      throw new Error(`${fieldName} validation failed: ${error.message}`, {cause:error});
+      throw new ValidatorError(`${fieldName} validation failed: ${error.message}`, {cause:error});
     }
   }
 
@@ -183,7 +187,7 @@ export class ValidatorRegistry
       const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
       if (!hostnameRegex.test(value)) {
-        throw new Error('Invalid hostname format');
+        throw new ValidatorError('Invalid hostname format');
       }
       return value;
     });
@@ -192,14 +196,14 @@ export class ValidatorRegistry
       try {
         return new URL(value).toString();
       } catch {
-        throw new Error('Invalid URL format');
+        throw new ValidatorError('Invalid URL format');
       }
     });
 
     this.register('email', (value) => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(value)) {
-        throw new Error('Invalid email format');
+        throw new ValidatorError('Invalid email format');
       }
       return value;
     });
@@ -207,7 +211,7 @@ export class ValidatorRegistry
     this.register('port', (value) => {
       const num = Number(value);
       if (!(Number.isInteger(num) && num >= 1 && num <= 65535)) {
-        throw new Error('Port must be between 1 and 65535');
+        throw new ValidatorError('Port must be between 1 and 65535');
       }
       return num;
     });
@@ -215,7 +219,7 @@ export class ValidatorRegistry
     this.register('ipv4', (value) => {
       const ipv4Regex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
       if (!ipv4Regex.test(value)) {
-        throw new Error('Invalid IPv4 address');
+        throw new ValidatorError('Invalid IPv4 address');
       }
       return value;
     });
@@ -223,7 +227,7 @@ export class ValidatorRegistry
     this.register('ipv6', (value) => {
       const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
       if (!ipv6Regex.test(value)) {
-        throw new Error('Invalid IPv6 address');
+        throw new ValidatorError('Invalid IPv6 address');
       }
       return value;
     });
@@ -231,7 +235,7 @@ export class ValidatorRegistry
     this.register('uuid', (value) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(value)) {
-        throw new Error('Invalid UUID format');
+        throw new ValidatorError('Invalid UUID format');
       }
       return value;
     });
@@ -239,7 +243,7 @@ export class ValidatorRegistry
     this.register('alphanum', (value) => {
       const alphanumRegex = /^[a-zA-Z0-9]+$/;
       if (!alphanumRegex.test(value)) {
-        throw new Error('Must contain only alphanumeric characters');
+        throw new ValidatorError('Must contain only alphanumeric characters');
       }
       return value;
     });
@@ -247,7 +251,7 @@ export class ValidatorRegistry
     this.register('alpha', (value) => {
       const alphaRegex = /^[a-zA-Z]+$/;
       if (!alphaRegex.test(value)) {
-        throw new Error('Must contain only letters');
+        throw new ValidatorError('Must contain only letters');
       }
       return value;
     });
@@ -255,7 +259,7 @@ export class ValidatorRegistry
     this.register('number', (value) => {
       const num = Number(value);
       if (Number.isNaN(num) || !Number.isFinite(num)) {
-        throw new Error('Must be a number');
+        throw new ValidatorError('Must be a number');
       }
       return num;
     })
@@ -264,14 +268,14 @@ export class ValidatorRegistry
 
       const numericRegex = /^[0-9]+$/;
       if (!numericRegex.test(v)) {
-        throw new Error('Must contain only digits');
+        throw new ValidatorError('Must contain only digits');
       }
       return value;
     });
 
     this.register('nonempty', (value) => {
       if (!(value && value.toString().trim().length > 0)) {
-        throw new Error('Value cannot be empty');
+        throw new ValidatorError('Value cannot be empty');
       }
       return value;
     });
@@ -279,7 +283,7 @@ export class ValidatorRegistry
     this.register('positive', (value) => {
       const num = Number(value);
       if (!(Number.isFinite(num) && num > 0)) {
-        throw new Error('Must be a positive number');
+        throw new ValidatorError('Must be a positive number');
       }
       return num;
     });
@@ -287,7 +291,7 @@ export class ValidatorRegistry
     this.register('negative', (value) => {
       const num = Number(value);
       if (!(Number.isFinite(num) && num < 0)) {
-        throw new Error('Must be a negative number');
+        throw new ValidatorError('Must be a negative number');
       }
       return num;
     });
@@ -295,7 +299,7 @@ export class ValidatorRegistry
     this.register('integer', (value) => {
       const num = Number(value);
       if (!Number.isInteger(num)) {
-        throw new Error('Must be an integer');
+        throw new ValidatorError('Must be an integer');
       }
       return num;
     });
@@ -305,14 +309,14 @@ export class ValidatorRegistry
       try {
         const stat = await fs.stat(value);
         if (!stat.isFile()) {
-          throw new Error('Path exists but is not a file');
+          throw new ValidatorError('Path exists but is not a file');
         }
         return value;
       } catch (error) {
         if (error.code === 'ENOENT') {
-          throw new Error('File does not exist');
+          throw new ValidatorError('File does not exist');
         }
-        throw new Error(`Cannot access file: ${error.message}`);
+        throw new ValidatorError(`Cannot access file: ${error.message}`);
       }
     });
 
@@ -320,14 +324,14 @@ export class ValidatorRegistry
       try {
         const stat = await fs.stat(value);
         if (!stat.isDirectory()) {
-          throw new Error('Path exists but is not a directory');
+          throw new ValidatorError('Path exists but is not a directory');
         }
         return value;
       } catch (error) {
         if (error.code === 'ENOENT') {
-          throw new Error('Directory does not exist');
+          throw new ValidatorError('Directory does not exist');
         }
-        throw new Error(`Cannot access directory: ${error.message}`);
+        throw new ValidatorError(`Cannot access directory: ${error.message}`);
       }
     });
 
@@ -336,7 +340,7 @@ export class ValidatorRegistry
         await fs.access(value, constants.R_OK);
         return value;
       } catch {
-        throw new Error('File is not readable');
+        throw new ValidatorError('File is not readable');
       }
     });
 
@@ -345,7 +349,7 @@ export class ValidatorRegistry
         await fs.access(value, constants.W_OK);
         return value;
       } catch {
-        throw new Error('File is not writable');
+        throw new ValidatorError('File is not writable');
       }
     });
 
@@ -355,7 +359,7 @@ export class ValidatorRegistry
         await lookup(value);
         return value;
       } catch {
-        throw new Error('Host is not reachable');
+        throw new ValidatorError('Host is not reachable');
       }
     });
 
@@ -363,19 +367,19 @@ export class ValidatorRegistry
       try {
         const url = new URL(value);
         if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new Error('URL must use HTTP or HTTPS protocol');
+          throw new ValidatorError('URL must use HTTP or HTTPS protocol');
         }
 
         // Optional: Actually test the URL
         // const response = await fetch(value, { method: 'HEAD' });
-        // if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        // if (!response.ok) throw new ValidatorError(`HTTP error: ${response.status}`);
 
         return value;
       } catch (error) {
         if (error.message.includes('URL must use HTTP')) {
           throw error;
         }
-        throw new Error('Invalid HTTP URL format');
+        throw new ValidatorError('Invalid HTTP URL format');
       }
     });
   }
@@ -389,7 +393,7 @@ export class ValidatorRegistry
   _createObjectValidator(spec) {
     const keys = Object.keys(spec);
     if (keys.length !== 1) {
-      throw new Error('Validator object must have exactly one key');
+      throw new ValidatorError('Validator object must have exactly one key');
     }
 
     const [keyword] = keys;
@@ -398,7 +402,7 @@ export class ValidatorRegistry
     switch (keyword) {
       case '$and':
         if (!Array.isArray(args)) {
-          throw new Error('$and validator requires an array of validators');
+          throw new ValidatorError('$and validator requires an array of validators');
         }
         const andValidators = args.map(v => this.getValidatorFunction(v));
         return async (value) => {
@@ -411,7 +415,7 @@ export class ValidatorRegistry
 
       case '$or':
         if (!Array.isArray(args)) {
-          throw new Error('$or validator requires an array of validators');
+          throw new ValidatorError('$or validator requires an array of validators');
         }
         const orValidators = args.map(v => this.getValidatorFunction(v));
         return async (value) => {
@@ -425,7 +429,7 @@ export class ValidatorRegistry
               errors.push(error.message);
             }
           }
-          throw new Error(`None of the alternatives matched: ${errors.join(', ')}`);
+          throw new ValidatorError(`None of the alternatives matched: ${errors.join(', ')}`);
         };
 
       case '$not':
@@ -437,54 +441,54 @@ export class ValidatorRegistry
             // For $not, a validation error is a success
             return value;
           }
-          throw new Error('Value must not match the specified condition');
+          throw new ValidatorError('Value must not match the specified condition');
         };
 
       case '$length':
         if (typeof args !== 'object' || args === null) {
-          throw new Error('$length validator requires an object with min/max properties');
+          throw new ValidatorError('$length validator requires an object with min/max properties');
         }
         const { min, max, exact } = args;
         return async (value) => {
           const length = String(value).length;
           if (exact !== undefined && length !== exact) {
-            throw new Error(`Length must be exactly ${exact} characters`);
+            throw new ValidatorError(`Length must be exactly ${exact} characters`);
           }
           if (min !== undefined && length < min) {
-            throw new Error(`Length must be at least ${min} characters`);
+            throw new ValidatorError(`Length must be at least ${min} characters`);
           }
           if (max !== undefined && length > max) {
-            throw new Error(`Length must be at most ${max} characters`);
+            throw new ValidatorError(`Length must be at most ${max} characters`);
           }
           return value;
         };
 
       case '$range':
         if (typeof args !== 'object' || args === null) {
-          throw new Error('$range validator requires an object with min/max properties');
+          throw new ValidatorError('$range validator requires an object with min/max properties');
         }
         const { min: minVal, max: maxVal } = args;
         return async (value) => {
           const num = Number(value);
           if (!Number.isFinite(num)) {
-            throw new Error('Value must be a number');
+            throw new ValidatorError('Value must be a number');
           }
           if (minVal !== undefined && num < minVal) {
-            throw new Error(`Value must be at least ${minVal}`);
+            throw new ValidatorError(`Value must be at least ${minVal}`);
           }
           if (maxVal !== undefined && num > maxVal) {
-            throw new Error(`Value must be at most ${maxVal}`);
+            throw new ValidatorError(`Value must be at most ${maxVal}`);
           }
           return value;
         };
 
       case '$in':
         if (!Array.isArray(args)) {
-          throw new Error('$in validator requires an array of allowed values');
+          throw new ValidatorError('$in validator requires an array of allowed values');
         }
         return async (value) => {
           if (!args.includes(value)) {
-            throw new Error(`Value must be one of: ${args.join(', ')}`);
+            throw new ValidatorError(`Value must be one of: ['${args.join('\', \'')}']`);
           }
           return value;
         };
@@ -493,7 +497,7 @@ export class ValidatorRegistry
         const validatorFunction = this.getValidatorFunction(args);
         return async (value) => {
           if (!Array.isArray(value)) {
-            throw new Error('Value must be an array');
+            throw new ValidatorError('Value must be an array');
           }
           for (const item of value) {
             await this.executeValidator(validatorFunction, item);
@@ -512,7 +516,7 @@ export class ValidatorRegistry
           }
         }
 
-        throw new Error(`Unknown validator keyword: ${keyword}`);
+        throw new ValidatorError(`Unknown validator keyword: ${keyword}`);
     }
   }
 }

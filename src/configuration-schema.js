@@ -4,6 +4,22 @@ import { ConfiguratorError } from './configurator-error.js';
 
 export class ConfigurationSchemaError extends ConfiguratorError {}
 
+
+/** @typedef {Object} FieldOptions
+ * @property {string} [type] - resolver name in the Types registry; defaults to "string".
+ * @property {Function|string|RegExp|object|undefined} validator - validator specification; see Validators.
+ * @property {Function} [condition] - per-field conditional; overrides schema condition
+ * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
+ * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
+ * @property {boolean} [required] - flag indicating whether this field is required
+ * @property {any} [default] - default value; used by SchemaDefaultsSource.
+ * @property {string} [description] - help text description; used by CommandLineSource
+ * @property {string} [flagHint] - request a specific flag character; used by CommandLineSource
+ * @property {boolean} [advanced] - filter from basic help text; used by CommandLineSource
+ * @property {boolean} [hidden] - hide from help; used by CommandLineSource
+ * @property {...*} [otherProperties] - custom attributes that may be interpreted by configuration sources
+ */
+
 /**
  * Configuration field definition and validation schema
  */
@@ -11,6 +27,8 @@ export class ConfigurationSchema {
   /**
    * @typedef {Object} SchemaOptions
    * @property {Function} [condition] - optional conditional to check before processing anything associated with this schema
+   * @property {string} [linkedParentFieldName] - optional field defined in the parent schema that must be set
+   * @property {string} [linkedParentFieldValue] - optional value that must match in the field
    */
 
   /**
@@ -19,10 +37,26 @@ export class ConfigurationSchema {
    * @param {SchemaOptions} [options]
    */
   constructor(options) {
-    this.fields = new Map();
-    this.children = new Map();
+    /** @type {string} */
     this.id = randomUUID();
+
+    /** @type {Map<string,FieldOptions>} */
+    this.fields = new Map();
+
+    /** @type {Map<string,ConfigurationSchema>} */
+    this.children = new Map();
+
+    /** @type {Function|boolean|undefined} */
     this.condition = options?.condition;
+
+    /** @type {ConfigurationSchema} */
+    this.parent = null;
+
+    /** @type {string} */
+    this.linkedParentFieldName = options?.linkedParentFieldName;
+    if (this.linkedParentFieldName) {
+      this.linkedParentFieldValue = options?.linkedParentFieldValue;
+    }
   }
 
   /** @typedef {Object} FieldOptions
@@ -44,9 +78,15 @@ export class ConfigurationSchema {
    * Define a configuration field
    * @param {string} name - Field name (typically camelCase)
    * @param {FieldOptions} [options] - Field options
+   * @returns {ConfigurationSchema} - this schema, for chaining
    */
   field(name, options = {}) {
-
+    if (!name && options.name) {
+      name = options.name;
+    }
+    if (!name) {
+      throw new ConfigurationSchemaError('configuration schema field name must be specified');
+    }
     //name = toCamelCase(name);  // normalize
 
     if (this.fields.has(name)) {
@@ -59,8 +99,13 @@ export class ConfigurationSchema {
 
     // todo - allow private extended options and don't smoosh everything together into one object
 
-    let fieldOptions = {...options, name, type: normalizeTypeName(options.type), required: options.required ?? false, description: options.description ?? ''};
-
+    let fieldOptions = {...options, name, type: normalizeTypeName(options.type), required: options.required ?? false, description: options.description ?? '', schema: this };
+    Object.defineProperty(fieldOptions, 'path', {
+      get: () => {
+        return this.path? `${this.path}.${name}` : name;
+      },
+      enumerable: true
+    })
     this.fields.set(name, fieldOptions);
     this._fpCache = null;
     return this;
@@ -69,9 +114,9 @@ export class ConfigurationSchema {
   /**
    * Define a child schema
    * @param {string} name - Child schema name, typically camelCase
-   * @param {SchemaOptions} options - options for the child schema; note that the parent type/validator registries are always used by children
+   * @param {SchemaOptions|ConfigurationSchema} schemaOrOptions - child to use, or options for a new child schema
    */
-  child(name, options = {}) {
+  child(name, schemaOrOptions = {}) {
 
 //    name = toCamelCase(name);  // normalize
 
@@ -82,7 +127,22 @@ export class ConfigurationSchema {
       throw new ConfigurationSchemaError(`configuration schema child ${name} already defined as a field`);
     }
 
-    const childSchema = new ConfigurationSchema({...options, condition: options.condition ?? this.condition});
+    let childOptions = (schemaOrOptions instanceof ConfigurationSchema)? {} : schemaOrOptions;
+
+    let childSchema = (schemaOrOptions instanceof ConfigurationSchema)
+                      ? schemaOrOptions.copy()
+                      : new ConfigurationSchema({...childOptions});
+
+    // ensure the child schema is property linked
+    childSchema.parent = this;
+
+    if (this.condition) {
+      childSchema.condition = this.condition;
+    }
+
+    if (childSchema.linkedParentFieldName && !childSchema.linkedParentFieldValue) {
+      childSchema.linkedParentFieldValue = name;
+    }
 
     this.children.set(name, childSchema);
     this._fpCache = null;
@@ -94,21 +154,41 @@ export class ConfigurationSchema {
    * @returns {ConfigurationSchema}
    */
   copy() {
-    let clone = new ConfigurationSchema({condition: this.condition});
+    const cloneOptions = {}
+    if (this.condition) {
+      cloneOptions.condition = this.condition;
+    }
+    if (this.linkedParentFieldName) {
+      cloneOptions.linkedParentFieldName = this.linkedParentFieldName;
+      cloneOptions.linkedParentFieldValue = this.linkedParentFieldValue
+    }
+
+    let clone = new ConfigurationSchema(cloneOptions);
 
     for (let [fieldName, fieldOptions] of this.fields) {
       clone.field(fieldName, fieldOptions);
     }
 
     for (let [childName, childSchema] of this.children) {
-      let child = childSchema.copy();
-      clone.children.set(childName, child);
+      const newChildSchema = childSchema.copy();
+      newChildSchema.parent = clone;
+      clone.children.set(childName, newChildSchema);
     }
 
     return clone;
   }
 
-
+  get path() {
+    if (this.parent) {
+      let parentPath = this.parent.path;
+      for (let [childName, childSchema] of this.parent.children) {
+        if (childSchema === this) {
+          return parentPath? `${parentPath}.${childName}` : childName;
+        }
+      }
+    }
+    return '';
+  }
 
   /**
    * Get all field definitions
@@ -171,23 +251,34 @@ export class ConfigurationSchema {
       if (skip(fieldOptions)) {
         continue;
       }
-      paths.set(fieldName, { ...fieldOptions, path: fieldName, schema: this });
+      paths.set(fieldOptions.path, { ...fieldOptions });
     }
 
     for (const [childName, childSchema] of this.children) {
       const childPaths = childSchema.getAllFieldPaths(query);
 
+      for (const [childFieldPath, childFieldOptions] of childPaths) {
+        paths.set(childFieldPath, childFieldOptions);
+      }
+
+      /*
       for (const [relativePath, fieldOptions] of childPaths) {
         if (skip(fieldOptions)) {
           continue;
         }
         const fullPath = `${childName}.${relativePath}`;
 
-        paths.set(fullPath, {
-          ...fieldOptions,
-          path: fullPath
+        if (fullPath !== fieldOptions.path) {
+          throw new ConfigurationSchemaError(`inconsistent field path ${fullPath} for child ${childName}`);
+        }
+
+        paths.set(fieldOptions.path, {
+          ...fieldOptions
         })
+
+
       }
+       */
     }
     this._fpCache = paths;
     return paths;

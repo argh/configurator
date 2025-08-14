@@ -58,26 +58,34 @@ describe('CommandLineSource', function() {
       assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     });
     it('should handle array values specified with a flag', async function() {
+      schema.field('verbose', { type: 'boolean' });
       schema.field('tags', { type: 'array' });
-//      schema.field('fruit', { type: 'array' });
+      schema.field('fruit', { type: 'array' });
+      schema.field('excitement', { type: 'boolean', flagHint: 'x'})
 
-      const context = { argv: ['-t', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
+      const context = { argv: ['-x', '-v', '-t', 'tag1', 'tag2', 'tag3', '-f=apple,banana,orange'] };
 
       const result = await source._load(configurator, context);
 
+      assert.equal(result.get('excitement'), true);
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
-//      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+      assert.equal(result.get('verbose'), true);
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     });
     it('should (grudgingly) handle array values specified with the last flag', async function() {
       schema.field('excitement', { type: 'boolean', flagHint: 'x'})
       schema.field('tags', { type: 'array' });
+      schema.field('fruit', { type: 'array' });
+      schema.field('verbose', { type: 'boolean' });
 
-      const context = { argv: ['-xt', 'tag1', 'tag2', 'tag3', /* todo ? '-f=apple,banana,orange' */] };
+      const context = { argv: ['-xt', 'tag1', 'tag2', 'tag3', '-vf=apple,banana,orange'] };
 
       const result = await source._load(configurator, context);
 
+      assert.equal(result.get('excitement'), true);
       assert.deepEqual(result.get('tags'), ['tag1', 'tag2', 'tag3']);
-//      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+      assert.equal(result.get('verbose'), true);
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     });
 
     it('should handle general field', async function() {
@@ -89,19 +97,60 @@ describe('CommandLineSource', function() {
 
       assert.equal(result.get('file'), 'filename.txt');
     });
+    it('should not allow multiple general fields', async function() {
+      schema.field('file', { general: true })
+      schema.field('path', { general: true})
+      const context = { argv: ['/tmp/foo.txt', '/home'] };
+      await assert.rejects(async () => {
+        const result = await source._load(configurator, context);
+      }, /conflicts with existing general/);
 
-    it('should handle nested fields using kebab-case', async function() {
-      const dbSchema = schema.child('database');
-      dbSchema.field('host');
-      dbSchema.field('port', { type: 'number' });
+    })
+    it('long boolean options should absorb explicit true/false values next to general field', async function() {
+      schema.field('verbose', { type: 'boolean' })
+      schema.field('fruit', { type: 'array', general: true });
 
-      const context = { argv: ['--database-host', 'localhost', '--database-port', '5432'] };
+      const context = { argv: ['--verbose', 'true', 'apple', 'banana', 'orange'] };
 
       const result = await source._load(configurator, context);
 
-      assert.equal(result.get('database.host'), 'localhost');
-      assert.equal(result.get('database.port'), '5432');
+      assert.equal(result.get('verbose'), 'true');
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
     });
+    it('long boolean options should not absorb general field values', async function() {
+      schema.field('verbose', { type: 'boolean' })
+      schema.field('fruit', { type: 'array', general: true });
+
+      const context = { argv: ['--verbose', 'apple', 'banana', 'orange'] };
+
+      const result = await source._load(configurator, context);
+
+      assert.equal(result.get('verbose'), true);
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    });
+    it('flag booleans should absorb explicit true/false values next to general field', async function() {
+      schema.field('verbose', { type: 'boolean' })
+      schema.field('fruit', { type: 'array', general: true });
+
+      const context = { argv: ['-v', 'true', 'apple', 'banana', 'orange'] };
+
+      const result = await source._load(configurator, context);
+
+      assert.equal(result.get('verbose'), 'true');
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    });
+    it('flag booleans should not absorb general field values', async function() {
+      schema.field('verbose', { type: 'boolean' })
+      schema.field('fruit', { type: 'array', general: true });
+
+      const context = { argv: ['-v', 'apple', 'banana', 'orange'] };
+
+      const result = await source._load(configurator, context);
+
+      assert.equal(result.get('verbose'), true);
+      assert.deepEqual(result.get('fruit'), ['apple', 'banana', 'orange']);
+    });
+
 
     it('should pass arguments after -- to the general field', async function() {
       schema.field('file', { type: 'array', general: true });
@@ -137,6 +186,19 @@ describe('CommandLineSource', function() {
 
       assert.equal(result.get('port'), '8080');
       assert.equal(result.get('verbose'), true);
+    });
+
+    it('should handle nested fields using kebab-case', async function() {
+      const dbSchema = schema.child('database');
+      dbSchema.field('host');
+      dbSchema.field('port', { type: 'number' });
+
+      const context = { argv: ['--database-host', 'localhost', '--database-port', '5432'] };
+
+      const result = await source._load(configurator, context);
+
+      assert.equal(result.get('database.host'), 'localhost');
+      assert.equal(result.get('database.port'), '5432');
     });
 
     it('should create aliases for nested kebab-case options', async function() {
@@ -242,7 +304,52 @@ describe('CommandLineSource', function() {
     assert(helpText.includes('--advanced'));
     assert(helpText.includes('(required)'));
   });
+  it('should handle command options', async function() {
+    schema.field('verbose', { type: 'boolean' });
+    schema.field('command', { command: true })
+    schema.child('meat', {linkedParentFieldName: 'command'})
+          .field('type')
+          .child('product')
+          .field('price', {type: 'number'})
+          .field('sku', {type: 'string'})
+    schema.child('cake', {linkedParentFieldName: 'command'})
+          .field('type')
+          .child('product')
+          .field('price', {type: 'number'})
+          .field('sku', {type: 'string'})
+    schema.child('credentials')
+      .field('token')
+      .field('key')
 
+    const context = { argv: ['-v', 'meat', '--type', 'chicken', '--ps=CHIMKIN', '--product-price', '123'] };
+    const result = await source._load(configurator, context);
+    assert.equal(result.get('verbose'), true);
+    assert.equal(result.get('command'), 'meat');
+    assert.equal(result.get('meat.type'), 'chicken');
+    assert.equal(result.get('meat.product.sku'), 'CHIMKIN');
+    assert.equal(result.get('meat.product.price'), '123');
 
+  })
+  it('should not allow multiple commands', async function() {
+    schema.field('command', { command: true })
+    schema.field('subcommand', { command: true})
+    const context = { argv: ['abc', 'xyz'] };
+    await assert.rejects(async () => {
+      const result = await source._load(configurator, context);
+    }, /conflicts with existing command/);
+
+  })
+  it('should not allow conflicts between command options and general options', async function() {
+    schema.field('plugin', { command: true });
+    schema.child('loader')
+          .child('thirdparty')
+          .field('name')
+          .field('plugin', { general: true })
+
+    const context = { argv: ['whizbang', '--ltn=xyz', 'extension'] };
+    await assert.rejects(async () => {
+      const result = await source._load(configurator, context);
+    }, /conflicts with command/);
+  })
 
 });
