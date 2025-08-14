@@ -133,6 +133,40 @@ export function deepAssign(object, path, value) {
   return object;
 }
 
+export function deepValue(object, path) {
+  // Handle null/undefined object
+  if (!object || typeof object !== 'object') {
+    return undefined;
+  }
+
+  // Handle empty or invalid path
+  if (!path || typeof path !== 'string') {
+    return undefined;
+  }
+
+  // Split the path and filter out empty strings
+  const keys = path.split('.').filter(key => key.length > 0);
+
+  // If no valid keys, return undefined
+  if (keys.length === 0) {
+    return undefined;
+  }
+
+  // Traverse the object following the path
+  let current = object;
+  for (const key of keys) {
+    // Check if current is null/undefined or not an object
+    if (!current || typeof current !== 'object') {
+      return undefined;
+    }
+
+    // Move to the next level
+    current = current[key];
+  }
+
+  return current;
+}
+
 /**
  * Convert value to the specified type
   */

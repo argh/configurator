@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { deepAssign, toKebabCase } from './utils.js';
+import { deepAssign, deepValue, toKebabCase } from './utils.js';
 import { ConfiguratorError } from './configurator-error.js';
 
 export class ConfigurationSchemaError extends ConfiguratorError {}
@@ -47,7 +47,7 @@ export class ConfigurationSchema {
     this.children = new Map();
 
     /** @type {Function|boolean|undefined} */
-    this.condition = options?.condition;
+    this._condition = options?.condition;
 
     /** @type {ConfigurationSchema} */
     this.parent = null;
@@ -136,12 +136,19 @@ export class ConfigurationSchema {
     // ensure the child schema is property linked
     childSchema.parent = this;
 
-    if (this.condition) {
-      childSchema.condition = this.condition;
-    }
 
     if (childSchema.linkedParentFieldName && !childSchema.linkedParentFieldValue) {
       childSchema.linkedParentFieldValue = name;
+    }
+
+    if (childSchema.linkedParentFieldName && !childSchema._condition) {
+      childSchema._condition = (field, value, config) => {
+        const fieldDefinition = this.fields.get(childSchema.linkedParentFieldName);
+
+        const command = deepValue(config, fieldDefinition?.path)
+
+        return command === childSchema.linkedParentFieldValue;
+      }
     }
 
     this.children.set(name, childSchema);
@@ -155,8 +162,8 @@ export class ConfigurationSchema {
    */
   copy() {
     const cloneOptions = {}
-    if (this.condition) {
-      cloneOptions.condition = this.condition;
+    if (this._condition) {
+      cloneOptions._condition = this._condition;
     }
     if (this.linkedParentFieldName) {
       cloneOptions.linkedParentFieldName = this.linkedParentFieldName;
@@ -188,6 +195,13 @@ export class ConfigurationSchema {
       }
     }
     return '';
+  }
+
+  get condition() {
+    return this._condition ?? this.parent?.condition;
+  }
+  set condition(value) {
+    this._condition = value;
   }
 
   /**

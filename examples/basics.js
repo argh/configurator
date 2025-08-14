@@ -17,9 +17,9 @@ try {
   const config = await new Configurator({schema}).configure({
     appName,
     defaults: { [appName]: { verbose: true }},                                 // app defaults are low priority but take precedence over schema defaults
-//    env: { 'BASICS_SERVER_HOST' : 'localhost' },                               // normally omit, defaults to process.env
-//    argv: ['-D', '--server-port', '8081', '--codes', '5xx', 'z10', '123' ],    // normally omit, defaults to process.argv
-//    overrides: { server: { protocol: 'https', port: 443 } }                    // overrides default to highest priority
+    env: { 'BASICS_SERVER_HOST' : 'localhost' },                               // normally omit, defaults to process.env
+    argv: ['-D', '--server-port', '8081', '--codes', '5xx', 'z10', '123' ],    // normally omit, defaults to process.argv
+    overrides: { server: { protocol: 'https', port: 443 } }                    // overrides default to highest priority
 
   });
   console.log('Configuration results: ', config);

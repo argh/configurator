@@ -310,6 +310,10 @@ export class Configurator {
         // A negative condition cancels the "required" field check and even blocks default assignments.
         // Interpret it as "this field is deliberately omitted from all processing".
 
+        // TODO: Field value conditions are pretty useless, since complex types will not have the same
+        //       value before and after they are resolved.  We should probably deprecate them and only
+        //       support schema-level conditions.
+
         if (typeof condition === 'function') {
           condition = condition(field, value, rootConfig);
         }

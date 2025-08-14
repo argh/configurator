@@ -210,7 +210,9 @@ export class CommandLineSource extends ConfigurationSource
             flags: new Map()
           }
 
-          ctx.commandContextMap.set(childName, walk(childSchema, childCommandContext, prefix? `${prefix}.${childName}` : childName));
+          let commandValue = childSchema.linkedParentFieldValue ?? childName;
+
+          ctx.commandContextMap.set(commandValue, walk(childSchema, childCommandContext, prefix? `${prefix}.${childName}` : childName));
         }
         else {
           walk(childSchema, ctx, prefix);
