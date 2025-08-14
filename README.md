@@ -85,6 +85,7 @@ patterns:
 - Custom configuration sources
 - Conditional configuration
 - Dynamic configuration resolution
+- Command line "command" support
 
 ## Key Features
 
