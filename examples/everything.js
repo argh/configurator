@@ -30,8 +30,8 @@ const types = new TypeRegistry();
 // or the configuration has stabilized.  This allows types to be defined where their value
 // depends on other aspects of the configuration state.
 
-// Here is an example of a type definition that can accept either a positive number
-// or the string "now" to indicate the current time should be used:
+// Here is an example of a type definition that can accept either a positive number,
+// an ISO string, or the string "now" to indicate the current time should be used:
 
 types.defineType('timestamp', (value) => {
   if (typeof value === 'number') {
@@ -43,8 +43,22 @@ types.defineType('timestamp', (value) => {
   else if (!value || value === 'now') {
     return Date.now();
   }
+  else if (typeof value === 'string') {
+    let t = new Date(value).getTime()
+    if (isNaN(t)) {
+      throw new Error(`Invalid timestamp value: ${value}`);
+    }
+    return t;
+  }
   else {
     throw new Error(`Invalid timestamp value: ${value}`);
+  }
+}, {
+  format(value) {
+    // You can provide a format function to convert the resolved value back to
+    // a representation that can be written to a config file.  This will be
+    // used if you pass the --dump option to the Configurator.
+    return new Date(value).toISOString();
   }
 });
 
@@ -52,7 +66,13 @@ types.defineType('timestamp', (value) => {
 // singleton of a Printer type instance, selected based on the string name
 // provided.  It also accepts explicit assignment of a compatible instance.
 
-class Printer {}
+class Printer {
+  toJSON() {
+    // you can use toJSON to make dump() output usable as an input config
+    // (this particular approach is a hack just for this example)
+    return this.constructor.name.toLowerCase().slice(0, 3);
+  }
+}
 class FooPrinter extends Printer { print(message) { console.log('foo!', message) };  }
 class BarPrinter extends Printer { print(message) { console.log('bar!', message) };  }
 class BazPrinter extends Printer { print(message) { console.log('baz!', message) };  }
@@ -82,14 +102,14 @@ types.defineType('Printer', (value) => {
   return printerSingleton;
 })
 
-class Cheese {}
+class Cheese { toJSON() { return `${this.constructor.name}` }}
 class Cheddar extends Cheese { }
 class Mozzarella extends Cheese { }
 class Parmesan extends Cheese {  }
 class Stilton extends Cheese {  }
 class Gouda extends Cheese {  }
 class Emmental extends Cheese {  }
-class Brie extends Cheese {  }
+class Brie extends Cheese { }
 
 const cheeses = new Map([Cheddar, Mozzarella, Parmesan, Stilton, Gouda, Emmental, Brie].map(c => [c.name.toLowerCase(), c]));
 
@@ -116,7 +136,7 @@ types.defineType('Cheese', (value) => {
   }
 
   if (value.name) {
-    return value;
+    return new value();
   }
   else {
     throw new Error('cannot use unnamed cheese')
@@ -254,6 +274,10 @@ class FakeSecretsSource extends ConfigurationSource {
           // pretend we can't resolve until we have a delay value
           // (will continue to re-resolve until success or the configuration
           // has stabilized)
+          //
+          // (an alternative way to get the delay into this source would have been to
+          // set the "context" flag on the field, and to retrieve it from an upstream
+          // source assignment during load.)
           return undefined;
         }
         // delay to fake that we're calling an external service to get the secret...
@@ -285,6 +309,7 @@ const configurator = new Configurator({
   types: types,
   validators: validators,
   sources: sources,
+  dumpEnabled: true,
   configEnabled: true,
   configField: 'profile',
   configContextFieldName: 'profilePath',
@@ -297,7 +322,9 @@ await writeFile('./example-profile.json', JSON.stringify({user: { nickname: 'bob
 try {
   const config = await configurator.configure({
     appName: 'app',    // env var prefix, also used to make cmd line args for matching schema more concise
-    argv: ['--worker-repo=./src', '-VD', '--fake-secret-delay=1000', '--profile=./example-profile.json', '--printer=bar'],
+    // comment out these next lines if you want to use the actual environment and command line
+    env: {APP_FAKE_SECRET_DELAY: '1000'},
+    argv: ['--worker-repo=./src', '-VD', '--profile=./example-profile.json', '--printer=bar', '--dump=./example-config.json'],
     overrides: { app: { printer: new FooPrinter() }}
   })
   let printer = config.app?.printer;
@@ -305,28 +332,12 @@ try {
   if (printer) {
     printer.print('hello!');
   }
-  console.log('Configuration results: ', JSON.stringify(config, (key, value) => {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      // Handle class instances
-      if (value.constructor && value.constructor.name !== 'Object') {
-        return {
-          __className: value.constructor.name,
-          ...value
-        };
-      }
-      // Handle class constructors/functions
-      return value;
-    }
-    else if (typeof value === 'function' && value.prototype && value.prototype.constructor === value) {
-      return {
-        __className: value.name,
-        __type: 'class'
-      };
-    }
 
-    return value;
-  }, 2));
+  // You can use the file written by --dump as the input for config (--profile,
+  // in this case).  Config and dump settings are deliberately omitted from the output
+  // to make round-tripping configurations less confusing.
 }
 catch (error) {
-  console.log(error.message);  // FIXME
+  console.error(error.message);
+  process.exit(1);
 }

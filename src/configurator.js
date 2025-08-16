@@ -1,3 +1,5 @@
+import { promises as fs } from 'fs';
+
 import { ConfigurationSchema } from './configuration-schema.js';
 import {
   ConfigurationSource,
@@ -10,7 +12,7 @@ import {
 import { ConfiguratorError } from './configurator-error.js';
 import { ValidatorRegistry } from './validator-registry.js';
 import { TypeRegistry } from './type-registry.js';
-import { deepAssign } from './utils.js';
+import { deepAssign, deepValue, toCamelCase } from './utils.js';
 
 const MODULE_INFO = {
   name: 'configurator'
@@ -23,11 +25,20 @@ export class Configurator {
    * @property {TypeRegistry} [types]
    * @property {ValidatorRegistry} [validators]
    * @property {Array<ConfigurationSource>} [sources]
+   * @property {boolean} [configEnabled] - enable configuration file option
    * @property {string} [configField] - name of the field to use for the config file path
    * @property {string} [configFlag] - flag to use for the config file path
    * @property {string} [configDescription] - description to use for the config file path
    * @property {string} [configValueDescription] - description to use for the config file path value
    * @property {string} [configContextFieldName] - name of the field to pass in the context for source propagation
+   * @property {boolean} [dumpEnabled] - enable dump file option
+   * @property {string} [dumpField] - name of the field to use for the dump file path
+   * @property {string} [dumpFlag] - flag to use for the dump file path
+   * @property {string} [dumpDescription] - description to use for the dump file path
+   * @property {string} [dumpValueDescription] - description to use for the dump file path value
+   * @property {string} [dumpContextFieldName] - name of the field to pass in the context for source propagation*
+   *
+   *
    * @property {object} [defaults] - optional ObjectSource configuration source data to use as defaults
    */
 
@@ -41,6 +52,7 @@ export class Configurator {
     this._validators = options.validators ?? new ValidatorRegistry();
     this._sources = options.sources;
 
+    let configEnabled = options.configEnabled ?? false;
     let configField = options.configField ?? 'config';
     let configFlag = options.configFlag ?? 'C';
     let configDescription = options.configDescription ?? 'load configuration from file';
@@ -48,14 +60,37 @@ export class Configurator {
 
     let configContextFieldName = options.configContextFieldName ?? options.configField ?? 'config';
 
-    if (options.configField) {
+    // validator for config is sort of pointless, as this field is processed by a source long before validation
+    if (configEnabled) {
+      this._configContextFieldName = configContextFieldName;
       this._schema.field(configField, {
         flagHint: configFlag,
-        validator: '$file',
+        validator: {$or: ['-', '$file']},
         context: configContextFieldName,
         description: configDescription,
+        system: true,
         valueDescription: configValueDescription
       });
+    }
+
+    let dumpEnabled = options.dumpEnabled ?? false;
+    let dumpField = options.dumpField ?? 'dump';
+    let dumpFlag = options.dumpFlag;
+    let dumpDescription = options.dumpDescription ?? 'dump configuration to file';
+    let dumpValueDescription = options.dumpValueDescription ?? 'path';
+    let dumpContextFieldName = options.dumpContextFieldName ?? options.dumpField ?? 'dump';
+
+    if (dumpEnabled) {
+      this._dumpContextFieldName = dumpContextFieldName;
+      this._schema.field(dumpField, {
+        flagHint: dumpFlag,
+        description: dumpDescription,
+        context: dumpContextFieldName,
+        valueDescription: dumpValueDescription,
+        system: true,
+        advanced: true
+      });
+
     }
 
     if (!this._sources) {
@@ -134,7 +169,7 @@ export class Configurator {
   async configure(context, strict = true) {
 
     // todo - deepMerge?
-    const mergedContext = Object.assign({}, this.context, context)
+    const mergedContext = {...this.context, ...context};
 
     // sort sources by sequence (processing priority)
     let sources = this.sources
@@ -150,13 +185,39 @@ export class Configurator {
 
     for (let source of sources) {
       let sourceAssignments = await source.load(this, mergedContext, {strict});
+      if (!sourceAssignments) {
+        sourceAssignments = new Map();  // useful to keep in the list for debugging purposes
+      }
+      // todo - move this to ConfigurationSource base class load()?
+      // Some fields are set up to pass their value downstream to later sources via the context.
+      for (let [path, assignedValue] of sourceAssignments) {
+        const field = this.schema.findField(path);
+        if (field?.context) {
+          const contextFieldName = (typeof field.context === 'string')? field.context : field.name;
 
+          let resolvedValue = assignedValue;
+          try {
+            resolvedValue = await this.types.resolveTypeValue(field.type, assignedValue);
+          }
+          catch (_) {
+            // ignore, just assign original value
+          }
+
+          mergedContext[contextFieldName] = resolvedValue;
+        }
+      }
       sourceAssignmentsList.push(sourceAssignments);
     }
+    // config file sources need to remove the config field from the context if they handled it
+    if (this._configContextFieldName && mergedContext[this._configContextFieldName]) {
+      throw new ConfiguratorError(`Unable to load configuration from ${mergedContext[this._configContextFieldName]}`);
+    }
+
+
     const config = await this.processAssignments(sourceAssignmentsList, {types: this.types, validators: this.validators, strict});
 
-    if (mergedContext.dumpConfig) {
-
+    if (this._dumpContextFieldName && mergedContext[this._dumpContextFieldName]) {
+      await this.dump(config, mergedContext[this._dumpContextFieldName]);
     }
     return config;
   }
@@ -175,7 +236,7 @@ export class Configurator {
     const validators = this.validators;
     const configuration = options?.configuration ?? {};
 
-    let allFields = this.schema.getAllFieldPaths();
+    let allFields = this.schema.getAllFieldPaths({inherit:true});
 
     /**
      * @type {Map<string, any>}
@@ -209,6 +270,10 @@ export class Configurator {
 
       for (let [path, value] of remaining) {
         const field = allFields.get(path);
+        if (!field) {
+          continue;
+//          throw new ConfiguratorError(`Unknown field ${path}`);
+        }
 
         // Conditions will get re-checked multiple times if they fail, as it is possible they may change
         // value based on updates to configuration state.  Once the configuration has stabilized, we
@@ -236,15 +301,13 @@ export class Configurator {
           }
         }
 
-        if (false &&field.inherit) {
-          // todo - consider moving "inherit" handling to SchemaDefaultsSource, and making the assignment be a parent value lookup function
-          if (strict) {
-            throw new ConfiguratorError(`Inherited field ${path} cannot be assigned directly`);
-          }
-          else {
-            continue;
+        if (field.values && field.values.length > 0) {
+          let found = field.values.find(v => (v === value || v.value) === value);
+          if (!found) {
+            throw new ConfiguratorError(`Invalid value for field ${path}: ${value}`);
           }
         }
+
 
         let resolvedValue = await this.types.resolveTypeValue(field.type, value, configuration);
         if (resolvedValue !== undefined) {
@@ -322,32 +385,22 @@ export class Configurator {
         }
       }
 
-      // Experimental feature: allow children to inherit values from a parent schema.
-      // This is mostly useful if you are initializing application subsystems with
-      // only the partial configuration defined by a child schema.  The envisioned use case
-      // is to support cross-cutting fields like "--verbose" or "--debug".
-      //
-      // (Direct assignment to fields marked "inherit" is generally blocked by virtue
-      // of fields marked "inherit" being skipped in getAllFieldPaths, but a source
-      // that walks the field hierarchy manually would also need to take care to
-      // skip inherited fields as there is nothing actually preventing the assignment.
+      // We normally populate defaults and inherited fields via DefaultsSource, but
+      // in the case someone is calling "validate" on their own object and wants to
+      // explicitly fill in fields, they can set the "populateDefaults" option.
 
-      if (false &&value === undefined && field.inherit) {
-        for (let p = ptr.parent; p; p = p.parent) {
-          value = p.current[fieldName];
-          if (value !== undefined) {
-            break;
+      if (populateDefaults) {
+        if (value === undefined && field.inherit) {
+          for (let p = ptr.parent; p; p = p.parent) {
+            value = p.current[fieldName];
+            if (value !== undefined) {
+              break;
+            }
           }
         }
-      }
-
-      // With the normal configurator setup, we have a DefaultsSource that synthesizes assignments
-      // for all default values.  This has the benefit of overriding and pruning assignments upstream
-      // from here.  In case someone is calling validate on their own object and wants to explicitly fill
-      // in missing defaults, they can set the "populateDefaults" option.
-
-      if (value === undefined && field.default !== undefined && populateDefaults) {
-        value = field.default;
+        if (value === undefined && field.default !== undefined) {
+          value = field.default;
+        }
       }
 
       // Skip undefined optional fields
@@ -418,4 +471,48 @@ export class Configurator {
     return outputConfig;
   }
 
+  async dump(config, path) {
+
+    let output = {};
+
+    const allFields = this.schema.getAllFieldPaths({hidden: true, advanced: true, system: false});
+
+    for (let [path, field] of allFields) {
+      // TODO - omit config and dump fields from output!
+      let value = deepValue(config, path);
+
+      let formatted = this.types.formatTypeValue(field.type, value);
+
+      if (formatted && formatted !== value) {
+        value = formatted;
+      }
+
+      if (value !== undefined) {
+        deepAssign(output, path, value);
+      }
+    }
+    if (path === '-') {
+      try {
+        console.log(JSON.stringify(output, null, 2));
+        // in the case of stdout, we exit so that no other process output is written.
+        process.exit(0);
+      }
+      catch (error) {
+        throw new ConfiguratorError(`Failed to dump configuration to stdout`, {cause: error});
+        process.exit(1);
+      }
+    }
+    else if (path.toLowerCase().endsWith('.json')) {
+      try {
+        await fs.writeFile(path, JSON.stringify(output, null, 2), 'utf8');
+      }
+      catch (error) {
+        throw new ConfiguratorError(`Failed to dump configuration to file ${path}`, {cause: error});
+      }
+    }
+    else {
+      throw new ConfiguratorError(`Unsupported dump output "${path}" (must be "-" for stdout or end with .json)`);
+    }
+
+  }
 }

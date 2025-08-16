@@ -9,8 +9,11 @@ export class ConfiguratorError extends Error {
    */
   constructor(message, data, preserveStack = false) {
     // noinspection JSCheckFunctionSignatures
-    super(message, data?.cause? {cause: data.cause} : undefined);
-    this.data = data;
+    super(message, data?.cause ? {cause: data.cause} : undefined);
+
+    if (data) {
+      this.data = data;
+    }
     // restore prototype chain
     const actualProto = new.target.prototype;
 
@@ -23,6 +26,12 @@ export class ConfiguratorError extends Error {
     if (!preserveStack) {
       delete this.stack;
     }
+
+    if (data?.cause && !super.cause) {
+      // should be set on super, but just in case...
+      this.cause = data.cause;
+    }
+
   }
   get name() {
     return this.constructor.name;
@@ -32,9 +41,9 @@ export class ConfiguratorError extends Error {
 //  }
   // eslint-disable-next-line @typescript-eslint/no-empty-function
 //  set stack(str) {}
-  get cause() {
-    return super.cause ?? this.data?.cause;
-  }
+//  get cause() {
+//    return super.cause ?? this.data?.cause;
+//  }
 
   toString() {
     if (this.message) {

@@ -30,11 +30,6 @@ export class EnvironmentSource extends ConfigurationSource {
     const fieldAssignments = new Map();
 
     for (const fieldData of allFields.values()) {
-//      todo - figure out how to exclude modules and other complex types
-//      if (fieldData.type === 'module') {
-//        continue;
-//      }
-
       let envVar;
 
       const suffix = toConstantCase(fieldData.path);
@@ -55,15 +50,6 @@ export class EnvironmentSource extends ConfigurationSource {
 
       if (envVal !== undefined) {
         fieldAssignments.set(fieldData.path, envVal)
-      }
-      // we sometimes want to pass a configured value to other configuration sources downstream:
-      if (fieldData.context) {
-        if (typeof fieldData.context === 'string') {
-          context[fieldData.context] = envVal;
-        }
-        else {
-          context[fieldData.name] = envVal;
-        }
       }
     }
     return fieldAssignments;

@@ -33,118 +33,29 @@ export class CommandLineSource extends ConfigurationSource
     this.helpValueDescription = options.helpValueDescription ?? 'basic|required|advanced'
   }
 
-  /** @typedef {ExtendedFieldOptions} CommandLineOption
-   * @property {string} longOption - Long option name (e.g. --help)
-   * @property {string} flag - Short option name (e.g. -h)
-   * @property {string} alias - Alias for the option (e.g. -h)
-   * @property {boolean} isTopLevel
-   */
-
   /** generate command line options, including flags and aliases
    * @param {Configurator} configurator
-   * @param {string} [prefix] - prefix to trim; must not end in dot.  start with toCamelCase(appName) to start
-   * @returns {{options:Map<string,CommandLineOption>, aliases: Map<string, CommandLineOption>, flags: Map<string, CommandLineOption>}}
+   * @param {string} [appName] - name of the app
+   * @returns {CommandContext}
    * @private
    */
-  _xgenerateOptions(configurator, prefix) {
-
-    /** @type {Map<string, CommandLineOption>} */
-    const options = new Map();
-
-    for (const [fieldPath, fieldDescriptor] of configurator.schema.getAllFieldPaths({hidden: false})) {
-
-      let type = configurator.types.getType(fieldDescriptor.type);
-      if (!type || type.typeOptions.hidden) {
-        continue;
-      }
-
-//      if (allowedTypes.indexOf(fieldOptions.type) === -1) {
-//        continue;
-//      }
-
-      if (fieldDescriptor.general) {
-        continue;
-      }
-
-      let longOption;
-      let isTopLevel = fieldPath.indexOf('.') === -1;
-      if (prefix && fieldPath.indexOf(`${prefix}.`) === 0) {
-        longOption = toKebabCase(fieldPath.substring(fieldPath.indexOf('.') + 1));
-        isTopLevel = true;
-      }
-      else {
-        longOption = toKebabCase(fieldPath);
-      }
-
-      options.set(longOption, {...fieldDescriptor, typeName: fieldDescriptor.type, type, longOption, isTopLevel })
-    }
-
-    const flags = new Map();
-    const aliases = new Map();
-
-    for (let [longOption, optionData] of options) {
-      if (optionData.flagHint && !flags.has(optionData.flagHint)) {
-        optionData.flag = optionData.flagHint;
-        flags.set(optionData.flagHint, optionData);
-      }
-    }
-    for (let [longOption, optionData] of options) {
-      if (optionData.advanced || optionData.hidden || optionData.flag) {
-        continue;
-      }
-
-      if (optionData.isTopLevel) {
-        let flag = longOption.charAt(0).toLowerCase();
-
-        if (flags.has(flag)) {
-          flag = flag.toUpperCase();
-        }
-        if (flags.has(flag)) {
-          flag = undefined;
-        }
-
-        if (flag) {
-          optionData.flag = flag;
-          flags.set(flag, optionData);
-        }
-      }
-      else {
-        let alias = longOption.split('-').map(part => part.charAt(0).toLowerCase()).join('');
-
-        if (!aliases.has(alias)) {
-          optionData.alias = alias;
-          aliases.set(alias, optionData);
-        }
-      }
-    }
-
-    const generalField = configurator.schema.getTaggedField('general');
-
-    const generalFieldType = generalField?.type? configurator.types.getType(generalField.type) : undefined;
-
-    const general = generalFieldType? {...generalField, typeName: generalField.type, type: generalFieldType } : undefined;
-
-    return {options, aliases, flags, general}
-  }
-
-
-  _newGenerateOptions(configurator, appName) {
+  _generateOptions(configurator, appName) {
 
     /** @typedef CommandContext
      * @property {CommandContext|null} parent
-     * @property {FieldOptions} commandField
+     * @property {FieldOptions} [commandField]
      * @property {Map<string, CommandContext>} commandContextMap
      * @property {Map<string, FieldOptions>} options
      * @property {Map<string, FieldOptions>} aliases
      * @property {Map<string, FieldOptions>} flags
-     * @property {FieldOptions} general
+     * @property {FieldOptions} [general]
      */
-
 
     /**
      * @param {ConfigurationSchema} schema
      * @param {CommandContext} ctx
      * @param {string} [prefix]
+     * @returns {CommandContext}
      */
     function walk(schema, ctx, prefix) {
       // The schema hierarchy defines a tree of objects containing configurable fields, but in some cases, the
@@ -153,6 +64,10 @@ export class CommandLineSource extends ConfigurationSource
       // command hierarchy explicit.
 
       for (let [fieldName, fieldDescriptor] of schema.fields) {
+
+        if (fieldDescriptor.hidden || fieldDescriptor.inherit) {
+          continue;
+        }
 
         let type = configurator.types.getType(fieldDescriptor.type ?? 'string');
         if (!type || type.typeOptions.hidden) {
@@ -197,7 +112,7 @@ export class CommandLineSource extends ConfigurationSource
       for (let [childName, childSchema] of schema.children) {
         if (childSchema.linkedParentFieldName) {
           if (childSchema.linkedParentFieldName !== ctx.commandField?.name) {
-            throw new Error(`Invalid linkedParentFieldName: ${childSchema.linkedParentFieldName} for ${childName} in ${schema.path?schema.path:'root schema'}`);
+            throw new CommandLineError(`Invalid linkedParentFieldName: ${childSchema.linkedParentFieldName} for ${childName} in ${schema.path?schema.path:'root schema'}`);
           }
           /** @type {CommandContext} */
           let childCommandContext = {
@@ -271,15 +186,6 @@ export class CommandLineSource extends ConfigurationSource
 
     return walk(configurator.schema, initialCommandContext);
 
-
-
-
-
-
-
-
-
-
   }
 
 
@@ -307,7 +213,7 @@ export class CommandLineSource extends ConfigurationSource
     const prefix = toCamelCase(appName);
     //const {options, aliases, flags, general} = this._generateOptions(configurator, prefix);
 
-    let ctx = this._newGenerateOptions(configurator, prefix);
+    let ctx = this._generateOptions(configurator, prefix);
 
     let i = 0;
 
@@ -324,7 +230,7 @@ export class CommandLineSource extends ConfigurationSource
     }
     const peekArgumentValue = (incrementIfFound = false) => {
       try {
-        let ret = (i < args.length && `${args[i]}`.charAt(0) !== '-') ? args[i] : null;
+        let ret = (i < args.length && (args[i] === '-' || `${args[i]}`.charAt(0) !== '-')) ? args[i] : null;
         if (ret && incrementIfFound) {
           i++;
         }
@@ -367,27 +273,6 @@ export class CommandLineSource extends ConfigurationSource
           process.exit(0);
         }
 
-        /*
-        if (this.configOption && arg === `--${this.configOption}`) {
-          let configPath;
-
-          if (hasInlineValue) {
-            configPath = inlineValue;
-          }
-          else {
-            configPath = getArgument();
-          }
-          if (!configPath) {
-            throw new CommandLineError(`Missing path for --${this.configOption}`);
-          }
-          if (configPath.startsWith('-')) {
-            throw new CommandLineError(`Invalid path for --${this.configOption}: "${configPath}"`);
-          }
-          context[this.configContextFieldName] = configPath;   // setting config path in context for use in downstream source(s)
-          continue;
-        }
-*/
-
         let value;
 
         let optionData;
@@ -406,25 +291,6 @@ export class CommandLineSource extends ConfigurationSource
           else {
             continue;
           }
-        }
-
-        if (false && optionData.config) {
-          let configPath;
-
-          if (hasInlineValue) {
-            configPath = inlineValue;
-          }
-          else {
-            configPath = getArgument();
-          }
-          if (!configPath) {
-            throw new CommandLineError(`Missing path for --${kebabName}`);
-          }
-          if (configPath.startsWith('-')) {
-            throw new CommandLineError(`Invalid path for --${kebabName}: "${configPath}"`);
-          }
-          context[this.configContextFieldName] = configPath;   // setting config path in context for use in downstream source(s)
-          continue;
         }
 
         if (optionData.typeName === 'boolean') {
@@ -466,31 +332,13 @@ export class CommandLineSource extends ConfigurationSource
           else {
             throw new CommandLineError(`Option --${kebabName} requires a value`)
           }
-
         }
-
         fieldAssignments.set(optionData.path, value);
-
-        // we sometimes want to pass a value downstream to other configuration sources:
-        if (optionData.context) {
-          if (typeof optionData.context === 'string') {
-            context[optionData.context] = value;
-          }
-          else {
-            context[optionData.name] = value;
-          }
-        }
-
-//          deepAssign(config, optionData.path, value);
 
       } else if (arg.startsWith('-') && arg.length > 1) {
         const [shortOptions, ...valueParts] = arg.slice(1).split('=');
         const hasInlineValue = valueParts.length > 0;
         const inlineValue = valueParts.join('=');
-
-        // todo - support inline options?
-        // Short option(s): -o or -abc
-//        const shortOptions = arg.slice(1);
 
         for (let j = 0; j < shortOptions.length; j++) {
           const shortOption = shortOptions[j];
@@ -568,22 +416,19 @@ export class CommandLineSource extends ConfigurationSource
             }
           }
           fieldAssignments.set(optionData.path, value);
-          if (optionData.context) {
-            if (typeof optionData.context === 'string') {
-              context[optionData.context] = value;
-            }
-            else {
-              context[optionData.name] = value;
-            }
-          }
         }
       }
       else {
         // Non-option argument - either a command or a general value
         if (ctx.commandField) {
-          if (ctx.commandContextMap.has(arg)) {
-            fieldAssignments.set(ctx.commandField.path, arg);
-            ctx = ctx.commandContextMap.get(arg);
+          const command = toKebabCase(arg);
+          if (ctx.commandContextMap.has(command)) {
+            fieldAssignments.set(ctx.commandField.path, command);
+            ctx = ctx.commandContextMap.get(command);
+          }
+          else if (ctx.commandField.values?.find?.(v => (v === command || v.value === command))) {
+            // defined value without a context
+            fieldAssignments.set(ctx.commandField.path, command);
           }
           else {
             throw new CommandLineError(`Unknown command: "${arg}"`);
@@ -617,49 +462,59 @@ export class CommandLineSource extends ConfigurationSource
     return fieldAssignments;
   }
 
+  /**
+   * Generate help text based on configurator schema
+   * @param {Configurator} configurator
+   * @param {object} context - collection of source-specific fields (argv, env, etc.)
+   * @param {boolean} showAdvanced - Whether to show advanced options
+   * @returns {string} Formatted help text
+   */
   _help(configurator, context, showAdvanced = false) {
+    const terminalWidth = process.stdout.columns || 80;
+
     const appName = context.appName ?? 'command';
     const prefix = toCamelCase(appName);
 
-    const ctx = this._newGenerateOptions(configurator, prefix);
+    const ctx = this._generateOptions(configurator, prefix);
 
-    const formatContext = (ctx, command = null, indent = 0) => {
-      let s = '';
+    /** @type {Array<Array<string>>} */
 
-      if (!command) {
-        s += `Usage: ${appName}`;
+    function formatContext(ctx, command = null, indent = 0, entries = []) {
+      let cl = [];
+
+      if (entries.length) {
+        cl.push([]);
       }
-      else {
-        s += `${command}`
-      }
+      let usageLine = command? `${command}` : `Usage: ${appName}`;
+
       if (ctx.options.size) {
-        s += ` [options]`;
+        usageLine += ` [options]`;
       }
       if (ctx.commandField) {
         const commands = Array.from(ctx.commandContextMap.keys()).join('|')
 
-        s += (ctx.commandField.required)? ` <${commands}` : ` [${commands}`;
+        usageLine += (ctx.commandField.required)? ` <${commands}` : ` [${commands}`;
 
         for (let [, commandContext] of ctx.commandContextMap) {
           if (commandContext.options.size) {
-            s += ' [command-options]';
+            usageLine += ' [command-options]';
             break;
           }
         }
-        s += (ctx.commandField.required)? '>' : ']';
+        usageLine += (ctx.commandField.required)? '>' : ']';
       }
       else if (ctx.general) {
-        s += ` ${this._formatArgumentType(ctx.general)}`;
+        usageLine += ` ${_formatArgumentType(ctx.general)}`;
       }
-      s += '\n';
+
+      cl.push([usageLine]);
+
 
       if (ctx.options.size) {
-//        s += `\n  Options:\n`;
-
         let foundAdvanced = false;
         for (const option of ctx.options.values()) {
           // Skip hidden options and handle advanced options based on showAdvanced flag
-          if (option.hidden) continue;
+          if (option.hidden || option.inherit) continue;
           if (option.advanced) {
             foundAdvanced = true;
             if (!showAdvanced) continue;
@@ -674,10 +529,7 @@ export class CommandLineSource extends ConfigurationSource
             optionSyntax += ` (--${option.alias})`;
           }
 
-          optionSyntax += ` ${this._formatArgumentType(option)}`;
-
-          // Pad the syntax column to align descriptions
-          optionSyntax = optionSyntax.padEnd(60 - indent);
+          optionSyntax += ` ${_formatArgumentType(option)}`;
 
           // Add the option description
           const description = (option.description || '').trim();
@@ -690,244 +542,250 @@ export class CommandLineSource extends ConfigurationSource
             markers.push('required');
           }
           if (option.default) {
-            markers.push(`default: ${option.default}`);
+            // todo - format default values via the type formatter
+            markers.push(`default:${option.default}`);
           }
 
           // Add advanced marker if needed
           const markersText = markers.length ? `(${markers.join(', ')})` : ''
 
-          const d = [description, markersText].filter(item => !!item).join(' ');
+          let columns = [optionSyntax]
+          const d = [description, markersText].filter(item => !!item).join(' ').trim();
 
-          s += `${optionSyntax} - ${d}\n`;
-        }
-      }
-      if (ctx.commandField) {
-        if (command) {
-//          s += '\n  Subcommands:\n\n';
-        }
-        else {
-//          s += '\n  Commands:\n\n';
-        }
-        s += '\n';
-        for (const [commandName, commandContext] of ctx.commandContextMap) {
-          s += formatContext(commandContext, commandName, 2);
+          if (d.length) {
+            columns.push(d);
+          }
+          cl.push(columns);
         }
       }
       let margin = indent? ' '.repeat(indent) : '';
 
-      return s.split('\n').map(line => margin + line).join('\n') + '\n';
 
+      if (ctx.commandField) {
+        for (const [commandName, commandContext] of ctx.commandContextMap) {
+          formatContext(commandContext, commandName, 2, cl);
+        }
+      }
+      entries.push(...cl.map(columns => columns?.length? [margin + columns[0], columns[1]] : []))
+
+      return entries;
     }
 
-    return formatContext(ctx);
-  }
+    const entries = formatContext(ctx);
+    const columnWidth = (terminalWidth / 2) - 1;
+    const lines = [];
 
-  /**
-   * Generate help text based on configurator schema
-   * @param {Configurator} configurator
-   * @param {object} context - collection of source-specific fields (argv, env, etc.)
-   * @param {boolean} showAdvanced - Whether to show advanced options
-   * @returns {string} Formatted help text
-   */
-  /*
-  _xhelp(configurator, context, showAdvanced = false) {
-
-    const appName = context.appName ?? 'command';
-    const prefix = toCamelCase(appName);
-    const {options, aliases, flags, general} = this._generateOptions(configurator, prefix);
-    const generalField = configurator.schema.getTaggedField('general');
-    const generalValues = [];
-
-    let help = `Usage: ${appName} [options]`;
-
-    if (general) {
-      help += ` ${this._formatArgumentType(general)}`;
-    }
-
-    help += '\n\nOptions:\n';
-
-    let foundAdvanced = false;
-
-    // Convert options to array and sort them
-    const sortedOptions = Array.from(options.values()).sort((a, b) => {
-      // Sort by top level first
-      if (a.isTopLevel !== b.isTopLevel) {
-        return b.isTopLevel - a.isTopLevel;
+    for (let [c1='', c2=''] of entries) {
+      if (!c1 && !c2) {
+        lines.push([]);
+        continue;
       }
 
-      if (a.schema.category !== b.schema.category) {
-        if (a.schema.category === undefined) {
-          return -1;
-        }
-        else if (b.schema.category === undefined) {
-          return 1;
-        }
-        else {
-          return a.schema.category.localeCompare(b.schema.category);
+      // Chop down on alternatives if first column is long, or there's a description column.
+      // It's pretty ugly either way.  :-(
+      // (Tried falling back to splitting on spaces, but the leading indentation makes this
+      // annoying to implement, and it doesn't really look better anyway.)
+      let c1parts = (c2 || c1.length >= terminalWidth)? c1.split('|') : [c1];
+      let commandOffset = 10;
+
+      if (c1parts.length > 0) {
+        for (commandOffset = c1parts[0].length; commandOffset > 0; commandOffset--) {
+          let c = c1parts[0].charAt(commandOffset - 1);
+          if (!c.match(/[a-z-]/i)) {
+            break;
+          }
         }
       }
 
-      // Then alphabetically by long option name
-      return a.longOption.localeCompare(b.longOption);
-    });
+      const c1lines = [];
 
+      let current = '';
 
-    let lastCategory = undefined;
-    let lastSchema = undefined;
-
-    // Process each option
-
-    for (const option of sortedOptions) {
-      // Skip hidden options and handle advanced options based on showAdvanced flag
-      if (option.hidden) continue;
-      if (option.advanced) {
-        foundAdvanced = true;
-        if (!showAdvanced) continue;
-      }
-
-      if (option.schema.category !== lastCategory) {
-        help += `\n\nCategory: ${toHeadline(option.schema.category)}\n`
-        lastCategory = option.schema.category;
-        lastSchema = option.schema.id;
-      }
-      else if (lastSchema !== option.schema.id) {
-        lastSchema = option.schema.id;
-        help += '\n';
-      }
-
-
-      let optionSyntax = `  --${option.longOption}`;
-
-      if (option.flag) {
-        optionSyntax += ` (-${option.flag})`;
-      }
-      if (option.alias) {
-        optionSyntax += ` (--${option.alias})`;
-      }
-
-      // Add any flags
-
-      optionSyntax += ` ${this._formatArgumentType(option, option.type)}`;
-
-      // Pad the syntax column to align descriptions
-      optionSyntax = optionSyntax.padEnd(60);
-
-      // Add the option description
-      const description = (option.description || '').trim();
-
-      let markers = [];
-      if (option.advanced) {
-        markers.push('advanced');
-      }
-      if (option.required) {
-        markers.push('required');
-      }
-      if (option.default) {
-        markers.push(`default: ${option.default}`);
-      }
-
-      // Add advanced marker if needed
-      const markersText = markers.length ? `(${markers.join(', ')})` : ''
-
-      const d = [description, markersText].filter(item => !!item).join(' ');
-
-      help += `${optionSyntax} - ${d}\n`;
-    }
-
-    return help;
-  }
-
-   */
-
-  _formatArgumentType(option) {
-    // yuck.  validators should self-format!
-    let argumentTypeString;
-
-    if (option.valueDescription) {
-      argumentTypeString = typeof option.valueDescription === 'function' ? option.valueDescription() : option.valueDescription;
-    }
-    else if (option.typeName === 'string') {
-
-      if (typeof option.validator === 'string') {
-        argumentTypeString = option.validator.substring(1);
-      }
-      else if (typeof option.validator === 'object'
-               && Array.isArray(option.validator['$in'])) {
-        argumentTypeString = option.validator['$in'].join('|')
-      }
-      else {
-        argumentTypeString = 'string-value'
-      }
-    }
-    else if (option.typeName === 'number') {
-      if (typeof option.validator === 'string') {
-        argumentTypeString = option.validator.substring(1);
-      }
-      else if (typeof option.validator === 'object'
-               && Array.isArray(option.validator['$in'])) {
-        argumentTypeString = option.validator['$in'].join('|')
-      }
-      else if (typeof option.validator === 'object' && option.validator['$range']) {
-        if (option.validator['$range'].min && option.validator['$range'].max) {
-          argumentTypeString = `number ${option.validator['$range'].min}-${option.validator['$range'].max}`;
-        }
-        else if (option.validator['$range'].min) {
-          argumentTypeString = `number (${option.validator['$range'].min}+)`;
-        }
-        else if (option.validator['$range'].max) {
-          argumentTypeString = `number <=${option.validator['$range'].max}`;
+      for (let part of c1parts) {
+        let check = current? `${current}|${part}` : part;
+        if (check.length < columnWidth) {
+          current = check;
         }
         else {
-          argumentTypeString = 'number';
+          if (current) {
+            c1lines.push(current);
+            current = ' '.repeat(commandOffset) + '|' + part;
+          }
+          else {
+            c1lines.push(part);
+            current = ' '.repeat(commandOffset);
+          }
         }
       }
-      else {
-        argumentTypeString = 'number'
+      if (current.trim().length || c1lines.length === 0) {
+        c1lines.push(current);
       }
-    }
-    else if (option.typeName === 'boolean') {
-      argumentTypeString = 'true|false'
-    }
-    else if (option.typeName.startsWith('[') && option.typeName.endsWith(']')) {
-      argumentTypeString = `${option.typeName.substring(1, option.typeName.length - 1) || 'string'}...`
-    }
-    else if (option.typeName === 'array') {
-      if (typeof option.validator === 'string') {
-        argumentTypeString = option.validator.substring(1);  // implied $each for simple arrays
+
+      if (c2.trim()) {
+        c2 = `- ${c2}`;
       }
-      if (typeof option.validator === 'object' && option.validator['$each']) {
-        if (typeof option.validator['$each'] === 'string') {
-          argumentTypeString = `${option.validator['$each'].substring(1)}...`;
+
+      let c2parts = c2.split(' ');
+      const c2lines = [];
+      current = '';
+
+      for (let part of c2parts) {
+        let check = current? `${current} ${part}` : part;
+        if (check.length < columnWidth) {
+          current = check;
         }
         else {
-          argumentTypeString = 'value...';
+          if (current) {
+            c2lines.push(current);
+            current = '  ' + part;
+          }
+          else {
+            c2lines.push(part);
+            current = '  ';
+          }
         }
       }
-      else {
-        argumentTypeString = 'value...';
+      if (current.trim().length || c2lines.length === 0) {
+        c2lines.push(current);
+      }
+
+      let cl1 = 0, cl2 = 0;
+
+      while (cl1 < c1lines.length || cl2 < c2lines.length) {
+        const col1 = cl1 < c1lines.length ? c1lines[cl1] : '';
+        const col2 = cl2 < c2lines.length ? c2lines[cl2] : '';
+        if (col1.length > columnWidth) {
+          lines.push([col1, '']);
+          cl1++;
+        }
+        else {
+          lines.push([col1, col2]);
+          cl1++;
+          cl2++;
+        }
       }
     }
-    else if (option.type.typeOptions.isListType) {
-      argumentTypeString = `${option.type.typeOptions.itemType?.name || 'string'}...`
-    }
-    else if (option.type.typeOptions.valueDescription) {
-      argumentTypeString = typeof option.type.typeOptions.valueDescription === 'function' ? option.type.typeOptions.valueDescription() : option.type.typeOptions.valueDescription;
-    }
-    else {
-      argumentTypeString = 'value';
-    }
 
-    if (option.typeName === 'boolean' || option.allowEmpty) {
-      return `[${argumentTypeString}]`;
-    }
-    else {
-      return `<${argumentTypeString}>`;
-    }
+    // technically, we should run a first pass on the first column in order to determine
+    // where to wrap the second column, but this is good enough for now.
+
+    const firstColumnLength = lines.reduce((max, line) => {
+      if (line && line[0]) {
+        if (line[0].length <= columnWidth) {
+          return Math.max(max, line[0].length);
+        }
+        else {
+          return max;
+        }
+      }
+      return max;
+    }, 0);
+
+    const helpText = lines.map(line => {
+      let parts = [];
+      if (line) {
+        let c1 = line[0] || '';
+        parts.push(c1.padEnd(firstColumnLength));
+        if (line[1] && line[1].length) {
+          parts.push(line[1]);
+        }
+      }
+      return parts.join(' ');
+    }).join('\n');
+
+    return helpText;
   }
+
 }
 
 export class CommandLineError extends ConfiguratorError {
   constructor(message, data) {
     super(message, data);
+  }
+}
+
+function _formatArgumentType(option) {
+  // yuck.  validators should self-format!
+  let argumentTypeString;
+
+  if (option.valueDescription) {
+    argumentTypeString = typeof option.valueDescription === 'function' ? option.valueDescription() : option.valueDescription;
+  }
+  else if (option.typeName === 'string') {
+
+    if (typeof option.validator === 'string') {
+      argumentTypeString = option.validator.substring(1);
+    }
+    else if (typeof option.validator === 'object'
+             && Array.isArray(option.validator['$in'])) {
+      argumentTypeString = option.validator['$in'].join('|')
+    }
+    else {
+      argumentTypeString = 'string-value'
+    }
+  }
+  else if (option.typeName === 'number') {
+    if (typeof option.validator === 'string') {
+      argumentTypeString = option.validator.substring(1);
+    }
+    else if (typeof option.validator === 'object'
+             && Array.isArray(option.validator['$in'])) {
+      argumentTypeString = option.validator['$in'].join('|')
+    }
+    else if (typeof option.validator === 'object' && option.validator['$range']) {
+      if (option.validator['$range'].min && option.validator['$range'].max) {
+        argumentTypeString = `number:${option.validator['$range'].min}-${option.validator['$range'].max}`;
+      }
+      else if (option.validator['$range'].min) {
+        argumentTypeString = `number:(${option.validator['$range'].min}+)`;
+      }
+      else if (option.validator['$range'].max) {
+        argumentTypeString = `number:<=${option.validator['$range'].max}`;
+      }
+      else {
+        argumentTypeString = 'number';
+      }
+    }
+    else {
+      argumentTypeString = 'number'
+    }
+  }
+  else if (option.typeName === 'boolean') {
+    argumentTypeString = 'true|false'
+  }
+  else if (option.typeName.startsWith('[') && option.typeName.endsWith(']')) {
+    argumentTypeString = `${option.typeName.substring(1, option.typeName.length - 1) || 'string'}...`
+  }
+  else if (option.typeName === 'array') {
+    if (typeof option.validator === 'string') {
+      argumentTypeString = option.validator.substring(1);  // implied $each for simple arrays
+    }
+    if (typeof option.validator === 'object' && option.validator['$each']) {
+      if (typeof option.validator['$each'] === 'string') {
+        argumentTypeString = `${option.validator['$each'].substring(1)}...`;
+      }
+      else {
+        argumentTypeString = 'value...';
+      }
+    }
+    else {
+      argumentTypeString = 'value...';
+    }
+  }
+  else if (option.type.typeOptions.isListType) {
+    argumentTypeString = `${option.type.typeOptions.itemType?.name || 'string'}...`
+  }
+  else if (option.type.typeOptions.valueDescription) {
+    argumentTypeString = typeof option.type.typeOptions.valueDescription === 'function' ? option.type.typeOptions.valueDescription() : option.type.typeOptions.valueDescription;
+  }
+  else {
+    argumentTypeString = 'value';
+  }
+
+  if (option.typeName === 'boolean' || option.allowEmpty) {
+    return `[${argumentTypeString}]`;
+  }
+  else {
+    return `<${argumentTypeString}>`;
   }
 }

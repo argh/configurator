@@ -11,7 +11,7 @@ describe('CommandLineSource', function() {
   beforeEach(function() {
     source = new CommandLineSource('myapp');
     schema = new ConfigurationSchema();
-    configurator = new Configurator({schema});
+    configurator = new Configurator({schema, configEnabled: true});
   });
 
   describe('#_load()', function() {
@@ -273,7 +273,6 @@ describe('CommandLineSource', function() {
   });
 
   it('should throw error when config option is missing path', async function() {
-    schema.field('config', {context: true});
 
     const context = { argv: ['--config'] };
     await assert.rejects(async () => {
@@ -282,10 +281,10 @@ describe('CommandLineSource', function() {
   });
 
   it('should handle config file option correctly', async function() {
-    schema.field('config', {context: true});
+
     const context = { argv: ['--config', 'test.json'] };
     const result = await source._load(configurator, context);
-    assert.equal(context.config, 'test.json');
+    assert.equal(result.get('config'), 'test.json');
   });
   it('should handle empty values with allowEmpty option', async function() {
     schema.field('name', { allowEmpty: true });

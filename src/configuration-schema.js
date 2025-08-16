@@ -55,22 +55,32 @@ export class ConfigurationSchema {
     /** @type {string} */
     this.linkedParentFieldName = options?.linkedParentFieldName;
     if (this.linkedParentFieldName) {
-      this.linkedParentFieldValue = options?.linkedParentFieldValue;
+      this.linkedParentFieldValue = toKebabCase(options?.linkedParentFieldValue);
     }
   }
 
+  /** @typedef {Object} AssignmentValue
+   * @property {*} value
+   * @property {string} [description]
+   */
+
   /** @typedef {Object} FieldOptions
    * @property {string} [type] - resolver name in the Types registry; defaults to "string".
+   * @property {string} [name] - field name
+   * @property {string} [path] - field path, relative to the schema root.
    * @property {Function|string|RegExp|object|undefined} validator - validator specification; see Validators.
    * @property {Function} [condition] - per-field conditional; overrides schema condition
    * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
    * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
    * @property {boolean} [required] - flag indicating whether this field is required
+   * @property {Array<AssignmentValue|*>} [values] - list of legal input values for this field
    * @property {any} [default] - default value; used by SchemaDefaultsSource.
    * @property {string} [description] - help text description; used by CommandLineSource
    * @property {string} [flagHint] - request a specific flag character; used by CommandLineSource
    * @property {boolean} [advanced] - filter from basic help text; used by CommandLineSource
    * @property {boolean} [hidden] - hide from help; used by CommandLineSource
+   * @property {boolean} [general] - mark this field for CommandLineSource to be used without a flag or option
+   * @property {boolean} [command] - mark this field for CommandLineSource as defining a command
    * @property {...*} [otherProperties] - custom attributes that may be interpreted by configuration sources
    */
 
@@ -107,14 +117,13 @@ export class ConfigurationSchema {
       enumerable: true
     })
     this.fields.set(name, fieldOptions);
-    this._fpCache = null;
     return this;
   }
 
   /**
    * Define a child schema
    * @param {string} name - Child schema name, typically camelCase
-   * @param {SchemaOptions|ConfigurationSchema} schemaOrOptions - child to use, or options for a new child schema
+   * @param {SchemaOptions|ConfigurationSchema} schemaOrOptions - schema to copy, or options for a new child schema
    */
   child(name, schemaOrOptions = {}) {
 
@@ -138,7 +147,7 @@ export class ConfigurationSchema {
 
 
     if (childSchema.linkedParentFieldName && !childSchema.linkedParentFieldValue) {
-      childSchema.linkedParentFieldValue = name;
+      childSchema.linkedParentFieldValue = toKebabCase(name);
     }
 
     if (childSchema.linkedParentFieldName && !childSchema._condition) {
@@ -147,12 +156,11 @@ export class ConfigurationSchema {
 
         const command = deepValue(config, fieldDefinition?.path)
 
-        return command === childSchema.linkedParentFieldValue;
+        return toKebabCase(command) === childSchema.linkedParentFieldValue;
       }
     }
 
     this.children.set(name, childSchema);
-    this._fpCache = null;
     return childSchema;
   }
 
@@ -227,23 +235,13 @@ export class ConfigurationSchema {
     return undefined;
   }
 
-  /** @typedef {FieldOptions} ExtendedFieldOptions
-   * @property {string} path
-   */
-
-  /** @type {Map<string, ExtendedFieldOptions>} */
-  _fpCache = null;
-
   /**
    * Return map of entire schema hierarchy keyed by dotted field paths
    *
    * @param query
-   * @returns {Map<string, ExtendedFieldOptions>}
+   * @returns {Map<string, FieldOptions>}
    */
   getAllFieldPaths(query = {}) {
-    if (this._fpCache) {
-      return this._fpCache;
-    }
     const paths = new Map();
 
     function skip(fo = {}) {
@@ -274,29 +272,24 @@ export class ConfigurationSchema {
       for (const [childFieldPath, childFieldOptions] of childPaths) {
         paths.set(childFieldPath, childFieldOptions);
       }
-
-      /*
-      for (const [relativePath, fieldOptions] of childPaths) {
-        if (skip(fieldOptions)) {
-          continue;
-        }
-        const fullPath = `${childName}.${relativePath}`;
-
-        if (fullPath !== fieldOptions.path) {
-          throw new ConfigurationSchemaError(`inconsistent field path ${fullPath} for child ${childName}`);
-        }
-
-        paths.set(fieldOptions.path, {
-          ...fieldOptions
-        })
-
-
-      }
-       */
     }
-    this._fpCache = paths;
     return paths;
 
+  }
+
+  findField(path) {
+    try {
+      let schema = this;
+      const parts = path.split('.');
+
+      while (parts.length > 1) {
+        schema = schema.children.get(parts.shift());
+      }
+      return schema.fields.get(parts.shift());
+    }
+    catch (_) {
+      return undefined;
+    }
   }
 
 

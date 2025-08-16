@@ -3,13 +3,13 @@ import { Configurator, ConfigurationSchema } from '../src/index.js';
 const appName = 'basics';
 const schema = new ConfigurationSchema();
 
-schema.field('debug', { type: 'boolean', flagHint: 'D', hidden: true })
+schema.field('debug', { type: 'boolean', flagHint: 'D', advanced: true })
 schema.child(appName)
       .field('files', { type: 'array', general: true, allowEmpty: true, validator: {$each: '$file'}, description: 'files to process'})
       .field('verbose', { type: 'boolean', default: false, advanced: true, description: 'enable verbose diagnostics' })
       .field('codes', { type: 'array', validator: {$each: '$alphanum'}, required: true, description: 'secret codes'})
 schema.child('server')
-      .field('host', { default: '127.0.0.1', validator: {$or: ['$ipv4', '$ipv6', '$resolves']}, description: 'health check address' })
+      .field('host', { default: '127.0.0.1', validator: {$or: ['$ipv4', '$ipv6', '$reachable']}, description: 'health check address' })
       .field('port', { type: 'number', default: 80, validator: '$port', description: 'health check port'})
       .field('protocol', { validator: {$in: ['https', 'http']}, description: 'health check protocol', advanced: true})
 
@@ -25,5 +25,6 @@ try {
   console.log('Configuration results: ', config);
 }
 catch (error) {
-  console.log(error.message);
+  console.error(error.message);
+  process.exit(1);
 }

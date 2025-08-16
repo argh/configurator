@@ -50,15 +50,16 @@ export class ConfigurationSource {
   }
 
   static DefaultSequence = Object.freeze({
-    SYSTEM_DEFAULTS: 100,
-    MODULES:         200,
-    SECRETS:         300,
-    APP_DEFAULTS:    400,
-    ENVIRONMENT:     500,
-    ARGUMENTS:       600,
-    SERVER:          700,
-    CONFIGURATION:   800,
-    OVERRIDES:       900
+    SYSTEM_DEFAULTS: 100,   // schema defaults are loaded at the lowest level
+    MODULES:         200,   // for fields referencing lazily-instantiated singletons (see @versionzero/module-manager)
+    APP_DEFAULTS:    300,   // takes precedence over schema defaults
+    ENVIRONMENT:     400,   // environment variables
+    SECRETS:         500,   // can change secrets locations from environment via context if needed
+    ARGUMENTS:       600,   // command line arguments
+    SERVER:          700,   // online sources, often referenced via arguments, so higher in priority
+    INTERACTIVE:     800,   // an interactive session (human in the loop)
+    CONFIGURATION:   900,   // configuration files can dynamically change and often specified via arguments, so they are higher in priority
+    OVERRIDES:       1000   // if you want to completely block some settings
   });
 
 

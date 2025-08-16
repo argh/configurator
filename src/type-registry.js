@@ -118,6 +118,14 @@ export class TypeRegistry
     return (async () => type.resolver(value, configuration, type))();
   }
 
+  formatTypeValue(typeName, value) {
+    let type = this.getType(typeName);
+    if (!type) {
+      return undefined;
+    }
+    return type.typeOptions?.format?.(value);
+  }
+
   _defineBuiltInTypes() {
     this.defineType('string',
       (value) => { return String(value) },

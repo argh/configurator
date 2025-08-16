@@ -53,8 +53,9 @@ export class SchemaDefaultsSource
                 return value;
               }
             }
-            catch (err) {
-              console.error('woops')  // FIXME - debug spam
+            catch (_) {
+              // ignore, this was for debugging...
+              return undefined;
             }
 
             if (prefix === '') {
