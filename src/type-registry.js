@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { toKebabCase } from './utils.js';
 import { ConfiguratorError} from './configurator-error.js';
 
@@ -139,9 +140,7 @@ export class TypeRegistry
           throw new Error(`Invalid number: ${value}`);
         }
         return num;
-      },
-      (value => { return typeof value === 'number' })  // FIXME!
-      );
+      });
     this.defineType('boolean', (value) => {
       if (typeof value === 'boolean') return value;
       if (typeof value === 'string') {
@@ -150,7 +149,7 @@ export class TypeRegistry
         if (lower === 'false' || lower === '0' || lower === 'no') return false;
       }
       return Boolean(value);
-    }, (value => { return typeof value === 'boolean' })); // FIXME
+    });
     this.defineType('array', (value) => {
       // todo - recursively handle member types?
       if (Array.isArray(value)) return value;
@@ -159,11 +158,51 @@ export class TypeRegistry
         return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
       }
       return [value]; // Single value becomes array
-    },
-      (value) => { return Array.isArray(value) } // FIXME
-    )
-
-
-
+    }); // todo - format?
+    this.defineType('date', (value) => {
+      if (value === 'now') {
+        return Date.now();
+      }
+      else if (typeof value === 'string' || typeof value === 'number') {
+        let t = new Date(value).getTime()
+        if (isNaN(t)) {
+          throw new ConfiguratorError(`Invalid timestamp value: ${value}`);
+        }
+        return t;
+      }
+      else {
+        throw new ConfiguratorError(`Invalid timestamp value: ${value}`);
+      }
+    }, {
+      format(value) {
+        return new Date(value).toISOString();
+      }
+    });
+    this.defineType('buffer', (value) => {
+      try {
+        if (typeof value === 'string') {
+          return Buffer.from(value, 'base64');
+        }
+        else {
+          return Buffer.from(value);
+        }
+      }
+      catch (error) {
+        throw new ConfiguratorError(`Invalid buffer value: ${value}`, {cause: error});
+      }
+    }, {
+      /**
+       * @param {Buffer} value
+       * @returns {undefined|string}
+       */
+      format: (value) => {
+        if (Buffer.isBuffer(value)) {
+          return value.toString('base64');
+        }
+        else {
+          return undefined;
+        }
+      }
+    })
   }
 }

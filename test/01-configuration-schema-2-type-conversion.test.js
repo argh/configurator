@@ -173,6 +173,39 @@ describe('ConfigurationSchema - Type Conversion', function() {
     });
   })
 
+      describe('Date type', function() {
+    beforeEach(function() {
+      schema.field('dateField', { type: 'date' });
+    });
+
+    it('should convert ISO string to timestamp', async function() {
+      const isoString = '2023-01-15T12:30:45.000Z';
+      const expected = new Date(isoString).getTime();
+      const result = await configurator.validate({ dateField: isoString });
+      assert.equal(result.dateField, expected);
+    });
+
+    it('should convert numeric timestamp to timestamp', async function() {
+      const timestamp = 1673789445000; // 2023-01-15T12:30:45.000Z
+      const result = await configurator.validate({ dateField: timestamp });
+      assert.equal(result.dateField, timestamp);
+    });
+
+    it('should convert "now" to current timestamp', async function() {
+      const before = Date.now();
+      const result = await configurator.validate({ dateField: 'now' });
+      const after = Date.now();
+      assert.ok(result.dateField >= before);
+      assert.ok(result.dateField <= after);
+    });
+
+    it('should throw for invalid date string', async function() {
+      await assert.rejects(async () => {
+        await configurator.validate({ dateField: 'not-a-date' });
+      }, /Invalid timestamp value/);
+    });
+      });
+
   describe('Unknown type', function() {
     beforeEach(function() {
       schema.field('unknownField', { type: 'unknown-type' });
@@ -184,6 +217,42 @@ describe('ConfigurationSchema - Type Conversion', function() {
       }, {
         message: /Unknown type/
       });
+    });
+  });
+
+  describe('Buffer type', function() {
+    beforeEach(function() {
+      schema.field('bufferField', { type: 'buffer' });
+    });
+
+    it('should convert base64 string to Buffer', async function() {
+      const base64 = 'SGVsbG8gV29ybGQ='; // 'Hello World'
+      const expected = Buffer.from('Hello World');
+      const result = await configurator.validate({ bufferField: base64 });
+      assert.ok(Buffer.isBuffer(result.bufferField));
+      assert.ok(result.bufferField.equals(expected));
+    });
+
+    it('should handle array input to Buffer', async function() {
+      const input = [72, 101, 108, 108, 111]; // 'Hello'
+      const expected = Buffer.from('Hello');
+      const result = await configurator.validate({ bufferField: input });
+      assert.ok(Buffer.isBuffer(result.bufferField));
+      assert.ok(result.bufferField.equals(expected));
+    });
+
+    it('should format Buffer as base64 string', function() {
+      const buffer = Buffer.from('Test Buffer');
+      const types = new TypeRegistry();
+      const formatted = types.formatTypeValue('buffer', buffer);
+      assert.equal(formatted, 'VGVzdCBCdWZmZXI=');
+    });
+
+    it('should throw for invalid buffer input', async function() {
+      await assert.rejects(async () => {
+        // Using an object that can't be properly converted to buffer
+        await configurator.validate({ bufferField: { invalid: 'object' } });
+      }, /Invalid buffer value/);
     });
   });
 });

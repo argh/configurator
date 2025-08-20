@@ -73,6 +73,11 @@ export class CommandLineSource extends ConfigurationSource
         if (!type || type.typeOptions.hidden) {
           continue;
         }
+
+        if (fieldDescriptor.type === '[object]' && fieldDescriptor.itemSchema) {
+          let newCtx = walk(fieldDescriptor.itemSchema, ctx, prefix);
+          continue;
+        }
         if (fieldDescriptor.command) {
           if (ctx.commandField) {
             throw new CommandLineError(`Command "${fieldDescriptor.path}" conflicts with existing command "${ctx.commandField.path}"`)
@@ -94,6 +99,8 @@ export class CommandLineSource extends ConfigurationSource
           ctx.general = {...fieldDescriptor, type, typeName: type.typeName};
           continue;
         }
+
+
 
         let path = schema.path ? `${schema.path}.${fieldName}` : fieldName;
 

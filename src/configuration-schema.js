@@ -5,20 +5,8 @@ import { ConfiguratorError } from './configurator-error.js';
 export class ConfigurationSchemaError extends ConfiguratorError {}
 
 
-/** @typedef {Object} FieldOptions
- * @property {string} [type] - resolver name in the Types registry; defaults to "string".
- * @property {Function|string|RegExp|object|undefined} validator - validator specification; see Validators.
- * @property {Function} [condition] - per-field conditional; overrides schema condition
- * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
- * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
- * @property {boolean} [required] - flag indicating whether this field is required
- * @property {any} [default] - default value; used by SchemaDefaultsSource.
- * @property {string} [description] - help text description; used by CommandLineSource
- * @property {string} [flagHint] - request a specific flag character; used by CommandLineSource
- * @property {boolean} [advanced] - filter from basic help text; used by CommandLineSource
- * @property {boolean} [hidden] - hide from help; used by CommandLineSource
- * @property {...*} [otherProperties] - custom attributes that may be interpreted by configuration sources
- */
+
+/** @typedef {FieldOptions & {name: string, path: string, schema: ConfigurationSchema}} FieldDefinition
 
 /**
  * Configuration field definition and validation schema
@@ -40,7 +28,7 @@ export class ConfigurationSchema {
     /** @type {string} */
     this.id = randomUUID();
 
-    /** @type {Map<string,FieldOptions>} */
+    /** @type {Map<string,FieldDefinition>} */
     this.fields = new Map();
 
     /** @type {Map<string,ConfigurationSchema>} */
@@ -109,14 +97,16 @@ export class ConfigurationSchema {
 
     // todo - allow private extended options and don't smoosh everything together into one object
 
-    let fieldOptions = {...options, name, type: normalizeTypeName(options.type), required: options.required ?? false, description: options.description ?? '', schema: this };
-    Object.defineProperty(fieldOptions, 'path', {
+    const typeName = normalizeTypeName(options.type);
+
+    let fieldDefinition = {...options, name, type: typeName, required: options.required ?? false, description: options.description ?? '', schema: this };
+    Object.defineProperty(fieldDefinition, 'path', {
       get: () => {
         return this.path? `${this.path}.${name}` : name;
       },
       enumerable: true
     })
-    this.fields.set(name, fieldOptions);
+    this.fields.set(name, fieldDefinition);
     return this;
   }
 
@@ -214,6 +204,7 @@ export class ConfigurationSchema {
 
   /**
    * Get all field definitions
+   * @returns {Map<string,FieldDefinition>}
    */
   getFields() {
     return new Map(this.fields);
@@ -221,11 +212,17 @@ export class ConfigurationSchema {
 
   /**
    * Get child schema definitions
+   * @returns {Map<string,ConfigurationSchema>}
    */
   getChildren() {
     return new Map(this.children);
   }
 
+  /**
+   * Find a field that has the specified tag
+   * @param tag
+   * @returns {FieldDefinition|undefined}
+   */
   getTaggedField(tag) {
     for (const [fieldName, fieldOptions] of this.getAllFieldPaths()) {
       if (fieldOptions[tag]) {
@@ -239,7 +236,7 @@ export class ConfigurationSchema {
    * Return map of entire schema hierarchy keyed by dotted field paths
    *
    * @param query
-   * @returns {Map<string, FieldOptions>}
+   * @returns {Map<string, FieldDefinition>}
    */
   getAllFieldPaths(query = {}) {
     const paths = new Map();
@@ -277,6 +274,11 @@ export class ConfigurationSchema {
 
   }
 
+  /**
+   * Find a field definition by dotted path
+   * @param path
+   * @returns {FieldDefinition|undefined}
+   */
   findField(path) {
     try {
       let schema = this;

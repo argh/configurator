@@ -18,6 +18,10 @@ const MODULE_INFO = {
   name: 'configurator'
 }
 
+/**
+ * The Configurator class coordinates configuration using a schema, configuration sources,
+ * a type registry, and a validator registry.
+ */
 export class Configurator {
   /**
    * @typedef {Object} ConfiguratorOptions
@@ -223,17 +227,18 @@ export class Configurator {
   }
 
   /**
-   * @param {Array[Map<string,any>]} fieldPathAssignmentsList
+   * Given a list of field path assignment maps, process them in reverse order to ensure the
+   * highest priority assignment is retained.  From the assignments, build and validate
+   * a configuration object.
+   * @param {Array<Map<string,any>>} fieldPathAssignmentsList - assignments to process
    * @param {object} [options] - processing options; currently only used for "strict"
    * @param {boolean} [options.strict] - if true, throw an error if any fields are not resolved.
-   * @param {TypeRegistry} [options.types]
-   * @param {ValidatorRegistry} [options.validators]
+   * @param {object} [options.configuration] - configuration object to populate
    * @returns {Promise<object>}
    */
   async processAssignments(fieldPathAssignmentsList, options) {
     let strict = options?.strict || false;
 
-    const validators = this.validators;
     const configuration = options?.configuration ?? {};
 
     let allFields = this.schema.getAllFieldPaths({inherit:true});
@@ -243,9 +248,7 @@ export class Configurator {
      */
     let assignments = new Map();
 
-    // We iterate these in reverse to simplify computing the "last (highest priority) definition wins" aspect
-    // of exclusive schema categories.  Otherwise, we'd need to bulk-remove multiple assignments associated
-    // with the overridden child schema.  (TODO - categories are an obsolete schema concept, is it still necessary to reverse?)
+    // We iterate these in reverse to simplify computing "last (highest priority) definition wins".
 
     for (let fieldPathAssignments of fieldPathAssignmentsList.reverse()) {
       for (let [path, value] of Array.from(fieldPathAssignments).reverse()) {
@@ -471,6 +474,19 @@ export class Configurator {
     return outputConfig;
   }
 
+  /**
+   * Dump configuration to stdout or file
+   *
+   * Attempts to convert resolved values back to an input-friendly value, first via the "format" type option,
+   * or alternatively by trusting that each value is either already compatible, or implements toJSON().
+   *
+   * TODO - support writing other formats, in particular .env files and .zsh completion scripts.
+   *
+   * @param {object} config - configuration object to dump
+   * @param {string} path - path to write, or "-" for stdout
+   * @returns {Promise<void>}
+   *
+   */
   async dump(config, path) {
 
     let output = {};
@@ -499,7 +515,6 @@ export class Configurator {
       }
       catch (error) {
         throw new ConfiguratorError(`Failed to dump configuration to stdout`, {cause: error});
-        process.exit(1);
       }
     }
     else if (path.toLowerCase().endsWith('.json')) {
