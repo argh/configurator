@@ -481,6 +481,7 @@ export class Configurator {
    * or alternatively by trusting that each value is either already compatible, or implements toJSON().
    *
    * TODO - support writing other formats, in particular .env files and .zsh completion scripts.
+   * TODO - flag to omit value if it corresponded to the default?
    *
    * @param {object} config - configuration object to dump
    * @param {string} path - path to write, or "-" for stdout

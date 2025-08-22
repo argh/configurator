@@ -15,8 +15,8 @@ export class ConfigurationSchema {
   /**
    * @typedef {Object} SchemaOptions
    * @property {Function} [condition] - optional conditional to check before processing anything associated with this schema
-   * @property {string} [linkedParentFieldName] - optional field defined in the parent schema that must be set
-   * @property {string} [linkedParentFieldValue] - optional value that must match in the field
+   * @property {string} [selector] - optional field defined in the parent schema that must be set
+   * @property {string} [selection] - optional value that must match in the field
    */
 
   /**
@@ -41,9 +41,9 @@ export class ConfigurationSchema {
     this.parent = null;
 
     /** @type {string} */
-    this.linkedParentFieldName = options?.linkedParentFieldName;
-    if (this.linkedParentFieldName) {
-      this.linkedParentFieldValue = toKebabCase(options?.linkedParentFieldValue);
+    this.selector = options?.selector;
+    if (this.selector) {
+      this.selection = toKebabCase(options?.selection);
     }
   }
 
@@ -136,17 +136,17 @@ export class ConfigurationSchema {
     childSchema.parent = this;
 
 
-    if (childSchema.linkedParentFieldName && !childSchema.linkedParentFieldValue) {
-      childSchema.linkedParentFieldValue = toKebabCase(name);
+    if (childSchema.selector && !childSchema.selection) {
+      childSchema.selection = toKebabCase(name);
     }
 
-    if (childSchema.linkedParentFieldName && !childSchema._condition) {
+    if (childSchema.selector && !childSchema._condition) {
       childSchema._condition = (field, value, config) => {
-        const fieldDefinition = this.fields.get(childSchema.linkedParentFieldName);
+        const fieldDefinition = this.fields.get(childSchema.selector);
 
         const command = deepValue(config, fieldDefinition?.path)
 
-        return toKebabCase(command) === childSchema.linkedParentFieldValue;
+        return toKebabCase(command) === childSchema.selection;
       }
     }
 
@@ -163,9 +163,9 @@ export class ConfigurationSchema {
     if (this._condition) {
       cloneOptions._condition = this._condition;
     }
-    if (this.linkedParentFieldName) {
-      cloneOptions.linkedParentFieldName = this.linkedParentFieldName;
-      cloneOptions.linkedParentFieldValue = this.linkedParentFieldValue
+    if (this.selector) {
+      cloneOptions.selector = this.selector;
+      cloneOptions.selection = this.selection
     }
 
     let clone = new ConfigurationSchema(cloneOptions);

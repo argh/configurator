@@ -36,15 +36,15 @@ export class CommandLineSource extends ConfigurationSource
   /** generate command line options, including flags and aliases
    * @param {Configurator} configurator
    * @param {string} [appName] - name of the app
-   * @returns {CommandContext}
+   * @returns {ParsingContext}
    * @private
    */
   _generateOptions(configurator, appName) {
 
-    /** @typedef CommandContext
-     * @property {CommandContext|null} parent
-     * @property {FieldOptions} [commandField]
-     * @property {Map<string, CommandContext>} commandContextMap
+    /** @typedef ParsingContext
+     * @property {ParsingContext|null} parent
+     * @property {FieldDefinition} [selector]
+     * @property {Map<string, ParsingContext>} selectionContextMap
      * @property {Map<string, FieldOptions>} options
      * @property {Map<string, FieldOptions>} aliases
      * @property {Map<string, FieldOptions>} flags
@@ -53,9 +53,9 @@ export class CommandLineSource extends ConfigurationSource
 
     /**
      * @param {ConfigurationSchema} schema
-     * @param {CommandContext} ctx
+     * @param {ParsingContext} ctx
      * @param {string} [prefix]
-     * @returns {CommandContext}
+     * @returns {ParsingContext}
      */
     function walk(schema, ctx, prefix) {
       // The schema hierarchy defines a tree of objects containing configurable fields, but in some cases, the
@@ -63,78 +63,76 @@ export class CommandLineSource extends ConfigurationSource
       // acts as the "root command" that owns the first-level schema.  For command-line processing, we make that
       // command hierarchy explicit.
 
-      for (let [fieldName, fieldDescriptor] of schema.fields) {
+      for (let [fieldName, fieldDefinition] of schema.fields) {
 
-        if (fieldDescriptor.hidden || fieldDescriptor.inherit) {
+        if (fieldDefinition.inherit) {
           continue;
         }
 
-        let type = configurator.types.getType(fieldDescriptor.type ?? 'string');
-        if (!type || type.typeOptions.hidden) {
+        let type = configurator.types.getType(fieldDefinition.type ?? 'string');
+        if (!type) {
           continue;
         }
 
-        if (fieldDescriptor.type === '[object]' && fieldDescriptor.itemSchema) {
-          let newCtx = walk(fieldDescriptor.itemSchema, ctx, prefix);
-          continue;
-        }
-        if (fieldDescriptor.command) {
-          if (ctx.commandField) {
-            throw new CommandLineError(`Command "${fieldDescriptor.path}" conflicts with existing command "${ctx.commandField.path}"`)
+        if (fieldDefinition.selector) {
+          if (ctx.selector) {
+            throw new CommandLineError(`Selector "${fieldDefinition.path}" conflicts with existing selector "${ctx.selector.path}"`)
           }
           else if (ctx.general) {
-            throw new CommandLineError(`Command "${fieldDescriptor.path}" conflicts with general field "${ctx.general.path}"`)
+            throw new CommandLineError(`Selector "${fieldDefinition.path}" conflicts with general field "${ctx.general.path}"`)
           }
-          ctx.commandField = {...fieldDescriptor, type, typeName: type.typeName};
+          ctx.selector = {...fieldDefinition, type, typeName: type.typeName};
           continue;
         }
-        else if (fieldDescriptor.general) {
-          if (ctx.commandField) {
-            throw new CommandLineError(`General field "${fieldDescriptor.path}" conflicts with command "${ctx.commandField.path}"`)
+        else if (fieldDefinition.general) {
+          if (ctx.selector) {
+            throw new CommandLineError(`General field "${fieldDefinition.path}" conflicts with selector "${ctx.selector.path}"`)
           }
           else if (ctx.general) {
-            throw new CommandLineError(`General field "${fieldDescriptor.path}" conflicts with existing general field "${ctx.general.path}"`)
+            throw new CommandLineError(`General field "${fieldDefinition.path}" conflicts with existing general field "${ctx.general.path}"`)
           }
 
-          ctx.general = {...fieldDescriptor, type, typeName: type.typeName};
+          ctx.general = {...fieldDefinition, type, typeName: type.typeName};
           continue;
         }
-
-
 
         let path = schema.path ? `${schema.path}.${fieldName}` : fieldName;
+
+        if (path.indexOf(`${appName}.`) === 0) {
+          path = path.substring(appName.length + 1);
+        }
 
         if (prefix && path.indexOf(`${prefix}.`) === 0) {
           path = path.substring(prefix.length + 1);
         }
-        else if (path.indexOf(`${appName}.`) === 0) {
-          path = path.substring(appName.length + 1);
-        }
+//        else if (path.indexOf(`${appName}.`) === 0) {
+//          path = path.substring(appName.length + 1);
+//        }
         const isTopLevel = path.indexOf('.') === -1;
         const longOption = toKebabCase(path);
 
-        ctx.options.set(longOption, {...fieldDescriptor, typeName: fieldDescriptor.type, type, longOption, isTopLevel})
+        ctx.options.set(longOption, {...fieldDefinition, typeName: fieldDefinition.type, type, longOption, isTopLevel})
       }
 
       for (let [childName, childSchema] of schema.children) {
-        if (childSchema.linkedParentFieldName) {
-          if (childSchema.linkedParentFieldName !== ctx.commandField?.name) {
-            throw new CommandLineError(`Invalid linkedParentFieldName: ${childSchema.linkedParentFieldName} for ${childName} in ${schema.path?schema.path:'root schema'}`);
+        if (childSchema.selector) {
+          if (childSchema.selector !== ctx.selector?.name) {
+            throw new CommandLineError(`Invalid selector: ${childSchema.selector} for ${childName} in ${schema.path ? schema.path : 'root schema'}`);
           }
-          /** @type {CommandContext} */
-          let childCommandContext = {
+          /** @type {ParsingContext} */
+          let selectionContext = {
             parent: ctx,
-            commandField: undefined,
-            commandContextMap: new Map(),
+            selector: undefined,
+            selectionContextMap: new Map(),
 
             options: new Map(),
             aliases: new Map(),
             flags: new Map()
           }
 
-          let commandValue = childSchema.linkedParentFieldValue ?? childName;
+          let selection = childSchema.selection ?? childName;
 
-          ctx.commandContextMap.set(commandValue, walk(childSchema, childCommandContext, prefix? `${prefix}.${childName}` : childName));
+          ctx.selectionContextMap.set(selection, walk(childSchema, selectionContext, prefix ? `${prefix}.${childName}` : childName));
         }
         else {
           walk(childSchema, ctx, prefix);
@@ -180,18 +178,18 @@ export class CommandLineSource extends ConfigurationSource
       return ctx;
     }
 
-    /** @type {CommandContext} */
-    let initialCommandContext = {
+    /** @type {ParsingContext} */
+    let initialParsingContext = {
       parent: null,
-      commandField: undefined,
-      commandContextMap: new Map(),
+      selector: undefined,
+      selectionContextMap: new Map(),
 
       options: new Map(),
       aliases: new Map(),
       flags: new Map()
     }
 
-    return walk(configurator.schema, initialCommandContext);
+    return walk(configurator.schema, initialParsingContext);
 
   }
 
@@ -427,18 +425,18 @@ export class CommandLineSource extends ConfigurationSource
       }
       else {
         // Non-option argument - either a command or a general value
-        if (ctx.commandField) {
-          const command = toKebabCase(arg);
-          if (ctx.commandContextMap.has(command)) {
-            fieldAssignments.set(ctx.commandField.path, command);
-            ctx = ctx.commandContextMap.get(command);
+        if (ctx.selector) {
+          const selector = toKebabCase(arg);
+          if (ctx.selectionContextMap.has(selector)) {
+            fieldAssignments.set(ctx.selector.path, selector);
+            ctx = ctx.selectionContextMap.get(selector);
           }
-          else if (ctx.commandField.values?.find?.(v => (v === command || v.value === command))) {
+          else if (ctx.selector.values?.find?.(v => (v === selector || v.value === selector))) {
             // defined value without a context
-            fieldAssignments.set(ctx.commandField.path, command);
+            fieldAssignments.set(ctx.selector.path, selector);
           }
           else {
-            throw new CommandLineError(`Unknown command: "${arg}"`);
+            throw new CommandLineError(`Unknown selector: "${arg}"`);
           }
         }
         else if (ctx.general) {
@@ -497,18 +495,18 @@ export class CommandLineSource extends ConfigurationSource
       if (ctx.options.size) {
         usageLine += ` [options]`;
       }
-      if (ctx.commandField) {
-        const commands = Array.from(ctx.commandContextMap.keys()).join('|')
+      if (ctx.selector) {
+        const selections = Array.from(ctx.selectionContextMap.keys()).join('|')
 
-        usageLine += (ctx.commandField.required)? ` <${commands}` : ` [${commands}`;
+        usageLine += (ctx.selector.required)? ` <${selections}` : ` [${selections}`;
 
-        for (let [, commandContext] of ctx.commandContextMap) {
-          if (commandContext.options.size) {
-            usageLine += ' [command-options]';
+        for (let [, selectionContext] of ctx.selectionContextMap) {
+          if (selectionContext.options.size) {
+            usageLine += ' [options]';
             break;
           }
         }
-        usageLine += (ctx.commandField.required)? '>' : ']';
+        usageLine += (ctx.selector.required)? '>' : ']';
       }
       else if (ctx.general) {
         usageLine += ` ${_formatArgumentType(ctx.general)}`;
@@ -568,9 +566,9 @@ export class CommandLineSource extends ConfigurationSource
       let margin = indent? ' '.repeat(indent) : '';
 
 
-      if (ctx.commandField) {
-        for (const [commandName, commandContext] of ctx.commandContextMap) {
-          formatContext(commandContext, commandName, 2, cl);
+      if (ctx.selector) {
+        for (const [selection, selectionContext] of ctx.selectionContextMap) {
+          formatContext(selectionContext, selection, 2, cl);
         }
       }
       entries.push(...cl.map(columns => columns?.length? [margin + columns[0], columns[1]] : []))
@@ -713,6 +711,7 @@ export class CommandLineError extends ConfiguratorError {
 
 function _formatArgumentType(option) {
   // yuck.  validators should self-format!
+
   let argumentTypeString;
 
   if (option.valueDescription) {

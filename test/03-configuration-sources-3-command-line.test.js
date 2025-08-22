@@ -305,13 +305,13 @@ describe('CommandLineSource', function() {
   });
   it('should handle command options', async function() {
     schema.field('verbose', { type: 'boolean' });
-    schema.field('command', { command: true })
-    schema.child('meat', {linkedParentFieldName: 'command'})
+    schema.field('command', { selector: true })
+    schema.child('meat', {selector: 'command'})
           .field('type')
           .child('product')
           .field('price', {type: 'number'})
           .field('sku', {type: 'string'})
-    schema.child('cake', {linkedParentFieldName: 'command'})
+    schema.child('cake', {selector: 'command'})
           .field('type')
           .child('product')
           .field('price', {type: 'number'})
@@ -329,17 +329,17 @@ describe('CommandLineSource', function() {
     assert.equal(result.get('meat.product.price'), '123');
 
   })
-  it('should not allow multiple commands', async function() {
-    schema.field('command', { command: true })
-    schema.field('subcommand', { command: true})
+  it('should not allow multiple selectors', async function() {
+    schema.field('command', { selector: true })
+    schema.field('subcommand', { selector: true})
     const context = { argv: ['abc', 'xyz'] };
     await assert.rejects(async () => {
       const result = await source._load(configurator, context);
-    }, /conflicts with existing command/);
+    }, /conflicts with existing selector/);
 
   })
-  it('should not allow conflicts between command options and general options', async function() {
-    schema.field('plugin', { command: true });
+  it('should not allow conflicts between selector options and general options', async function() {
+    schema.field('plugin', { selector: true });
     schema.child('loader')
           .child('thirdparty')
           .field('name')
@@ -348,7 +348,7 @@ describe('CommandLineSource', function() {
     const context = { argv: ['whizbang', '--ltn=xyz', 'extension'] };
     await assert.rejects(async () => {
       const result = await source._load(configurator, context);
-    }, /conflicts with command/);
+    }, /conflicts with selector/);
   })
 
 });

@@ -14,36 +14,36 @@ describe('Configurator Command Pattern', function() {
     configurator = new Configurator({schema});
 
     schema.field('region', {type: 'string'})
-          .field('command', {type: 'string', command: true, required: true})
+          .field('command', {type: 'string', selector: true, required: true})
           .child('credentials')
           .field('token', { type: 'string' })
           .field('key', { type: 'string' })
 
 
-    const storageSchema = schema.child('storage', { linkedParentFieldName: 'command' })
+    const storageSchema = schema.child('storage', { selector: 'command' })
                                 .field('trace', {type: 'boolean'})
-                                .field('storageCommand', {type: 'string', command: true});
+                                .field('storageCommand', {type: 'string', selector: true});
 
-    storageSchema.child('list', { linkedParentFieldName: 'storageCommand' })
+    storageSchema.child('list', { selector: 'storageCommand' })
                  .field('bucket', {type: 'string'})
                  .field('recursive', {type: 'boolean'});
 
-    storageSchema.child('get', { linkedParentFieldName: 'storageCommand' })
+    storageSchema.child('get', { selector: 'storageCommand' })
                  .field('bucket', {type: 'string'})
                  .field('key', {type: 'string'})
 
-    storageSchema.child('put', { linkedParentFieldName: 'storageCommand' })
+    storageSchema.child('put', { selector: 'storageCommand' })
                  .field('bucket', {type: 'string'})
                  .field('key', {type: 'string'})
 
 
-    const computeSchema = schema.child('compute', { linkedParentFieldName: 'command' })
+    const computeSchema = schema.child('compute', { selector: 'command' })
                                 .field('watch', {type: 'boolean'})
-                                .field('computeCommand', {type: 'string', command: true});
+                                .field('computeCommand', {type: 'string', selector: true});
 
     // should be able to reuse a schema as a basis...
 
-    const computeCommandSchema = new ConfigurationSchema({ linkedParentFieldName: 'computeCommand' })
+    const computeCommandSchema = new ConfigurationSchema({ selector: 'computeCommand' })
       .field('cluster', {type: 'string'})
 
     computeSchema.child('list', computeCommandSchema)
