@@ -22,7 +22,7 @@ export class ObjectSource extends ConfigurationSource
 
     const object = context[this.contextFieldName] ?? {};
 
-    const allFields = configurator.schema.getAllFieldPaths({hidden: true, advanced: true, system: true});
+    const allFields = configurator.schema.getAllFieldPaths({hidden: true, advanced: true, system: true, internal: true});
 
     const fieldAssignments = new Map();
 

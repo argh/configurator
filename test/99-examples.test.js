@@ -7,7 +7,10 @@ describe('Examples', () => {
   const exampleFiles = fs.readdirSync(examplesDir).filter(file => file.endsWith('.js'));
 
   exampleFiles.forEach(file => {
-    it(`should run ${file} successfully`, (done) => {
+    it(`should run ${file} successfully`, function (done) {
+      // examples sometimes run for a longer time to demonstrate features
+      this.slow(200);
+      this.timeout(10000);
       const examplePath = path.join(examplesDir, file);
       exec(`node ${examplePath}`, (error, stdout, stderr) => {
         if (error) {

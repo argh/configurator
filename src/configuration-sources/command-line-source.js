@@ -146,7 +146,7 @@ export class CommandLineSource extends ConfigurationSource
         }
       }
       for (let [longOption, optionData] of ctx.options) {
-        if (optionData.advanced || optionData.hidden || optionData.flag) {
+        if (optionData.internal || optionData.system || optionData.advanced || optionData.hidden || optionData.flag) {
           continue;
         }
 
@@ -519,7 +519,7 @@ export class CommandLineSource extends ConfigurationSource
         let foundAdvanced = false;
         for (const option of ctx.options.values()) {
           // Skip hidden options and handle advanced options based on showAdvanced flag
-          if (option.hidden || option.inherit) continue;
+          if (option.internal || option.system || option.hidden || option.inherit) continue;
           if (option.advanced) {
             foundAdvanced = true;
             if (!showAdvanced) continue;
@@ -696,7 +696,7 @@ export class CommandLineSource extends ConfigurationSource
         }
       }
       return parts.join(' ');
-    }).join('\n');
+    }).join('\n')
 
     return helpText;
   }
@@ -710,7 +710,7 @@ export class CommandLineError extends ConfiguratorError {
 }
 
 function _formatArgumentType(option) {
-  // yuck.  validators should self-format!
+  // yuck.  types and validators should self-format!
 
   let argumentTypeString;
 

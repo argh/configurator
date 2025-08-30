@@ -36,11 +36,11 @@ export class ConfiguratorError extends Error {
   get name() {
     return this.constructor.name;
   }
-//  get stack() {
-//    return "";
-//  }
+  get stack() {
+    return "";
+  }
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-//  set stack(str) {}
+  set stack(str) {}
 //  get cause() {
 //    return super.cause ?? this.data?.cause;
 //  }

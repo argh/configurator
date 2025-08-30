@@ -247,7 +247,7 @@ export class ConfigurationSchema {
           return true;  // some flags must be explicitly queried
         }
       }
-      for (let flag of ['hidden', 'advanced', 'system']) {
+      for (let flag of ['hidden', 'advanced', 'system', 'internal']) {
         if (fo[flag] === true && query[flag] === false) {
           return true;
         }

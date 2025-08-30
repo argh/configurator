@@ -64,6 +64,7 @@ export class Configurator {
 
     let configContextFieldName = options.configContextFieldName ?? options.configField ?? 'config';
 
+    this._omitFromDump = new Set();
     // validator for config is sort of pointless, as this field is processed by a source long before validation
     if (configEnabled) {
       this._configContextFieldName = configContextFieldName;
@@ -72,9 +73,9 @@ export class Configurator {
         validator: {$or: ['-', '$file']},
         context: configContextFieldName,
         description: configDescription,
-        system: true,
         valueDescription: configValueDescription
       });
+      this._omitFromDump.add(this._schema.fields.get(configField).path);
     }
 
     let dumpEnabled = options.dumpEnabled ?? false;
@@ -91,10 +92,9 @@ export class Configurator {
         description: dumpDescription,
         context: dumpContextFieldName,
         valueDescription: dumpValueDescription,
-        system: true,
         advanced: true
       });
-
+      this._omitFromDump.add(this._schema.fields.get(dumpField).path);
     }
 
     if (!this._sources) {
@@ -333,7 +333,8 @@ export class Configurator {
     }
 
     if (strict && remaining.size > 0) {
-      throw new ConfiguratorError(`Failed to resolve fields: ${Array.from(remaining.keys()).join(', ')}`);
+
+      throw new ConfiguratorError(`Failed to resolve required field${remaining.size>1? 's':''}: ${Array.from(remaining.keys()).join(', ')}`);
     }
     // we've already typechecked, so we don't need to do that again.
     return await this.validate(configuration, {typecheck: false, strict});
@@ -474,25 +475,21 @@ export class Configurator {
     return outputConfig;
   }
 
+
   /**
-   * Dump configuration to stdout or file
+   * Format the config data as if it were a config file.
    *
    * Attempts to convert resolved values back to an input-friendly value, first via the "format" type option,
    * or alternatively by trusting that each value is either already compatible, or implements toJSON().
    *
-   * TODO - support writing other formats, in particular .env files and .zsh completion scripts.
-   * TODO - flag to omit value if it corresponded to the default?
-   *
-   * @param {object} config - configuration object to dump
-   * @param {string} path - path to write, or "-" for stdout
-   * @returns {Promise<void>}
-   *
+   * @param config
+   * @param all - if true, include all settable fields
+   * @returns {string}
    */
-  async dump(config, path) {
-
+  format(config, all = false) {
     let output = {};
 
-    const allFields = this.schema.getAllFieldPaths({hidden: true, advanced: true, system: false});
+    const allFields = this.schema.getAllFieldPaths({hidden: true, advanced: true, system: false, internal: false});
 
     for (let [path, field] of allFields) {
       // TODO - omit config and dump fields from output!
@@ -505,12 +502,32 @@ export class Configurator {
       }
 
       if (value !== undefined) {
-        deepAssign(output, path, value);
+        if (all || (field.default === undefined || value !== field.default) && !this._omitFromDump.has(path)) {
+          deepAssign(output, path, value);
+        }
       }
     }
+    return JSON.stringify(output, null, 2);
+  }
+
+  /**
+   * Dump formatted configuration to stdout or file
+   *
+   * TODO - support writing other formats, in particular .env files and .zsh completion scripts.
+   * TODO - flag to omit value if it corresponded to the default?
+   *
+   * @param {object} config - configuration object to dump
+   * @param {string} path - path to write, or "-" for stdout
+   * @param {boolean} all - if true, include all settable fields
+   * @returns {Promise<void>}
+   *
+   */
+  async dump(config, path, all = false) {
+
+    const formattedConfig = this.format(config, all);
     if (path === '-') {
       try {
-        console.log(JSON.stringify(output, null, 2));
+        console.log(formattedConfig);
         // in the case of stdout, we exit so that no other process output is written.
         process.exit(0);
       }
@@ -520,7 +537,7 @@ export class Configurator {
     }
     else if (path.toLowerCase().endsWith('.json')) {
       try {
-        await fs.writeFile(path, JSON.stringify(output, null, 2), 'utf8');
+        await fs.writeFile(path, formattedConfig, 'utf8');
       }
       catch (error) {
         throw new ConfiguratorError(`Failed to dump configuration to file ${path}`, {cause: error});
@@ -530,5 +547,8 @@ export class Configurator {
       throw new ConfiguratorError(`Unsupported dump output "${path}" (must be "-" for stdout or end with .json)`);
     }
 
+  }
+  toJSON() {
+    return "Configurator";
   }
 }

@@ -150,6 +150,22 @@ export class TypeRegistry
       }
       return Boolean(value);
     });
+    this.defineType('object', (value) => {
+      if (typeof value === 'object') return value;
+      if (value === null) return {};
+      if (typeof value === 'string') {
+        value = value.trim();
+        if (value.length > 0 && value[0] === '{' && value[value.length - 1] === '}') {
+          try {
+            return JSON.parse(value);
+          }
+          catch (error) {
+            throw new ConfiguratorError(`Invalid object value: ${value}`, {cause: error});
+          }
+        }
+      }
+      throw new ConfiguratorError(`Invalid object value: ${value}`);
+    })
     this.defineType('array', (value) => {
       // todo - recursively handle member types?
       if (Array.isArray(value)) return value;
@@ -157,6 +173,7 @@ export class TypeRegistry
         // Handle comma-separated strings
         return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
       }
+      if (value === null) return [];
       return [value]; // Single value becomes array
     }); // todo - format?
     this.defineType('date', (value) => {
