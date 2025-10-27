@@ -96,7 +96,7 @@ typical applications. The schema API is superficially similar to that of most co
 so adoption is easy. Out of the box, you get a command line parser with help text generation, environment
 variable parsing, configuration file loading, and a library of field validators that cover many common needs.
 
-**Extensible Schema Types and Validation**
+**Extensible ConfiguratorSchema Types and Validation**
 
 : The `Configurator` is pre-loaded with basic primitive types and common extensions (`string`, `number`, 
 `boolean`, `array`, `object`, `date`, `buffer`), as well as many useful field validators

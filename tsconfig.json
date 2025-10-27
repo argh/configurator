@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "checkJs": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "nodenext",
+    "module": "es2022",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "types": ["node", "mocha"],
+    "useUnknownInCatchVariables": false
+  }
+}

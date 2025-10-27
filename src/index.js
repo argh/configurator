@@ -1,9 +1,9 @@
 export { Configurator } from './configurator.js';
 export { ConfigurationSource } from './configuration-sources/configuration-source.js';
-export { ConfigurationSchema } from './configuration-schema.js';
-export { ConfiguratorError } from './configurator-error.js'
-export { TypeRegistry } from './type-registry.js';
-export { ValidatorRegistry } from './validator-registry.js';
+export { CompiledSchema } from './schema/compiled-schema.js';
+export { Schema } from './schema/schema.js';
+export { ConfiguratorError } from './errors.js'
+export { SchemaResolver } from './schema/schema-resolver.js';
 
 export * as sources from './configuration-sources/index.js';
 export * as utils from './utils.js';

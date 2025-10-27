@@ -71,9 +71,31 @@ export function toHeadline(str) {
   return wordsToHeadline(normalizeToWords(str));
 }
 
-function isPlainObject(obj) {
-  return Object.prototype.toString.call(obj) === '[object Object]' &&
-         (obj.constructor === Object || obj.constructor === undefined);
+export function isPlainObject(obj) {
+  if (obj == null || typeof obj !== 'object') return false;
+
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+}
+
+export function isObject(item) {
+  return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+export function isConstructor(f) {
+  if (typeof f !== 'function') {
+    return false;
+  }
+  if (f.prototype?.constructor === f) {
+    return true;
+  }
+  try {
+    class test extends f {}
+  }
+  catch (err) {
+    return false;
+  }
+  return true;
 }
 
 export function deepMerge(target, ...sources) {
@@ -95,44 +117,97 @@ export function deepMerge(target, ...sources) {
   return deepMerge(target, ...sources);
 }
 
-export function isObject(item) {
-  return item && typeof item === 'object' && !Array.isArray(item);
-}
 
-export function deepAssign(object, path, value) {
-  if (!object || typeof object !== 'object') {
-    throw new Error('First argument must be an object');
-  }
 
-  if (typeof path !== 'string' || path === '') {
+
+export function deepAssign(target, path, value) {
+  // Handle edge cases
+  if (!path || typeof path !== 'string') {
     throw new Error('Path must be a non-empty string');
   }
 
-  const keys = path.split('.');
-  let current = object;
+  // Split the path by dots and filter out empty segments
+  const segments = path.split('.').filter(segment => segment !== '');
 
-  // Navigate through all keys except the last one
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-
-    if (!(key in current) || current[key] === null || current[key] === undefined) {
-      // Key doesn't exist or is empty, create new object
-      current[key] = {};
-    } else if (typeof current[key] !== 'object') {
-      // Key exists but is not an object
-      throw new Error(`Cannot assign to path "${path}": key "${key}" exists but is not an object`);
-    }
-
-    current = current[key];
+  if (segments.length === 0) {
+    throw new Error('Path must contain at least one valid segment');
   }
 
-  // Assign the value to the final key
-  const finalKey = keys[keys.length - 1];
-  current[finalKey] = value;
+  if (target !== null && target !== undefined && typeof target !== 'object') {
+    throw new Error('Target must be an object, an array, or null/undefined');
+  }
 
-  return object;
+  // Auto-synthesize target if null
+  if (target === null || target === undefined) {
+    const firstSegment = segments[0];
+    const isFirstArrayIndex = /^\d+$/.test(firstSegment);
+    target = isFirstArrayIndex ? [] : {};
+  }
+
+  let current = target;
+
+  // Navigate to the parent of the target property
+  for (let i = 0; i < segments.length - 1; i++) {
+    const segment = segments[i];
+    const nextSegment = segments[i + 1];
+
+    // Check if current segment is an array index
+    const isArrayIndex = /^\d+$/.test(segment);
+    const nextIsArrayIndex = /^\d+$/.test(nextSegment);
+
+    if (isArrayIndex) {
+      const index = parseInt(segment, 10);
+
+      // Ensure current is an array
+      if (!Array.isArray(current)) {
+        throw new Error(`Expected array at path segment '${segments.slice(0, i).join('.')}', but found ${typeof current}`);
+      }
+
+      // Extend array if necessary
+      while (current.length <= index) {
+        current.push(undefined);
+      }
+
+      // Create the next level if it doesn't exist
+      if (current[index] === undefined || current[index] === null) {
+        current[index] = nextIsArrayIndex ? [] : {};
+      }
+
+      current = current[index];
+    } else {
+      // Handle object property
+      if (current[segment] === undefined || current[segment] === null) {
+        current[segment] = nextIsArrayIndex ? [] : {};
+      }
+
+      current = current[segment];
+    }
+  }
+
+  // Set the final value
+  const finalSegment = segments[segments.length - 1];
+  const isFinalArrayIndex = /^\d+$/.test(finalSegment);
+
+  if (isFinalArrayIndex) {
+    const index = parseInt(finalSegment, 10);
+
+    // Ensure current is an array
+    if (!Array.isArray(current)) {
+      throw new Error(`Expected array at path segment '${segments.slice(0, -1).join('.')}', but found ${typeof current}`);
+    }
+
+    // Extend array if necessary
+    while (current.length <= index) {
+      current.push(undefined);
+    }
+
+    current[index] = value;
+  } else {
+    current[finalSegment] = value;
+  }
+
+  return target;
 }
-
 export function deepValue(object, path) {
   // Handle null/undefined object
   if (!object || typeof object !== 'object') {
@@ -146,6 +221,7 @@ export function deepValue(object, path) {
 
   // Split the path and filter out empty strings
   const keys = path.split('.').filter(key => key.length > 0);
+
 
   // If no valid keys, return undefined
   if (keys.length === 0) {
@@ -165,42 +241,4 @@ export function deepValue(object, path) {
   }
 
   return current;
-}
-
-/**
- * Convert value to the specified type
-  */
-export function convertValue(value, type) {
-  switch (type) {
-    case 'number':
-      if (typeof value === 'number') return value;
-      const num = Number(value);
-      if (isNaN(num)) {
-        throw new Error(`Invalid number: ${value}`);
-      }
-      return num;
-    case 'boolean':
-      if (typeof value === 'boolean') return value;
-      if (typeof value === 'string') {
-        const lower = value.toLowerCase();
-        if (lower === 'true' || lower === '1' || lower === 'yes') return true;
-        if (lower === 'false' || lower === '0' || lower === 'no') return false;
-      }
-      return Boolean(value);
-    case 'array':
-      if (Array.isArray(value)) return value;
-      if (typeof value === 'string') {
-        // Handle comma-separated strings
-        return value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-      }
-      return [value]; // Single value becomes array
-    case 'string':
-      return String(value);
-    case 'module':
-      if (typeof value === 'object') return value;
-
-      throw new Error(`invalid module value ${value}`);
-    default:
-      throw new Error(`Unknown schema value type '${type}'`)
-  }
 }

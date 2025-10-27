@@ -1,5 +1,7 @@
 import { ConfigurationSource } from './configuration-source.js'
-import { ConfiguratorError } from '../configurator-error.js';
+import { ConfiguratorError, SchemaError } from '../errors.js';
+import { deepValue } from '../utils.js';
+/** @import {CompiledSchema} from '../schema/compiled-schema.js' */
 
 /**
  * Synthesize field assignments for all defaults specified in schema
@@ -15,64 +17,56 @@ export class SchemaDefaultsSource
 
   /**
    * Parse configuration from this source
-   * @param {Configurator} configurator
+   * @param {CompiledSchema} schema
    * @param {object} context - collection of source-specific fields (argv, env, etc.)
    * @param {object} [options] - options for parsing (not used by this source)
    * @returns {Promise<Map<string,any>>} Parsed configuration object
    */
-  async load(configurator, context, options) {
-    const allFields = configurator.schema.getAllFieldPaths({inherit:true});
+  async load(schema, context, options) {
 
-    const fieldAssignments = new Map();
-    for (let [fieldName, fieldData] of allFields) {
-      if (fieldData.default) {
+    const assignments = new Map();
 
-        fieldAssignments.set(fieldName, fieldData.default);
+    schema.visitSchema(  (schema, path) => {
+      if (path.indexOf('*') !== -1) {
+        return;  // we can't synthesize default assignments for wildcard schemas!  or can we?  (leave the * as a marker?)
       }
-
-      if (fieldData.inherit) {
-
-        let parentFieldName = fieldName.substring(0, fieldName.lastIndexOf('.'));
-
-        if (parentFieldName === '') {
-          throw new ConfiguratorError(`Root field "${fieldName}" cannot be marked "inherit"`);
+      if (schema.default !== undefined) {
+        if (assignments.has(path) && assignments.get(path) !== schema.default) {
+          throw new SchemaError(`Ambiguous default value for ${path}: ${assignments.get(path)} vs ${schema.default}`)
         }
-        fieldAssignments.set(fieldName, (config) => {
 
-          let prefix = parentFieldName;
-          while (true) {
+        if (schema.hasChildren) {
+          const defaultAssignments = schema.toAssignments(schema.default, path);
+          for (let [p,v] of defaultAssignments) {
+            assignments.set(p, v);
+          }
+        }
+        else {
+          assignments.set(path, schema.default);
+        }
+      }
+      if (schema.inherit) {
+        let propName = path.substring(path.lastIndexOf('.') + 1)
+        assignments.set(path, (_, config, schema, path) => {
 
-            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
-
-            let path = (prefix === '')? fieldData.name : `${prefix}.${fieldData.name}`;
-
-            try {
-              let value = path.split('.').reduce((curr, key) => curr?.[key], config);
-
-              if (value !== undefined) {
-                return value;
-              }
+          while (path) {
+            let lastDot = path.lastIndexOf('.');
+            if (lastDot === -1) {
+              path = '';
             }
-            catch (_) {
-              // ignore, this was for debugging...
-              return undefined;
+            else {
+              path = path.substring(0, lastDot);
             }
 
-            if (prefix === '') {
-              return undefined;
+            let value = deepValue(config, path? `${path}.${propName}` : `${propName}`);
+            if (value) {
+              return value;
             }
           }
-
-
         })
-
-
-
       }
-      // todo - perhaps generate dynamic assignment values for fields marked "inherit"?
-    }
+    }, {addUnionKeys: true})
 
-    return fieldAssignments;
-
+    return assignments;
   }
 }

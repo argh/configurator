@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 
-import { ConfigurationSchema } from './configuration-schema.js';
+import { CompiledSchema } from './schema/compiled-schema.js';
+import { Schema } from './schema/schema.js';
 import {
   ConfigurationSource,
   CommandLineSource,
@@ -9,10 +10,8 @@ import {
   ObjectSource,
   JsonFileSource
 } from './configuration-sources/index.js';
-import { ConfiguratorError } from './configurator-error.js';
-import { ValidatorRegistry } from './validator-registry.js';
-import { TypeRegistry } from './type-registry.js';
-import { deepAssign, deepValue, toCamelCase } from './utils.js';
+import { ConfiguratorError } from './errors.js';
+import { SchemaResolver } from './schema/schema-resolver.js';
 
 const MODULE_INFO = {
   name: 'configurator'
@@ -23,99 +22,110 @@ const MODULE_INFO = {
  * a type registry, and a validator registry.
  */
 export class Configurator {
+  static get Schema() { return Schema };
+  static get CompiledSchema() { return CompiledSchema };
+  static get SchemaResolver() { return SchemaResolver };
   /**
    * @typedef {Object} ConfiguratorOptions
-   * @property {ConfigurationSchema} [schema]
-   * @property {TypeRegistry} [types]
-   * @property {ValidatorRegistry} [validators]
-   * @property {Array<ConfigurationSource>} [sources]
+   * @property {Schema} [schema]
+   * @property {SchemaResolver} [registry]
+   * @property {Array<ConfigurationSource>} [sources] - if not provided, uses default sources from getDefaultSources()
+   * @property {boolean} [helpEnabled] - enable help option
    * @property {boolean} [configEnabled] - enable configuration file option
-   * @property {string} [configField] - name of the field to use for the config file path
-   * @property {string} [configFlag] - flag to use for the config file path
-   * @property {string} [configDescription] - description to use for the config file path
-   * @property {string} [configValueDescription] - description to use for the config file path value
-   * @property {string} [configContextFieldName] - name of the field to pass in the context for source propagation
    * @property {boolean} [dumpEnabled] - enable dump file option
-   * @property {string} [dumpField] - name of the field to use for the dump file path
-   * @property {string} [dumpFlag] - flag to use for the dump file path
-   * @property {string} [dumpDescription] - description to use for the dump file path
-   * @property {string} [dumpValueDescription] - description to use for the dump file path value
-   * @property {string} [dumpContextFieldName] - name of the field to pass in the context for source propagation*
-   *
-   *
-   * @property {object} [defaults] - optional ObjectSource configuration source data to use as defaults
    */
 
   /**
    * Create a new Configurator
+   *
+   * If sources are not provided, the default set of sources will be used (see getDefaultSources()).
+   * Sources are processed in order of their sequence number (see ConfigurationSource.DefaultSequence).
+   *
    * @param {ConfiguratorOptions} [options]
    */
   constructor(options = {}) {
-    this._schema = options.schema ?? new ConfigurationSchema();
-    this._types = options.types ?? new TypeRegistry();
-    this._validators = options.validators ?? new ValidatorRegistry();
+    this._schema = options.schema ?? new Schema('object');
+    this._registry = options.registry ?? new SchemaResolver();
     this._sources = options.sources;
 
-    let configEnabled = options.configEnabled ?? false;
-    let configField = options.configField ?? 'config';
-    let configFlag = options.configFlag ?? 'C';
-    let configDescription = options.configDescription ?? 'load configuration from file';
-    let configValueDescription = options.configValueDescription ?? 'path';
-
-    let configContextFieldName = options.configContextFieldName ?? options.configField ?? 'config';
-
-    this._omitFromDump = new Set();
-    // validator for config is sort of pointless, as this field is processed by a source long before validation
-    if (configEnabled) {
-      this._configContextFieldName = configContextFieldName;
-      this._schema.field(configField, {
-        flagHint: configFlag,
-        validator: {$or: ['-', '$file']},
-        context: configContextFieldName,
-        description: configDescription,
-        valueDescription: configValueDescription
-      });
-      this._omitFromDump.add(this._schema.fields.get(configField).path);
+    const helpEnabled = (options.helpEnabled !== false);
+    if (helpEnabled) {
+      let helpSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'help')
+      if (!helpSchema) {
+        helpSchema = Configurator.createHelpSchema();
+        this._schema.property('help', helpSchema);
+      }
     }
 
-    let dumpEnabled = options.dumpEnabled ?? false;
-    let dumpField = options.dumpField ?? 'dump';
-    let dumpFlag = options.dumpFlag;
-    let dumpDescription = options.dumpDescription ?? 'dump configuration to file';
-    let dumpValueDescription = options.dumpValueDescription ?? 'path';
-    let dumpContextFieldName = options.dumpContextFieldName ?? options.dumpField ?? 'dump';
+    const configEnabled = (options.configEnabled !== false);
+    if (configEnabled) {
+      let configSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'config')
+      if (!configSchema) {
+        configSchema = Configurator.createConfigSchema();
+        this._schema.property('config', configSchema);
+      }
+      this._configContextName = configSchema._options['context'] ?? 'config';
+    }
 
+    const dumpEnabled = (options.dumpEnabled !== false)
     if (dumpEnabled) {
-      this._dumpContextFieldName = dumpContextFieldName;
-      this._schema.field(dumpField, {
-        flagHint: dumpFlag,
-        description: dumpDescription,
-        context: dumpContextFieldName,
-        valueDescription: dumpValueDescription,
-        advanced: true
-      });
-      this._omitFromDump.add(this._schema.fields.get(dumpField).path);
+      let dumpSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'dump')
+      if (!dumpSchema) {
+        dumpSchema = Configurator.createDumpSchema();
+        this._schema.property('dump', dumpSchema);
+      }
+      this._dumpContextName = dumpSchema._options['context'] ?? 'dump';
     }
 
     if (!this._sources) {
-      this._sources = [];
-      this.registerConfigurationSource(new SchemaDefaultsSource());                                     // system/schema defaults
-      this.registerConfigurationSource(new ObjectSource({contextFieldName: 'defaults'}));  // app defaults
-      this.registerConfigurationSource(new EnvironmentSource());
-      this.registerConfigurationSource(new CommandLineSource());
-
-      this.registerConfigurationSource(new JsonFileSource({
-        contextFieldName: configContextFieldName
-      }))
-      this.registerConfigurationSource(new ObjectSource({contextFieldName: 'overrides', sequence: ConfigurationSource.DefaultSequence.OVERRIDES}));
+      this._sources = Configurator.getDefaultSources({
+        configContextName: this._configContextName
+      });
     }
 
-    this.context = {};
+  }
 
-    if (options.defaults) {
-      this.context['defaults'] = options.defaults; // app defaults; todo - rename to avoid confusion?
-    }
+  /**
+   * Get the default set of configuration sources in priority order.
+   *
+   * Default sources and their sequence numbers:
+   *   100 - SchemaDefaultsSource - schema-defined defaults
+   *   300 - ObjectSource(defaults) - application defaults from context.defaults
+   *   400 - EnvironmentSource - environment variables
+   *   600 - CommandLineSource - command line arguments
+   *   900 - JsonFileSource(config) - user configuration file
+   *  1000 - ObjectSource(overrides) - highest priority overrides from context.overrides
+   *
+   * To add custom sources between default sources, create a source with an appropriate
+   * sequence number. For example, to add a secrets source between environment (400) and
+   * command line (600), use sequence: 500.
+   *
+   * @example
+   * // Simple usage: add a custom source with default priority
+   * const configurator = new Configurator({schema});
+   * configurator.registerConfigurationSource(new MySecretsSource({sequence: 500}));
+   *
+   * @example
+   * // Advanced usage: full control over source list
+   * const sources = Configurator.getDefaultSources();
+   * sources.push(new MySecretsSource({sequence: 500}));
+   * const configurator = new Configurator({schema, sources});
+   *
+   * @param {Object} [options]
+   * @param {string} [options.configContextName='config'] - context name for configuration file source
+   * @returns {Array<ConfigurationSource>}
+   */
+  static getDefaultSources(options = {}) {
+    const configContextName = options.configContextName ?? 'config';
 
+    return [
+      new SchemaDefaultsSource(),                                                              // 100
+      new ObjectSource({contextName: 'defaults'}),                                             // 300
+      new EnvironmentSource(),                                                                 // 400
+      new CommandLineSource(),                                                                 // 600
+      new JsonFileSource({contextName: configContextName}),                                    // 900
+      new ObjectSource({contextName: 'overrides', sequence: ConfigurationSource.DefaultSequence.OVERRIDES})  // 1000
+    ];
   }
 
   /**
@@ -141,39 +151,27 @@ export class Configurator {
   static get moduleInfo() { return MODULE_INFO }
 
   /**
-   * Schema being used by this Configurator
-   * @returns {ConfigurationSchema}
+   * Schema definition being used by this Configurator
+   * @returns {Schema}
    */
   get schema() {
     return this._schema;
   }
 
   /**
-   * Validator registry used by this Configurator
-   * @returns {ValidatorRegistry}
-   */
-  get validators() {
-    return this._validators;
-  }
-
-  /**
-   * Type registry used by this Configurator
-   * @returns {TypeRegistry}
-   */
-  get types() {
-    return this._types;
-  }
-
-  /**
-   * Build a configuration object using the defined sources and schema
-   * @param {object} context - extra information to provide to sources
-   * @param {boolean} strict - if false, unknown fields are ignored; if true, an error is thrown
-   * @returns {Promise<Object>} - validated configuration object
+   * Main entry point.  Pull configuration assignments from all defined sources,
+   * and use the highest priority assignments to build a configuration object
+   * based on the defined schema.
+   *
+   * @param {Object} context
+   * @param {boolean} strict
+   * @returns {Promise<Object>}
    */
   async configure(context, strict = true) {
 
-    // todo - deepMerge?
-    const mergedContext = {...this.context, ...context};
+    const schema = this._registry.compile(this._schema);
+
+    const configurationContext = {...context};
 
     // sort sources by sequence (processing priority)
     let sources = this.sources
@@ -188,70 +186,44 @@ export class Configurator {
     let sourceAssignmentsList = [];
 
     for (let source of sources) {
-      let sourceAssignments = await source.load(this, mergedContext, {strict});
+      let sourceAssignments = await source.load(schema, configurationContext, {strict});
       if (!sourceAssignments) {
         sourceAssignments = new Map();  // useful to keep in the list for debugging purposes
       }
-      // todo - move this to ConfigurationSource base class load()?
-      // Some fields are set up to pass their value downstream to later sources via the context.
+
+      // Some properties are set up to pass their value downstream to later sources via the context.
       for (let [path, assignedValue] of sourceAssignments) {
-        const field = this.schema.findField(path);
-        if (field?.context) {
-          const contextFieldName = (typeof field.context === 'string')? field.context : field.name;
-
-          let resolvedValue = assignedValue;
-          try {
-            resolvedValue = await this.types.resolveTypeValue(field.type, assignedValue);
+        const s = schema.find(path)
+        if (s?.options.context) {
+          const contextName = (typeof s.options.context === 'string') ? s.options.context : s.name;
+          if (contextName) {
+            let resolvedValue = assignedValue;
+            try {
+              resolvedValue = await s.transform(assignedValue, configurationContext, contextName, {strict: false});
+            }
+            catch (_) {
+              // ignore, just use original value
+            }
+            configurationContext[contextName] = resolvedValue;
           }
-          catch (_) {
-            // ignore, just assign original value
-          }
-
-          mergedContext[contextFieldName] = resolvedValue;
         }
       }
       sourceAssignmentsList.push(sourceAssignments);
     }
-    // config file sources need to remove the config field from the context if they handled it
-    if (this._configContextFieldName && mergedContext[this._configContextFieldName]) {
-      throw new ConfiguratorError(`Unable to load configuration from ${mergedContext[this._configContextFieldName]}`);
+    // By contract, config file sources need to remove the config property from the context if they handled it
+    if (this._configContextName && configurationContext[this._configContextName]) {
+      throw new ConfiguratorError(`Unable to load configuration from ${configurationContext[this._configContextName]}`);
     }
-
-
-    const config = await this.processAssignments(sourceAssignmentsList, {types: this.types, validators: this.validators, strict});
-
-    if (this._dumpContextFieldName && mergedContext[this._dumpContextFieldName]) {
-      await this.dump(config, mergedContext[this._dumpContextFieldName]);
-    }
-    return config;
-  }
-
-  /**
-   * Given a list of field path assignment maps, process them in reverse order to ensure the
-   * highest priority assignment is retained.  From the assignments, build and validate
-   * a configuration object.
-   * @param {Array<Map<string,any>>} fieldPathAssignmentsList - assignments to process
-   * @param {object} [options] - processing options; currently only used for "strict"
-   * @param {boolean} [options.strict] - if true, throw an error if any fields are not resolved.
-   * @param {object} [options.configuration] - configuration object to populate
-   * @returns {Promise<object>}
-   */
-  async processAssignments(fieldPathAssignmentsList, options) {
-    let strict = options?.strict || false;
-
-    const configuration = options?.configuration ?? {};
-
-    let allFields = this.schema.getAllFieldPaths({inherit:true});
 
     /**
-     * @type {Map<string, any>}
+     * @type {Map<string, NonNullable<any>>}
      */
     let assignments = new Map();
 
     // We iterate these in reverse to simplify computing "last (highest priority) definition wins".
 
-    for (let fieldPathAssignments of fieldPathAssignmentsList.reverse()) {
-      for (let [path, value] of Array.from(fieldPathAssignments).reverse()) {
+    for (let propertyPathAssignments of sourceAssignmentsList.reverse()) {
+      for (let [path, value] of Array.from(propertyPathAssignments).reverse()) {
         if (assignments.has(path)) {
           continue;
         }
@@ -259,255 +231,82 @@ export class Configurator {
       }
     }
 
-    // Value resolution phase:
-    // Iterate assignments in original definition order (does this actually matter?)
-    // Repeat resolution until everything is defined or the set of values is stable.
+    const transformed = await schema.processAssignments(assignments, {},{strict})
 
-    const remaining = new Map([...assignments].reverse());
-
-    let done = false;
-    let final = false;
-
-    while (!done) {
-      let beforeSize = remaining.size;
-
-      for (let [path, value] of remaining) {
-        const field = allFields.get(path);
-        if (!field) {
-          continue;
-//          throw new ConfiguratorError(`Unknown field ${path}`);
-        }
-
-        // Conditions will get re-checked multiple times if they fail, as it is possible they may change
-        // value based on updates to configuration state.  Once the configuration has stabilized, we
-        // will remove any remaining assignments that failed their condition check.
-        //
-        // (Note: we don't retroactively reconsider conditional assignments that were previously resolved.
-        // This seemed like a reasonable constraint on conditionals in order to avoid the possibility
-        // of flapping assignments.  It also seemed unlikely that any real-world scenarios would require
-        // that kind of behavior.)
-
-        let condition = field.condition ?? field.schema?.condition;
-
-        if (condition !== undefined) {
-          // A negative condition cancels the "required" field check and even blocks default assignments.
-          // Interpret it as "this field is deliberately omitted from all processing".
-
-          if (typeof condition === 'function') {
-            condition = condition(field, value, configuration);
-          }
-          if (!condition) {
-            if (final) {
-              remaining.delete(path);
-            }
-            continue;
-          }
-        }
-
-        if (field.values && field.values.length > 0) {
-          let found = field.values.find(v => (v === value || v.value) === value);
-          if (!found) {
-            throw new ConfiguratorError(`Invalid value for field ${path}: ${value}`);
-          }
-        }
-
-
-        let resolvedValue = await this.types.resolveTypeValue(field.type, value, configuration);
-        if (resolvedValue !== undefined) {
-          deepAssign(configuration, path, resolvedValue);
-          remaining.delete(path);
-        }
-
-        if (final && resolvedValue === undefined && field.required === false) {
-          remaining.delete(path);
-        }
-      }
-      if (remaining.size === 0 || remaining.size === beforeSize) {
-        if (final) {
-          done = true;
-        }
-        else {
-          final = true;  // do one final cleanup pass to remove anything filtered by condition
-        }
-      }
+    if (this._dumpContextName && configurationContext[this._dumpContextName]) {
+      await this.dump(schema, transformed, configurationContext[this._dumpContextName]);
     }
-
-    if (strict && remaining.size > 0) {
-
-      throw new ConfiguratorError(`Failed to resolve required field${remaining.size>1? 's':''}: ${Array.from(remaining.keys()).join(', ')}`);
-    }
-    // we've already typechecked, so we don't need to do that again.
-    return await this.validate(configuration, {typecheck: false, strict});
+    return transformed;
   }
 
   /**
-   * @typedef {Object} ValidationOptions
-   * @property {boolean} [strict] - defaults to false
-   * @property {boolean} [typecheck] - defaults to true
-   * @property {boolean} [populateDefaults] - defaults to false
-   */
-
-  /**
-   * Validate a configuration object against the schema - (consider renaming to processObject?)
+   * Factory for building a schema to handle help requests (see CommandLineSource)
    *
-   * @param {object} inputConfig - a configuration object to validate
-   * @param {ValidationOptions} options
-   * @returns {Promise<object>} - validated configuration object
+   * Configurator uses the "configuratorSchema" metadata to identify properties
+   * that need special treatment (in this case: "help")
+   *
+   * @param {Object} [attributes]             - override default attributes
+   * @returns {Schema}
    */
-  async validate(inputConfig, options) {
-    const strict = options?.strict || false;
-    const typecheck = options?.typecheck ?? true;
-    let populateDefaults = options?.populateDefaults ?? false;
-    let rootConfig = options?.config ?? inputConfig;
-    let prefix = options?.prefix ? `${options.prefix}.` : '';
-    let schema = options?.schema ?? this.schema;
-    let childName = options?.childName;
-
-    let outputConfig = {};
-
-    let ptr = { parent: options?.ptr ?? null, current: outputConfig };
-
-    for (const [fieldName, schemaField] of schema.fields) {
-      let field = {...schemaField, path: `${prefix}${fieldName}`, schema, childName};
-      let value = inputConfig[fieldName];
-
-      let condition = field.condition ?? schema.condition;
-
-      if (condition !== undefined) {
-        // A negative condition cancels the "required" field check and even blocks default assignments.
-        // Interpret it as "this field is deliberately omitted from all processing".
-
-        // TODO: Field value conditions are pretty useless, since complex types will not have the same
-        //       value before and after they are resolved.  We should probably deprecate them and only
-        //       support schema-level conditions.
-
-        if (typeof condition === 'function') {
-          condition = condition(field, value, rootConfig);
-        }
-        if (!condition) {
-          continue;
-        }
-      }
-
-      // We normally populate defaults and inherited fields via DefaultsSource, but
-      // in the case someone is calling "validate" on their own object and wants to
-      // explicitly fill in fields, they can set the "populateDefaults" option.
-
-      if (populateDefaults) {
-        if (value === undefined && field.inherit) {
-          for (let p = ptr.parent; p; p = p.parent) {
-            value = p.current[fieldName];
-            if (value !== undefined) {
-              break;
-            }
-          }
-        }
-        if (value === undefined && field.default !== undefined) {
-          value = field.default;
-        }
-      }
-
-      // Skip undefined optional fields
-      if (value === undefined) {
-        if (field.required) {
-          throw new ConfiguratorError(`Required field "${fieldName}" is missing`);
-        }
-        else {
-          continue;
-        }
-      }
-      let typeName = field.type;
-
-      if (!typeName) {
-        // should have been set upstream!
-        throw new ConfiguratorError(`Field "${fieldName}" has no type`);
-      }
-
-      if (typeName.startsWith('[') && typeName.endsWith(']')) {
-        // note: we will assume that if the inner typeName exists, then the outer array type exists as well.
-        // (we check the type using this inner type to simplify the logic, but resolve using the original field.type)
-        typeName = typeName.substring(1, typeName.length - 1);
-      }
-
-      if (strict && typecheck && !this.types.getType(typeName)) {
-        throw new ConfiguratorError(`Unknown type '${field.type}' for field '${fieldName}'`);
-      }
-      try {
-        if (typecheck) {
-          value = await this.types.resolveTypeValue(field.type, value, rootConfig);
-        }
-        if (field.validator !== undefined) {
-          value = await this.validators.validate(value, field.validator);  // throws if invalid
-        }
-      }
-      catch (err) {
-        throw new ConfiguratorError(`Bad value for field '${fieldName}': ${err.message}`, {cause: err});
-      }
-
-      outputConfig[fieldName] = value;
-    }
-
-    if (strict) {
-      for (const fieldName of Object.keys(inputConfig)) {
-        if (!schema.fields.has(fieldName) && !schema.children.has(fieldName)) {
-          throw new ConfiguratorError(`Field '${fieldName}' is unknown`);
-        }
-      }
-    }
-
-    // Validate child schemas
-    for (const [childName, childSchema] of schema.children) {
-      const childInputConfig = inputConfig[childName] || {};
-
-      try {
-        const childOutputConfig = await this.validate(childInputConfig, {...options, childName, schema: childSchema, prefix: `${prefix}${childName}`, config: rootConfig, ptr});
-
-        if (Object.keys(childOutputConfig).length > 0) {
-          outputConfig[childName] = childOutputConfig;
-        }
-      }
-      catch (error) {
-        throw new ConfiguratorError(`Failed to validate "${childName}" (${error.message})`, {cause: error})
-      }
-
-    }
-
-    return outputConfig;
+  static createHelpSchema(attributes) {
+    return new Schema('string', Object.assign({
+      allowEmpty: true,
+      values: ['advanced', 'system'],
+      _flagHint: 'h',
+      _description: 'display help information',
+      _valueDescription: 'keywords',
+      _configuratorSchema: 'help',
+      _omitFromSerialize: true
+    }, attributes))
+//      .property('*', new ConfiguratorSchemaDefinition('string', {
+//        values: ['advanced', 'system'],
+//        required: false
+//      }))
   }
 
+  /**
+   * Factory for building a schema to load config files.  The "context" option causes
+   * any value assigned to be copied to the context.  If you use the default sources,
+   * this setting will get propagated to the sources that handle config files.
+   *
+   * Configurator uses the "configuratorSchema" metadata to identify properties
+   * that need special treatment (in this case: "config")
+   *
+   * @param {Object} [attributes]             - override default attributes
+   * @returns {Schema}
+   */
+
+  static createConfigSchema(attributes) {
+    return new Schema('string', Object.assign({
+      validator: {$or: ['-', '$file']},
+      context: 'config',
+      _flagHint: 'C',
+      _description: 'configuration file path',
+      _valueDescription: 'path',
+      _configuratorSchema: 'config',
+      _omitFromSerialize: true
+    }, attributes))
+  }
 
   /**
-   * Format the config data as if it were a config file.
+   * Factory for building a schema to handle configuration dump requests.
    *
-   * Attempts to convert resolved values back to an input-friendly value, first via the "format" type option,
-   * or alternatively by trusting that each value is either already compatible, or implements toJSON().
+   * Configurator uses the "configuratorSchema" metadata to identify properties
+   * that need special treatment (in this case: "dump")
    *
-   * @param config
-   * @param all - if true, include all settable fields
-   * @returns {string}
+   * @param {Object} [attributes]             - override default attributes
+   * @returns {Schema}
    */
-  format(config, all = false) {
-    let output = {};
-
-    const allFields = this.schema.getAllFieldPaths({hidden: true, advanced: true, system: false, internal: false});
-
-    for (let [path, field] of allFields) {
-      // TODO - omit config and dump fields from output!
-      let value = deepValue(config, path);
-
-      let formatted = this.types.formatTypeValue(field.type, value);
-
-      if (formatted && formatted !== value) {
-        value = formatted;
-      }
-
-      if (value !== undefined) {
-        if (all || (field.default === undefined || value !== field.default) && !this._omitFromDump.has(path)) {
-          deepAssign(output, path, value);
-        }
-      }
-    }
-    return JSON.stringify(output, null, 2);
+  static createDumpSchema(attributes) {
+      return new Schema('string', Object.assign({
+        context: 'dump',
+        validator: '$writable',
+        _description: 'dump configuration to file',
+        _valueDescription: 'path',
+        _advanced: true,
+        _configuratorSchema: 'dump',
+        _omitFromSerialize: true
+      }, attributes));
   }
 
   /**
@@ -516,16 +315,18 @@ export class Configurator {
    * TODO - support writing other formats, in particular .env files and .zsh completion scripts.
    * TODO - flag to omit value if it corresponded to the default?
    *
+   * @param {CompiledSchema} schema
    * @param {object} config - configuration object to dump
-   * @param {string} path - path to write, or "-" for stdout
-   * @param {boolean} all - if true, include all settable fields
+   * @param {string} destination - path to write, or "-" for stdout
+   * @param {boolean} all - if true, include all settable properties
    * @returns {Promise<void>}
    *
    */
-  async dump(config, path, all = false) {
+  async dump(schema, config, destination, all = false) {
 
-    const formattedConfig = this.format(config, all);
-    if (path === '-') {
+    const serialized = await schema.serialize(config, {all});
+    const formattedConfig = JSON.stringify(serialized, null, 2);
+    if (destination === '-') {
       try {
         console.log(formattedConfig);
         // in the case of stdout, we exit so that no other process output is written.
@@ -535,16 +336,16 @@ export class Configurator {
         throw new ConfiguratorError(`Failed to dump configuration to stdout`, {cause: error});
       }
     }
-    else if (path.toLowerCase().endsWith('.json')) {
+    else if (destination.toLowerCase().endsWith('.json')) {
       try {
-        await fs.writeFile(path, formattedConfig, 'utf8');
+        await fs.writeFile(destination, formattedConfig, 'utf8');
       }
       catch (error) {
-        throw new ConfiguratorError(`Failed to dump configuration to file ${path}`, {cause: error});
+        throw new ConfiguratorError(`Failed to dump configuration to file ${destination}`, {cause: error});
       }
     }
     else {
-      throw new ConfiguratorError(`Unsupported dump output "${path}" (must be "-" for stdout or end with .json)`);
+      throw new ConfiguratorError(`Unsupported dump output "${destination}" (must be "-" for stdout or end with .json)`);
     }
 
   }

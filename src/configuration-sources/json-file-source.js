@@ -1,8 +1,10 @@
 import { ObjectSource } from './object-source.js';
 import { ConfigurationSource } from './configuration-source.js';
-import { ConfiguratorError } from '../configurator-error.js';
+import { ConfiguratorError } from '../errors.js';
 import { promises as fs } from 'fs';
 import { text } from 'node:stream/consumers';
+/** @import {CompiledSchema} from '../schema/compiled-schema.js' */
+
 
 export class JsonFileSource extends ObjectSource {
   constructor(options) {
@@ -10,13 +12,22 @@ export class JsonFileSource extends ObjectSource {
       {
         ...options,
         sequence: options?.sequence || ConfigurationSource.DefaultSequence.CONFIGURATION,
-        contextFieldName: options?.contextFieldName ?? 'config'
+        contextName: options?.contextName ?? 'config'
       })
   }
 
-  async _load(configurator, context) {
+  /**
+   * @param {CompiledSchema} schema
+   * @param {Object} context
+   * @param {Object} [options]
+   * @returns {Promise<Map<string,any>>}
+   */
+  async load(schema, context, options) {
 
-    let filename = context[this.contextFieldName];
+// FIXME    if (!this.contextName) {
+//      const configSchema = Object.values(schema.properties).find(s => s.metadata['configuratorSchema'] === 'config');
+
+    let filename = context[this.contextName];
 
     if (!filename || typeof filename !== 'string') {
       return new Map();
@@ -25,8 +36,8 @@ export class JsonFileSource extends ObjectSource {
     if (filename.trim() === '-') {
       try {
         const data = await text(process.stdin);
-        const assignments = super._load(configurator, {[this.contextFieldName]: JSON.parse(data)});
-        delete context[this.contextFieldName];
+        const assignments = super.load(schema, {[this.contextName]: JSON.parse(data)});
+        delete context[this.contextName];
         return assignments;
       }
       catch (error) {
@@ -36,8 +47,8 @@ export class JsonFileSource extends ObjectSource {
     else if (filename.toLowerCase().endsWith('.json')) {
       try {
         const data = await fs.readFile(filename, 'utf8');
-        const assignments = super._load(configurator, {[this.contextFieldName]: JSON.parse(data)});
-        delete context[this.contextFieldName];
+        const assignments = await super.load(schema, {[this.contextName]: JSON.parse(data)});
+        delete context[this.contextName];
         return assignments;
       }
       catch (error) {

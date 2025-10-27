@@ -1,4 +1,5 @@
-import { ConfiguratorError } from '../configurator-error.js';
+import { ConfiguratorError } from '../errors.js';
+import {CompiledSchema} from '../schema/compiled-schema.js'
 
 /**
  * Configuration source abstract base class - all sources should implement this
@@ -17,38 +18,28 @@ export class ConfigurationSource {
 
   /**
    * Parse configuration from this source
-   * @param {Configurator} configurator - Configurator
-   * @param {object} context - collection of source-specific fields (argv, env, etc.)
-   * @param {object} [options] - options for parsing
-   * @returns {Promise<Object>} Parsed configuration object
+   * @param {CompiledSchema} schema -
+   * @param {Object} context - collection of source-specific fields (argv, env, etc.)
+   * @param {Object} [options] - options for parsing
+   * @returns {Promise<Map<string,any>>} Parsed configuration object
    */
-  async load(configurator, context, options) {
-
-    const fieldPaths = configurator.schema.getAllFieldPaths();
-
-    let fieldAssignments = await this._load(configurator, context, options);
-
-    const categories = new Map();
-    for (let [fieldPath, fieldValue] of fieldAssignments) {
-      const field = fieldPaths.get(fieldPath);
-      if (!field) {
-        throw new ConfiguratorError(`Unknown field reference "${fieldPath}"`);
-      }
-      if (field.schema.category) {
-        if (categories.has(field.schema.category)
-            && categories.get(field.schema.category) !== field.schema.id) {
-          throw new ConfiguratorError(`${field.path} is incompatible with previous settings in ${field.schema.category} category`);
-        }
-        categories.set(field.schema.category, field.schema.id);
-      }
-    }
-    return fieldAssignments;
+  async load(schema, context, options) {
+    throw new Error(`ConfigurationSource.load() in ${this.name} must be implemented by subclass`);
   }
 
-  async _load(configurator, context, options) {
-    throw new Error(`ConfigurationSource._load() in ${this.name} must be implemented by subclass`);
-  }
-
+  /**
+   * Standard sequence numbers for configuration sources.
+   * Lower numbers are processed first (lower priority), higher numbers are processed last (higher priority).
+   * When multiple sources assign the same property, the highest sequence number wins.
+   *
+   * Use these constants when creating custom sources to ensure proper priority ordering:
+   * @example
+   * new MySecretsSource({ sequence: ConfigurationSource.DefaultSequence.SECRETS })
+   *
+   * To insert between standard slots, use intermediate values:
+   * @example
+   * new MyCustomSource({ sequence: 450 }) // Between ENVIRONMENT(400) and SECRETS(500)
+   */
   static DefaultSequence = Object.freeze({
     SYSTEM_DEFAULTS: 100,   // schema defaults are loaded at the lowest level
     MODULES:         200,   // for fields referencing lazily-instantiated singletons (see @versionzero/module-manager)
@@ -59,7 +50,7 @@ export class ConfigurationSource {
     SERVER:          700,   // online sources, often referenced via arguments, so higher in priority
     INTERACTIVE:     800,   // an interactive session (human in the loop)
     CONFIGURATION:   900,   // configuration files can dynamically change and often specified via arguments, so they are higher in priority
-    OVERRIDES:       1000   // if you want to completely block some settings
+    OVERRIDES:       1000   // if you want to completely block or replace some settings
   });
 
 

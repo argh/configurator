@@ -1,6 +1,11 @@
 {
   "reporter": ["text", "html"],
-  "exclude": ["test/**", "coverage/**"],
+  "exclude": [
+    "test/**",
+    "coverage/**",
+    "examples/**",
+    "src/schema/types.js"
+  ],
   "all": true,
   "check-coverage": true,
   "statements": 80,
