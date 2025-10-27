@@ -1,6 +1,6 @@
 {
   "name": "@versionzero/configurator",
-  "version": "0.2.0",
+  "version": "0.2.1-main.0",
   "description": "A simple configuration utility for Node.js",
   "main": "./src/index.js",
   "exports": {
@@ -37,6 +37,6 @@
     "@types/node": "^24.7.2",
     "c8": "^8.0.1",
     "mocha": "^10.2.0",
-    "typescript": "^5.9.3"    
+    "typescript": "^5.9.3"
   }
 }
