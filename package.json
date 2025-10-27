@@ -14,6 +14,7 @@
   },
   "keywords": [
     "configuration",
+    "schema",
     "command line",
     "configurator",
     "argh",
@@ -35,7 +36,6 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.7.2",
     "c8": "^8.0.1",
-    "jsdoc-to-markdown": "^9.1.2",
     "mocha": "^10.2.0",
     "typescript": "^5.9.3"    
   }

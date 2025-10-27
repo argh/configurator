@@ -49,7 +49,7 @@ export class SchemaResolver
    */
   registerSchema(name, schema) {
     if (!(schema instanceof Schema)) {
-      throw new RegistryError(`Registry can only store Schema instances`);
+      throw new ResolverError(`Registry can only store Schema instances`);
     }
     const registryName = toKebabCase(name);
     this.schemaMap.set(registryName, schema);
@@ -65,7 +65,7 @@ export class SchemaResolver
     const registryName = toKebabCase(name);
     const schema = this.schemaMap.get(registryName);
     if (!schema) {
-      throw new RegistryError(`Schema "${name}" not found in registry`);
+      throw new ResolverError(`Schema "${name}" not found in registry`);
     }
     return schema;
   }
@@ -79,7 +79,7 @@ export class SchemaResolver
    */
   registerValidator(keyword, validatorFn, describeFn) {
     if (typeof validatorFn !== 'function') {
-      throw new RegistryError(`Validator for keyword '${keyword}' must be a function`);
+      throw new ResolverError(`Validator for keyword '${keyword}' must be a function`);
     }
     this.validatorMap.set(keyword, {
       validate: validatorFn,
@@ -585,7 +585,7 @@ export class SchemaResolver
     // Parameterized validators
     this.registerParameterizedValidator('filesize', (args, compileSpec) => {
       if (typeof args !== 'object' || args === null) {
-        throw new RegistryError('$filesize requires an object with min/max properties');
+        throw new ResolverError('$filesize requires an object with min/max properties');
       }
       const { min, max } = args;
 
@@ -621,7 +621,7 @@ export class SchemaResolver
 
     this.registerParameterizedValidator('and', (args, compileSpec) => {
       if (!Array.isArray(args)) {
-        throw new RegistryError('$and requires an array of validators');
+        throw new ResolverError('$and requires an array of validators');
       }
       const compiled = args.map(v => compileSpec(v));
       const descriptions = compiled.map(c => c.description).filter(Boolean);
@@ -642,7 +642,7 @@ export class SchemaResolver
 
     this.registerParameterizedValidator('or', (args, compileSpec) => {
       if (!Array.isArray(args)) {
-        throw new RegistryError('$or requires an array of validators');
+        throw new ResolverError('$or requires an array of validators');
       }
       const compiled = args.map(v => compileSpec(v));
       const descriptions = compiled.map(c => c.description).filter(Boolean);
@@ -686,7 +686,7 @@ export class SchemaResolver
     });
     this.registerParameterizedValidator('range', (args, compileSpec) => {
       if (typeof args !== 'object' || args === null) {
-        throw new RegistryError('$range requires an object with min/max properties');
+        throw new ResolverError('$range requires an object with min/max properties');
       }
       const { min, max } = args;
 
@@ -716,7 +716,7 @@ export class SchemaResolver
 
     this.registerParameterizedValidator('length', (args, compileSpec) => {
       if (typeof args !== 'object' || args === null) {
-        throw new RegistryError('$length requires an object with min/max/exact properties');
+        throw new ResolverError('$length requires an object with min/max/exact properties');
       }
       const { min, max, exact } = args;
 
@@ -750,7 +750,7 @@ export class SchemaResolver
 
     this.registerParameterizedValidator('in', (args, compileSpec) => {
       if (!Array.isArray(args)) {
-        throw new RegistryError('$in requires an array of allowed values');
+        throw new ResolverError('$in requires an array of allowed values');
       }
 
       return {
@@ -843,7 +843,7 @@ export class SchemaResolver
           description: spec
         }
       } catch (error) {
-        throw new RegistryError(`Invalid regex pattern: ${spec}`);
+        throw new ResolverError(`Invalid regex pattern: ${spec}`);
       }
     }
 
@@ -852,7 +852,7 @@ export class SchemaResolver
       const registered = this.validatorMap.get(keyword);
 
       if (!registered) {
-        throw new RegistryError(`Unknown validator keyword: ${spec}`);
+        throw new ResolverError(`Unknown validator keyword: ${spec}`);
       }
 
       return {
@@ -879,7 +879,7 @@ export class SchemaResolver
 
       const keys = Object.keys(spec);
       if (keys.length !== 1) {
-        throw new RegistryError('Validator object must have exactly one key');
+        throw new ResolverError('Validator object must have exactly one key');
       }
 
       const [keyword] = keys;
@@ -889,19 +889,19 @@ export class SchemaResolver
       const registered = this.validatorMap.get(keywordName);
 
       if (!registered) {
-        throw new RegistryError(`Unknown validator keyword: ${keyword}`);
+        throw new ResolverError(`Unknown validator keyword: ${keyword}`);
       }
 
       if (registered.compile) {
         // Parameterized validator - pass args and recursive compiler
         return registered.compile(args, (spec) => this._compileValidatorSpec(spec));
       } else {
-        throw new RegistryError(`Validator ${keyword} does not accept arguments`);
+        throw new ResolverError(`Validator ${keyword} does not accept arguments`);
       }
 
 
     }
-    throw new RegistryError(`Invalid validator specification: ${spec}`);
+    throw new ResolverError(`Invalid validator specification: ${spec}`);
 
   }
 
@@ -1406,4 +1406,4 @@ export class SchemaResolver
   }
 }
 
-class RegistryError extends ConfiguratorError {}
+class ResolverError extends ConfiguratorError {}
