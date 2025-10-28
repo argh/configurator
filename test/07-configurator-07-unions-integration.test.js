@@ -204,9 +204,9 @@ describe('Configurator - Unions Integration', function() {
   describe('Unions with custom types', function() {
 
     it('should apply custom types to union members in arrays', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('url', new Schema('string', {
+      resolver.registerSchema('url', new Schema('string', {
         normalizer: (value) => typeof value === 'string' ? value.trim() : value,
         validator: (value) => {
           try {
@@ -233,7 +233,7 @@ describe('Configurator - Unions Integration', function() {
           )
         );
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',

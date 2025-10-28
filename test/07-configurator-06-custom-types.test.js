@@ -9,9 +9,9 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Custom types from multiple sources', function() {
 
     it('should parse URL type from environment and command line', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('url', new Schema('string', {
+      resolver.registerSchema('url', new Schema('string', {
         normalizer: (value) => {
           if (typeof value === 'string') {
             return value.trim();
@@ -32,7 +32,7 @@ describe('Configurator - Custom Types Integration', function() {
         .property('apiEndpoint', new Schema('url'))
         .property('webhookUrl', new Schema('url'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -47,9 +47,9 @@ describe('Configurator - Custom Types Integration', function() {
     });
 
     it('should validate custom types from all sources', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('port', new Schema('number', {
+      resolver.registerSchema('port', new Schema('number', {
         validator: (value) => {
           if (value < 1 || value > 65535) {
             throw new Error(`Port must be between 1 and 65535, got ${value}`);
@@ -61,7 +61,7 @@ describe('Configurator - Custom Types Integration', function() {
       const schema = new Schema('object')
         .property('port', new Schema('port'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       await assert.rejects(
         () => configurator.configure({
@@ -81,10 +81,10 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Complex custom types', function() {
 
     it('should handle duration type from multiple sources', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
       // Duration type: accepts "30s", "5m", "2h", "1d" or milliseconds
-      registry.registerSchema('duration', new Schema('any', {
+      resolver.registerSchema('duration', new Schema('any', {
         normalizer: (value) => {
           if (typeof value === 'number') return value;
           if (typeof value === 'string') return value.trim();
@@ -116,7 +116,7 @@ describe('Configurator - Custom Types Integration', function() {
         .property('retryDelay', new Schema('duration'))
         .property('cacheExpiry', new Schema('duration'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -133,9 +133,9 @@ describe('Configurator - Custom Types Integration', function() {
     });
 
     it('should handle email type with normalization and validation', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('email', new Schema('string', {
+      resolver.registerSchema('email', new Schema('string', {
         normalizer: (value) => {
           if (typeof value === 'string') {
             return value.trim().toLowerCase();
@@ -154,7 +154,7 @@ describe('Configurator - Custom Types Integration', function() {
         .property('adminEmail', new Schema('email'))
         .property('supportEmail', new Schema('email'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -170,9 +170,9 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Custom types with defaults and conditions', function() {
 
     it('should apply defaults with custom types', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('logLevel', new Schema('string', {
+      resolver.registerSchema('logLevel', new Schema('string', {
         normalizer: (value) => value.toLowerCase(),
         validator: (value) => {
           const valid = ['debug', 'info', 'warn', 'error'];
@@ -189,7 +189,7 @@ describe('Configurator - Custom Types Integration', function() {
           default: 'info'
         }));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -202,9 +202,9 @@ describe('Configurator - Custom Types Integration', function() {
     });
 
     it('should use custom types with conditions', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('percentage', new Schema('number', {
+      resolver.registerSchema('percentage', new Schema('number', {
         normalizer: (value) => {
           if (typeof value === 'string' && value.endsWith('%')) {
             return parseFloat(value) / 100;
@@ -226,7 +226,7 @@ describe('Configurator - Custom Types Integration', function() {
           default: 0.1
         }));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config1 = await configurator.configure({
         appName: 'app',
@@ -252,9 +252,9 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Nested custom types', function() {
 
     it('should handle custom types in nested objects', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('ipAddress', new Schema('string', {
+      resolver.registerSchema('ipAddress', new Schema('string', {
         validator: (value) => {
           const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
           if (!ipv4Regex.test(value)) {
@@ -278,7 +278,7 @@ describe('Configurator - Custom Types Integration', function() {
           .property('port', new Schema('number'))
         );
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -296,9 +296,9 @@ describe('Configurator - Custom Types Integration', function() {
     });
 
     it('should handle custom types in arrays', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('semver', new Schema('string', {
+      resolver.registerSchema('semver', new Schema('string', {
         validator: (value) => {
           if (!/^\d+\.\d+\.\d+$/.test(value)) {
             throw new Error(`Invalid semver: ${value}`);
@@ -312,7 +312,7 @@ describe('Configurator - Custom Types Integration', function() {
           .property('*', new Schema('semver'))
         );
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -328,9 +328,9 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Custom enum-like types', function() {
 
     it('should create enum type with validation', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('environment', new Schema('string', {
+      resolver.registerSchema('environment', new Schema('string', {
         normalizer: (value) => value.toLowerCase(),
         validator: (value) => {
           const valid = ['development', 'staging', 'production'];
@@ -344,7 +344,7 @@ describe('Configurator - Custom Types Integration', function() {
       const schema = new Schema('object')
         .property('env', new Schema('environment'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -372,9 +372,9 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Custom types with serialization', function() {
 
     it('should serialize custom types for dump', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('timestamp', new Schema('any', {
+      resolver.registerSchema('timestamp', new Schema('any', {
         transformer: (value) => {
           if (typeof value === 'number') return value;
           if (value === 'now') return Date.now();
@@ -394,9 +394,9 @@ describe('Configurator - Custom Types Integration', function() {
         .property('createdAt', new Schema('timestamp'))
         .property('updatedAt', new Schema('timestamp'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
-      const compiled = registry.compile(schema);
+      const compiled = resolver.compile(schema);
 
       // Transform from string to ms
       const config = await configurator.configure({
@@ -422,9 +422,9 @@ describe('Configurator - Custom Types Integration', function() {
   describe('Real-world custom type scenarios', function() {
 
     it('should handle connection string type', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('connectionString', new Schema('string', {
+      resolver.registerSchema('connectionString', new Schema('string', {
         validator: (value) => {
           // Validate basic connection string format
           if (!value.includes('://')) {
@@ -437,7 +437,7 @@ describe('Configurator - Custom Types Integration', function() {
       const schema = new Schema('object')
         .property('database', new Schema('connectionString'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -451,9 +451,9 @@ describe('Configurator - Custom Types Integration', function() {
     });
 
     it('should handle file path type with validation', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('filePath', new Schema('string', {
+      resolver.registerSchema('filePath', new Schema('string', {
         normalizer: (value) => {
           // Normalize path separators
           return value.replace(/\\/g, '/');
@@ -471,7 +471,7 @@ describe('Configurator - Custom Types Integration', function() {
         .property('configFile', new Schema('filePath'))
         .property('dataDir', new Schema('filePath'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -484,17 +484,17 @@ describe('Configurator - Custom Types Integration', function() {
     });
 
     it('should handle multiple independent custom types together', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
       // Register multiple custom types
-      registry.registerSchema('url', new Schema('string', {
+      resolver.registerSchema('url', new Schema('string', {
         validator: (v) => {
           new URL(v); // Throws if invalid
           return v;
         }
       }));
 
-      registry.registerSchema('email', new Schema('string', {
+      resolver.registerSchema('email', new Schema('string', {
         normalizer: (v) => v.trim().toLowerCase(),
         validator: (v) => {
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
@@ -504,7 +504,7 @@ describe('Configurator - Custom Types Integration', function() {
         }
       }));
 
-      registry.registerSchema('port', new Schema('number', {
+      resolver.registerSchema('port', new Schema('number', {
         validator: (v) => {
           if (v < 1 || v > 65535) {
             throw new Error(`Invalid port: ${v}`);
@@ -518,7 +518,7 @@ describe('Configurator - Custom Types Integration', function() {
         .property('contactEmail', new Schema('email'))
         .property('port', new Schema('port'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',

@@ -9,10 +9,10 @@ describe('Configurator - Complex Scenarios', function() {
   describe('Multi-environment application configuration', function() {
 
     it('should configure complete application with environment-specific settings', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
       // Custom URL type
-      registry.registerSchema('url', new Schema('string', {
+      resolver.registerSchema('url', new Schema('string', {
         validator: (value) => {
           try {
             new URL(value);
@@ -70,7 +70,7 @@ describe('Configurator - Complex Scenarios', function() {
           }))
         );
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'myapp',
@@ -311,10 +311,10 @@ describe('Configurator - Complex Scenarios', function() {
   describe('Multi-tenant SaaS configuration', function() {
 
     it('should configure tenant-specific settings with custom types', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
       // Custom email type
-      registry.registerSchema('email', new Schema('string', {
+      resolver.registerSchema('email', new Schema('string', {
         normalizer: (value) => value.trim().toLowerCase(),
         validator: (value) => {
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
@@ -325,7 +325,7 @@ describe('Configurator - Complex Scenarios', function() {
       }));
 
       // Custom duration type
-      registry.registerSchema('duration', new Schema('any', {
+      resolver.registerSchema('duration', new Schema('any', {
         transformer: (value) => {
           if (typeof value === 'number') return value;
           const match = /^(\d+)([smhd])$/.exec(value);
@@ -387,7 +387,7 @@ describe('Configurator - Complex Scenarios', function() {
           }))
         );
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',

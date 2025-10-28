@@ -1,36 +1,48 @@
-import { Configurator, SchemaResolver, Schema } from '../src/index.js';
+import { Configurator, SchemaResolver, Schema, ConfiguratorError } from '../src/index.js';
+const S = Schema.create; // alias for factory function
 
 const appName = 'basics';
+
+// Root schema
 const schema = new Schema('object');
 
-// Debug property at root level
+// Debug property at root level (factory function, fluent api)
 schema.property('debug',
-  new Schema('boolean')
+  S('boolean')
     .meta('flagHint', 'D')
     .meta('advanced', true)
+    .meta('description', 'enable debugging')
 );
 
-// App-specific schema
+const resolver = new SchemaResolver();
+
+resolver.registerSchema('MagicCode',
+  new Schema('string')
+    .validator('$alphanum')
+    .meta('valueDescription', 'code')
+)
+
+// App-specific schema (fluent api)
 schema.property(appName,
   new Schema('object')
     .property('files',
-      new Schema('array', {allowEmpty: true})
+      new Schema('array').allowEmpty()
         .meta('general', true)
         .meta('description', 'files to process')
         .property('*',
-          new Schema('string', {validator: '$file'})))
+          new Schema('string').validator('$file')))
     .property('verbose',
-      new Schema('boolean', { default: false })
+      new Schema('boolean').default(false)
         .meta('advanced', true)
         .meta('description', 'enable verbose diagnostics'))
     .property('codes',
-      new Schema('array', { required: true })
-        .meta('description', 'secret codes')
-        .property('*', new Schema('string', { validator: '$alphanum' }))));
+      new Schema('array').required()
+        .meta('description', 'magic secret codes')
+        .property('*', new Schema('MagicCode'))));
 
 
-// Server configuration schema
-// attributes with an underscore are interpreted as metadata
+// Server configuration schema, showing alternative attributes-based definition
+// (attributes with an underscore are stored in metadata without underscore)
 schema.property('server', new Schema('object')
   .property('host', new Schema('string', {
     default: 'localhost',
@@ -50,7 +62,7 @@ schema.property('server', new Schema('object')
 );
 
 try {
-  const config = await new Configurator({schema}).configure({
+  const config = await new Configurator({schema, resolver}).configure({
     appName,
     defaults: { [appName]: { verbose: true }},                               // app defaults are low priority but take precedence over schema defaults
     env: { 'BASICS_SERVER_HOST' : '127.0.0.1' },                             // normally omit, defaults to process.env
@@ -60,6 +72,17 @@ try {
   console.log('Configuration results: ', config);
 }
 catch (error) {
-  console.error(error);
+  if (error instanceof ConfiguratorError) {
+    if (error.cause && error.cause.message) {
+      console.error(`Configuration error: ${error.message} (${error.cause.message})`)
+    }
+    else {
+      console.error(`Configuration error: ${error.message}`)
+    }
+    console.error(`Specify --help to list available command line options`)
+  }
+  else {
+    console.error(error);
+  }
   process.exit(1);
 }

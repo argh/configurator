@@ -28,7 +28,7 @@ export class Configurator {
   /**
    * @typedef {Object} ConfiguratorOptions
    * @property {Schema} [schema]
-   * @property {SchemaResolver} [registry]
+   * @property {SchemaResolver} [resolver]
    * @property {Array<ConfigurationSource>} [sources] - if not provided, uses default sources from getDefaultSources()
    * @property {boolean} [helpEnabled] - enable help option
    * @property {boolean} [configEnabled] - enable configuration file option
@@ -45,7 +45,7 @@ export class Configurator {
    */
   constructor(options = {}) {
     this._schema = options.schema ?? new Schema('object');
-    this._registry = options.registry ?? new SchemaResolver();
+    this._resolver = options.resolver ?? new SchemaResolver();
     this._sources = options.sources;
 
     const helpEnabled = (options.helpEnabled !== false);
@@ -159,6 +159,14 @@ export class Configurator {
   }
 
   /**
+   * Resolver being used by this Configurator
+   * @returns {SchemaResolver}
+   */
+  get resolver() {
+    return this._resolver;
+  }
+
+  /**
    * Main entry point.  Pull configuration assignments from all defined sources,
    * and use the highest priority assignments to build a configuration object
    * based on the defined schema.
@@ -169,7 +177,7 @@ export class Configurator {
    */
   async configure(context, strict = true) {
 
-    const schema = this._registry.compile(this._schema);
+    const schema = this._resolver.compile(this._schema);
 
     const configurationContext = {...context};
 

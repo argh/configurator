@@ -647,21 +647,22 @@ export class SchemaResolver
       const compiled = args.map(v => compileSpec(v));
       const descriptions = compiled.map(c => c.description).filter(Boolean);
 
+      const description = descriptions.length > 1
+                              ? descriptions.map(d => d.includes('&') ? `(${d})` : d).join('|')
+                              : descriptions[0]
       return {
-        validator: async (...params) => {
+        validator: async (v, c, s, p, o) => {
           const errors = [];
           for (const {validator} of compiled) {
             try {
-              return await validator(...params);
+              return await validator(v, c, s, p, o);
             } catch (error) {
               errors.push(error.message);
             }
           }
-          throw new ValidationError(`None of the alternatives matched`, {errors});
+          throw new ValidationError(`None of {${description}} matched`, {errors});
         },
-        description: descriptions.length > 1
-                     ? descriptions.map(d => d.includes('&') ? `(${d})` : d).join('|')
-                     : descriptions[0]
+        description
       };
     });
 

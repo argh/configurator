@@ -85,9 +85,9 @@ describe('Configurator - Transforms Integration', function() {
   describe('Custom type transformers', function() {
 
     it('should transform timestamp strings to milliseconds', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('timestamp', new Schema('any', {
+      resolver.registerSchema('timestamp', new Schema('any', {
         transformer: (value) => {
           if (typeof value === 'number') {
             return value;
@@ -110,7 +110,7 @@ describe('Configurator - Transforms Integration', function() {
         .property('createdAt', new Schema('timestamp'))
         .property('updatedAt', new Schema('timestamp'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -137,9 +137,9 @@ describe('Configurator - Transforms Integration', function() {
         ['file', FileLogger]
       ]);
 
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('Logger', new Schema('any', {
+      resolver.registerSchema('Logger', new Schema('any', {
         transformer: (value) => {
           if (value instanceof Logger) {
             return value;
@@ -164,7 +164,7 @@ describe('Configurator - Transforms Integration', function() {
       const schema = new Schema('object')
         .property('logger', new Schema('Logger'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',
@@ -285,9 +285,9 @@ describe('Configurator - Transforms Integration', function() {
   describe('Transformers with normalizers', function() {
 
     it('should apply normalizer before transformer', async function() {
-      const registry = new SchemaResolver();
+      const resolver = new SchemaResolver();
 
-      registry.registerSchema('email', new Schema('string', {
+      resolver.registerSchema('email', new Schema('string', {
         normalizer: (value) => {
           // Normalize: trim whitespace and lowercase
           if (typeof value === 'string') {
@@ -308,7 +308,7 @@ describe('Configurator - Transforms Integration', function() {
         .property('email', new Schema('email'))
         .property('backupEmail', new Schema('email'));
 
-      const configurator = new Configurator({ schema, registry });
+      const configurator = new Configurator({ schema, resolver });
 
       const config = await configurator.configure({
         appName: 'app',

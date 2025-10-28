@@ -256,6 +256,10 @@ export class Schema
     if (typeof property !== 'string') {
       throw new SchemaError('Properties must be associated with a valid name');
     }
+    if (typeof value === 'string') {
+      value = new Schema(value);
+    }
+
     const current = this._properties[property];
 
     if (current) {
@@ -447,6 +451,16 @@ export class Schema
    */
   default(value) {
     this.options.default = value;
+    return this;
+  }
+
+  /**
+   * Mark this array/string as allowing empty values
+   * @param {boolean} [value]
+   * @returns {Schema}
+   */
+  allowEmpty(value) {
+    this.options.allowEmpty = value ?? true;
     return this;
   }
 

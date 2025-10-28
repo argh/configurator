@@ -33,26 +33,41 @@ npm install --save @versionzero/configurator
 (Source can be found in the [examples directory](https://github.com/argh/configurator/tree/main/examples))
 
 ```javascript title="basics.js"
-import { ConfigurationSchema, Configurator } from '@versionzero/configurator';
+import { Schema, Configurator } from '@versionzero/configurator';
 
 const appName = 'basics';
-// Define your configuration schema
-const schema = new ConfigurationSchema();
 
-schema.field('debug', {type: 'boolean', flagHint: 'D', advanced: true})
+// Define your configuration schema using fluent API
+const schema = new Schema('object')
+  .property('debug', new Schema('boolean')
+    .meta('flagHint', 'D')
+    .meta('description', 'enable debug output')
+    .meta('advanced', true))
+  .property(appName, new Schema('object')
+    .property('verbose', new Schema('boolean')
+      .default(false)
+      .meta('description', 'enable verbose logging'))
+    .property('codes', new Schema('array')
+      .required()
+      .property('*', new Schema('string').validator('$alphanum'))
+      .meta('description', 'secret magic codes')))  
+  .property('server', new Schema('object')
+    .property('host', new Schema('string')
+      .default('127.0.0.1')
+      .meta('description', 'server host address')
+      .validator({$or: ['$ipv4', '$ipv6', '$reachable']}))
+    .property('port', new Schema('number')
+      .default(80)
+      .meta('description', 'server port')
+      .validator('$port'))
+    .property('protocol', new Schema('string')
+      .meta('description', 'server protocol')
+      .validator({$in: ['https', 'http']})));
 
-schema.child(appName)
-      .field('verbose', {type: 'boolean'})
-      .field('codes', {type: 'array', validator: {$each: '$alphanum'}, required: true})
-schema.child('server')
-      .field('host', {default: '127.0.0.1'})
-      .field('port', {type: 'number', default: 80, validator: '$positive'})
-      .field('protocol', {validator: {$in: ['tcp', 'udp', 'https', 'http']}})
-
-// Initialize the configurator with your schema, and pass in any (optional) source context
+// Initialize the configurator with your schema
 const config = await new Configurator({schema}).configure({
   appName,                                             // application name
-  defaults: {[appName]: {verbose: true}},              // low priority, but higher than field defaults
+  defaults: {[appName]: {verbose: true}},              // low priority, but higher than schema defaults
   env: process.env,                                    // (unnecessary, this is the default value)
   argv: process.argv,                                  // (unnecessary, this is the default value)
   overrides: {server: {protocol: 'https', port: 443}}  // highest priority
@@ -74,6 +89,33 @@ Configuration results:  {
 }
 ```
 
+#### Union Types and Selectors Example
+
+Here's a taste of union types and selectors for dynamic configuration:
+
+```javascript
+// Union types: different schemas based on discriminator
+const deploySchema = new Schema('object')
+  .unionSchema('aws', new Schema('object')
+    .property('type', Schema.literal('aws'))
+    .property('region', new Schema('string'))
+    .property('accessKey', new Schema('string')))
+  .unionSchema('local', new Schema('object')
+    .property('type', Schema.literal('local'))
+    .property('dataDir', new Schema('string')));
+
+// Selectors: activate related configuration sections
+const appSchema = new Schema('object')
+  .property('command', new Schema('string').selector())
+  .property('deploy', new Schema('object').selection('deploy')
+    .property('environment', deploySchema))
+  .property('test', new Schema('object').selection('test')
+    .property('pattern', new Schema('string')));
+
+// Usage: myapp deploy --type aws --region us-west-2
+// Or:    myapp test --pattern "*.spec.js"
+```
+
 See the full [documentation](https://docs.v0.net/configurator) for details on how the schema's configurables are
 mapped to environment variables and command line arguments.
 
@@ -89,32 +131,37 @@ patterns:
 
 ## Key Features
 
-**Reasonable Defaults, "Batteries Included", etc.**
+**Schema-First Design with Fluent API**
 
-: The default `Configurator` setup is a great starting point for quickly providing configuration hooks for
-typical applications. The schema API is superficially similar to that of most command-line focused libraries,
-so adoption is easy. Out of the box, you get a command line parser with help text generation, environment
-variable parsing, configuration file loading, and a library of field validators that cover many common needs.
+: Define your configuration structure declaratively using composable `Schema` objects. The fluent API makes
+complex nested structures intuitive to build, while union types let you handle different configuration shapes
+based on runtime conditions. Unlike command-line-focused libraries, your schema becomes the single source of
+truth for structure, validation, and transformation.
 
-**Extensible ConfiguratorSchema Types and Validation**
+**Composable Configuration Sources**
 
-: The `Configurator` is pre-loaded with basic primitive types and common extensions (`string`, `number`, 
-`boolean`, `array`, `object`, `date`, `buffer`), as well as many useful field validators
-(e.g. `$positive`, `$alphanum`, `$directory`, etc.) but developers can also define their own implementations. 
-Custom types and validators can provide arbitrary (potentially asynchronous!) transformations from 
-*configuration inputs* to *validated outputs*.
+: Unlike libraries that focus on a single input method, `Configurator` treats each configuration source as a 
+first-class component. Each `ConfigurationSource` handles one concern (CLI args, env vars, JSON files, etc.) 
+while participating in a systematic priority resolution process. This eliminates the manual orchestration 
+typically required when combining multiple configuration approaches, and makes extending with additional 
+sources straightforward.
 
-**Sequenced Configuration Sources**
+**Simple to Start, Scales to Complex**
 
-: Central to the `Configurator` is the concept of a `ConfigurationSource`. Each source encapsulates the
-functionality of discovering configuration field assignments from a single origin: `ObjectSource` understands simple
-objects, `EnvironmentSource` reads environment variables, `CommandLineSource` parses command line arguments,
-and so forth.
-: Each `ConfigurationSource` is loaded in sequence. Field assignments discovered later in the sequence
-override assignments from earlier in the sequence.
-: The `Configurator` provides a default sequence of predefined sources, but this sequence can be changed,
-and the sources individually provide options to tune their behavior. The sequence can also be extended with
-additional sources, either fully custom, or provided by optional external packages.
+: Begin with the included "batteries" - command line parsing, environment variables, config files, and a rich
+validator library (`$positive`, `$alphanum`, `$directory`, etc.). As your needs grow, add custom types, 
+validators, and sources. The asynchronous normalization, transformation, and validation pipeline supports 
+complex scenarios like lazy evaluation, async validation, and dynamic value resolution. The architecture 
+scales from simple apps to complex enterprise systems with secrets management, feature flags, and 
+multi-environment deployments.
+
+**Union Types and Selectors for Dynamic Configuration**
+
+: Handle different configuration shapes and subsystem activation intelligently. Union types let you define 
+multiple schemas for the same property, with automatic resolution based on discriminator values. Selectors 
+enable hierarchical command structures where choosing one option activates related configuration sections.
+Perfect for plugins, deployment targets, CLI commands, or any scenario where your config structure varies 
+at runtime.
 
 **Single Source of Truth: Configuration as a Data Model**
 
@@ -125,25 +172,21 @@ child object.  This child object can then be used in isolation to safely initial
 extraneous data leaking in. This reduces the *"dig through a random bag of whatever"* output 
 generated by many other configuration libraries.
 
-**Built to be Embedded**
+**Built for Extension and Integration**
 
-: The observant reader may have noticed that the combination of features described above suggests that if
-subsystems were each built as self-contained modules, each module could internally define its own 
-configuration schema.  One could then build a system on top of `Configurator` that introspects these 
-modules, discovers their internal schemas, and initializes each modular subsystem with a validated
-object containing only their requested configurables.  Furthermore, those modules could be *themselves*
-be registered as new schema types, with a type resolver that returns singleton instances of those subsystems,
-allowing them to be assigned to matching configuration fields in other modules... 🤔
-: Good news, this exists!
-: [`ModuleManager`](https://github.com/argh/module-manager) is a separately installed library 
-(`@versionzero/module-manager`) that embeds `Configurator`.  It still
-provides all the `Configurator` capabilities, but with a bias towards serving applications structured as a
-dependency graph of modular subsystems. As a quick pitch, `ModuleManager` provides **embedded declarative schemas**,
-**strongly typed references**, **dependency injection**, and **lifecycle management**. It enables you to keep your
-configurable field definitions fully colocated with the modules that consume them, and provides a structured approach
-to wiring everything together. While the `Configurator` is a fine library for direct use on its own, it really shines
-for larger applications when embedded in an active "smart" layer (such as `ModuleManager`) that understands how
-your functionality is partitioned.
+: The source architecture naturally accommodates additional configuration inputs as your requirements grow. 
+Whether you need to integrate with secrets management, parameter stores, feature flag systems, or database 
+configuration, the same priority resolution and validation pipeline applies. Custom sources participate as 
+first-class citizens alongside the built-in CLI, environment, and file sources.
+
+: For larger applications, the schema-first approach creates clean interfaces between subsystems. Each component 
+can define its own configuration schema, and the validated output provides exactly the properties that subsystem 
+needs - eliminating the "dig through a bag of properties" problem common in other libraries.
+
+: [`ModuleManager`](https://github.com/argh/module-manager) (`@versionzero/module-manager`) builds on this 
+foundation to provide **embedded declarative schemas**, **dependency injection**, and **lifecycle management** 
+for modular applications. But even standalone, `Configurator`'s architecture scales elegantly from simple CLI 
+tools to enterprise systems with complex configuration requirements.
 
 ## License
 

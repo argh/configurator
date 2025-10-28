@@ -648,7 +648,12 @@ export class CompiledSchema
         if (typeof validator !== 'function') {
           throw new ValidationError(`Invalid validator for ${path}`)
         }
-        return validator(current, input, schema, path, options);
+        try {
+          return await validator(current, input, schema, path, options);
+        }
+        catch (error) {
+          throw new ValidationError(`Error validating ${path}`, {cause:error})
+        }
       }, {...options})
     }
     catch (error) {

@@ -8,7 +8,7 @@ import { isConstructor, toConstantCase } from '../src/utils.js';
 
 
 // SCHEMAS AND VALIDATORS
-const registry = new SchemaResolver();
+const resolver = new SchemaResolver();
 
 // In addition to defining structure, Schemas may have optional handlers, several of which are called
 // during the process of transforming input data into the final output data:
@@ -19,7 +19,7 @@ const registry = new SchemaResolver();
 // * validator   - ensure the output format meets specified constraints
 // * serializer  - convert the output format back to a serializable (e.g. json) input format
 //
-// The schemas defined in the default registry handle this for basic types, but you
+// The schemas defined in the default resolver handle this for basic types, but you
 // you can define your own custom schemas this way as well.
 //
 // Handlers have the same call signature, for example,
@@ -44,7 +44,7 @@ const registry = new SchemaResolver();
 // Here is an example of a schema that can accept either a positive number,
 // an ISO string, or the string "now" to indicate the current time should be used:
 
-registry.registerSchema('timestamp', new Schema('any', {
+resolver.registerSchema('timestamp', new Schema('any', {
   normalizer: (value) => {
     if ((typeof value === 'number') || (typeof value === 'string') || value instanceof Date) {
       return value;
@@ -106,7 +106,7 @@ class Havarti extends Cheese { }
 
 const cheeses = new Map([Cheddar, Mozzarella, Parmesan, Provolone, Stilton, Gouda, Emmental, Brie, Muenster, Havarti].map(c => [c.name.toLowerCase(), c]));
 
-registry.registerSchema('Cheese', new Schema('any', {
+resolver.registerSchema('Cheese', new Schema('any', {
   transformer: (value) => {
     if (typeof value === 'string') {
       value = value.toLowerCase();
@@ -161,7 +161,7 @@ class BazPrinter extends Printer { print(message) { console.log('baz!', message)
 
 let printerSingleton = undefined;
 
-registry.registerSchema('Printer', new Schema('any', {
+resolver.registerSchema('Printer', new Schema('any', {
   transformer: (value) => {
     if (printerSingleton) {
       // once the singleton has been set, always return it...
@@ -252,12 +252,12 @@ class MutilateOperation extends RepoOperation {
   }
 }
 
-registry.registerSchema('RepoOperation',
+resolver.registerSchema('RepoOperation',
   new Schema('object')
     .property('type', new Schema('string'))
 );
 
-registry.registerSchema('SeekOperation',
+resolver.registerSchema('SeekOperation',
   new Schema('RepoOperation', {
     transformer: () => new SeekOperation()
   })
@@ -266,28 +266,28 @@ registry.registerSchema('SeekOperation',
     .property('y', new Schema('number'))
 );
 
-registry.registerSchema('PunchOperation',
+resolver.registerSchema('PunchOperation',
   new Schema('RepoOperation', {
     transformer: () => new PunchOperation()
   })
     .property('type', new Schema('string', {value: 'punch'}))
     .property('punchCount', new Schema('number', {validator: '$positive'}))
 );
-registry.registerSchema('ReadOperation',
+resolver.registerSchema('ReadOperation',
   new Schema('RepoOperation', {
     transformer: () => new ReadOperation()
   })
     .property('type', new Schema('string', {value: 'read'}))
     .property('readLength', new Schema('number', {validator: '$positive'}))
 );
-registry.registerSchema('FoldOperation',
+resolver.registerSchema('FoldOperation',
   new Schema('RepoOperation', {
     transformer: () => new FoldOperation()
   })
     .property('type', new Schema('string', {value: 'fold'}))
     .property('foldCount', new Schema('number', {validator: '$positive'}))
 );
-registry.registerSchema('SpindleOperation',
+resolver.registerSchema('SpindleOperation',
   new Schema('RepoOperation', {
     transformer: () => new SpindleOperation()
   })
@@ -295,7 +295,7 @@ registry.registerSchema('SpindleOperation',
     .property('x', new Schema('number' ))
     .property('y', new Schema('number' ))
 )
-registry.registerSchema('MutilateOperation',
+resolver.registerSchema('MutilateOperation',
   new Schema('RepoOperation', {
     transformer: () => new MutilateOperation()
   })
@@ -320,7 +320,7 @@ registry.registerSchema('MutilateOperation',
 // Here is an example of an asynchronous validator that checks whether the path
 // value provided lives within a git repository:
 
-registry.registerValidator('inside-git-repo', async (value) => {
+resolver.registerValidator('inside-git-repo', async (value) => {
   async function check(current) {
     try {
       const s = await stat(path.join(current, '.git'));
@@ -353,7 +353,7 @@ registry.registerValidator('inside-git-repo', async (value) => {
 //
 // Schema names and Validator names will not be resolved until the configuration is being populated.
 
-const schema = new Schema('object', { registry })
+const schema = new Schema('object', { resolver })
   .property('app', new Schema('object')
     .property('verbose', new Schema('boolean', {default: false, _flagHint: 'V', _advanced: true}))
     .property('devMode', new Schema('boolean', {_flagHint: 'D', _advanced: true}))
@@ -490,11 +490,7 @@ const sources = [
 
 // This demonstrates a Configurator being provided all custom values, even redefining the default config file field name:
 schema.property('profile', Configurator.createConfigSchema({context: 'profilePath', _flagHint: 'P'}));
-const configurator = new Configurator({
-  schema,
-  registry,
-  sources: sources
-});
+const configurator = new Configurator({ schema, resolver, sources });
 
 // Write a demo profile file for the example...
 await writeFile('./example-profile.json', JSON.stringify({
