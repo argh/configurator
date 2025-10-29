@@ -97,7 +97,7 @@ describe('Configurator - Config/Dump/Help', function() {
         .find(s => s.metadata['configuratorSchema'] === 'config');
 
       assert.ok(configProp, 'Config schema should be auto-added');
-      assert.strictEqual(configProp.metadata.description, 'configuration file path');
+      assert.match(configProp.metadata.description ?? '', /load.+configuration.+file/);
       assert.strictEqual(configProp.metadata.flagHint, 'C');
       assert.strictEqual(configProp._options.context, 'config');
     });
@@ -177,7 +177,7 @@ describe('Configurator - Config/Dump/Help', function() {
         .find(s => s.metadata['configuratorSchema'] === 'dump');
 
       assert.ok(dumpProp, 'Dump schema should be auto-added');
-      assert.strictEqual(dumpProp.metadata.description, 'dump configuration to file');
+      assert.match(dumpProp.metadata.description ?? '', /dump.+configuration.+file/);
       assert.strictEqual(dumpProp._options.context, 'dump');
     });
 

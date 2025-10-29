@@ -30,7 +30,6 @@ export class CommandLineSource extends ConfigurationSource
    * @private
    */
   _generateOptions(schema, appName) {
-
     /**
      * @param {CompiledSchema} schema
      * @param {string} path
@@ -101,10 +100,7 @@ export class CommandLineSource extends ConfigurationSource
 // Skip 'node' and script name if this looks like process.argv
     const args = argv.length >= 2 && argv[0].includes('node') ? argv.slice(2) : argv;
 
-//    const config = {};
-
     const propertyAssignments = new Map();
-
     const generalValues = [];
 
     const prefix = toCamelCase(appName);
@@ -155,7 +151,7 @@ export class CommandLineSource extends ConfigurationSource
       return walkContext(ctx);
     }
 
-    const handleOptionValue = (option, optionData, inlineValue, checkArguments = true) => {
+    const handleOptionValue = (option, optionData, inlineValue, checkArguments, ctx) => {
       let value;
 
       if (optionData.isHelp) {
@@ -169,6 +165,7 @@ export class CommandLineSource extends ConfigurationSource
         console.log(this._help(schema, context, showAdvanced));
         process.exit(0);
       }
+
 //      else if (optionData.isConfig) {
 //        const configPath = inlineValue ?? (checkArguments? peekArgumentValue(true) : undefined);
 
@@ -222,7 +219,25 @@ export class CommandLineSource extends ConfigurationSource
           throw new CommandLineError(`Option ${option} requires a value`)
         }
       }
-      propertyAssignments.set(optionData.path, value);
+
+      if (optionData.isSetPropertyValue) {
+
+        if (value.length !== 2) {
+          throw new CommandLineError(`Option ${option} requires a path and a value`);
+        }
+        let propertyPath = value[0]
+        if (propertyPath.startsWith('.')) {
+          propertyPath = `${ctx.prefix}${propertyPath}`;
+        }
+        if (!schema.find(propertyPath)) {
+          throw new CommandLineError(`Option ${option} specified unknown property path "${propertyPath}"`);
+        }
+
+        propertyAssignments.set(propertyPath, value[1]);
+      }
+      else {
+        propertyAssignments.set(optionData.path, value);
+      }
     }
 
     while (i < args.length) {
@@ -264,8 +279,8 @@ export class CommandLineSource extends ConfigurationSource
           }
         }
         if (optionData) {
-          ctx = searchCtx;
-          handleOptionValue(`--${optionData.longOption}`, optionData, inlineValue);
+//          ctx = searchCtx;
+          handleOptionValue(`--${optionData.longOption}`, optionData, inlineValue, true, ctx);
         }
         else {
           if (loadOptions?.strict) {
@@ -287,15 +302,15 @@ export class CommandLineSource extends ConfigurationSource
           const isLastOption = (j === shortOptions.length - 1);
 
           let optionData;
-
+          let searchCtx = ctx;
           while (!optionData) {
-            if (ctx.clFlags.has(shortOptions[j])) {
-              optionData = ctx.clFlags.get(shortOptions[j]);
+            if (searchCtx.clFlags.has(shortOptions[j])) {
+              optionData = searchCtx.clFlags.get(shortOptions[j]);
             }
 
             if (!optionData) {
-              if (ctx.parent) {
-                ctx = ctx.parent;
+              if (searchCtx.parent) {
+                searchCtx = searchCtx.parent;
               }
               else {
                 break;
@@ -304,7 +319,8 @@ export class CommandLineSource extends ConfigurationSource
           }
 
           if (optionData) {
-            handleOptionValue(`-${optionData.flag}`, optionData, inlineValue, isLastOption);
+//            ctx = searchCtx;
+            handleOptionValue(`-${optionData.flag}`, optionData, inlineValue, isLastOption, ctx);
           }
           else {
             if (loadOptions?.strict) {
@@ -414,10 +430,17 @@ export class CommandLineSource extends ConfigurationSource
 
       cl.push([usageLine]);
 
-
       if (ctx.clOptions.size) {
+
+        let sortedOptions = Array.from(ctx.clOptions.values()).sort((a, b) => {
+          if (a.flag && !b.flag) { return -1 }
+          if (b.flag && !a.flag) { return 1 }
+          return a.longOption.localeCompare(b.longOption, undefined, {numeric: true});
+        });
+
+
         let foundAdvanced = false;
-        for (const clOptionData of ctx.clOptions.values()) {
+        for (const clOptionData of sortedOptions) {
           // Skip hidden options and handle advanced options based on showAdvanced flag
           const m = clOptionData.schema.metadata;
           const o = clOptionData.schema.options;
@@ -672,13 +695,14 @@ class ParsingContext {
     const isHelp = configuratorSchemaMetadata === 'help';
     const isConfig = configuratorSchemaMetadata === 'config';
     const isDump = configuratorSchemaMetadata === 'dump';
+    const isSetPropertyValue = configuratorSchemaMetadata === 'setPropertyValue';
 
     const isAdvanced = !!schema.metadata['advanced']
     const isHidden = !!schema.metadata['hidden'];
     const isSystem = !!schema.metadata['system']
     const isInternal = !!schema.metadata['internal'];
 
-    this.clOptions.set(longOption, {path, schema, typeHint, description, valueDescription, longOption, isTopLevel, isHelp, isConfig, isDump, isAdvanced, isHidden, isSystem, isInternal})
+    this.clOptions.set(longOption, {path, schema, typeHint, description, valueDescription, longOption, isTopLevel, isHelp, isConfig, isDump, isSetPropertyValue, isAdvanced, isHidden, isSystem, isInternal})
 
   }
 

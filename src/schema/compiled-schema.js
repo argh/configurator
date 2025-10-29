@@ -746,15 +746,15 @@ export class CompiledSchema
     let s = this;
 
     for (let pathComponent of pathComponents) {
-
-      if (s.isUnion) {
-        let parts = pathComponent.split(':');
-        if (parts.length > 1) {
-          pathComponent = parts[0];
-          s = s.unionSchemas[parts[1]];
-        }
+      let parts = pathComponent.split(':');
+      if (parts.length > 1) {
+        pathComponent = parts[0];
       }
       s = s?.properties[pathComponent];
+
+      if (s?.isUnion && parts.length > 1) {
+        s = s.unionSchemas[parts[1]];
+      }
 
       if (!s) {
         return undefined;
@@ -1069,8 +1069,6 @@ export class CompiledSchema
     const propertyPaths = new Set();
 
     this.visitSchema((schema, path) => {
-      // todo - optionally generate paths that include union schema keys
-      //        as part of the path (e.g. foo.union:a.x, foo.union:b.x)
       if (path) {
         propertyPaths.add(path);
       }

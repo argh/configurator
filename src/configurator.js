@@ -33,6 +33,7 @@ export class Configurator {
    * @property {boolean} [helpEnabled] - enable help option
    * @property {boolean} [configEnabled] - enable configuration file option
    * @property {boolean} [dumpEnabled] - enable dump file option
+   * @property {boolean} [setPropertyValueEnabled] - enable extended property value setting
    */
 
   /**
@@ -75,6 +76,15 @@ export class Configurator {
         this._schema.property('dump', dumpSchema);
       }
       this._dumpContextName = dumpSchema._options['context'] ?? 'dump';
+    }
+
+    const setPropertyValueEnabled = (options.setPropertyValueEnabled !== false);
+    if (setPropertyValueEnabled) {
+      let setPropertyValueEnabledSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'setPropertyValue')
+      if (!setPropertyValueEnabledSchema) {
+        setPropertyValueEnabledSchema = Configurator.createSetPropertyValueSchema()
+        this._schema.property('setPropertyValue', setPropertyValueEnabledSchema);
+      }
     }
 
     if (!this._sources) {
@@ -289,8 +299,8 @@ export class Configurator {
       validator: {$or: ['-', '$file']},
       context: 'config',
       _flagHint: 'C',
-      _description: 'configuration file path',
-      _valueDescription: 'path',
+      _description: 'load configuration from file (or - for stdin)',
+      _valueDescription: '[path|-]',
       _configuratorSchema: 'config',
       _omitFromSerialize: true
     }, attributes))
@@ -309,12 +319,33 @@ export class Configurator {
       return new Schema('string', Object.assign({
         context: 'dump',
         validator: '$writable',
-        _description: 'dump configuration to file',
-        _valueDescription: 'path',
+        _description: 'dump configuration to file (or - for stdout)',
+        _valueDescription: '[path|-]',
         _advanced: true,
         _configuratorSchema: 'dump',
         _omitFromSerialize: true
       }, attributes));
+  }
+
+
+  static createSetPropertyValueSchema(attributes) {
+    return new Schema('array', Object.assign({
+      _description: 'set property value using path',
+      _advanced: true,
+      _flagHint: 'P',
+      _configuratorSchema: 'setPropertyValue',
+      _omitFromSerialize: true
+    }, attributes))
+      .property('0', new Schema('string', {
+        _description: 'dotted property path',
+        _valueDescription: 'path',
+        _hidden: true
+      }))
+      .property('1', new Schema('any', {
+        _description: 'property value',
+        _valueDescription: 'value',
+        _hidden: true
+      }))
   }
 
   /**

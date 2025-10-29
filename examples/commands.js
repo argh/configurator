@@ -10,7 +10,6 @@ const rootSchema = new Schema()
     'metadata.hidden': true,
     'metadata.description': 'enable debug mode (secret flag!)'
   }))
-  .property('halp', Configurator.createHelpSchema({_flagHint:'H'}))
 
 // This will be the "app" schema.  The "command" field will be used to drive the app's behavior.
 const cloudSchema = new Schema('object')
@@ -220,7 +219,7 @@ catch (error) {
     else {
       console.error(`Configuration error: ${error.message}`)
     }
-    console.error(`Specify --halp to list available command line options.  (Yes, "halp".)`)
+    console.error(`Specify --help to list available command line options`)
   }
   else {
     console.error(error);

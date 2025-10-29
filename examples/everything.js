@@ -1,7 +1,7 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
-import { Configurator, SchemaResolver, Schema, CompiledSchema } from '../src/index.js';
+import { Configurator, SchemaResolver, Schema, CompiledSchema, ConfiguratorError } from '../src/index.js';
 import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { isConstructor, toConstantCase } from '../src/utils.js';
 
@@ -354,6 +354,7 @@ resolver.registerValidator('inside-git-repo', async (value) => {
 // Schema names and Validator names will not be resolved until the configuration is being populated.
 
 const schema = new Schema('object', { resolver })
+  .property('halp', Configurator.createHelpSchema({_flagHint:'H'}))
   .property('app', new Schema('object')
     .property('verbose', new Schema('boolean', {default: false, _flagHint: 'V', _advanced: true}))
     .property('devMode', new Schema('boolean', {_flagHint: 'D', _advanced: true}))
@@ -533,6 +534,17 @@ try {
   // to make round-tripping configurations less confusing.
 }
 catch (error) {
-  console.error(error);
+  if (error instanceof ConfiguratorError) {
+    if (error.cause && error.cause.message) {
+      console.error(`Configuration error: ${error.message} (${error.cause.message})`)
+    }
+    else {
+      console.error(`Configuration error: ${error.message}`)
+    }
+    console.error(`Specify --halp to list available command line options.  (Yes, "halp".)`)
+  }
+  else {
+    console.error(error);
+  }
   process.exit(1);
 }
