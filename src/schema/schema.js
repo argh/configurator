@@ -436,6 +436,25 @@ export class Schema
   }
 
   /**
+   * Mark this schema as a selector
+   * @returns {Schema}
+   */
+  selector() {
+    this.options.selector = true;
+    return this;
+  }
+
+  /**
+   * Mark this schema as a selection.  With the default argument, will compile to assume the property name
+   * @param {NonNullable<any>} [value]
+   * @returns {Schema}
+   */
+  selection(value) {
+    this.options.selection = value ?? true;
+    return this;
+  }
+
+  /**
    * Mark this schema as required (or not)
    * @param {boolean} [value]
    * @returns {Schema}

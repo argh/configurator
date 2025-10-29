@@ -107,9 +107,9 @@ const deploySchema = new Schema('object')
 // Selectors: activate related configuration sections
 const appSchema = new Schema('object')
   .property('command', new Schema('string').selector())
-  .property('deploy', new Schema('object').selection('deploy')
+  .property('deployService', new Schema('object').selection('deploy')
     .property('environment', deploySchema))
-  .property('test', new Schema('object').selection('test')
+  .property('testService', new Schema('object').selection('test')
     .property('pattern', new Schema('string')));
 
 // Usage: myapp deploy --type aws --region us-west-2
