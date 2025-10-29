@@ -823,13 +823,14 @@ export class CompiledSchema
    * visitSchema - call visitor on every schema node; if visitor returns false (explicitly), abort early
    *
    * @param {(schema:CompiledSchema, path:string) => any} visitor - visitor function
-   * @param {{addUnionKeys:boolean}} [options]
+   * @param {{addUnionKeys?:boolean, onlySerializable?:boolean}} [options]
    * @returns {boolean} - returns true if visitors all returned true, false if any exited early
    *
    * todo: option to call visitor with union key as part of the path?
    */
   visitSchema(visitor, options) {
     const addUnionKeys = options?.addUnionKeys ?? false;
+    const onlySerializable = options?.onlySerializable ?? false;
     /**
      *
      * @param {CompiledSchema} schema
@@ -837,6 +838,9 @@ export class CompiledSchema
      * @returns {any|boolean}
      */
     function walk(schema, path) {
+      if (schema.metadata.omitFromSerialize && onlySerializable) {
+        return false;
+      }
       if (schema.hasChildren) {
         for (const propName in schema.properties) {
           let childPath = path ? `${path}.${propName}` : `${propName}`;

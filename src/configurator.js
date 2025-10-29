@@ -12,6 +12,7 @@ import {
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './errors.js';
 import { SchemaResolver } from './schema/schema-resolver.js';
+import { stringify } from './schema/helpers/stringify.js';
 
 const MODULE_INFO = {
   name: 'configurator'
@@ -364,7 +365,7 @@ export class Configurator {
   async dump(schema, config, destination, all = false) {
 
     const serialized = await schema.serialize(config, {all});
-    const formattedConfig = JSON.stringify(serialized, null, 2);
+    const formattedConfig = stringify(serialized, {space: 2});
     if (destination === '-') {
       try {
         console.log(formattedConfig);

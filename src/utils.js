@@ -117,9 +117,7 @@ export function deepMerge(target, ...sources) {
   return deepMerge(target, ...sources);
 }
 
-
-
-
+/* no longer used - will remove, but just commenting out for now to focus code coverage tests
 export function deepAssign(target, path, value) {
   // Handle edge cases
   if (!path || typeof path !== 'string') {
@@ -208,6 +206,8 @@ export function deepAssign(target, path, value) {
 
   return target;
 }
+
+ */
 export function deepValue(object, path) {
   // Handle null/undefined object
   if (!object || typeof object !== 'object') {

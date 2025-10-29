@@ -89,38 +89,10 @@ Configuration results:  {
 }
 ```
 
-#### Union Types and Selectors Example
-
-Here's a taste of union types and selectors for dynamic configuration:
-
-```javascript
-// Union types: different schemas based on discriminator
-const deploySchema = new Schema('object')
-  .unionSchema('aws', new Schema('object')
-    .property('type', Schema.literal('aws'))
-    .property('region', new Schema('string'))
-    .property('accessKey', new Schema('string')))
-  .unionSchema('local', new Schema('object')
-    .property('type', Schema.literal('local'))
-    .property('dataDir', new Schema('string')));
-
-// Selectors: activate related configuration sections
-const appSchema = new Schema('object')
-  .property('command', new Schema('string').selector())
-  .property('deployService', new Schema('object').selection('deploy')
-    .property('environment', deploySchema))
-  .property('testService', new Schema('object').selection('test')
-    .property('pattern', new Schema('string')));
-
-// Usage: myapp deploy --type aws --region us-west-2
-// Or:    myapp test --pattern "*.spec.js"
-```
-
 See the full [documentation](https://docs.v0.net/configurator) for details on how the schema's configurables are
-mapped to environment variables and command line arguments.
+mapped from sources like environment variables and command line arguments.
 
-Also see the [examples directory](https://github.com/argh/configurator/tree/main/examples) for more advanced usage
-patterns:
+Also see the [examples directory](https://github.com/argh/configurator/tree/main/examples) for more advanced usage patterns:
 
 - Configuration file loading
 - Custom types and validators
@@ -128,13 +100,15 @@ patterns:
 - Conditional configuration
 - Dynamic configuration resolution
 - Command line "command" support
+- Selectors
+- Unions
 
 ## Key Features
 
 **Schema-First Design with Fluent API**
 
 : Define your configuration structure declaratively using composable `Schema` objects. The fluent API makes
-complex nested structures intuitive to build, while union types let you handle different configuration shapes
+complex nested and variant structures intuitive to build, and dynamic resolution lets you handle different configuration shapes
 based on runtime conditions. Unlike command-line-focused libraries, your schema becomes the single source of
 truth for structure, validation, and transformation.
 
@@ -148,7 +122,7 @@ sources straightforward.
 
 **Simple to Start, Scales to Complex**
 
-: Begin with the included "batteries" - command line parsing, environment variables, config files, and a rich
+: Get started quickly with "batteries included" - command line parsing, environment variables, config files, and a rich
 validator library (`$positive`, `$alphanum`, `$directory`, etc.). As your needs grow, add custom types, 
 validators, and sources. The asynchronous normalization, transformation, and validation pipeline supports 
 complex scenarios like lazy evaluation, async validation, and dynamic value resolution. The architecture 
@@ -180,11 +154,11 @@ configuration, the same priority resolution and validation pipeline applies. Cus
 first-class citizens alongside the built-in CLI, environment, and file sources.
 
 : For larger applications, the schema-first approach creates clean interfaces between subsystems. Each component 
-can define its own configuration schema, and the validated output provides exactly the properties that subsystem 
-needs - eliminating the "dig through a bag of properties" problem common in other libraries.
+can define its own local configuration schema, and the validated output provides exactly the properties that 
+subsystem needs.
 
-: [`ModuleManager`](https://github.com/argh/module-manager) (`@versionzero/module-manager`) builds on this 
-foundation to provide **embedded declarative schemas**, **dependency injection**, and **lifecycle management** 
+: The [`ModuleManager`](https://github.com/argh/module-manager) (`@versionzero/module-manager`) package builds on this 
+foundation to enable **embedded declarative schemas**, **dependency injection**, and **lifecycle management** 
 for modular applications. But even standalone, `Configurator`'s architecture scales elegantly from simple CLI 
 tools to enterprise systems with complex configuration requirements.
 

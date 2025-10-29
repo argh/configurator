@@ -1,4 +1,4 @@
-import { deepAssign, toCamelCase, toConstantCase } from '../utils.js';
+import { toCamelCase, toConstantCase } from '../utils.js';
 
 import { ConfigurationSource } from './configuration-source.js'
 import { ConfiguratorError } from '../errors.js';
