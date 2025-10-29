@@ -6,7 +6,7 @@ import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-describe('Configurator - Config/Dump/Help', function() {
+describe('Configurator - Special Options', function() {
 
   describe('Help schema creation', function() {
 
@@ -161,6 +161,95 @@ describe('Configurator - Config/Dump/Help', function() {
       assert.strictEqual(configSchema.metadata.flagHint, 'C');
       assert.strictEqual(configSchema.metadata.configuratorSchema, 'config');
       assert.strictEqual(configSchema.metadata.omitFromSerialize, true);
+    });
+  });
+
+  describe('SetPropertyValue schema creation', function() {
+
+    it('should automatically add setPropertyValue schema when setPropertyValueEnabled is true (default)', async function() {
+      const schema = new Schema('object')
+        .property('value', new Schema('string'));
+
+      const configurator = new Configurator({ schema });
+
+      // SetPropertyValue property should be auto-added by default
+      const setPropProp = Object.values(configurator.schema._properties)
+        .find(s => s.metadata['configuratorSchema'] === 'setPropertyValue');
+
+      assert.ok(setPropProp, 'SetPropertyValue schema should be auto-added');
+      assert.match(setPropProp.metadata.description ?? '', /set.+property.+value.+path/);
+      assert.strictEqual(setPropProp.metadata.flagHint, 'P');
+      assert.strictEqual(setPropProp.metadata.advanced, true);
+    });
+
+    it('should not add setPropertyValue schema when setPropertyValueEnabled is false', async function() {
+      const schema = new Schema('object')
+        .property('value', new Schema('string'));
+
+      const configurator = new Configurator({ schema, setPropertyValueEnabled: false });
+
+      // SetPropertyValue property should not be present
+      const setPropProp = Object.values(configurator.schema._properties)
+        .find(s => s.metadata['configuratorSchema'] === 'setPropertyValue');
+
+      assert.strictEqual(setPropProp, undefined, 'SetPropertyValue schema should not be added');
+    });
+
+    it('should use existing setPropertyValue schema if present', async function() {
+      const customSetProp = Configurator.createSetPropertyValueSchema({
+        _flagHint: 'p',
+        _description: 'custom property setter'
+      });
+
+      const schema = new Schema('object')
+        .property('value', new Schema('string'))
+        .property('setPropertyValue', customSetProp);
+
+      const configurator = new Configurator({ schema, setPropertyValueEnabled: true });
+
+      // Should use custom setPropertyValue schema
+      const setPropProp = configurator.schema._properties['setPropertyValue'];
+      assert.strictEqual(setPropProp.metadata.description, 'custom property setter');
+      assert.strictEqual(setPropProp.metadata.flagHint, 'p');
+    });
+
+    it('should support renaming setPropertyValue to custom property name', async function() {
+      const customSetProp = Configurator.createSetPropertyValueSchema({
+        _description: 'assign property'
+      });
+
+      const schema = new Schema('object')
+        .property('value', new Schema('string'))
+        .property('assign', customSetProp);  // Renamed from "setPropertyValue" to "assign"
+
+      const configurator = new Configurator({ schema, setPropertyValueEnabled: true });
+
+      // Should recognize it by _configuratorSchema: 'setPropertyValue'
+      const assignProp = configurator.schema._properties['assign'];
+      assert.strictEqual(assignProp.metadata.configuratorSchema, 'setPropertyValue');
+      assert.strictEqual(assignProp.metadata.description, 'assign property');
+    });
+
+    it('should create setPropertyValue schema with correct default attributes', function() {
+      const setPropSchema = Configurator.createSetPropertyValueSchema();
+
+      assert.strictEqual(setPropSchema.base, 'array');
+      assert.strictEqual(setPropSchema.metadata.flagHint, 'P');
+      assert.strictEqual(setPropSchema.metadata.configuratorSchema, 'setPropertyValue');
+      assert.strictEqual(setPropSchema.metadata.advanced, true);
+      assert.strictEqual(setPropSchema.metadata.omitFromSerialize, true);
+
+      // Verify array structure
+      const path0 = setPropSchema._properties['0'];
+      const path1 = setPropSchema._properties['1'];
+
+      assert.ok(path0, 'Should have property at index 0');
+      assert.strictEqual(path0.base, 'string');
+      assert.strictEqual(path0.metadata.hidden, true);
+
+      assert.ok(path1, 'Should have property at index 1');
+      assert.strictEqual(path1.base, 'any');
+      assert.strictEqual(path1.metadata.hidden, true);
     });
   });
 
@@ -514,9 +603,235 @@ describe('Configurator - Config/Dump/Help', function() {
     });
   });
 
+  describe('SetPropertyValue functionality', function() {
+
+    it('should set property value using absolute path', async function() {
+      const schema = new Schema('object')
+        .property('host', new Schema('string', { default: 'localhost' }))
+        .property('port', new Schema('number', { default: 3000 }))
+        .property('nested', new Schema('object')
+          .property('value', new Schema('string'))
+        );
+
+      const configurator = new Configurator({ schema });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: ['--set-property-value', 'host', 'example.com', '-P', 'port', '8080', '-P', 'nested.value', 'test'],
+        env: {}
+      });
+
+      assert.strictEqual(config.host, 'example.com');
+      assert.strictEqual(config.port, 8080);
+      assert.strictEqual(config.nested.value, 'test');
+    });
+
+    it('should set property value using relative path within a selection', async function() {
+      const schema = new Schema('object')
+        .property('command', new Schema('string', { selector: true }))
+        .property('server', new Schema('object', { selection: 'server' })
+          .property('host', new Schema('string', { default: 'localhost' }))
+          .property('port', new Schema('number', { default: 3000 }))
+        );
+
+      const configurator = new Configurator({ schema });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: ['server', '-P', '.host', 'example.com', '-P', '.port', '9000'],
+        env: {}
+      });
+
+      assert.strictEqual(config.command, 'server');
+      assert.strictEqual(config.server.host, 'example.com');
+      assert.strictEqual(config.server.port, 9000);
+    });
+
+    it('should set array element values', async function() {
+      const schema = new Schema('object')
+        .property('tags', new Schema('array')
+          .property('0', new Schema('string'))
+          .property('1', new Schema('string'))
+          .property('2', new Schema('string'))
+        );
+
+      const configurator = new Configurator({ schema });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: ['-P', 'tags.0', 'first', '-P', 'tags.1', 'second', '-P', 'tags.2', 'third'],
+        env: {}
+      });
+
+      assert.deepStrictEqual(config.tags, ['first', 'second', 'third']);
+    });
+
+    it('should support union-keyed assignments with colon notation', async function() {
+      const schema = new Schema('object')
+        .property('animal', new Schema('object')
+          .unionSchema('cat', new Schema('object')
+            .property('type', Schema.literal('cat'))
+            .property('meow', new Schema('boolean', { default: false }))
+            .property('lives', new Schema('number', { default: 9 }))
+          )
+          .unionSchema('dog', new Schema('object')
+            .property('type', Schema.literal('dog'))
+            .property('bark', new Schema('boolean', { default: false }))
+            .property('wagsTail', new Schema('boolean', { default: true }))
+          )
+        );  // 'type' property auto-hoisted, discriminator auto-generated
+
+      const configurator = new Configurator({ schema });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: [
+          '-P', 'animal.type', 'cat',  // First set the discriminator to resolve the union
+          '-P', 'animal:cat.meow', 'true',
+          '-P', 'animal:cat.lives', '7'
+        ],
+        env: {}
+      });
+
+      assert.strictEqual(config.animal.type, 'cat');
+      assert.strictEqual(config.animal.meow, true);
+      assert.strictEqual(config.animal.lives, 7);
+    });
+
+    it('should set values of different types', async function() {
+      const schema = new Schema('object')
+        .property('str', new Schema('string'))
+        .property('num', new Schema('number'))
+        .property('bool', new Schema('boolean'))
+        .property('obj', new Schema('object')
+          .property('nested', new Schema('string'))
+        );
+
+      const configurator = new Configurator({ schema });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: [
+          '-P', 'str', 'hello',
+          '-P', 'num', '42',
+          '-P', 'bool', 'true',
+          '-P', 'obj.nested', 'world'
+        ],
+        env: {}
+      });
+
+      assert.strictEqual(config.str, 'hello');
+      assert.strictEqual(config.num, 42);
+      assert.strictEqual(config.bool, true);
+      assert.strictEqual(config.obj.nested, 'world');
+    });
+
+    it('should throw error for unknown property path', async function() {
+      const schema = new Schema('object')
+        .property('host', new Schema('string'))
+        .property('port', new Schema('number'));
+
+      const configurator = new Configurator({ schema });
+
+      await assert.rejects(
+        () => configurator.configure({
+          appName: 'app',
+          argv: ['-P', 'unknown.path', 'value'],
+          env: {}
+        }),
+        {
+          name: 'CommandLineError',
+          message: /unknown property path.*unknown\.path/
+        }
+      );
+    });
+
+    it('should throw error for unknown union-keyed path', async function() {
+      const schema = new Schema('object')
+        .property('animal', new Schema('object')
+          .unionSchema('cat', new Schema('object')
+            .property('type', Schema.literal('cat'))
+            .property('meow', new Schema('boolean'))
+          )
+        );
+
+      const configurator = new Configurator({ schema });
+
+      await assert.rejects(
+        () => configurator.configure({
+          appName: 'app',
+          argv: ['-P', 'animal:bird.type', 'bird'],  // 'bird' union doesn't exist
+          env: {}
+        }),
+        {
+          name: 'CommandLineError',
+          message: /unknown property path.*animal:bird\.type/
+        }
+      );
+    });
+
+    it('should throw error when missing value argument', async function() {
+      const schema = new Schema('object')
+        .property('host', new Schema('string'));
+
+      const configurator = new Configurator({ schema });
+
+      await assert.rejects(
+        () => configurator.configure({
+          appName: 'app',
+          argv: ['-P', 'host'],  // Missing the value
+          env: {}
+        }),
+        {
+          name: 'CommandLineError',
+          message: /requires a path and a value/
+        }
+      );
+    });
+
+    it('should work with deeply nested paths', async function() {
+      const schema = new Schema('object')
+        .property('a', new Schema('object')
+          .property('b', new Schema('object')
+            .property('c', new Schema('object')
+              .property('d', new Schema('string'))
+            )
+          )
+        );
+
+      const configurator = new Configurator({ schema });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: ['-P', 'a.b.c.d', 'deep-value'],
+        env: {}
+      });
+
+      assert.strictEqual(config.a.b.c.d, 'deep-value');
+    });
+
+    it('should omit setPropertyValue from serialized output', async function() {
+      const schema = new Schema('object')
+        .property('host', new Schema('string', { default: 'localhost' }))
+        .property('port', new Schema('number', { default: 3000 }));
+
+      const configurator = new Configurator({ schema, setPropertyValueEnabled: true });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        argv: ['-P', 'host', 'example.com'],
+        env: {}
+      });
+
+      // setPropertyValue should not appear in the config object (omitFromSerialize: true)
+      assert.strictEqual(config.setPropertyValue, undefined);
+      assert.strictEqual(config.host, 'example.com');
+    });
+  });
+
   describe('Multiple special options together', function() {
 
-    it('should support help, config, and dump simultaneously', async function() {
+    it('should support help, config, dump, and setPropertyValue simultaneously', async function() {
       const schema = new Schema('object')
         .property('value', new Schema('string', { default: 'test' }));
 
@@ -524,19 +839,22 @@ describe('Configurator - Config/Dump/Help', function() {
         schema,
         helpEnabled: true,
         configEnabled: true,
-        dumpEnabled: true
+        dumpEnabled: true,
+        setPropertyValueEnabled: true
       });
 
-      // All three special schemas should be present
+      // All four special schemas should be present
       const props = configurator.schema._properties;
 
       const helpProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'help');
       const configProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'config');
       const dumpProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'dump');
+      const setPropProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'setPropertyValue');
 
       assert.ok(helpProp, 'Help schema should be present');
       assert.ok(configProp, 'Config schema should be present');
       assert.ok(dumpProp, 'Dump schema should be present');
+      assert.ok(setPropProp, 'SetPropertyValue schema should be present');
     });
 
     it('should allow disabling all special options', async function() {
@@ -547,7 +865,8 @@ describe('Configurator - Config/Dump/Help', function() {
         schema,
         helpEnabled: false,
         configEnabled: false,
-        dumpEnabled: false
+        dumpEnabled: false,
+        setPropertyValueEnabled: false
       });
 
       const props = configurator.schema._properties;
@@ -555,28 +874,33 @@ describe('Configurator - Config/Dump/Help', function() {
       const helpProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'help');
       const configProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'config');
       const dumpProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'dump');
+      const setPropProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'setPropertyValue');
 
       assert.strictEqual(helpProp, undefined, 'Help schema should not be present');
       assert.strictEqual(configProp, undefined, 'Config schema should not be present');
       assert.strictEqual(dumpProp, undefined, 'Dump schema should not be present');
+      assert.strictEqual(setPropProp, undefined, 'SetPropertyValue schema should not be present');
     });
 
     it('should support custom names for all special options', async function() {
       const customHelp = Configurator.createHelpSchema({ _description: 'halp me!' });
       const customConfig = Configurator.createConfigSchema({ context: 'profilePath', _description: 'profile path' });
       const customDump = Configurator.createDumpSchema({ context: 'output', _description: 'output path' });
+      const customSetProp = Configurator.createSetPropertyValueSchema({ _description: 'assign property' });
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
-        .property('halp', customHelp)      // Renamed help
+        .property('halp', customHelp)       // Renamed help
         .property('profile', customConfig)  // Renamed config
-        .property('output', customDump);    // Renamed dump
+        .property('output', customDump)     // Renamed dump
+        .property('assign', customSetProp); // Renamed setPropertyValue
 
       const configurator = new Configurator({
         schema,
         helpEnabled: true,
         configEnabled: true,
-        dumpEnabled: true
+        dumpEnabled: true,
+        setPropertyValueEnabled: true
       });
 
       const props = configurator.schema._properties;
@@ -584,10 +908,12 @@ describe('Configurator - Config/Dump/Help', function() {
       assert.strictEqual(props['halp'].metadata.configuratorSchema, 'help');
       assert.strictEqual(props['profile'].metadata.configuratorSchema, 'config');
       assert.strictEqual(props['output'].metadata.configuratorSchema, 'dump');
+      assert.strictEqual(props['assign'].metadata.configuratorSchema, 'setPropertyValue');
 
       assert.strictEqual(props['halp'].metadata.description, 'halp me!');
       assert.strictEqual(props['profile'].metadata.description, 'profile path');
       assert.strictEqual(props['output'].metadata.description, 'output path');
+      assert.strictEqual(props['assign'].metadata.description, 'assign property');
     });
   });
 
