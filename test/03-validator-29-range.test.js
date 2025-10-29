@@ -65,20 +65,20 @@ describe('Validator: range', function() {
     const schema = new Schema('number').validator({range: {min: 1, max: 10}});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '1-10');
+    assert.strictEqual(compiled.metadata.valueDescription, '[1-10]');
   });
 
   it('should generate description for min only', function() {
     const schema = new Schema('number').validator({range: {min: 5}});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '≥5');
+    assert.strictEqual(compiled.metadata.valueDescription, '[≥5]');
   });
 
   it('should generate description for max only', function() {
     const schema = new Schema('number').validator({range: {max: 10}});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '≤10');
+    assert.strictEqual(compiled.metadata.valueDescription, '[≤10]');
   });
 });

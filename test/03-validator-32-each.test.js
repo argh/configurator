@@ -74,6 +74,6 @@ describe('Validator: each', function() {
     const schema = new Schema('array').validator({each: /^\d+$/});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '[/^\\d+$/]...');
+    assert.strictEqual(compiled.metadata.valueDescription, '[[/^\\d+$/]...]');
   });
 });

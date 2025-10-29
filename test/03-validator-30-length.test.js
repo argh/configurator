@@ -101,28 +101,28 @@ describe('Validator: length', function() {
       const schema = new Schema('string').validator({length: {exact: 5}});
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'len=5');
+      assert.strictEqual(compiled.metadata.valueDescription, '[len=5]');
     });
 
     it('should generate description for range', function() {
       const schema = new Schema('string').validator({length: {min: 3, max: 10}});
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'len=3-10');
+      assert.strictEqual(compiled.metadata.valueDescription, '[len=3-10]');
     });
 
     it('should generate description for min only', function() {
       const schema = new Schema('string').validator({length: {min: 3}});
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'len≥3');
+      assert.strictEqual(compiled.metadata.valueDescription, '[len≥3]');
     });
 
     it('should generate description for max only', function() {
       const schema = new Schema('string').validator({length: {max: 10}});
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'len≤10');
+      assert.strictEqual(compiled.metadata.valueDescription, '[len≤10]');
     });
   });
 });

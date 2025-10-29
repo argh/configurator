@@ -75,6 +75,6 @@ describe('Validator: and', function() {
     });
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '/^test/ & /end$/');
+    assert.strictEqual(compiled.metadata.valueDescription, '[/^test/ & /end$/]');
   });
 });

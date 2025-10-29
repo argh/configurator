@@ -149,7 +149,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'custom description text');
+      assert.strictEqual(compiled.metadata.valueDescription, '[custom description text]');
     });
 
     it('should use keyword as description when describeFn not provided', function() {
@@ -160,7 +160,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'simpleKeyword');
+      assert.strictEqual(compiled.metadata.valueDescription, '[simpleKeyword]');
     });
   });
 
@@ -276,7 +276,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'between 1 and 10');
+      assert.strictEqual(compiled.metadata.valueDescription, '[between 1 and 10]');
     });
   });
 
@@ -330,7 +330,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = resolver.compile(schema);
 
       // Should not have description from function
-      assert.strictEqual(compiled.metadata.valueDescription, 'string');
+      assert.strictEqual(compiled.metadata.valueDescription, '[string]');
     });
   });
 
@@ -367,7 +367,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, '/^test$/i');
+      assert.strictEqual(compiled.metadata.valueDescription, '[/^test$/i]');
     });
 
     it('should convert value to string before testing', async function() {
@@ -441,7 +441,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, '/^\\w+$/g');
+      assert.strictEqual(compiled.metadata.valueDescription, '[/^\\w+$/g]');
     });
   });
 
@@ -492,7 +492,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, '"literal-value"');
+      assert.strictEqual(compiled.metadata.valueDescription, '["literal-value"]');
     });
 
     it('should distinguish $ prefix from literal string', async function() {
@@ -560,7 +560,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = resolver.compile(schema);
 
       // Falls back to type-based description since new validator has no description
-      assert.strictEqual(compiled.metadata.valueDescription, 'boolean');
+      assert.strictEqual(compiled.metadata.valueDescription, '[boolean]');
     });
 
     it('should use new validator description when replacing base validator', function() {
@@ -577,7 +577,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = resolver.compile(schema);
 
       // Derived validator description takes precedence (derived overrides base)
-      assert.strictEqual(compiled.metadata.valueDescription, 'custom description');
+      assert.strictEqual(compiled.metadata.valueDescription, '[custom description]');
     });
 
     it('should set valueDescription when base has none', function() {
@@ -592,7 +592,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'validator description');
+      assert.strictEqual(compiled.metadata.valueDescription, '[validator description]');
     });
   });
 

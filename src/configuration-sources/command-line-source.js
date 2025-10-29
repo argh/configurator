@@ -442,15 +442,15 @@ export class CommandLineSource extends ConfigurationSource
           const description = (clOptionData.description || '').trim();
 
           let markers = [];
-          if (clOptionData.advanced) {
+          if (clOptionData.schema.metadata.advanced) {
             markers.push('advanced');
           }
-          if (clOptionData.required) {
+          if (clOptionData.schema.options.required) {
             markers.push('required');
           }
-          if (clOptionData.default) {
+          if (clOptionData.schema.options.default !== undefined) {
             // todo - format default values via the type formatter
-            markers.push(`default:${clOptionData.default}`);
+            markers.push(`default:${clOptionData.schema.options.default}`);
           }
 
           // Add advanced marker if needed
@@ -608,34 +608,6 @@ export class CommandLineSource extends ConfigurationSource
 
 export class CommandLineError extends ConfiguratorError {}
 
-/**
- *
- * @param schema
- * @returns {string}
- * @private
- */
-function _formatArgumentType(schema) {
-
-  let argumentTypeString;
-  if ((schema.metadata.parserTypeHint === 'array') || (schema.isArray)) {
-
-    if (!schema.hasChildren) {
-      argumentTypeString = '...';
-    }
-    else {
-      argumentTypeString = Object.values(schema.properties).map(s => _formatArgumentType(s)).join(', ')
-
-      if (schema.properties['*']) {
-        argumentTypeString += '...';
-      }
-    }
-  }
-  else {
-    argumentTypeString = schema.metadata.valueDescription ?? schema.metadata.valueName ?? schema.metadata.parserTypeHint ?? 'value';
-  }
-  return argumentTypeString;
-}
-
 class ParsingContext {
   constructor(appName, parent, prefix) {
     this.appName = appName ?? '';
@@ -660,8 +632,7 @@ class ParsingContext {
     }
     const typeHint = schema.metadata.parserTypeHint ?? 'any';
     const description = schema.metadata.description;
-    const formatted = _formatArgumentType(schema);
-    const valueDescription = schema.required? `<${formatted}>` : `[${formatted}]`
+    const valueDescription = schema.metadata.valueDescription ?? (schema.isArray? 'values': 'value');
 
     this.selector = {schema, path, typeHint, description, valueDescription};
   }
@@ -677,8 +648,7 @@ class ParsingContext {
     const typeHint = schema.metadata.parserTypeHint ?? 'any';
 
     const description = schema.metadata.description;
-    const formatted = _formatArgumentType(schema);
-    const valueDescription = schema.required? `<${formatted}>` : `[${formatted}]`
+    const valueDescription = schema.metadata.valueDescription ?? (schema.isArray? 'values': 'value');
 
     this.general = {schema, path, typeHint, description, valueDescription};
   }
@@ -696,8 +666,7 @@ class ParsingContext {
     const typeHint = schema.metadata.parserTypeHint ?? 'any';
 
     const description = schema.metadata.description;
-    const formatted = _formatArgumentType(schema);
-    const valueDescription = schema.required? `<${formatted}>` : `[${formatted}]`
+    const valueDescription = schema.metadata.valueDescription ?? (schema.isArray? 'values': 'value');
 
     const configuratorSchemaMetadata = schema.metadata['configuratorSchema'];
     const isHelp = configuratorSchemaMetadata === 'help';

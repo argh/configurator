@@ -1,4 +1,4 @@
-import { Configurator, Schema } from '../src/index.js';
+import { Configurator, ConfiguratorError, Schema } from '../src/index.js';
 
 // This example shows how to use selectors to define a command hierarchy.
 
@@ -198,7 +198,7 @@ try {
     env: { 'CLOUD_STORAGE_BANDWIDTH' : '750' },                                              // normally omit, defaults to process.env
 //    argv: ['--help']                                                                       // this is a good example for showing help formatting
 //    argv: ['--ct=abc', '--ck=123', 'storage', 'get', '-b', 'mybucket', '-k', 'mykey' ],    // normally omit, defaults to process.argv
-    argv: ['--ct=abc', '--ck=123', '--debug', 'compute', '--watch', 'describe', '--cluster', 'fred', '-i=336aac1e-feee-4974-9f6b-cbbe18914899']
+      argv: ['--ct=abc', '--ck=123', '--debug', 'compute', '--watch', 'describe', '--cluster', 'fred', '-i=336aac1e-feee-4974-9f6b-cbbe18914899']
 //    argv: ['--ct=abc', '--ck=123', 'compute', 'instances', '--cluster', 'fred']
 
   });
@@ -213,6 +213,17 @@ try {
 
 }
 catch (error) {
-  console.error(error);
+  if (error instanceof ConfiguratorError) {
+    if (error.cause && error.cause.message) {
+      console.error(`Configuration error: ${error.message} (${error.cause.message})`)
+    }
+    else {
+      console.error(`Configuration error: ${error.message}`)
+    }
+    console.error(`Specify --halp to list available command line options.  (Yes, "halp".)`)
+  }
+  else {
+    console.error(error);
+  }
   process.exit(1);
 }

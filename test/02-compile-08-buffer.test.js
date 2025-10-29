@@ -231,6 +231,15 @@ describe('Schema Compilation - Buffer Type', function() {
 
       assert.strictEqual(compiled.required, true);
     });
+
+    it('should have valueDescription with angle brackets when required', function() {
+      const schema = new Schema('buffer')
+        .required(true);
+
+      const compiled = resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, '<buffer>');
+    });
   });
 
   describe('Buffer metadata', function() {

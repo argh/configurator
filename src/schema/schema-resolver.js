@@ -217,7 +217,7 @@ export class SchemaResolver
 
     this.registerSchema('array', new Schema({
       type: 'array',
-      _valueName: 'array',
+//      _valueName: 'array',
       normalizer: (value, _, schema) => {
         if (value === true) {
           value = [];
@@ -801,7 +801,7 @@ export class SchemaResolver
     if (!spec) {
       return {
         validator: async (value) => value,
-        description: 'any'
+//        description: 'any'
       }
     }
     // Already a function - wrap to ensure it's async
@@ -1001,26 +1001,55 @@ export class SchemaResolver
      */
     static _formatArgumentType(schema) {
 
+      if (schema.metadata.valueDescription) {
+        return schema.metadata.valueDescription;
+      }
+
       let argumentTypeString;
-      if (schema.isArray) {
+      if (schema.isArray && schema.hasChildren) {
+        let props = Object.keys(schema.properties)
+                          .sort((a, b) => {
+                            if (a === '*') return 1;
+                            if (b === '*') return -1;
+                            return a.localeCompare(b, undefined, {numeric: true});
+                          })
+                          .map(k => schema.properties[k]);
 
-        if (!schema.hasChildren) {
-          argumentTypeString = '...';
+        argumentTypeString = props.map(s => SchemaResolver._formatArgumentType(s)).join(', ')
+
+        if (schema.properties['*']) {
+          argumentTypeString += '...';
         }
-        else {
-          argumentTypeString = Object.values(schema.properties).map(s => SchemaResolver._formatArgumentType(s)).join(', ')
 
-          if (schema.properties['*']) {
-            argumentTypeString += '...';
+        if (schema.metadata.validatorDescription) {
+          if (argumentTypeString && !argumentTypeString.includes(schema.metadata.validatorDescription)) {
+            argumentTypeString += ` {${schema.metadata.validatorDescription}}`;
           }
         }
       }
       else {
-        let choices;
         if (Array.isArray(schema.options.values) && schema.options.values.length > 0) {
-          choices = schema.options.values.map(v => `${v}`).sort((a, b) => a.localeCompare(b, undefined, {numeric:true})).join('|');
+          argumentTypeString = schema.options.values.map(v => `${v}`)
+                                     .sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).join('|');
         }
-        argumentTypeString = schema.metadata.valueDescription ?? choices ?? schema.metadata.valueName ?? schema.options.type ?? 'value';
+        else {
+          argumentTypeString = schema.metadata.valueName ?? (schema.isArray? '' : schema.options.type);
+
+          if (schema.metadata.validatorDescription) {
+            if (!argumentTypeString || (argumentTypeString === schema.options.type)) {
+              argumentTypeString = schema.metadata.validatorDescription;  // overwrite basic "type names"
+            }
+            else {
+              argumentTypeString = `${argumentTypeString} {${schema.metadata.validatorDescription}}`;
+            }
+          }
+        }
+        if (argumentTypeString === undefined) {
+          argumentTypeString = 'value';
+        }
+        if (schema.isArray && !argumentTypeString.includes('...')) {
+          argumentTypeString += '...';
+        }
       }
       return argumentTypeString;
     }
@@ -1040,11 +1069,17 @@ export class SchemaResolver
     // second pass runs every compiler to ensure that any required options are set up
     this._compileOptions(undefined, schema);
 
+    if (!schema.metadata.valueDescription) {
+      const valueDescription = SchemaResolver._formatArgumentType(schema);
+      if (schema.parent?.isArray) {
+        schema.metadata.valueDescription = valueDescription;
+      }
+      else {
+        schema.metadata.valueDescription = schema.required ? `<${valueDescription}>` : `[${valueDescription}]`;
+      }
+    }
     if (!schema.metadata.valueName) {
       schema.metadata.valueName = schema.metadata.parserTypeHint ?? 'value';
-    }
-    if (!schema.metadata.valueDescription) {
-      schema.metadata.valueDescription = SchemaResolver._formatArgumentType(schema)
     }
 
     if (schema.options.literal && (schema.options.values?.length !== 1)) {
@@ -1222,10 +1257,11 @@ export class SchemaResolver
         }
         const c = this._compileValidatorSpec(value);
         dst.options.validator = c.validator;
+        dst.metadata.validatorDescription = c.description ;
 
-        if (c.description && !dst.metadata.valueDescription) {
-          dst.metadata.valueDescription = c.description;
-        }
+//        if (c.description && !dst.metadata.valueDescription) {
+//          dst.metadata.valueDescription = c.description;
+//        }
 
       },
       phase: 1

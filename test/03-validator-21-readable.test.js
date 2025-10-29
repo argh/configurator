@@ -57,6 +57,6 @@ describe('Validator: readable', function() {
     const schema = new Schema('string').validator('$readable');
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, 'path');
+    assert.strictEqual(compiled.metadata.valueDescription, '[path]');
   });
 });

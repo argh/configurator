@@ -189,7 +189,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const schema = new Schema('boolean');
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'true|false');
+      assert.strictEqual(compiled.metadata.valueDescription, '[true|false]');
     });
 
     it('should inherit parserTypeHint from date base type', function() {

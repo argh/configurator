@@ -49,13 +49,13 @@ describe('Validator: in', function() {
     const schema = new Schema('string').validator({in: ['a', 'b', 'c']});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, 'a|b|c');
+    assert.strictEqual(compiled.metadata.valueDescription, '[a|b|c]');
   });
 
   it('should handle non-string values in description', function() {
     const schema = new Schema('number').validator({in: [1, 2, 3]});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '1|2|3');
+    assert.strictEqual(compiled.metadata.valueDescription, '[1|2|3]');
   });
 });

@@ -69,6 +69,6 @@ describe('Validator: executable', function() {
     const schema = new Schema('string').validator('$executable');
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, 'path');
+    assert.strictEqual(compiled.metadata.valueDescription, '[path]');
   });
 });

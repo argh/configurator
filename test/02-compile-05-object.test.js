@@ -327,6 +327,15 @@ describe('Schema Compilation - Object Type', function() {
 
       assert.strictEqual(compiled.required, true);
     });
+
+    it('should have valueDescription with angle brackets when required', function() {
+      const schema = new Schema('object')
+        .required(true);
+
+      const compiled = resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, '<object>');
+    });
   });
 
   describe('Object metadata', function() {

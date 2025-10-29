@@ -70,6 +70,6 @@ describe('Validator: or', function() {
     });
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '/^test/|/^other/');
+    assert.strictEqual(compiled.metadata.valueDescription, '[/^test/|/^other/]');
   });
 });

@@ -58,6 +58,6 @@ describe('Validator: writable', function() {
     const schema = new Schema('string').validator('$writable');
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, 'path');
+    assert.strictEqual(compiled.metadata.valueDescription, '[path]');
   });
 });

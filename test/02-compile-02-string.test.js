@@ -218,6 +218,15 @@ describe('Schema Compilation - String Type', function() {
 
       assert.strictEqual(compiled.required, false);
     });
+
+    it('should have valueDescription with angle brackets when required', function() {
+      const schema = new Schema('string')
+        .required(true);
+
+      const compiled = resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, '<string>');
+    });
   });
 
   describe('String metadata', function() {

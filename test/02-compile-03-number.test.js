@@ -288,6 +288,15 @@ describe('Schema Compilation - Number Type', function() {
 
       assert.strictEqual(compiled.required, false);
     });
+
+    it('should have valueDescription with angle brackets when required', function() {
+      const schema = new Schema('number')
+        .required(true);
+
+      const compiled = resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, '<number>');
+    });
   });
 
   describe('Number metadata', function() {

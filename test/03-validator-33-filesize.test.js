@@ -92,20 +92,20 @@ describe('Validator: filesize', function() {
     const schema = new Schema('string').validator({filesize: {min: 100, max: 1000}});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '100-1000B');
+    assert.strictEqual(compiled.metadata.valueDescription, '[100-1000B]');
   });
 
   it('should generate description for min only', function() {
     const schema = new Schema('string').validator({filesize: {min: 100}});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '≥100B');
+    assert.strictEqual(compiled.metadata.valueDescription, '[≥100B]');
   });
 
   it('should generate description for max only', function() {
     const schema = new Schema('string').validator({filesize: {max: 1000}});
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '≤1000B');
+    assert.strictEqual(compiled.metadata.valueDescription, '[≤1000B]');
   });
 });

@@ -9,17 +9,18 @@ const schema = new Schema('object');
 // Debug property at root level (factory function, fluent api)
 schema.property('debug',
   S('boolean')
-    .meta('flagHint', 'D')
-    .meta('advanced', true)
+    .meta('advanced', true)  // hide from basic CLI help
+    .meta('flagHint', 'D')   // advanced options normally don't get a CLI flag allocated
     .meta('description', 'enable debugging')
 );
 
 const resolver = new SchemaResolver();
 
+// Let's define a reusable schema base
 resolver.registerSchema('MagicCode',
   new Schema('string')
     .validator('$alphanum')
-    .meta('valueDescription', 'code')
+    .meta('valueName', 'code')
 )
 
 // App-specific schema (fluent api)
@@ -27,7 +28,7 @@ schema.property(appName,
   new Schema('object')
     .property('files',
       new Schema('array').allowEmpty()
-        .meta('general', true)
+        .meta('general', true)  // CLI hint to not require an explicit option
         .meta('description', 'files to process')
         .property('*',
           new Schema('string').validator('$file')))
@@ -38,7 +39,8 @@ schema.property(appName,
     .property('codes',
       new Schema('array').required()
         .meta('description', 'magic secret codes')
-        .property('*', new Schema('MagicCode'))));
+        .property('*', new Schema('MagicCode'))
+        .validator({'$length': {min: 2}})))
 
 
 // Server configuration schema, showing alternative attributes-based definition

@@ -273,6 +273,15 @@ describe('Schema Compilation - Boolean Type', function() {
 
       assert.strictEqual(compiled.required, false);
     });
+
+    it('should have valueDescription with angle brackets when required', function() {
+      const schema = new Schema('boolean')
+        .required(true);
+
+      const compiled = resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, '<true|false>');
+    });
   });
 
   describe('Boolean metadata', function() {
@@ -299,7 +308,7 @@ describe('Schema Compilation - Boolean Type', function() {
       const schema = new Schema('boolean');
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, 'true|false');
+      assert.strictEqual(compiled.metadata.valueDescription, '[true|false]');
     });
   });
 

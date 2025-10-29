@@ -388,6 +388,15 @@ describe('Schema Compilation - Array Type', function() {
 
       assert.strictEqual(compiled.required, true);
     });
+
+    it('should have valueDescription with angle brackets when required', function() {
+      const schema = new Schema('array')
+        .required(true);
+
+      const compiled = resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, '<...>');
+    });
   });
 
   describe('Array metadata', function() {
@@ -416,7 +425,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = resolver.compile(schema);
 
-      assert.strictEqual(compiled.metadata.valueDescription, '...');
+      assert.strictEqual(compiled.metadata.valueDescription, '[...]');
     });
   });
 

@@ -262,7 +262,7 @@ export class Configurator {
       values: ['advanced', 'system'],
       _flagHint: 'h',
       _description: 'display help information',
-      _valueDescription: 'keywords',
+      _valueDescription: '[advanced]',
       _configuratorSchema: 'help',
       _omitFromSerialize: true
     }, attributes))

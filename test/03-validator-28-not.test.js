@@ -49,7 +49,7 @@ describe('Validator: not', function() {
     });
     const compiled = resolver.compile(schema);
 
-    assert.strictEqual(compiled.metadata.valueDescription, '!/^test/');
+    assert.strictEqual(compiled.metadata.valueDescription, '[!/^test/]');
   });
 
   it('should add parentheses for complex descriptions', function() {
