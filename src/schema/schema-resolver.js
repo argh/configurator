@@ -975,6 +975,7 @@ export class SchemaResolver
     if (!inputSchema.base) {
       inputSchema.base = 'any';
     }
+
     const source = this._resolve(inputSchema);
 
     for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
@@ -990,6 +991,9 @@ export class SchemaResolver
     // first pass over the defined options
     this._compileOptions({normalizer: undefined, ...source.options}, outputSchema);
 
+    if (outputSchema.options.hook && typeof outputSchema.options.hook === 'function') {
+      outputSchema.options.hook('compile', outputSchema);
+    }
     return outputSchema;
   }
 
@@ -1088,7 +1092,9 @@ export class SchemaResolver
     if (schema.isUnion && schema.options.discriminator === undefined) {
       throw new ConfiguratorError('Union schema needs a discriminator defined');
     }
-
+    if (schema.options.hook && typeof schema.options.hook === 'function') {
+      schema.options.hook('finalize', schema);
+    }
     return schema;
   }
 

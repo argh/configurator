@@ -535,6 +535,16 @@ export class Schema
 
     return this;
   }
+
+  /**
+   * @param {SchemaValueFunction<boolean>|boolean} c
+   * @returns {Schema}
+   */
+  condition(c) {
+    this.options.condition = c;
+    return this;
+  }
+
   /**
    * @param {SchemaValueFunction<any>} fn
    * @returns {Schema}
@@ -620,10 +630,14 @@ export class Schema
   /**
    * Create a new Schema from another
    *
-   * @param {ISchema|SchemaData} model
+   * @param {ISchema|SchemaData|string} model
    * @returns {Schema}
    */
   static createFromModel(model) {
+    if (typeof model === 'string') {
+      return new Schema(model);
+    }
+
     const schema = new Schema();
 
     if (model.base) {

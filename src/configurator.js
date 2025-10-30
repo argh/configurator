@@ -209,24 +209,7 @@ export class Configurator {
       if (!sourceAssignments) {
         sourceAssignments = new Map();  // useful to keep in the list for debugging purposes
       }
-
-      // Some properties are set up to pass their value downstream to later sources via the context.
-      for (let [path, assignedValue] of sourceAssignments) {
-        const s = schema.find(path)
-        if (s?.options.context) {
-          const contextName = (typeof s.options.context === 'string') ? s.options.context : s.name;
-          if (contextName) {
-            let resolvedValue = assignedValue;
-            try {
-              resolvedValue = await s.transform(assignedValue, configurationContext, contextName, {strict: false});
-            }
-            catch (_) {
-              // ignore, just use original value
-            }
-            configurationContext[contextName] = resolvedValue;
-          }
-        }
-      }
+      await this._handleContextAssignments(schema, sourceAssignments, configurationContext);
       sourceAssignmentsList.push(sourceAssignments);
     }
     // By contract, config file sources need to remove the config property from the context if they handled it
@@ -256,6 +239,34 @@ export class Configurator {
       await this.dump(schema, transformed, configurationContext[this._dumpContextName]);
     }
     return transformed;
+  }
+
+  /**
+   * Helper to propagate assignments related to schemas marked with "context" flag into the context
+   * @param {CompiledSchema} schema
+   * @param {Map<string,NonNullable<any>>} sourceAssignments
+   * @param {Object} configurationContext
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _handleContextAssignments(schema, sourceAssignments, configurationContext) {
+    // Some properties are set up to pass their value downstream to later sources via the context.
+    for (let [path, assignedValue] of sourceAssignments) {
+      const s = schema.find(path)
+      if (s?.options.context) {
+        const contextName = (typeof s.options.context === 'string') ? s.options.context : s.name;
+        if (contextName) {
+          let resolvedValue = assignedValue;
+          try {
+            resolvedValue = await s.transform(assignedValue, configurationContext, contextName, {strict: false});
+          }
+          catch (_) {
+            // ignore, just use original value
+          }
+          configurationContext[contextName] = resolvedValue;
+        }
+      }
+    }
   }
 
   /**
