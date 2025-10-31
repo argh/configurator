@@ -71,6 +71,16 @@ export class SchemaResolver
   }
 
   /**
+   * return true if there exists a registered schema with a given name
+   * @param {string} name
+   * @returns {boolean}
+   */
+  hasSchema(name) {
+    const registryName = toKebabCase(name);
+    return this.schemaMap.has(registryName);
+  }
+
+  /**
    * register a named simple validator
    * @param {string} keyword
    * @param {SchemaValueFunction<any>} validatorFn
