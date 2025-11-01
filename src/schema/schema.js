@@ -524,6 +524,19 @@ export class Schema
     return this;
   }
 
+  /**
+   * Mark this schema to inherit its value from a parent schema, and hide it while we're at it
+   * @param {boolean} [value]
+   * @returns {Schema}
+   */
+  inherit(value) {
+    this.options.inherit = value ?? true;
+    if (this.options.inherit) {
+      this.metadata.hidden = true;
+    }
+    return this;
+  }
+
 
   /**
    * define a legal value this schema can hold (simple === comparison only for now)

@@ -119,6 +119,7 @@ export class SchemaResolver
    */
   _registerBuiltins() {
     this.registerSchema('root-schema', new Schema()
+      .default(true)
       .meta('hidden')
       .meta('internal')
       .meta('omitFromSerialize')
@@ -139,10 +140,11 @@ export class SchemaResolver
 
     this.registerSchema('any', new Schema()
       .option('type', 'any')
-      .transformer((value, configuration, schema) => {
+      .transformer((value, _, schema) => {
         if (value === true) {
           if (schema.hasChildren) {
-            return (schema.properties['*'] || schema.properties['0'])? [] : {}
+            const hasStringProps = Object.keys(schema.properties).some(k => !/^[\d*]/.test(k));
+            return hasStringProps ? {} : [];
           }
         }
         return value;
