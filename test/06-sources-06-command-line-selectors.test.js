@@ -15,11 +15,17 @@ describe('Sources - CommandLineSource - Selectors', function() {
 
     it('should parse a simple selector value', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', { selector: true }))
-        .property('dev', new Schema('object', { selection: true })
+        .property('mode', new Schema('string', {
+          options: { selector: true }
+        }))
+        .property('dev', new Schema('object', {
+          options: { selection: true }
+        })
           .property('verbose', new Schema('boolean'))
         )
-        .property('prod', new Schema('object', { selection: true })
+        .property('prod', new Schema('object', {
+          options: { selection: true }
+        })
           .property('optimize', new Schema('boolean'))
         );
 
@@ -40,12 +46,18 @@ describe('Sources - CommandLineSource - Selectors', function() {
 
     it('should parse selector followed by selection-specific options', async function() {
       const schema = new Schema('object')
-        .property('logger', new Schema('string', { selector: true }))
-        .property('syslog', new Schema('object', { selection: 'syslog' })
+        .property('logger', new Schema('string', {
+          options: { selector: true }
+        }))
+        .property('syslog', new Schema('object', {
+          options: { selection: 'syslog' }
+        })
           .property('host', new Schema('string'))
           .property('port', new Schema('number'))
         )
-        .property('file', new Schema('object', { selection: 'file' })
+        .property('file', new Schema('object', {
+          options: { selection: 'file' }
+        })
           .property('path', new Schema('string'))
           .property('append', new Schema('boolean'))
         );
@@ -313,10 +325,16 @@ describe('Sources - CommandLineSource - Selectors', function() {
 
     it('should handle general property in selection', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', { selector: true }))
-        .property('upload', new Schema('object', { selection: true })
+        .property('command', new Schema('string', {
+          options: { selector: true }
+        }))
+        .property('upload', new Schema('object', {
+          options: { selection: true }
+        })
           .property('bucket', new Schema('string'))
-          .property('file', new Schema('string', { _general: true }))
+          .property('file', new Schema('string', {
+            metadata: { general: true }
+          }))
         );
 
       const compiled = resolver.compile(schema);
@@ -336,10 +354,16 @@ describe('Sources - CommandLineSource - Selectors', function() {
 
     it('should handle general array property in selection', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', { selector: true }))
-        .property('delete', new Schema('object', { selection: true })
+        .property('command', new Schema('string', {
+          options: { selector: true }
+        }))
+        .property('delete', new Schema('object', {
+          options: { selection: true }
+        })
           .property('force', new Schema('boolean'))
-          .property('files', new Schema('array', { _general: true })
+          .property('files', new Schema('array', {
+            metadata: { general: true }
+          })
             .property('*', new Schema('string'))
           )
         );
@@ -561,17 +585,35 @@ describe('Sources - CommandLineSource - Selectors', function() {
       const schema = new Schema('object')
         .property('debug', new Schema('boolean'))
         .property('aws', new Schema('object')
-          .property('service', new Schema('string', { selector: true, required: true }))
-          .property('s3', new Schema('object', { selection: true })
-            .property('operation', new Schema('string', { selector: true, required: true }))
-            .property('ls', new Schema('object', { selection: true })
-              .property('recursive', new Schema('boolean', { default: false }))
-              .property('humanReadable', new Schema('boolean', { default: false }))
-              .property('path', new Schema('string', { _general: true }))
+          .property('service', new Schema('string', {
+            options: { selector: true, required: true }
+          }))
+          .property('s3', new Schema('object', {
+            options: { selection: true }
+          })
+            .property('operation', new Schema('string', {
+              options: { selector: true, required: true }
+            }))
+            .property('ls', new Schema('object', {
+              options: { selection: true }
+            })
+              .property('recursive', new Schema('boolean', {
+                options: { default: false }
+              }))
+              .property('humanReadable', new Schema('boolean', {
+                options: { default: false }
+              }))
+              .property('path', new Schema('string', {
+                metadata: { general: true }
+              }))
             )
-            .property('cp', new Schema('object', { selection: true })
+            .property('cp', new Schema('object', {
+              options: { selection: true }
+            })
               .property('recursive', new Schema('boolean'))
-              .property('source', new Schema('string', { _general: true }))
+              .property('source', new Schema('string', {
+                metadata: { general: true }
+              }))
             )
           )
         );
@@ -597,15 +639,25 @@ describe('Sources - CommandLineSource - Selectors', function() {
       // Simulating: docker container run --name myapp --port 8080:80 -- nginx
       const schema = new Schema('object')
         .property('docker', new Schema('object')
-          .property('resource', new Schema('string', { selector: true }))
-          .property('container', new Schema('object', { selection: true })
-            .property('action', new Schema('string', { selector: true }))
-            .property('run', new Schema('object', { selection: true })
+          .property('resource', new Schema('string', {
+            options: { selector: true }
+          }))
+          .property('container', new Schema('object', {
+            options: { selection: true }
+          })
+            .property('action', new Schema('string', {
+              options: { selector: true }
+            }))
+            .property('run', new Schema('object', {
+              options: { selection: true }
+            })
               .property('name', new Schema('string'))
               .property('port', new Schema('array')
                 .property('*', new Schema('string'))
               )
-              .property('image', new Schema('string', { _general: true }))
+              .property('image', new Schema('string', {
+                metadata: { general: true }
+              }))
             )
           )
         );

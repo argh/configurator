@@ -33,7 +33,7 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(arrSchema.base, 'array');
     });
 
-    it('should create a schema with base type and attributes', function() {
+    it('should create a schema with base type and options', function() {
       const schema = new Schema('string', {
         required: true,
         default: 'test',
@@ -46,11 +46,13 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(schema.metadata.description, 'A test string');
     });
 
-    it('should create a schema from an attributes object only', function() {
+    it('should create a schema from a SchemaData object', function() {
       const schema = new Schema({
-        required: true,
-        default: 42,
-        validator: '$number'
+        options: {
+          required: true,
+          default: 42,
+          validator: '$number'
+        }
       });
 
       assert.strictEqual(schema.base, undefined);
@@ -61,12 +63,18 @@ describe('Schema - Basic Construction', function() {
 
     it('should create a schema by extending another Schema', function() {
       const baseSchema = new Schema('string', {
-        required: true,
-        _description: 'Base schema'
+        options: {
+          required: true
+        },
+        metadata: {
+          description: 'Base schema'
+        }
       });
 
       const extendedSchema = new Schema(baseSchema, {
-        default: 'extended'
+        options: {
+          default: 'extended'
+        }
       });
 
       assert.strictEqual(extendedSchema.base, 'string');
@@ -90,7 +98,7 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(strLiteral.base, 'string');
       assert.deepStrictEqual(strLiteral.options.values, ['hello']);
       assert.strictEqual(strLiteral.options.default, 'hello');
-      assert.strictEqual(strLiteral.metadata.literal, true);
+      assert.strictEqual(strLiteral.options.literal, true);
 
       const numLiteral = Schema.literal(42);
       assert.strictEqual(numLiteral.base, 'number');
@@ -244,13 +252,15 @@ describe('Schema - Basic Construction', function() {
     });
   });
 
-  describe('Attribute setting via constructor', function() {
+  describe('SchemaData shape via constructor', function() {
 
-    it('should set options via flat attribute names', function() {
+    it('should set options via options object', function() {
       const schema = new Schema({
-        required: true,
-        strict: false,
-        default: 'value'
+        options: {
+          required: true,
+          strict: false,
+          default: 'value'
+        }
       });
 
       assert.strictEqual(schema.options.required, true);
@@ -258,11 +268,13 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(schema.options.default, 'value');
     });
 
-    it('should set metadata via underscore-prefixed attribute names', function() {
+    it('should set metadata via metadata object', function() {
       const schema = new Schema({
-        _description: 'A description',
-        _flagHint: 'D',
-        _advanced: true
+        metadata: {
+          description: 'A description',
+          flagHint: 'D',
+          advanced: true
+        }
       });
 
       assert.strictEqual(schema.metadata.description, 'A description');
@@ -270,39 +282,19 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(schema.metadata.advanced, true);
     });
 
-    it('should set options via "option." prefixed attributes', function() {
-      const schema = new Schema({
-        'option.required': true,
-        'option.strict': false
-      });
-
-      assert.strictEqual(schema.options.required, true);
-      assert.strictEqual(schema.options.strict, false);
-    });
-
-    it('should set metadata via "meta." or "metadata." prefixed attributes', function() {
-      const schema1 = new Schema({
-        'meta.description': 'Via meta prefix'
-      });
-      assert.strictEqual(schema1.metadata.description, 'Via meta prefix');
-
-      const schema2 = new Schema({
-        'metadata.flagHint': 'F'
-      });
-      assert.strictEqual(schema2.metadata.flagHint, 'F');
-    });
-
-    it('should set base via "base" attribute', function() {
+    it('should set base via base property', function() {
       const schema = new Schema({
         base: 'number',
-        default: 10
+        options: {
+          default: 10
+        }
       });
 
       assert.strictEqual(schema.base, 'number');
       assert.strictEqual(schema.options.default, 10);
     });
 
-    it('should set properties via "properties" attribute', function() {
+    it('should set properties via properties object', function() {
       const schema = new Schema({
         base: 'object',
         properties: {
@@ -317,22 +309,14 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(schema.properties.age.base, 'number');
     });
 
-    it('should set options via "options" attribute object', function() {
+    it('should combine options and metadata', function() {
       const schema = new Schema({
+        base: 'string',
         options: {
           required: true,
           strict: false,
           default: 'test'
-        }
-      });
-
-      assert.strictEqual(schema.options.required, true);
-      assert.strictEqual(schema.options.strict, false);
-      assert.strictEqual(schema.options.default, 'test');
-    });
-
-    it('should set metadata via "metadata" attribute object', function() {
-      const schema = new Schema({
+        },
         metadata: {
           description: 'Test description',
           flagHint: 'T',
@@ -340,56 +324,25 @@ describe('Schema - Basic Construction', function() {
         }
       });
 
+      assert.strictEqual(schema.base, 'string');
+      assert.strictEqual(schema.options.required, true);
+      assert.strictEqual(schema.options.strict, false);
+      assert.strictEqual(schema.options.default, 'test');
       assert.strictEqual(schema.metadata.description, 'Test description');
       assert.strictEqual(schema.metadata.flagHint, 'T');
       assert.strictEqual(schema.metadata.advanced, true);
     });
 
-    it('should handle "value" attribute by adding to values array', function() {
+    it('should handle values in options', function() {
       const schema = new Schema({
-        value: 'option1'
+        base: 'string',
+        options: {
+          values: ['option1', 'option2']
+        }
       });
 
       assert.ok(Array.isArray(schema.options.values));
-      assert.deepStrictEqual(schema.options.values, ['option1']);
-    });
-
-    it('should handle "literal" attribute specially', function() {
-      // noinspection JSAnnotator
-      const schema = new Schema({
-        literal: 'constant'
-      });
-
-      assert.deepStrictEqual(schema.options.values, ['constant']);
-      assert.strictEqual(schema.metadata.literal, true);
-    });
-
-    it('should throw SchemaError for invalid attribute family', function() {
-      assert.throws(
-        () => new Schema({ 'invalid.attribute': 'value' }),
-        SchemaError
-      );
-    });
-
-    it('should throw SchemaError for invalid options definition', function() {
-      assert.throws(
-        () => new Schema({ options: 'invalid' }),
-        SchemaError
-      );
-    });
-
-    it('should throw SchemaError for invalid metadata definition', function() {
-      assert.throws(
-        () => new Schema({ metadata: 'invalid' }),
-        SchemaError
-      );
-    });
-
-    it('should throw SchemaError for invalid properties definition', function() {
-      assert.throws(
-        () => new Schema({ properties: 'invalid' }),
-        SchemaError
-      );
+      assert.deepStrictEqual(schema.options.values, ['option1', 'option2']);
     });
   });
 

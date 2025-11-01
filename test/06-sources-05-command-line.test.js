@@ -274,9 +274,15 @@ describe('Sources - CommandLineSource', function() {
 
     it('should honor flagHint for custom short flags', async function() {
       const schema = new Schema('object')
-        .property('verbose', new Schema('boolean', { _flagHint: 'v' }))
-        .property('help', new Schema('boolean', { _flagHint: 'h' }))
-        .property('quiet', new Schema('boolean', { _flagHint: 'q' }));
+        .property('verbose', new Schema('boolean', {
+          metadata: { flagHint: 'v' }
+        }))
+        .property('help', new Schema('boolean', {
+          metadata: { flagHint: 'h' }
+        }))
+        .property('quiet', new Schema('boolean', {
+          metadata: { flagHint: 'q' }
+        }));
 
       const compiled = resolver.compile(schema);
       const source = new CommandLineSource();
@@ -295,9 +301,15 @@ describe('Sources - CommandLineSource', function() {
 
     it('should combine flagHint short flags', async function() {
       const schema = new Schema('object')
-        .property('verbose', new Schema('boolean', { _flagHint: 'v' }))
-        .property('interactive', new Schema('boolean', { _flagHint: 'i' }))
-        .property('force', new Schema('boolean', { _flagHint: 'f' }));
+        .property('verbose', new Schema('boolean', {
+          metadata: { flagHint: 'v' }
+        }))
+        .property('interactive', new Schema('boolean', {
+          metadata: { flagHint: 'i' }
+        }))
+        .property('force', new Schema('boolean', {
+          metadata: { flagHint: 'f' }
+        }));
 
       const compiled = resolver.compile(schema);
       const source = new CommandLineSource();
@@ -316,8 +328,12 @@ describe('Sources - CommandLineSource', function() {
 
     it('should handle flagHint with value arguments', async function() {
       const schema = new Schema('object')
-        .property('output', new Schema('string', { _flagHint: 'o' }))
-        .property('format', new Schema('string', { _flagHint: 'f' }));
+        .property('output', new Schema('string', {
+          metadata: { flagHint: 'o' }
+        }))
+        .property('format', new Schema('string', {
+          metadata: { flagHint: 'f' }
+        }));
 
       const compiled = resolver.compile(schema);
       const source = new CommandLineSource();
@@ -335,8 +351,12 @@ describe('Sources - CommandLineSource', function() {
 
     it('should prevent flagHint conflicts by using first registration', async function() {
       const schema = new Schema('object')
-        .property('verbose', new Schema('boolean', { _flagHint: 'v' }))
-        .property('version', new Schema('boolean', { _flagHint: 'v' })); // Conflict
+        .property('verbose', new Schema('boolean', {
+          metadata: { flagHint: 'v' }
+        }))
+        .property('version', new Schema('boolean', {
+          metadata: { flagHint: 'v' }
+        })); // Conflict
 
       const compiled = resolver.compile(schema);
       const source = new CommandLineSource();
@@ -356,7 +376,9 @@ describe('Sources - CommandLineSource', function() {
     it('should give flagHint precedence over auto-allocated flags', async function() {
       const schema = new Schema('object')
         .property('verbose', new Schema('boolean')) // Would get auto-allocated -v
-        .property('value', new Schema('string', { _flagHint: 'v' })); // Explicit -v
+        .property('value', new Schema('string', {
+          metadata: { flagHint: 'v' }
+        })); // Explicit -v
 
       const compiled = resolver.compile(schema);
       const source = new CommandLineSource();
@@ -482,7 +504,9 @@ describe('Sources - CommandLineSource', function() {
 
     it('should work with mix of flagHint, auto-flag, and alias', async function() {
       const schema = new Schema('object')
-        .property('verbose', new Schema('boolean', { _flagHint: 'v' }))  // flagHint: -v
+        .property('verbose', new Schema('boolean', {
+          metadata: { flagHint: 'v' }
+        }))  // flagHint: -v
         .property('debug', new Schema('boolean'))  // Top-level auto: -d
         .property('database', new Schema('object')
           .property('host', new Schema('string'))  // Nested alias: database-host -> --dh
@@ -663,7 +687,9 @@ describe('Sources - CommandLineSource', function() {
 
     it('should handle double dash separator', async function() {
       const schema = new Schema('object')
-        .property('files', new Schema('array', { _general: true })
+        .property('files', new Schema('array', {
+          metadata: { general: true }
+        })
           .property('*', new Schema('string'))
         );
 
@@ -702,7 +728,9 @@ describe('Sources - CommandLineSource', function() {
 
     it('should handle --help flag and exit', async function() {
       const schema = new Schema('object')
-        .property('help', new Schema('boolean', { _configuratorSchema: 'help' }))
+        .property('help', new Schema('boolean', {
+          metadata: { configuratorSchema: 'help' }
+        }))
         .property('value', new Schema('string'));
 
       const compiled = resolver.compile(schema);

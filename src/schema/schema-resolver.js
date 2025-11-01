@@ -118,55 +118,52 @@ export class SchemaResolver
    * @private
    */
   _registerBuiltins() {
-    this.registerSchema('any', new Schema({
-      type: 'any',
-      transformer: (value, configuration, schema) => {
+    this.registerSchema('any', new Schema()
+      .option('type', 'any')
+      .transformer((value, configuration, schema) => {
         if (value === true) {
           if (schema.hasChildren) {
             return (schema.properties['*'] || schema.properties['0'])? [] : {}
           }
         }
         return value;
-      }
-    }));
+      })
+    );
 
-    this.registerSchema('string', new Schema({
-      type: 'string',
-      _valueName: 'string',
-//      _valueDescription: 'string',
-      normalizer: (value) => String(value),
-      validator: (value) => {
+    this.registerSchema('string', new Schema()
+      .option('type', 'string')
+      .meta('valueName', 'string')
+      .normalizer((value) => String(value))
+      .validator((value) => {
         if (typeof value !== 'string') {
           throw new ValidationError('Not a string');
         }
         return value;
-      }
-    }));
+      })
+    );
 
-    this.registerSchema('number', new Schema({
-      type: 'number',
-      _valueName: 'number',
-//      _valueDescription: 'number',
-      normalizer: (value) => {
+    this.registerSchema('number', new Schema()
+      .option('type', 'number')
+      .meta('valueName', 'number')
+      .normalizer((value) => {
         if (typeof value === 'number') return value;
         const num = Number(value);
         if (isNaN(num)) throw new NormalizeError(`Invalid number: ${value}`);
         return num;
-      },
-      validator: (value) => {
+      })
+      .validator((value) => {
         if (typeof value === 'number' && Number.isFinite(value)) {
           return value;
         }
         throw new ValidationError(`Invalid number: "${value}`);
-      }
-    }));
+      })
+    );
 
-    this.registerSchema('boolean', new Schema({
-      type: 'boolean',
-      _valueName: 'boolean',
-      validator: {$in: [true, false]},
-
-      normalizer: (value) => {
+    this.registerSchema('boolean', new Schema()
+      .option('type', 'boolean')
+      .meta('valueName', 'boolean')
+      .validator({$in: [true, false]})
+      .normalizer((value) => {
         if (typeof value === 'boolean') return value;
         if (typeof value === 'string') {
           const lower = value.toLowerCase();
@@ -174,13 +171,13 @@ export class SchemaResolver
           if (lower === 'false' || lower === '0' || lower === 'no') return false;
         }
         return Boolean(value);
-      }
-    }));
+      })
+    );
 
-    this.registerSchema('object', new Schema({
-      type: 'object',
-      _valueName: 'object',
-      normalizer: (value, _, schema) => {
+    this.registerSchema('object', new Schema()
+      .option('type', 'object')
+      .meta('valueName', 'object')
+      .normalizer((value, _, schema) => {
         if (value === true) {
           value = {};
         }
@@ -198,8 +195,8 @@ export class SchemaResolver
           return Array.isArray(schema.values)? stringify(value) : value
         }
         throw new NormalizeError(`Invalid object value: ${value}`);
-      },
-      transformer: (value) => {
+      })
+      .transformer((value) => {
         if (value === true) {
           value = {};
         }
@@ -215,20 +212,19 @@ export class SchemaResolver
           return value;
         }
         throw new TransformError(`Invalid object value: ${value}`)
-      },
-      validator: (value) => {
+      })
+      .validator((value) => {
         if (typeof value !== 'object') {
           throw new ValidationError(`Invalid object: "${value}"`)
         }
         // NOTE: we let the schema validate object children; this should be used for specialization
         return value;
-      }
-    }));
+      })
+    );
 
-    this.registerSchema('array', new Schema({
-      type: 'array',
-//      _valueName: 'array',
-      normalizer: (value, _, schema) => {
+    this.registerSchema('array', new Schema()
+      .option('type', 'array')
+      .normalizer((value, _, schema) => {
         if (value === true) {
           value = [];
         }
@@ -251,8 +247,8 @@ export class SchemaResolver
           return (Array.isArray(schema.values)? stringify(value) : value);
         }
         throw new NormalizeError(`Invalid array value: ${value}`)
-      },
-      transformer: (value) => {
+      })
+      .transformer((value) => {
         if (value === true) {
           value = [];
         }
@@ -269,39 +265,38 @@ export class SchemaResolver
           return value;
         }
         throw new TransformError(`Invalid array value ${value}`);
-      },
-      validator: (value) => {
+      })
+      .validator((value) => {
         if (!Array.isArray(value)) {
           throw new ValidationError(`Invalid array "${value}"`)
         }
         // NOTE: we let the schema validate array elements; this should be used for specialization
         return value;
-      }
-    }));
-    this.registerSchema('date', new Schema({
-      type: 'date',
-      _parserTypeHint: 'string',
-      _valueName: 'date',
-      _valueDescription: 'ms|iso date|"now"|[+|-]offset[d|h|m|s|ms]',
-      transformer: parseDate,
-
-      validator(value) {
+      })
+    );
+    this.registerSchema('date', new Schema()
+      .option('type', 'date')
+      .meta('parserTypeHint', 'string')
+      .meta('valueName', 'date')
+      .meta('valueDescription', 'ms|iso date|"now"|[+|-]offset[d|h|m|s|ms]')
+      .transformer(parseDate)
+      .validator((value) => {
         if (value instanceof Date && !isNaN(value.getTime())) {
           return value;
         }
         throw new ValidationError('Invalid date value')
-      },
-      serializer(value) {
+      })
+      .serializer((value) => {
         if (!(value instanceof Date)) {
           throw new SerializeError(`Expected Date object for serializing, got ${typeof value}`);
         }
         return value.toISOString();
-      }
-    }));
-    this.registerSchema('buffer', new Schema({
-      type: 'buffer',
-      _parserTypeHint: 'string',
-      transformer: (value) => {
+      })
+    );
+    this.registerSchema('buffer', new Schema()
+      .option('type', 'buffer')
+      .meta('parserTypeHint', 'string')
+      .transformer((value) => {
         try {
           if (typeof value === 'string') {
             return Buffer.from(value, 'base64');
@@ -313,16 +308,16 @@ export class SchemaResolver
         catch (error) {
           throw new TransformError(`Invalid buffer value: ${value}`, {cause: error});
         }
-      },
-      serializer: (value) => {
+      })
+      .serializer((value) => {
         if (Buffer.isBuffer(value)) {
           return value.toString('base64');
         }
         else {
           return undefined;
         }
-      }
-    }));
+      })
+    );
   }
 
   /**
@@ -1480,7 +1475,7 @@ export class SchemaResolver
         throw new ConfiguratorError(`No compatible normalizer for common ${property} in union`)
       }
       // noinspection JSUnusedAssignment
-      const hoisted = new Schema(base ?? 'any', useNormalizer ? {normalizer} : {}).values(Array.from(values))
+      const hoisted = new Schema(base ?? 'any', useNormalizer ? { normalizer } : {}).values(Array.from(values))
 
       const compiledHoisted = this._compile(hoisted, schema, property);
       this._finalize(compiledHoisted);

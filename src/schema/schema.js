@@ -2,7 +2,7 @@ import { SchemaError, ValidationError } from '../errors.js';
 import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
 
-/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, ISchemaAttributes, SchemaValueFunction, SchemaData } from './types.js' */
+/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueFunction, SchemaData, ISchema } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
@@ -16,10 +16,13 @@ import { CompiledSchema } from './compiled-schema.js';
 export class Schema
 {
   /**
-   * @param {string|Object|Schema|CompiledSchema} [base] - schema
-   * @param {ISchemaAttributes} [attributes]
+   * Construct a Schema.  Pass a string name of a registered schema to resolve as the base,
+   * or pass a schema-shaped object to extend.
+   * @param {string|ISchema|SchemaData} [base] - schema type or base to extend
+   * @param {Object} [options] - schema options (also supports "attribute" shorthand syntax, but prefer being explicit)
+   * @param {ISchemaMetadata} [metadata] - schema metadata
    */
-  constructor(base, attributes) {
+  constructor(base, options, metadata) {
     /** @type {Schema|undefined} */
     this._parent = undefined;
 
@@ -40,20 +43,30 @@ export class Schema
 
     if (typeof base === 'string') {
       this.base = base;
-      attributes = attributes ?? {};
+      if (options) {
+        this._setAttributes(options);
+      }
+      if (metadata) {
+        this.meta(metadata, true);
+      }
     }
     else if ((base instanceof Schema) || (base instanceof CompiledSchema)) {
       this.extend(base);
       if (base instanceof Schema) {
         this.base = base.base;
       }
-      attributes = attributes ?? {};
+      // Apply additional options/metadata after extending
+      if (options) {
+        this._setAttributes(options);
+      }
+      if (metadata) {
+        this.meta(metadata, true);
+      }
     }
-    else if (typeof base === 'object') {
-      attributes = base;
+    else if (typeof base === 'object' && base !== null) {
+      // It's a SchemaData/ISchema object
+      this.extend(base);
     }
-
-    this.setAttributes(attributes);
   }
 
   /**
@@ -140,7 +153,6 @@ export class Schema
    * @private
    */
   _setAttribute(attributeName, attributeValue) {
-
     if (attributeName === 'base') {
       this.base = attributeValue;
       return this;
@@ -217,10 +229,12 @@ export class Schema
   }
 
   /**
-   * @param {ISchemaAttributes} attributes
+   * Internal method for backward compatibility with attribute shorthand
+   * @param {Object} attributes
    * @returns {Schema}
+   * @private
    */
-  setAttributes(attributes = {}) {
+  _setAttributes(attributes = {}) {
     if (typeof attributes !== 'object') {
       throw new SchemaError('Expected an object containing options and metadata attributes');
     }
@@ -599,6 +613,12 @@ export class Schema
     if (typeof otherSchema !== 'object') {
       throw new SchemaError(`Invalid schema to extend`)
     }
+
+    // Set base if not already set
+    if (!this.base && otherSchema.base) {
+      this.base = otherSchema.base;
+    }
+
     // Merge properties (local properties take precedence)
     for (const [key, value] of Object.entries(otherSchema.properties ?? {})) {
       if (!this._properties.hasOwnProperty(key)) {
@@ -646,21 +666,23 @@ export class Schema
     return schema.extend(model);
   }
   /**
-   * @param {string|Object|Schema|CompiledSchema} [base] - schema
-   * @param {object} [attributes]
+   * @param {string|ISchema|SchemaData|Schema|CompiledSchema} [base] - schema
+   * @param {Object} [options]
+   * @param {ISchemaMetadata} [metadata]
    * @returns {Schema}
    */
-  static create(base, attributes) {
-    return new Schema(base, attributes);
+  static create(base, options, metadata) {
+    return new Schema(base, options, metadata);
   }
 
   /**
    *
    * @param {NonNullable<any>} literalValue
-   * @param {ISchemaAttributes} [attributes]
+   * @param {Object} [options] - additional options
+   * @param {ISchemaMetadata} [metadata] - additional metadata
    * @returns {Schema}
    */
-  static literal(literalValue, attributes) {
+  static literal(literalValue, options, metadata) {
 
     let base = 'any';
     if (typeof literalValue === 'string') {
@@ -673,22 +695,26 @@ export class Schema
       base = 'boolean';
     }
 
-    const schema = new Schema(base, {
-      ...attributes,
-      literal: true,
-      values: [literalValue],
-      default: literalValue,
-      transformer: (/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
-        //return schema.options.values?.[0];
+    const schema = new Schema(base)
+      .option('literal', true)
+      .option('values', [literalValue])
+      .option('default', literalValue)
+      .transformer((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
         return literalValue;
-      },
-      validator: (/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
+      })
+      .validator((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
         if (value !== literalValue) {
           throw new ValidationError(`Expected literal ${JSON.stringify(literalValue)}`)
         }
         return literalValue;
-      },
-    })
+      });
+
+    if (options) {
+      schema._setAttributes(options);
+    }
+    if (metadata) {
+      schema.meta(metadata, true);
+    }
 
     return schema;
   }
