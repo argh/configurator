@@ -65,7 +65,7 @@ export class SchemaResolver
     const registryName = toKebabCase(name);
     const schema = this.schemaMap.get(registryName);
     if (!schema) {
-      throw new ResolverError(`Schema "${name}" not found in registry`);
+      throw new ResolverError(`Unable to resolve "${name}"`);
     }
     return schema;
   }
@@ -943,6 +943,8 @@ export class SchemaResolver
     /** @type {Schema|CompiledSchema|SchemaData|undefined} */
     let source = inputSchema;
 
+    let strictCompileError;
+
     while (source !== undefined) {
       for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
         if (!outputSchema.properties.hasOwnProperty(propName)) {
@@ -964,10 +966,40 @@ export class SchemaResolver
           outputSchema.options[optionName] = optionValue;
         }
       }
-      source = (source instanceof CompiledSchema)? undefined : (source.base ? this.getSchema(source.base) : undefined);
+      if (source instanceof CompiledSchema) {
+        source = undefined;
+      }
+      else {
+        if (source.base) {
+          if (this.hasSchema(source.base)) {
+            source = this.getSchema(source.base);
+          }
+          else {
+            // base schema is undefined; this is only an error if you actually try to use it
+            // allow error to be omitted if the schema is marked "lax"
+            const base = `${source.base}`
+
+            strictCompileError = new ResolverError(`Unable to resolve "${base}"`)
+            outputSchema.options.transformer = ((value, config, schema) => {
+              if (schema.options.strict !== false) {
+                throw strictCompileError;
+              }
+              return undefined;
+            });
+            source = undefined;
+          }
+        }
+        else {
+          source = undefined;
+        }
+      }
+      //source = (source instanceof CompiledSchema)? undefined : (source.base ? this.getSchema(source.base) : undefined);
     }
     if (!(inputSchema instanceof CompiledSchema) && inputSchema.base && !outputSchema._metadata.parserTypeHint) {
       outputSchema.metadata.parserTypeHint = inputSchema.base;
+    }
+    if (outputSchema.options.strict !== false && strictCompileError) {
+      throw strictCompileError;
     }
     return outputSchema;
   }
@@ -1434,7 +1466,7 @@ export class SchemaResolver
           }
           values.add(propertySchema.normalize(v))  // aren't they already normalized?
           if (base === undefined) {
-            if (this.schemaMap.has(typeof v)) {
+            if (this.hasSchema(typeof v)) {
               base = typeof v;
             }
           }

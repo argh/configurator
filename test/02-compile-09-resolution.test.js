@@ -171,7 +171,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
       assert.throws(
         () => resolver.compile(schema),
-        /Schema "nonexistent-type" not found in registry/
+        /Unable to resolve "nonexistent-type"/
       );
     });
   });
@@ -308,7 +308,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       // resolver2 should not have resolver1's custom schema
       assert.throws(
         () => resolver2.getSchema('custom'),
-        /Schema "custom" not found in registry/
+        /Unable to resolve "custom"/
       );
     });
 
@@ -328,7 +328,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       // Should fail with resolver2
       assert.throws(
         () => resolver2.compile(schema),
-        /Schema "newtype" not found in registry/
+        /Unable to resolve "newtype"/
       );
     });
   });
@@ -338,13 +338,17 @@ describe('Schema Compilation - Base Type Resolution', function() {
     it('should throw descriptive error for missing base type', function() {
       const schema = new Schema('missing-type');
 
-      try {
-        resolver.compile(schema);
-        assert.fail('Should have thrown');
-      } catch (error) {
-        assert.ok(error.message.includes('missing-type'));
-        assert.ok(error.message.includes('not found'));
-      }
+      assert.throws(
+        () => resolver.compile(schema),
+
+        /Unable to resolve "missing-type"/
+      );
+    });
+    it('should not throw for missing base type in lax mode', function() {
+      const schema = new Schema('missing-type').lax();
+
+      const compiled = resolver.compile(schema);
+      assert.ok(compiled);
     });
 
     it('should throw error when registering non-Schema', function() {

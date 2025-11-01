@@ -674,7 +674,7 @@ export class CompiledSchema
    *
    * @param {any} config
    * @param {{all?:boolean}} [options]
-   * @returns {Promise<string>}
+   * @returns {Promise<NonNullable<any>>}
    */
   async serialize(config, options) {
 
