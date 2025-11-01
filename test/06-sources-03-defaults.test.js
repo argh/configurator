@@ -75,18 +75,6 @@ describe('Sources - SchemaDefaultsSource', function() {
       assert.strictEqual(assignments.get('disabled'), false);
     });
 
-    it('should handle null defaults', async function() {
-      const schema = new Schema('object')
-        .property('optional', new Schema('any', { default: null }));
-
-      const compiled = resolver.compile(schema);
-      const source = new SchemaDefaultsSource();
-
-      const assignments = await source.load(compiled, {});
-
-      assert.strictEqual(assignments.get('optional'), null);
-    });
-
     it('should handle array defaults', async function() {
       const schema = new Schema('object')
         .property('tags', new Schema('array', { default: ['one', 'two'] }));

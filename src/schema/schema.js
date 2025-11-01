@@ -307,7 +307,7 @@ export class Schema
   /**
    * option - define a schema option
    * @param {string|Object} option - option
-   * @param {any} value - option value
+   * @param {any} [value] - option value
    * @returns {Schema} - returns self for fluent chaining
    */
   option(option, value) {
@@ -333,6 +333,9 @@ export class Schema
       throw new SchemaError('Options cannot have a leading underscore');
     }
     if (value === undefined) {
+      value = true;
+    }
+    if (value === null) {
       delete this._options[option];
     }
     else {
@@ -347,7 +350,7 @@ export class Schema
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
    *
    * @param {string|Object} meta - metadata key
-   * @param {any} value - option value
+   * @param {any} [value] - option value
    * @returns {Schema} - returns self for fluent chaining
    */
   meta(meta, value) {
@@ -370,6 +373,9 @@ export class Schema
       throw new SchemaError('Metadata must be associated with a valid key');
     }
     if (value === undefined) {
+      value = true;
+    }
+    if (value === null) {
       delete this._metadata[meta];
     }
     else {
