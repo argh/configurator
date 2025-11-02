@@ -15,7 +15,8 @@ import { SchemaResolver } from './schema/schema-resolver.js';
 import { stringify } from './schema/helpers/stringify.js';
 
 const MODULE_INFO = {
-  name: 'configurator'
+  name: 'configurator',
+  schema: new Schema().meta('internal')
 }
 
 /**
