@@ -48,7 +48,7 @@ export class CommandLineSource extends ConfigurationSource
           if (propertyName === '*') {
             continue;  // shouldn't happen; array elements are handled as an aggregated parsed value
           }
-          if (childSchema.inherit) {
+          if (childSchema.inherit || childSchema.metadata.internal) {
             continue;
           }
 
