@@ -619,7 +619,7 @@ export class CompiledSchema
     if (value !== null && this.values && this.values.length > 0) {
       // if we have children, we can't compare the value yet, we'll have to wait for validation.
       if (!this.hasChildren && !this.values.includes(value)) {
-        throw new ValidationError(`Invalid value: ${value}`);
+        throw new ValidationError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
       }
     }
     const transformer = this._options.transformer;
