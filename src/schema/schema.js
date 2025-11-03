@@ -140,7 +140,7 @@ export class Schema
   }
 
   /**
-   * @returns {Object<string, any>|undefined}
+   * @returns {SchemaData}
    */
   toData() {
     return toData(this);

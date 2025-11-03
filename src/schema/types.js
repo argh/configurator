@@ -111,4 +111,19 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @property {Object.<any,SchemaData>} [unionSchemas]
  */
 
+/** @typedef {Object} VisitOptions
+ * @property {boolean} [resolveUnions] - true = enforce that unions resolve
+ * @property {boolean} [enforceRequired] -     true = enforce presence of required values
+ * @property {boolean} [populateDefaults] -   todo - pretend defaults were set
+ * @property {boolean} [visitDefaults] -     true means visit even if value matches schema defaults
+ * @property {boolean} [strict] - require that input is clean
+ */
+
+/** @typedef {VisitOptions} ValidateOptions
+ * @property {boolean} [strict]
+ */
+
+/** @typedef {VisitOptions} SerializeOptions */
+
+
 export {}; // Make this a module

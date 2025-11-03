@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
@@ -361,8 +362,10 @@ describe('Configurator - Custom Types Integration', function() {
           env: { 'APP_ENV': 'invalid' }
         }),
         (err) => {
+          // @ts-ignore
           assert.strictEqual(err.name, 'ValidationError');
-          assert.match(err.cause.message, /Environment must be one of/);
+          // @ts-ignore
+          assert.match(err.cause?.message, /Environment must be one of/);
           return true;
         }
       );

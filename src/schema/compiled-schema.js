@@ -2,7 +2,7 @@ import { SchemaError, ValidationError } from '../errors.js';
 import { isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction } from './types.js' */
+/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, VisitOptions, SerializeOptions, ValidateOptions } from './types.js' */
 
 /** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
 
@@ -161,18 +161,6 @@ export class CompiledSchema
     else {
       return this._options.selection? this.name : undefined;
     }
-  }
-
-
-  /**
-   * validator - returns a function that ensures a value meets the schema definition
-   * @returns {AsyncSchemaValueFunction<any>}
-   */
-  get xxvalidator() {
-    if (typeof this._options.validator !== 'function') {
-      throw new SchemaError('Unresolved schema validator');
-    }
-    return this._options.validator;
   }
 
   /**
@@ -633,7 +621,7 @@ export class CompiledSchema
   /**
    * validate - ensure that an object matches the schema
    * @param {any} input - input value to validate
-   * @param {Object} [options] - any tweaks to the validator behavior
+   * @param {ValidateOptions} [options] - any tweaks to the validator behavior
    * @returns {Promise<any>} - validated value
    */
   async validate(input, options) {
@@ -666,6 +654,8 @@ export class CompiledSchema
     }
   }
 
+
+
   /**
    * Serialize the config data as if it were a config file.
    *
@@ -673,7 +663,7 @@ export class CompiledSchema
    * or alternatively by trusting that each value is either already compatible, or implements toJSON().
    *
    * @param {any} config
-   * @param {{all?:boolean}} [options]
+   * @param {SerializeOptions} [options]
    * @returns {Promise<NonNullable<any>>}
    */
   async serialize(config, options) {
@@ -863,22 +853,22 @@ export class CompiledSchema
   }
 
   static get EMPTY_VALUE() { return EMPTY_VALUE }
+
   /**
    * visit - call an async visitor function on everything in an input object based on the schema definition;
    *         if any visitors return a falsey value, return early
    *
    * @param {any} input - input object
    * @param {SchemaValueFunction<any>} visitor - async visitor
-   * @param {Object} [options] - options to pass to visitor
+   * @param {VisitOptions} [options] - options to pass to visitor
    * @returns {Promise<any>} - returns result of visitor call on outermost schema
    */
   async visit(input, visitor, options) {
 
-    const resolveUnions = options?.resolveUnions ?? true; // true = enforce that unions resolve
-    const enforceRequired = options?.enforceRequired ?? true;     // true = enforce presence of required values
-    const populateDefaults = options?.populateDefaults ?? false;  // todo - pretend defaults were set
-    const visitDefaults = populateDefaults || (options?.defaults ?? true);     // true means visit even if value matches schema defaults
-
+    const resolveUnions = options?.resolveUnions ?? true;
+    const enforceRequired = options?.enforceRequired ?? true;
+    const populateDefaults = options?.populateDefaults ?? false;
+    const visitDefaults = populateDefaults || (options?.visitDefaults ?? true);
 
     const visited = new WeakMap(); // tracks object -> output mapping
 

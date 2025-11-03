@@ -1,19 +1,20 @@
 import { CompiledSchema } from '../compiled-schema.js';
 import { Schema } from '../schema.js';
+import { SchemaError } from '../../errors.js';
 /** @import {SchemaData} from '../types.js' */
 /**
  * Common implementation shared by both Schema and CompiledSchema
  * (which only share a "fake" jsdoc interface to define their shape)
  * @package
  * @param {Schema|CompiledSchema|SchemaData} schema
- * @returns {Object.<string,any>|undefined}
+ * @returns {SchemaData}
  */
 export function toData(schema) {
 
   if (typeof schema !== 'object') {
-    return undefined;
+    throw new SchemaError('Not a schema!')
   }
-  /** @type {Object.<string,any>} */
+  /** @type {SchemaData} */
   const data = {};
   if (!(schema instanceof CompiledSchema) && schema.base) {
     data.base = schema.base;

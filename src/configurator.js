@@ -14,6 +14,9 @@ import { ConfiguratorError } from './errors.js';
 import { SchemaResolver } from './schema/schema-resolver.js';
 import { stringify } from './schema/helpers/stringify.js';
 
+/** @import { SerializeOptions } from './schema/types.js' */
+
+
 const MODULE_INFO = {
   name: 'configurator',
   schema: new Schema().meta('internal')
@@ -370,13 +373,13 @@ export class Configurator {
    * @param {CompiledSchema} schema
    * @param {object} config - configuration object to dump
    * @param {string} destination - path to write, or "-" for stdout
-   * @param {boolean} all - if true, include all settable properties
+   * @param {SerializeOptions} [serializeOptions] -
    * @returns {Promise<void>}
    *
    */
-  async dump(schema, config, destination, all = false) {
+  async dump(schema, config, destination, serializeOptions) {
 
-    const serialized = await schema.serialize(config, {all});
+    const serialized = await schema.serialize(config, {...serializeOptions, enforceRequired: false});
     const formattedConfig = stringify(serialized, {space: 2});
     if (destination === '-') {
       try {

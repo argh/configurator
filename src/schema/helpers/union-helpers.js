@@ -46,8 +46,8 @@ export function findDiscriminatorProperties(schemas) {
         const prop1 = schema1.properties[property];
         const prop2 = schema2.properties[property];
 
-        const values1 = prop1.options.values;
-        const values2 = prop2.options.values;
+        const values1 = prop1.options.values ?? []; // should always be set, but fallback for typecheck nanny
+        const values2 = prop2.options.values ?? [];
 
         // If the value sets are disjoint, we can distinguish them
         const hasOverlap = values1.some(v => values2.includes(v));
