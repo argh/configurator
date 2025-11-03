@@ -228,8 +228,8 @@ export class CompiledSchema
   async processAssignments(assignments, result, options) {
 
     if (!result) {
-      // by convention, container transformers should create an empty default shape when passed true
-      result = await this.transform(true, {}, '', {...options});
+      // by convention, container normalizers should create an empty default shape when passed true
+      result = await this.normalize(true, {}, '', {...options});
     }
     const strict = this.strict ?? options?.strict ?? true;
     const progress = new AssignmentProgress(this, assignments, strict);
@@ -585,14 +585,15 @@ export class CompiledSchema
    * @param {any} value
    * @param {any} [configuration]
    * @param {string} [path]
+   * @param {Object} [options]
    * @returns {any}
    */
-  normalize(value, configuration = {}, path = this.path) {
+  normalize(value, configuration = {}, path = this.path, options) {
     const normalizer = this._options.normalizer;
     if (typeof normalizer !== 'function') {
       throw new SchemaError('Unresolved schema normalizer')
     }
-    return normalizer(value, configuration, this, path);
+    return normalizer(value, configuration, this, path, options);
   }
 
   /**

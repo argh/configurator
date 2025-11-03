@@ -140,6 +140,15 @@ export class SchemaResolver
 
     this.registerSchema('any', new Schema()
       .option('type', 'any')
+      .normalizer((value, _, schema) => {
+        if (value === true) {
+          if (schema.hasChildren) {
+            const hasStringProps = Object.keys(schema.properties).some(k => !/^[\d*]/.test(k));
+            return hasStringProps ? {} : [];
+          }
+        }
+        return value;
+      })
       .transformer((value, _, schema) => {
         if (value === true) {
           if (schema.hasChildren) {
