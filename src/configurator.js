@@ -23,8 +23,15 @@ const MODULE_INFO = {
 }
 
 /**
- * The Configurator class coordinates configuration using a schema, configuration sources,
- * a type registry, and a validator registry.
+ * The Configurator class coordinates configuration.
+ *
+ * A Schema is provided as input to define a valid configuration.
+ *
+ * The SchemaResolver is used to compile the input Schema into a CompiledSchema.
+ *
+ * ConfigurationSource implementations produce configuration assignments that correspond
+ * to the CompiledSchema.  These assignments are resolved by priority, and then processed
+ * using the CompiledSchema to produce a validated configuration object.
  */
 export class Configurator {
   static get Schema() { return Schema };
@@ -226,11 +233,25 @@ export class Configurator {
      */
     let assignments = new Map();
 
+
+    function existingAssignment(path) {
+      while (true) {
+        if (assignments.has(path)) {
+          return true;
+        }
+        let dot = path.lastIndexOf('.');
+        if (dot === -1) {
+          return false;
+        }
+        path = path.slice(0, dot);
+      }
+    }
+
     // We iterate these in reverse to simplify computing "last (highest priority) definition wins".
 
     for (let propertyPathAssignments of sourceAssignmentsList.reverse()) {
       for (let [path, value] of Array.from(propertyPathAssignments).reverse()) {
-        if (assignments.has(path)) {
+        if (existingAssignment(path)) {
           continue;
         }
         assignments.set(path, value)

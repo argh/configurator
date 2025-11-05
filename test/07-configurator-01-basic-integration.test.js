@@ -332,6 +332,35 @@ describe('Configurator - Basic Integration', function() {
 
       assert.deepStrictEqual(config.items, ['a', 'B', 'c']);
     });
+
+    it('should prioritize aggregate assignment over individual assignments', async function() {
+      // Higher-priority aggregate assignment (e.g., --foo=a,b) should take precedence
+      // over lower-priority individual assignments (e.g., {foo: ["x", "y", "z", "w"]})
+      // The shorter aggregate should win, preventing "leakage" of extra elements
+      const schema = new Schema('object')
+        .property('tags', new Schema('array')
+          .property('*', new Schema('string'))
+        );
+
+      const sources = [
+        new SchemaDefaultsSource(),
+        new ObjectSource({ contextName: 'defaults', sequence: 100 }),
+        new CommandLineSource({ sequence: 600 })
+      ];
+
+      const configurator = new Configurator({ schema, sources });
+
+      const config = await configurator.configure({
+        appName: 'app',
+        defaults: { tags: ['x', 'y', 'z', 'w'] },  // 4 elements
+        argv: ['--tags=a,b'],  // Only 2 elements
+        env: {}
+      });
+
+      // CLI aggregate (600) should completely override defaults (100)
+      // Result should be 2 elements, not 4 (no leakage from defaults)
+      assert.deepStrictEqual(config.tags, ['a', 'b']);
+    });
   });
 
   describe('Type coercion', function() {

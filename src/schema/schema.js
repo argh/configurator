@@ -10,6 +10,10 @@ import { CompiledSchema } from './compiled-schema.js';
 /** @typedef {Object.<any, Schema>} SchemaUnionSchemas */
 
 /**
+ * Schema - defines a valid configuration
+ *
+ * Essentially acts as a fluent builder, must be compiled by SchemaResolver for use.
+ *
  * @typedef {import("./types.js").ISchema} ISchema
  * @implements {ISchema}
  */
@@ -147,6 +151,8 @@ export class Schema
   }
 
   /**
+   * Attributes were a convenient shorthand, but they really just add confusion
+   * @deprecated
    * @param {string} attributeName
    * @param {any} attributeValue
    * @returns {Schema}
@@ -229,7 +235,8 @@ export class Schema
   }
 
   /**
-   * Internal method for backward compatibility with attribute shorthand
+   * Attributes were a convenient shorthand, but they really just add confusion*
+   * @deprecated
    * @param {Object} attributes
    * @returns {Schema}
    * @private
@@ -345,7 +352,7 @@ export class Schema
   }
 
   /**
-   * meta - define schema metadata (like options, but for humans) - todo: locale-aware
+   * meta - define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
    *
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
    *
@@ -402,12 +409,12 @@ export class Schema
 
   /**
    * unionSchema - define a schema to be a member of the union
-   * @param {string|Object} def - value that the discriminator should have to select this schema
+   * @param {string|Object} key - union schema key (used by some discriminators to select this schema)
    * @param {Schema|boolean} value - schema that the discriminator selects, or true/false override if a group
    * @returns {Schema}
    */
-  unionSchema(def, value) {
-    if (typeof def === 'object') {
+  unionSchema(key, value) {
+    if (typeof key === 'object') {
       if (value !== undefined) {
         if (value !== true && value !== false) {
           throw new SchemaError('Union schema group overwrite setting must be true, false, or undefined');
@@ -415,9 +422,9 @@ export class Schema
       }
       const overwrite = value ?? true;
 
-      for (const [key, value] of Object.entries(def)) {
-        if (overwrite || this._unionSchemas[key] === undefined) {
-          this.unionSchema(key, value);
+      for (const [k, value] of Object.entries(key)) {
+        if (overwrite || this._unionSchemas[k] === undefined) {
+          this.unionSchema(k, value);
         }
       }
       return this;
@@ -426,17 +433,17 @@ export class Schema
     const schema = /** @type {Schema} */ (value);
 
     if (!(schema instanceof Schema )) {
-      throw new SchemaError(`Invalid schema for union member ${def}`);
+      throw new SchemaError(`Invalid schema for union member ${key}`);
     }
     if (schema._name || schema._parent) {
-      throw new SchemaError(`Unable to associate union member ${def} with a schema that is already attached`);
+      throw new SchemaError(`Unable to associate union member ${key} with a schema that is already attached`);
     }
 
     if ((this.base === undefined || this.base === 'any') && Object.keys(schema.properties).length > 0) {
       this.base = (schema.properties['*'] || schema.properties['0']) ? 'array' : 'object';
     }
 
-    this._unionSchemas[def] = schema;
+    this._unionSchemas[key] = schema;
 
     // NOTE: the current schema might not have been attached yet, so we will set a dynamic lookup
     // on the union schemas
@@ -518,7 +525,6 @@ export class Schema
    * @param {boolean} [value];
    * @returns {Schema}
    */
-
   lax(value) {
     this.options.strict = (value === undefined) ? false : !value;
     return this;
@@ -537,11 +543,20 @@ export class Schema
     return this;
   }
 
+  /**
+   * Mark this schema as implicit in the transformed output (so no need to assign or check)
+   * @param {boolean} [value]
+   * @returns {Schema}
+   */
+  implicit(value) {
+    this.options.implicit = value ?? true;
+    return this;
+  }
+
 
   /**
-   * define a legal value this schema can hold (simple === comparison only for now)
-   * todo: consider expanding types and using deep comparison?
-   * @param {string|number|boolean} v
+   * Define a legal value this schema can hold (simple === comparison only for now)
+   * @param {NonNullable<any>} v
    * @returns {Schema}
    */
   value(v) {
@@ -555,8 +570,7 @@ export class Schema
   }
 
   /**
-   * define legal values this schema can hold (simple === comparison only for now)
-   * todo: consider expanding types and using deep comparison?
+   * Define legal values this schema can hold (simple === comparison only for now)
    * @param {Array<NonNullable<any>>} va
    * @returns {Schema}
    */
@@ -570,6 +584,7 @@ export class Schema
   }
 
   /**
+   * Set the condition handler that determines if the schema should be processed at all
    * @param {SchemaValueFunction<boolean>|boolean} c
    * @returns {Schema}
    */
@@ -579,6 +594,7 @@ export class Schema
   }
 
   /**
+   * Set the normalize handler that ensures input is in a format that the transformer can handle
    * @param {SchemaValueFunction<any>} fn
    * @returns {Schema}
    */
@@ -591,6 +607,7 @@ export class Schema
   }
 
   /**
+   * Set the transform handler that converts an input value into the output value used in the final configuration
    * @param {SchemaValueFunction<any>|NonNullable<any>} fn
    * @returns {Schema}
    */
@@ -603,6 +620,7 @@ export class Schema
   }
 
   /**
+   * Set the validate handler that ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value
    * @param {SchemaValueFunction<any>|string|object|RegExp} v
    * @returns {Schema}
    */
@@ -612,6 +630,7 @@ export class Schema
   }
 
   /**
+   * Set the serialize handler that will restore a configuration value to its pre-transform normalized form
    * @param {SchemaValueFunction<any>|NonNullable<any>} fn
    * @returns {Schema}
    */
@@ -667,7 +686,7 @@ export class Schema
   }
 
   /**
-   * Create a new Schema from another
+   * Create a new Schema from something schema-shaped
    *
    * @param {ISchema|SchemaData|string} model
    * @returns {Schema}
@@ -685,9 +704,10 @@ export class Schema
     return schema.extend(model);
   }
   /**
+   * Static schema factory (useful for aliasing to reduce typing!)
    * @param {string|ISchema|SchemaData|Schema|CompiledSchema} [base] - schema
-   * @param {Object} [options]
-   * @param {ISchemaMetadata} [metadata]
+   * @param {Object} [options] - schema options
+   * @param {ISchemaMetadata} [metadata] - schema metadata
    * @returns {Schema}
    */
   static create(base, options, metadata) {
@@ -695,8 +715,8 @@ export class Schema
   }
 
   /**
-   *
-   * @param {NonNullable<any>} literalValue
+   * Static schema factory for special schemas that ignore assignments and produce a single defined value
+   * @param {NonNullable<any>} literalValue - the value this schema will always emit
    * @param {Object} [options] - additional options
    * @param {ISchemaMetadata} [metadata] - additional metadata
    * @returns {Schema}
@@ -715,7 +735,7 @@ export class Schema
     }
 
     const schema = new Schema(base)
-      .option('literal', true)
+      .option('literal', true)//.option('implicit', true)
       .option('values', [literalValue])
       .option('default', literalValue)
       .transformer((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {

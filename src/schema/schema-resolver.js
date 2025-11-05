@@ -258,6 +258,9 @@ export class SchemaResolver
         if (value === true) {
           value = [];
         }
+        else if (value === '*' && schema.properties['*']?.values?.length) {
+          value = [...schema.properties['*'].values];
+        }
         if (typeof value === 'string') {
           value = value.trim();
           if (value.length > 0 && value[0] === '[' && value[value.length - 1] === ']') {
@@ -278,9 +281,12 @@ export class SchemaResolver
         }
         throw new NormalizeError(`Invalid array value: ${value}`)
       })
-      .transformer((value) => {
+      .transformer((value, _, schema) => {
         if (value === true) {
           value = [];
+        }
+        else if (value === '*' && schema.properties['*']?.values?.length) {
+          value = [...schema.properties['*'].values];
         }
         if (typeof value === 'string') {
           value = value.trim();

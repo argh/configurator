@@ -21,6 +21,14 @@ import { toData } from './helpers/to-data.js';
 /** @typedef {Object.<NonNullable<any>, CompiledSchema>} CompiledSchemaUnionSchemas */
 
 /**
+ * CompiledSchema - the resolved version of a schema usable for processing configuration assignments
+ *
+ * The SchemaResolver compiler takes an input Schema and returns a CompiledSchema where:
+ * - Developers get alerted about inconsistencies and errors.
+ * - The base schema hierarchy is resolved and flattened.
+ * - Core options are standardized.
+ * - Unions may trigger property hoisting and discriminator synthesis.
+ *
  * @class
  * @typedef {import("./types.js").ISchema} ISchema
  * @implements ISchema
@@ -218,6 +226,14 @@ export class CompiledSchema
   }
 
   /**
+   * return true if is schema defines a value that is implicit in the post-transform version
+   * @returns {boolean}
+   */
+  get implicit() {
+    return this._options.implicit ?? false;
+  }
+
+  /**
    * processAssignments - convert a map of assignments into an output object based on the schema
    *
    * @param {Map<string,NonNullable<any>>} assignments - path-to-value pairs
@@ -228,8 +244,8 @@ export class CompiledSchema
   async processAssignments(assignments, result, options) {
 
     if (!result) {
-      // by convention, container normalizers should create an empty default shape when passed true
-      result = await this.normalize(true, {}, '', {...options});
+      // by convention, container transformers and normalizers should create an empty default shape when passed true
+      result = await this.transform(true, {}, '', {...options});
     }
     const strict = this.strict ?? options?.strict ?? true;
     const progress = new AssignmentProgress(this, assignments, strict);
@@ -539,13 +555,17 @@ export class CompiledSchema
           if (processedValue === undefined) {
             return undefined;
           }
-          current[part] = processedValue;
+
           if (unionCache) {
+            current[part] = processedValue;
             // Successfully processed the value, but it's an assignment to a
             // cached property of an unresolved union, so it will need to
             // be reprocessed. (The values in the cache may allow the union
             // to resolve on a subsequent pass through the assignment loop.)
             return undefined;
+          }
+          else if (!currentSchema.options.implicit) {
+            current[part] = processedValue;
           }
 
           // Otherwise, this was a successful assignment, so it's done!
@@ -608,7 +628,11 @@ export class CompiledSchema
     if (value !== null && this.values && this.values.length > 0) {
       // if we have children, we can't compare the value yet, we'll have to wait for validation.
       if (!this.hasChildren && !this.values.includes(value)) {
-        throw new ValidationError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
+        const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
+        const strict = this.strict ?? options?.strict ?? true;
+        if (!isContainerInit && strict) {
+          throw new ValidationError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
+        }
       }
     }
     const transformer = this._options.transformer;
@@ -667,10 +691,7 @@ export class CompiledSchema
    * @param {SerializeOptions} [options]
    * @returns {Promise<NonNullable<any>>}
    */
-  async serialize(config, options) {
-
-//    const all = options?.all ?? false;  // todo - handle
-
+  async serialize(config, options = {}) {
     return this.visit(config, async (value, configuration, schema, path, options) => {
       if (schema.metadata.omitFromSerialize) {
         return EMPTY_VALUE;
@@ -684,7 +705,7 @@ export class CompiledSchema
 
         return serializer(value, configuration, schema, path, options);
       }
-    }, options);
+    }, {enforceRequired: false, populateDefaults: false, ...options});
   }
 
   /**
@@ -708,7 +729,18 @@ export class CompiledSchema
     if (typeof discriminator !== 'function') {
       throw new SchemaError('Unresolved discriminator')
     }
-    return discriminator(value, configuration, this, path, options);
+    let unionSchema = await discriminator(value, configuration, this, path, options);
+
+    if (!unionSchema) {
+      return undefined;
+    }
+    if (typeof unionSchema === 'string' && this.unionSchemas[unionSchema]) {
+      unionSchema = this.unionSchemas[unionSchema];
+    }
+    if (!(unionSchema instanceof CompiledSchema)) {
+      throw new SchemaError(`Union discriminator returned unexpected value`)
+    }
+    return unionSchema;
   }
 
   /**
@@ -752,34 +784,6 @@ export class CompiledSchema
       }
     }
     return s;
-  }
-
-  /**
-   * toAssignmentsOld - attempt to convert an input to a map of assignments
-   * @deprecated
-   * @param {any} object - input
-   * @param {string} prefix - prefix to add to any path generated
-   * @returns {Map<string, any>} - output map of path-to-value associations
-   */
-  toAssignmentsOld(object, prefix = '') {
-    const assignments = new Map();
-
-    function walk(current, path) {
-      const isContainer = Array.isArray(current) || isPlainObject(current);
-
-      if (isContainer) {
-        const entries = Array.isArray(current)? current.entries() : Object.entries(current);
-
-        for (const [key, value] of entries) {
-          walk(value, path ? `${path}.${key}` : `${key}`)
-        }
-      }
-      else if (path) {
-        assignments.set(path, current);
-      }
-    }
-    walk(object, prefix);
-    return assignments;
   }
 
   /**
@@ -891,7 +895,11 @@ export class CompiledSchema
         return EMPTY_VALUE;
       }
 
-      if (!schema.hasChildren) {
+      if (schema.options.implicit) {
+        return current;
+      }
+
+      if (!schema.hasChildren && !schema.isUnion) {
 
         if (schema.default && (current === schema.default) && !visitDefaults) {
           return EMPTY_VALUE;
@@ -981,6 +989,9 @@ export class CompiledSchema
           if (propertyName === '*') {
             continue;
           }
+          if (propertySchema.options.implicit) {
+            continue;
+          }
 
           const propertyValue = current[propertyName];
           const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
@@ -1020,6 +1031,9 @@ export class CompiledSchema
             continue;
           }
           const propertySchema = schema.properties[propertyName];
+          if (propertySchema.options.implicit) {
+            continue;
+          }
           const propertyValue = ret[propertyName];
           const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
 

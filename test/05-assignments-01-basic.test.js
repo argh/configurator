@@ -244,6 +244,30 @@ describe('Assignments - Basic Processing', function() {
         ]
       });
     });
+
+    it('should expand "*" to all wildcard values when wildcard has values defined', async function() {
+      // When array schema has a wildcard child with values defined,
+      // assigning "*" should expand to all wildcard values
+      const schema = new Schema('object')
+        .property('stuff', new Schema('array')
+          .property('*', new Schema('string', {
+            values: ['a', 'b', 'c']
+          }))
+        );
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['stuff', '*']  // Shorthand for all wildcard values
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      // Should expand to all values from the wildcard schema
+      assert.deepStrictEqual(result, {
+        stuff: ['a', 'b', 'c']
+      });
+    });
   });
 
   describe('Tuple assignments (fixed array indices)', function() {
@@ -691,6 +715,197 @@ describe('Assignments - Basic Processing', function() {
 
       assert.strictEqual(result.known, 'value');
       // Unknown property is silently ignored
+    });
+  });
+
+  describe('Implicit properties', function() {
+
+    // Test class with a computed property
+    class PersonWithFullName {
+      constructor() {
+        this.firstName = '';
+        this.lastName = '';
+      }
+
+      get fullName() {
+        return `${this.firstName} ${this.lastName}`;
+      }
+
+      set fullName(value) {
+        throw new Error('fullName is read-only and cannot be assigned');
+      }
+    }
+
+    it('should not assign implicit properties after transformation', async function() {
+      const schema = new Schema('object')
+        .property('person', new Schema('object')
+          .transformer(() => new PersonWithFullName())
+          .property('firstName', new Schema('string'))
+          .property('lastName', new Schema('string'))
+          .property('fullName', new Schema('string').implicit())
+        );
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['person.firstName', 'John'],
+        ['person.lastName', 'Doe']
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      // Should not throw when accessing the computed property
+      assert.strictEqual(result.person.firstName, 'John');
+      assert.strictEqual(result.person.lastName, 'Doe');
+      assert.strictEqual(result.person.fullName, 'John Doe');
+      assert.ok(result.person instanceof PersonWithFullName);
+    });
+
+    it('should access implicit property convenience getter on CompiledSchema', async function() {
+      const schema = new Schema('object')
+        .property('computed', new Schema('string').implicit())
+        .property('regular', new Schema('string'));
+
+      const compiled = resolver.compile(schema);
+
+      // Verify the convenience getter works
+      assert.strictEqual(compiled.properties.computed.implicit, true);
+      assert.strictEqual(compiled.properties.regular.implicit, false);
+    });
+
+    it('should not attempt to set implicit property even with value in assignments', async function() {
+      // Test class with read-only getter that throws on set
+      class DataWithId {
+        constructor() {
+          this._data = '';
+        }
+
+        get id() {
+          return `id-${this._data}`;
+        }
+
+        set id(value) {
+          throw new Error('id is computed and cannot be set');
+        }
+
+        get data() {
+          return this._data;
+        }
+
+        set data(value) {
+          this._data = value;
+        }
+      }
+
+      const schema = new Schema('object')
+        .property('record', new Schema('object')
+          .transformer(() => new DataWithId())
+          .property('data', new Schema('string'))
+          .property('id', new Schema('string').implicit())
+        );
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['record.data', 'test123'],
+        ['record.id', 'ignored-value']  // This should be ignored
+      ]);
+
+      // Should not throw even though id assignment is present
+      const result = await compiled.processAssignments(assignments);
+
+      assert.strictEqual(result.record.data, 'test123');
+      assert.strictEqual(result.record.id, 'id-test123');
+      assert.ok(result.record instanceof DataWithId);
+    });
+
+    it('should work with nested implicit properties', async function() {
+      class Address {
+        constructor() {
+          this.street = '';
+          this.city = '';
+          this.state = '';
+          this.zip = '';
+        }
+
+        get formatted() {
+          return `${this.street}, ${this.city}, ${this.state} ${this.zip}`;
+        }
+
+        set formatted(value) {
+          throw new Error('formatted is computed');
+        }
+      }
+
+      const schema = new Schema('object')
+        .property('user', new Schema('object')
+          .transformer(() => new Address())
+          .property('street', new Schema('string'))
+          .property('city', new Schema('string'))
+          .property('state', new Schema('string'))
+          .property('zip', new Schema('string'))
+          .property('formatted', new Schema('string').implicit())
+        );
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['user.street', '123 Main St'],
+        ['user.city', 'Springfield'],
+        ['user.state', 'IL'],
+        ['user.zip', '62701']
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      assert.strictEqual(result.user.street, '123 Main St');
+      assert.strictEqual(result.user.formatted, '123 Main St, Springfield, IL 62701');
+      assert.ok(result.user instanceof Address);
+    });
+
+    it('should handle implicit properties in arrays', async function() {
+      class Item {
+        constructor() {
+          this.name = '';
+          this.price = 0;
+        }
+
+        get displayName() {
+          return `${this.name} ($${this.price})`;
+        }
+
+        set displayName(value) {
+          throw new Error('displayName is computed');
+        }
+      }
+
+      const schema = new Schema('object')
+        .property('items', new Schema('array')
+          .property('*', new Schema('object')
+            .transformer(() => new Item())
+            .property('name', new Schema('string'))
+            .property('price', new Schema('number'))
+            .property('displayName', new Schema('string').implicit())
+          )
+        );
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['items.0.name', 'Widget'],
+        ['items.0.price', '9.99'],
+        ['items.1.name', 'Gadget'],
+        ['items.1.price', '19.99']
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      assert.strictEqual(result.items[0].name, 'Widget');
+      assert.strictEqual(result.items[0].displayName, 'Widget ($9.99)');
+      assert.strictEqual(result.items[1].name, 'Gadget');
+      assert.strictEqual(result.items[1].displayName, 'Gadget ($19.99)');
+      assert.ok(result.items[0] instanceof Item);
+      assert.ok(result.items[1] instanceof Item);
     });
   });
 });

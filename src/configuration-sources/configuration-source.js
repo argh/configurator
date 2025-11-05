@@ -39,18 +39,24 @@ export class ConfigurationSource {
    * To insert between standard slots, use intermediate values:
    * @example
    * new MyCustomSource({ sequence: 450 }) // Between ENVIRONMENT(400) and SECRETS(500)
+   *
+   * Rationale:
+   * Settings that can't be changed at runtime are at the lowest levels.
+   * Settings that could dynamically change are at higher levels to support hot reloading.
+   * Configuration files are a good way to bulk-set a bunch of things at once, so other
+   * sources should be able to swap the config file choice, and thus need to be a lower priority.
    */
   static DefaultSequence = Object.freeze({
     SYSTEM_DEFAULTS: 100,   // schema defaults are loaded at the lowest level
     MODULES:         200,   // for fields referencing lazily-instantiated singletons (see @versionzero/module-manager)
-    APP_DEFAULTS:    300,   // takes precedence over schema defaults
+    APP_DEFAULTS:    300,   // takes precedence over schema defaults (schemas can be reused in multiple apps)
     ENVIRONMENT:     400,   // environment variables
     SECRETS:         500,   // can change secrets locations from environment via context if needed
     ARGUMENTS:       600,   // command line arguments
     SERVER:          700,   // online sources, often referenced via arguments, so higher in priority
     INTERACTIVE:     800,   // an interactive session (human in the loop)
     CONFIGURATION:   900,   // configuration files can dynamically change and often specified via arguments, so they are higher in priority
-    OVERRIDES:       1000   // if you want to completely block or replace some settings
+    OVERRIDES:       1000   // if you want to completely block or enforce replacement of some settings
   });
 
 

@@ -4,7 +4,39 @@ import { ConfiguratorError } from '../errors.js';
 import { CompiledSchema } from '../schema/compiled-schema.js';
 
 /**
- * Command line argument parser strategy
+ * CommandLineSource - parse configuration assignments from the command line
+ *
+ * This source converts the schema into a set of kebab-cased options, aliases, and flags.
+ * If an appName is provided in the context, and it matches a top-level property name, this is truncated for
+ * aesthetics.
+ *
+ * Options and aliases are specified with double hyphen (--option or --xy) and flags with a single hyphen (-F).
+ * Values may be defined after the option or flag (--option value or -F value) or inline with an equals sign
+ * (--option=value or -F=value).  Boolean schemas make the "true" value optional (--debug true, --debug=true, and --debug
+ * all do the same thing, as with -D true, -D=true, or -D).  Flags may be consolidated, -x -y is the same as -xy for
+ * boolean flags.  If you specify an inline value for the consolidated flags, they all share the value; --xy=false
+ * is the same as -x false -y false.  If a flag requires an argument, it needs to be the last flag in the sequence.
+ *
+ * Flag and alias allocation is on an opportunistic basis for "non-advanced" options based on the sequence of definition.
+ *
+ * A schema can define "flagHint" metadata to request a specific flag.  Otherwise, options at the "top level"
+ * (either at the schema top level or within the appName child) are allocated a single character flag, first
+ * checking for the availability of the lower-case flag, then the upper-case version.
+ *
+ * Schemas at deeper hierarchy levels get allocated an alias based on the leading characters of their kebab-cased option.
+ *
+ * This source pays special attention to schema selectors and selections; whenever a selector is defined, it establishes
+ * independent parsing contexts for each possible selection.  Selections do not require a leading hyphen, and thus
+ * look like "commands".
+ *
+ * Additional Metadata
+ *
+ * advanced          - only list with --help advanced
+ * hidden            - option exists, but does not show up in --help or --help advanced
+ * general           - mark as a bare option without hyphen; typically used for gathering array values
+ * internal          - do not generate a command-line option at all
+ * description       - help description of the property
+ * valueDescription  - help description of the value and its constraints
  */
 export class CommandLineSource extends ConfigurationSource
 {

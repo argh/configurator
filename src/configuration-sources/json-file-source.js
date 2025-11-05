@@ -6,6 +6,16 @@ import { text } from 'node:stream/consumers';
 /** @import {CompiledSchema} from '../schema/compiled-schema.js' */
 
 
+/**
+ * JsonFileSource - load assignments from a JSON formatted configuration file, or stdin if passed "-"
+ *
+ * This leverages ObjectSource once the data has been pulled in.
+ *
+ * Multiple configuration file sources may exist; each needs to examine the path / file and independently
+ * decide whether they will handle it.  By contract, when a configuration file source reads the file,
+ * it must delete the config key from the context to ensure no other source also reads it.
+ * (Configurator will throw a "could not load file" error if the context key still exists after all sources are loaded).
+ */
 export class JsonFileSource extends ObjectSource {
   constructor(options) {
     super(
@@ -23,10 +33,6 @@ export class JsonFileSource extends ObjectSource {
    * @returns {Promise<Map<string,any>>}
    */
   async load(schema, context, options) {
-
-// FIXME    if (!this.contextName) {
-//      const configSchema = Object.values(schema.properties).find(s => s.metadata['configuratorSchema'] === 'config');
-
     let filename = context[this.contextName];
 
     if (!filename || typeof filename !== 'string') {

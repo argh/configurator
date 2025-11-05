@@ -1,6 +1,20 @@
 import { ConfigurationSource } from './configuration-source.js'
 /** @import {CompiledSchema} from '../schema/compiled-schema.js' */
 
+/**
+ * ObjectSource - load configuration assignments from an object
+ *
+ * The object passed in the context is checked against the configuration schema.
+ * If the schema defines child properties, then the object's children are recursively
+ * checked in the same manner.
+ *
+ * When this process hits a schema that does not define children, an assignment is
+ * generated with the current value.
+ *
+ * In other words, a given object may be broken out into a collection of individual
+ * property assignments, or it could result in a single assignment; it depends on how
+ * deeply nested the schemas are defined.
+ */
 export class ObjectSource extends ConfigurationSource
 {
   constructor(options = {}) {
