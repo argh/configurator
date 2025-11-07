@@ -65,14 +65,26 @@ export class CompiledSchema
     this._unionSchemas = {};
   }
 
+  /**
+   * name of parent schema property that references this schema
+   * @returns {string|undefined}
+   */
   get name() {
     return this._name;
   }
 
+  /**
+   * parent schema
+   * @returns {CompiledSchema|undefined}
+   */
   get parent() {
     return this._parent; // overridden just for type narrowing
   }
 
+  /**
+   * computed path of this schema within the entire schema hierarchy
+   * @returns {string}
+   */
   get path() {
     if (!this.name) {
       return '';  // this is an unattached schema, no path.
@@ -665,7 +677,8 @@ export class CompiledSchema
           return await validator(current, input, schema, path, options);
         }
         catch (error) {
-          throw new ValidationError(`Error validating ${path}`, {cause:error})
+          const message = path ? `Error validating ${path}`: 'Validation error';
+          throw new ValidationError(message, {cause:error})
         }
       }, {...options})
     }

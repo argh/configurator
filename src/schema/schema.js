@@ -27,22 +27,40 @@ export class Schema
    * @param {ISchemaMetadata} [metadata] - schema metadata
    */
   constructor(base, options, metadata) {
-    /** @type {Schema|undefined} */
+    /**
+     * @type {Schema|undefined}
+     * @internal
+     */
     this._parent = undefined;
 
-    /** @type {string|undefined} */
+    /**
+     * @type {string|undefined}
+     * @internal
+     */
     this._name = undefined;
 
-    /** @type {SchemaProperties} */
+    /**
+     * @type {SchemaProperties}
+     * @internal
+     */
     this._properties = {};
 
-    /** @type {SchemaOptions} */
+    /**
+     * @type {SchemaOptions}
+     * @internal
+     */
     this._options = {};
 
-    /** @type {ISchemaMetadata} */
+    /**
+     * @type {ISchemaMetadata}
+     * @internal
+     */
     this._metadata = {};
 
-    /** @type {SchemaUnionSchemas} */
+    /**
+     * @type {SchemaUnionSchemas}
+     * @internal
+     */
     this._unionSchemas = {};
 
     if (typeof base === 'string') {
@@ -74,6 +92,7 @@ export class Schema
   }
 
   /**
+   * parent schema
    * @param {Schema} parent
    */
   set parent(parent) {
@@ -85,6 +104,7 @@ export class Schema
   }
 
   /**
+   * property name of this schema within its parent
    * @param {string} name
    */
   set name(name) {
@@ -99,12 +119,12 @@ export class Schema
   }
 
   /**
+   * name of a schema registered in SchemaResolver that this schema extends
    * @param {string|undefined} base
    */
   set base(base) {
     this._base = base;
   }
-
   /**
    * @returns {string|undefined}
    */
@@ -113,6 +133,7 @@ export class Schema
   }
 
   /**
+   * computed path of this schema within the entire schema hierarchy
    * @returns {string}
    */
   get path() {
@@ -123,27 +144,40 @@ export class Schema
     return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
   }
 
-  /** @type {SchemaProperties} */
+  /**
+   * named child schemas
+   * @type {SchemaProperties}
+   */
   get properties() {
     return this._properties;   // overridden just for type narrowing
   }
 
-  /** @type {SchemaMetadata} */
-  get metadata() {
-    return this._metadata;
-  }
-
-  /** @type {SchemaUnionSchemas} */
-  get unionSchemas() {
-    return this._unionSchemas; // overridden just for type narrowing
-  }
-
-  /** @returns {SchemaOptions} */
+  /**
+   * settings that define how the schema behaves
+   * @returns {SchemaOptions}
+   */
   get options() {
     return this._options;
   }
 
   /**
+   * settings that describe how the schema should interact with users
+   * @type {SchemaMetadata}
+   */
+  get metadata() {
+    return this._metadata;
+  }
+
+  /**
+   * alternative schemas that make up this union
+   * @type {SchemaUnionSchemas}
+   */
+  get unionSchemas() {
+    return this._unionSchemas; // overridden just for type narrowing
+  }
+
+  /**
+   * extract the contents of this schema and its children as a regular object
    * @returns {SchemaData}
    */
   toData() {
@@ -151,12 +185,13 @@ export class Schema
   }
 
   /**
-   * Attributes were a convenient shorthand, but they really just add confusion
+   * attributes were a convenient shorthand, but they really just add confusion
    * @deprecated
    * @param {string} attributeName
    * @param {any} attributeValue
    * @returns {Schema}
    * @private
+   * @internal
    */
   _setAttribute(attributeName, attributeValue) {
     if (attributeName === 'base') {
@@ -235,11 +270,12 @@ export class Schema
   }
 
   /**
-   * Attributes were a convenient shorthand, but they really just add confusion*
+   * attributes were a convenient shorthand, but they really just add confusion*
    * @deprecated
    * @param {Object} attributes
    * @returns {Schema}
    * @private
+   * @internal
    */
   _setAttributes(attributes = {}) {
     if (typeof attributes !== 'object') {
@@ -252,7 +288,7 @@ export class Schema
   }
 
   /**
-   * property - define a property on this schema
+   * property - add a named child schema
    * @param {string|Object} property - property name
    * @param {Schema|any|undefined} value - schema to associate with the property
    * @returns {Schema} - returns self for fluent chaining
@@ -312,7 +348,7 @@ export class Schema
   }
 
   /**
-   * option - define a schema option
+   * define a schema option
    * @param {string|Object} option - option
    * @param {any} [value] - option value
    * @returns {Schema} - returns self for fluent chaining
@@ -352,7 +388,7 @@ export class Schema
   }
 
   /**
-   * meta - define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
+   * define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
    *
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
    *
@@ -395,7 +431,7 @@ export class Schema
   }
 
   /**
-   * unionDiscriminator - define the property name this union will use as a discriminator
+   * define the property name (or function) this union will use as a discriminator
    * @param {string|SchemaValueFunction<CompiledSchema>} discriminator - property name
    * @returns {Schema} - returns self for fluent chaining
    */
@@ -408,7 +444,7 @@ export class Schema
   }
 
   /**
-   * unionSchema - define a schema to be a member of the union
+   * add a schema as a member of this schema's union
    * @param {string|Object} key - union schema key (used by some discriminators to select this schema)
    * @param {Schema|boolean} value - schema that the discriminator selects, or true/false override if a group
    * @returns {Schema}
@@ -463,7 +499,7 @@ export class Schema
   }
 
   /**
-   * Mark this schema as a selector
+   * mark this schema as a selector
    * @returns {Schema}
    */
   selector() {

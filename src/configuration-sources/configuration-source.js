@@ -32,6 +32,12 @@ export class ConfigurationSource {
    * Lower numbers are processed first (lower priority), higher numbers are processed last (higher priority).
    * When multiple sources assign the same property, the highest sequence number wins.
    *
+   * Rationale for the order of values in the default sequence:
+   * - Settings that can't be changed at runtime are at the lowest levels.
+   * - Settings that could dynamically change are at higher levels to support hot reloading.
+   * - Configuration files are a good way to bulk-set a bunch of things at once, so other
+   *   sources should be able to swap the config file choice, and thus need to be a lower priority.
+   *
    * Use these constants when creating custom sources to ensure proper priority ordering:
    * @example
    * new MySecretsSource({ sequence: ConfigurationSource.DefaultSequence.SECRETS })
@@ -40,11 +46,6 @@ export class ConfigurationSource {
    * @example
    * new MyCustomSource({ sequence: 450 }) // Between ENVIRONMENT(400) and SECRETS(500)
    *
-   * Rationale:
-   * Settings that can't be changed at runtime are at the lowest levels.
-   * Settings that could dynamically change are at higher levels to support hot reloading.
-   * Configuration files are a good way to bulk-set a bunch of things at once, so other
-   * sources should be able to swap the config file choice, and thus need to be a lower priority.
    */
   static DefaultSequence = Object.freeze({
     SYSTEM_DEFAULTS: 100,   // schema defaults are loaded at the lowest level

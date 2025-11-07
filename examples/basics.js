@@ -1,5 +1,4 @@
 import { Configurator, SchemaResolver, Schema, ConfiguratorError } from '../src/index.js';
-const S = Schema.create; // alias for factory function
 
 const appName = 'basics';
 
@@ -8,7 +7,7 @@ const schema = new Schema('object');
 
 // Debug property at root level (factory function, fluent api)
 schema.property('debug',
-  S('boolean')
+  new Schema('boolean')
     .meta('advanced', true)  // hide from basic CLI help
     .meta('flagHint', 'D')   // advanced options normally don't get a CLI flag allocated
     .meta('description', 'enable debugging')

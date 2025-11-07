@@ -66,11 +66,11 @@ import { CompiledSchema } from "./compiled-schema.js";
   * @property {SchemaValueFunction<boolean>|AsyncSchemaValueFunction<any>|boolean} [condition] - conditional check whether to process this schema
   * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>|string} [discriminator] - function or property name that returns a union discriminator
   * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
-  * @property {boolean} [allowDeepAssignment] - whether to allow deep assignment of values to this schema; defaults to false.
   * @property {boolean} [strict] - whether to do strict typechecking (defaults to true; must be explicitly false to be "lax")
   * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
   * @property {boolean} [required] - flag indicating whether this field is required
   * @property {boolean} [literal] - flag indicating that this field always returns the option value
+  * @property {boolean} [implicit] - flag indicating that this field exists implicitly in the post-transform value
   * @property {string} [context] - triggers value to be copied to the context field with this name
   * @property {any} [default] - default value
   * @property {Array<any>} [values] - list of legal input values for this field
