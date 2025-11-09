@@ -245,8 +245,8 @@ describe('Sources - SchemaDefaultsSource', function() {
       assert.strictEqual(assignments.size, 0);
     });
 
-    it('should not create defaults for wildcard schemas', async function() {
-      // As noted in source code line 30-32, can't synthesize defaults for wildcards
+    it('should create defaults for wildcard schemas', async function() {
+      // Wildcard defaults are now supported - they get expanded when matching concrete paths exist
       const schema = new Schema('object')
         .property('items', new Schema('array')
           .property('*', new Schema('string', { default: 'default-item' }))
@@ -257,9 +257,11 @@ describe('Sources - SchemaDefaultsSource', function() {
 
       const assignments = await source.load(compiled, {});
 
-      // Should not have any wildcard assignments
+      // Should have wildcard assignments that will be expanded later
       const wildcardAssignments = Array.from(assignments.keys()).filter(k => k.includes('*'));
-      assert.strictEqual(wildcardAssignments.length, 0);
+      assert.strictEqual(wildcardAssignments.length, 1);
+      assert.strictEqual(wildcardAssignments[0], 'items.*');
+      assert.strictEqual(assignments.get('items.*'), 'default-item');
     });
 
     it('should throw on ambiguous default values for same path', async function() {

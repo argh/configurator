@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
+import { ValidationError } from '../src/errors.js';
 
 describe('Schema Compilation - Property Basics', function() {
   let resolver;
@@ -305,7 +306,7 @@ describe('Schema Compilation - Property Basics', function() {
 
   describe('Properties on non-object/array types', function() {
 
-    it('should allow properties on schemas without explicit object type', function() {
+    it('should allow properties on schemas without explicit object type', function () {
       const schema = new Schema()
         .property('a', new Schema('string'))
         .property('b', new Schema('number'));
@@ -316,15 +317,15 @@ describe('Schema Compilation - Property Basics', function() {
       assert.ok(compiled.properties.b);
     });
 
-    it('should not allow properties on primitive types', function() {
+    it('should not allow properties on primitive types', function () {
       const schema = new Schema('string')
         .property('invalid', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
-
-      // String schemas shouldn't have meaningful properties
-      // (This behavior depends on implementation - adjust if needed)
-      assert.ok(compiled.properties.invalid);
+      assert.throws(() => resolver.compile(schema),
+        {
+          name: 'ConfiguratorError',
+          message: /not a container/
+        })
     });
   });
 

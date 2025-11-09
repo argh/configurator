@@ -29,6 +29,28 @@ export function findDiscriminatorProperties(schemas) {
       throw new ConfiguratorError('Schema needs at least one property with constrained values');
     }
   }
+  // Augment list with unique properties
+  const multiple = new Set();
+  for (let i = 0; i < schemas.length; i++) {
+    const schema1 = schemas[i];
+    for (const property of Object.keys(schema1.properties)) {
+      if (discriminatorPropertyMap.has(property) || multiple.has(property)) {
+        continue;
+      }
+      let canDistinguish = true;
+      for (let j = i + 1; j < schemas.length; j++) {
+        const schema2 = schemas[j];
+        if (schema2.properties[property]) {
+          multiple.add(property)
+          canDistinguish = false;
+          break;
+        }
+      }
+      if (canDistinguish) {
+        discriminatorPropertyMap.set(property, new Set([schema1]))
+      }
+    }
+  }
   // After the main loop, check if all schemas are distinguishable
   for (let i = 0; i < schemas.length; i++) {
     for (let j = i + 1; j < schemas.length; j++) {
@@ -36,12 +58,14 @@ export function findDiscriminatorProperties(schemas) {
       const schema2 = schemas[j];
 
       let canDistinguish = false;
+      let uniqueProperty = true;
 
       for (const [property, schemaSet] of discriminatorPropertyMap) {
         // Check if both schemas have this discriminator property
         if (!schemaSet.has(schema1) || !schemaSet.has(schema2)) {
           continue;
         }
+        uniqueProperty = false;
 
         const prop1 = schema1.properties[property];
         const prop2 = schema2.properties[property];
@@ -57,7 +81,7 @@ export function findDiscriminatorProperties(schemas) {
         }
       }
 
-      if (!canDistinguish) {
+      if (!canDistinguish && !uniqueProperty) {
         throw new ConfiguratorError(
           `Union members are indistinguishable (cannot discriminate between schemas)`
         );
@@ -98,16 +122,21 @@ export function generateDiscriminatorFunction(schema) {
       if (propertyValue === undefined) {
         continue;
       }
+
+      if (schemaSet.size === 1) {
+        candidates = new Set([...schemaSet]);
+      }
       for (const schema of schemaSet) {
         if (!candidates.has(schema)) {
           continue;
         }
-        const propertySchema = schema.properties[property];
-        if (!propertySchema) {
-          continue;
-        }
 
-        if (!propertySchema.accepts(propertyValue)) {
+        const propertySchema = schema.properties[property];
+//        if (!propertySchema) {
+//          continue;
+//        }
+
+        if (!propertySchema?.accepts(propertyValue)) {
           candidates.delete(schema);
 
           if (candidates.size === 0) {

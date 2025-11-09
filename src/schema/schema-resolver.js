@@ -142,8 +142,13 @@ export class SchemaResolver
       .option('type', 'any')
       .normalizer((value, _, schema) => {
         if (value === true) {
-          if (schema.hasChildren) {
-            const hasStringProps = Object.keys(schema.properties).some(k => !/^[\d*]/.test(k));
+          const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
+
+          if (hasChildren) {
+            let check = s => Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
+
+            let hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
+
             return hasStringProps ? {} : [];
           }
         }
@@ -151,8 +156,13 @@ export class SchemaResolver
       })
       .transformer((value, _, schema) => {
         if (value === true) {
-          if (schema.hasChildren) {
-            const hasStringProps = Object.keys(schema.properties).some(k => !/^[\d*]/.test(k));
+          const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
+
+          if (hasChildren) {
+            let check = s => Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
+
+            let hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
+
             return hasStringProps ? {} : [];
           }
         }
@@ -294,7 +304,7 @@ export class SchemaResolver
             value = parse(value);
           }
           catch (error) {
-            throw new TransformError(`Invalid serialized object: ${value}`, {cause: error});
+            throw new TransformError(`Invalid serialized array: ${value}`, {cause: error});
           }
         }
         if (Array.isArray(value)) {
@@ -976,6 +986,8 @@ export class SchemaResolver
 
     let strictCompileError;
 
+    let foundAny = false;
+
     while (source !== undefined) {
       for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
         if (!outputSchema.properties.hasOwnProperty(propName)) {
@@ -1001,6 +1013,11 @@ export class SchemaResolver
         source = undefined;
       }
       else {
+        if (source.base === undefined && !foundAny) {
+          source.base = 'any';
+        }
+        foundAny = (source.base === 'any');
+
         if (source.base) {
           if (this.hasSchema(source.base)) {
             source = this.getSchema(source.base);
@@ -1046,7 +1063,7 @@ export class SchemaResolver
 
     const outputSchema = new CompiledSchema(CompiledSchema.__TOKEN, parent, name);
     if (!inputSchema.base) {
-      inputSchema.base = 'any';
+// fixme?      inputSchema.base = 'any';
     }
 
     const source = this._resolve(inputSchema);
@@ -1159,12 +1176,19 @@ export class SchemaResolver
       schema.metadata.valueName = schema.metadata.parserTypeHint ?? 'value';
     }
 
+    const p = schema.path ? ` at "${schema.path}"` : ``;
+
     if (schema.options.literal && (schema.options.values?.length !== 1)) {
-      throw new ConfiguratorError('Literal schema needs one value defined');
+      throw new ConfiguratorError(`Literal schema${p} needs one value defined`);
     }
     if (schema.isUnion && schema.options.discriminator === undefined) {
-      throw new ConfiguratorError('Union schema needs a discriminator defined');
+      throw new ConfiguratorError(`Union schema${p} needs a discriminator defined`);
     }
+
+    if (schema.hasChildren && schema.options.type !== 'object' && schema.options.type !== 'array' && schema.options.type !== 'any') {
+      throw new ConfiguratorError(`Schema${p} has children defined but is not a container`);
+    }
+
     if (schema.options.hook && typeof schema.options.hook === 'function') {
       schema.options.hook('finalize', schema);
     }
@@ -1473,7 +1497,7 @@ export class SchemaResolver
 
       for (const unionSchema of schemaSet) {
         const propertySchema = unionSchema.properties[property];
-        if (!propertySchema || !Array.isArray(propertySchema.values)) {
+        if (!propertySchema) {
           continue;
         }
         if (!normalizer) {
@@ -1488,6 +1512,9 @@ export class SchemaResolver
             // Incompatible base types mean we can't use a shared normalizer
             normalizerCompatible = false;
           }
+        }
+        if (!Array.isArray(propertySchema.values)) {
+          continue;
         }
         propertySchema.values.forEach(v => {
           // Only check normalizer compatibility if we haven't already determined incompatibility
@@ -1511,7 +1538,10 @@ export class SchemaResolver
         throw new ConfiguratorError(`No compatible normalizer for common ${property} in union`)
       }
       // noinspection JSUnusedAssignment
-      const hoisted = new Schema(base ?? 'any', useNormalizer ? { normalizer } : {}).values(Array.from(values))
+      const hoisted = new Schema(base ?? 'any', useNormalizer ? { normalizer } : {});
+      if (values.size > 0) {
+        hoisted.values(Array.from(values))
+      }
 
       const compiledHoisted = this._compile(hoisted, schema, property);
       this._finalize(compiledHoisted);

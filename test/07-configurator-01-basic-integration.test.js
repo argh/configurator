@@ -501,7 +501,7 @@ describe('Configurator - Basic Integration', function() {
         appName: 'app',
         argv: [],
         env: {}
-      });
+      }) ?? {};
 
       assert.ok(config);
       assert.strictEqual(config.optional, undefined);

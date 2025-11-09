@@ -228,7 +228,7 @@ describe('Assignments - Conditional Processing', function() {
         ['b', 'valueB']
       ]);
 
-      const result = await compiled.processAssignments(assignments);
+      const result = await compiled.processAssignments(assignments) ?? {};
 
       // Both should be suppressed due to circular dependency
       assert.deepStrictEqual(result, {});

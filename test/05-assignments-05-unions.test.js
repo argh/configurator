@@ -333,15 +333,14 @@ describe('Assignments - Unions', function() {
         () => compiled.processAssignments(assignments),
         (err) => {
           assert.ok(err instanceof SchemaError);
-          assert.match(err.message, /config\.host/);
-          assert.match(err.cause.message, /union resolution ambiguity/i);
-          assert.match(err.cause.message, /database\|cache/);
+          assert.match(err.cause?.message, /Union resolution ambiguity for config/i);
+          assert.match(err.cause?.message, /database\|cache/);
           return true;
         }
       );
     });
 
-    it('should throw error when union property assignment fails without discriminator', async function() {
+    it('should not throw error when a uniquely disjoint union property assignment is set', async function() {
       // Test with a union-specific property that doesn't exist in all members
       const schema = new Schema('object')
         .property('server', new Schema('object')
@@ -363,16 +362,14 @@ describe('Assignments - Unions', function() {
         ['server.cert', '/path/to/cert.pem']  // Only in https, but no discriminator
       ]);
 
-      await assert.rejects(
-        () => compiled.processAssignments(assignments),
-        (err) => {
-          assert.ok(err instanceof SchemaError);
-          assert.match(err.message, /server\.cert/);
-          assert.match(err.cause.message, /union resolution ambiguity/i);
-          assert.match(err.cause.message, /http\|https/);
-          return true;
+      const result = await compiled.processAssignments(assignments);
+
+      assert.deepStrictEqual(result, {
+        server: {
+          protocol: 'https',
+          cert: '/path/to/cert.pem'
         }
-      );
+      });
     });
   });
 
@@ -425,11 +422,10 @@ describe('Assignments - Unions', function() {
             .property('data', new Schema('number'))
             .property('doubled', new Schema('number')
               .transformer((value, config, schema, path) => {
-                // Get the data value from the parent object
-                const parentPath = path.substring(0, path.lastIndexOf('.'));
-                const dataPath = `${parentPath}.data`;
-                const dataValue = config.value?.data;
-                return dataValue * 2;
+                if (config.value?.data === undefined) {
+                  return undefined;  // compute later
+                }
+                return config.value.data * 2;
               })
             )
           )

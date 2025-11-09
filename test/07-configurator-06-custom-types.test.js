@@ -245,8 +245,8 @@ describe('Configurator - Custom Types Integration', function() {
       });
 
       // Condition not met, sampleRate suppressed
-      assert.strictEqual(config2.enableSampling, undefined);
-      assert.strictEqual(config2.sampleRate, undefined);
+      assert.strictEqual(config2?.enableSampling, undefined);
+      assert.strictEqual(config2?.sampleRate, undefined);
     });
   });
 

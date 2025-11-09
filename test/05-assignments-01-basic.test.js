@@ -653,13 +653,14 @@ describe('Assignments - Basic Processing', function() {
 
       const assignments = new Map();
 
-      const result = await compiled.processAssignments(assignments);
+      const result = await compiled.processAssignments(assignments) ?? {};
 
       assert.deepStrictEqual(result, {});
     });
 
     it('should not include properties with undefined values', async function() {
       const schema = new Schema('object')
+        .property('random', new Schema('number'))
         .property('value', new Schema('string', {
           normalizer: (v) => v === 'undefined' ? undefined : v
         }));
@@ -667,6 +668,7 @@ describe('Assignments - Basic Processing', function() {
       const compiled = resolver.compile(schema);
 
       const assignments = new Map([
+        ['random', 10],
         ['value', 'undefined']
       ]);
 

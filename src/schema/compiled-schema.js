@@ -1,6 +1,8 @@
 import { SchemaError, ValidationError } from '../errors.js';
 import { isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
+import { expandWildcards } from './helpers/wildcard.js';
+import { existingAssignment } from './helpers/assignment-helpers.js';
 
 /** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, VisitOptions, SerializeOptions, ValidateOptions } from './types.js' */
 
@@ -44,6 +46,7 @@ export class CompiledSchema
    * @param {string|undefined} [name] - property name within parent when added as a child
    */
   constructor(token, parent, name) {
+//    this._id = crypto.randomUUID();
     if (token !== CompiledSchema.__TOKEN) {
       throw new SchemaError('CompiledSchema must be created via compilation');
     }
@@ -246,6 +249,15 @@ export class CompiledSchema
   }
 
   /**
+   * return true if the container allows incremental assignment to children
+   * @returns {boolean}
+   */
+
+  get allowIncremental() {
+    return this._options.allowIncremental ?? this.hasChildren;
+  }
+
+  /**
    * processAssignments - convert a map of assignments into an output object based on the schema
    *
    * @param {Map<string,NonNullable<any>>} assignments - path-to-value pairs
@@ -255,9 +267,66 @@ export class CompiledSchema
    */
   async processAssignments(assignments, result, options) {
 
+    if (this.options.type !== 'object' && this.options.type !== 'array' && this.options.type !== 'any') {
+      // If this schema isn't a container we know we can handle, we treat "assignments" like a value.
+      // (This is a silly edge case I probably shouldn't bother handling.)
+
+      if (assignments.size === 0 && this.default !== undefined) {
+        assignments.set('', this.default);
+      }
+      for (let [key, value] of assignments.entries()) {
+        if (key) {
+          throw new SchemaError(`Cannot assign "${key}" - schema is not a known container type`);
+        }
+        result = await this.normalize(value, {}, '', {...options});
+        result = await this.transform(result, {}, '', {...options});
+        result = await this.validate(result, {...options, populateDefaults: true});
+      }
+      return result;
+    }
+
+    let wildcards = expandWildcards(assignments);
+
+    for (let [path, value] of Array.from(wildcards)) {
+      if (existingAssignment(assignments, path)) {
+        continue;
+      }
+      assignments.set(path, value);
+    }
+
+    for (let path of assignments.keys()) {
+      if (path.includes('*')) {
+        assignments.delete(path);
+      }
+    }
+
+    /*
+    if (assignments.size === 0) {
+      let d = this.default;
+      if (d !== undefined) {
+        if (typeof d === 'function' && !isConstructor(d)) {
+          d = await d(null, d, this, '');
+        }
+        d = await this.normalize(d);
+        if (d !== undefined) {
+          d = await this.transform(d);
+        }
+        if (d !== undefined) {
+          d = await this.validate(d);
+        }
+      }
+      return d;
+    }
+
+     */
+
     if (!result) {
       // by convention, container transformers and normalizers should create an empty default shape when passed true
-      result = await this.transform(true, {}, '', {...options});
+      result = await this.normalize(true, {}, '', {...options});
+
+      if (this.allowIncremental) {
+        result = await this.transform(result, result, '', {...options})
+      }
     }
     const strict = this.strict ?? options?.strict ?? true;
     const progress = new AssignmentProgress(this, assignments, strict);
@@ -269,15 +338,24 @@ export class CompiledSchema
 
 
     while (!done) {
-      let beforeSize = progress.remainingAssignmentCount;
+      let beforeCounter = progress.counter;
 
       for (let [path, value] of progress.remainingAssignments) {
         if (progress.isCompleted(path)) {
           continue;
         }
         try {
-          const processedValue = await this._processAssignment(path, value, result, progress);
-          if (processedValue !== undefined) {
+          if (path === '') {
+            result = await this.normalize(value, value, '', options);
+            if (this.allowIncremental) {
+              result = await this.transform(result, result, '', options);
+            }
+            progress.setCompleted(path);
+            continue;
+          }
+
+          const processed = await this._processAssignment(path, value, result, progress);
+          if (processed) {
             progress.setCompleted(path);
           }
           else if (progress.final && (!progress.getCondition(path) /*|| !progress.isRequired(path)*/)) {
@@ -294,8 +372,67 @@ export class CompiledSchema
           throw new SchemaError(`Error assigning ${path}`, {cause: error});
         }
       }
-      let afterSize = progress.remainingAssignmentCount;
-      if (afterSize === 0 || afterSize === beforeSize) {
+
+      for (const [stagedPath, stagedData] of progress.values) {
+
+        const parts = stagedPath.split('.');
+        /** @type {CompiledSchema} */
+        let s = this;
+        let currentPath = '';
+        // todo - do we ever need to deal with a union key here?
+
+        for (let part of parts) {
+          currentPath = currentPath? `${currentPath}.${part}` : `${part}`
+          let resolved = progress.getResolvedSchema(currentPath);
+
+          s = resolved? resolved.schema : s.getPropertySchema(part);
+        }
+
+        if (!s) {
+          continue;
+        }
+
+        let stagedSchema = s;
+
+        try {
+          if (stagedSchema.isUnion) {
+            const unionSchema = await stagedSchema.discriminateUnion(stagedData, result, stagedPath,
+              {resolveUnions: progress.final});
+
+            if (!unionSchema) {
+              continue;
+            }
+
+            // If we're here, we were able to use the cache to discriminate the union.
+            // Mark this union as resolved, and convert the cache to assignments.
+            // (Do we actually need to do this, or are they still in the main
+            // assignments list and repeatedly assigned as they're "failing"?)
+            const unionKey = stagedSchema.findUnionKey(unionSchema);
+            if (unionKey === undefined) {
+              throw new SchemaError('Unable to identify key for discriminated union schema!')
+            }
+            progress.setResolvedSchema(stagedPath, unionKey, unionSchema);
+            stagedSchema = unionSchema;
+          }
+
+          if (stagedSchema.allowIncremental) {
+            const assignments = stagedSchema.toAssignments(stagedData, stagedPath);
+            progress.addAssignments(assignments);
+            progress.setValue(stagedPath, undefined);  // clear the cache
+          }
+          else if (progress.containerAssignmentsComplete(stagedPath)) {
+            progress.addAssignment(stagedPath, stagedData);
+            progress.setValue(stagedPath, undefined);
+          }
+        }
+        catch (error) {
+          throw new SchemaError(`Error assigning ${stagedPath}`, {cause: error})
+        }
+      }
+
+      let afterCounter = progress.counter;
+
+      if (afterCounter === beforeCounter) {
         if (progress.final) {
           done = true;
         }
@@ -309,7 +446,11 @@ export class CompiledSchema
       throw new ValidationError(`Failed to assign ${progress.remainingAssignmentCount > 1 ? 'properties' : 'property'}: ${Array.from(progress.assignments.keys()).join(', ')}`);
     }
 
-    return await this.validate(result, {strict, populateDefaults: true}) ?? {};  // FIXME
+    if (!this.allowIncremental) {
+      result = await this.transform(result, result, '', {...options})
+    }
+
+    return await this.validate(result, {strict, populateDefaults: true});
   }
 
 
@@ -319,11 +460,11 @@ export class CompiledSchema
    * @param {NonNullable<any>} value - value to assign
    * @param {Object|Array<any>} result - aggregated full result (some schema functions peek at full output to drive behavior)
    * @param {AssignmentProgress} progress - cache of assignment state
-   * @returns {Promise<undefined|any>} - assigned value, or undefined if it can't be assigned right now (may be retried later)
+   * @returns {Promise<boolean>} - assigned value, or undefined if it can't be assigned right now (may be retried later)
    * @private
    */
   async _processAssignment(path, value, result, progress) {
-    let unionCache = false;
+    let isStaged = false;
 //    const parts = path.split('.').map(part => /^\d+$/.test(part) ? parseInt(part, 10) : part);
     const parts = path.split('.');
     let currentPath = '';
@@ -357,10 +498,10 @@ export class CompiledSchema
       // If we don't have a schema for this part of the path, we can't handle the
       // assignment.  (This may be because it's for an unresolved union member!)
       if (!currentSchema) {
-        if (!unionCache && progress.strict) {
+        if (!isStaged && progress.strict) {
           throw new ValidationError(`Unknown property "${currentPath}"`);
         }
-        return undefined;
+        return false;
       }
 
       //
@@ -369,30 +510,31 @@ export class CompiledSchema
 
       if (isLastPart) {
         if (typeof value === 'function' && !isConstructor(value)) {
-          // if value is a function, it must act like an AsyncSchemaValueFunction
+          // if value is a function, it must act like an AsyncSchemaValueFunction that returns the actual value
+          // todo - add option to allow setting the value to a function without calling it
           value = await value(value, result, this, path);
         }
         if (value === undefined) {
-          return undefined;
+          return false;
         }
         value = currentSchema.normalize(value, result, path);
 
         if (value === undefined) {
-          return undefined;
+          return false;
         }
-        if (currentSchema.hasChildren) {
-          // When we're on the final part of the path but still pointing at a container,
-          // we attempt to convert the (presumably parsed) value to individual child assignments.
-          // (Note: we handle low-priority container assignment vs. high-priority individual assignments
-          // by sorting the assignments by path depth on each pass.)
-          const assignments = currentSchema.toAssignments(value, path);
 
-          progress.addAssignments(assignments);
+        if (currentSchema.hasChildren && currentSchema.allowIncremental) {
+          if (typeof value === 'object' && Object.keys(value).length > 0) {
+            // When we're on the final part of the path but still pointing at a container,
+            // we attempt to convert the (presumably parsed) value to individual child assignments.
+            const assignments = currentSchema.toAssignments(value, path);
 
-          // The individual assignments we just created will drive container creation
-          // on a subsequent pass through the assignment loop, so we're done with this path now.
-          progress.setCompleted(path);
-          return undefined;
+            progress.addAssignments(assignments);
+
+            // The individual assignments we just created will drive container creation
+            // on a subsequent pass through the assignment loop, so we're done with this path now.
+            return true;
+          }
         }
         if (currentSchema.isUnion) {
           // We are at the last part, but the current schema is an unresolved union
@@ -412,77 +554,56 @@ export class CompiledSchema
             currentSchema = unionSchema;
           }
           else {
-            return undefined;
+            return false;
           }
         }
       }
       else {
         // !isLastPart
-
         if (currentSchema.isUnion) {
           // Have we already resolved this?
-
           const resolved = progress.getResolvedSchema(currentPath);
 
           if (resolved) {
             if (key && resolved.key !== key) {  // this assignment isn't for this union
-              progress.setCompleted(path);      // clear out irrelevant assignments (always ignored)
-              return undefined;
+              return true;
             }
             currentSchema = resolved.schema;
+
+            if (!currentSchema.allowIncremental) {
+              let staged = progress.getValue(currentPath);
+
+              if (staged) {
+                isStaged = true;
+                current = {[part]: staged};
+              }
+            }
+
           }
           else {
-            // Do we have a cached container holding our work-in-progress?
-            let wip = progress.getValue(currentPath);
-            /** @type {CompiledSchema|undefined} */
-            const unionSchema = wip !== undefined ? await currentSchema.discriminateUnion(wip, result, currentPath,
-              {resolveUnions: progress.final}) : undefined;
+            let staged = progress.getValue(currentPath);
 
-            if (unionSchema) {
-              // If we're here, we were able to use the cache to discriminate the union.
-              // Mark this union as resolved, and convert the cache to assignments.
-              // (Do we actually need to do this, or are they still in the main
-              // assignments list and repeatedly assigned as they're "failing"?)
-              const unionKey = currentSchema.findUnionKey(unionSchema);
-              if (unionKey === undefined) {
-                throw new SchemaError('Unable to identify key for discriminated union schema!')
-              }
-              progress.setResolvedSchema(currentPath, unionKey, unionSchema);
-              currentSchema = unionSchema;
-              const assignments = currentSchema.toAssignments(wip, currentPath);
-              progress.addAssignments(assignments);
-              // Clear the cache
-              progress.setValue(currentPath, undefined);
-              unionCache = false;
-
-              // Just because we resolved the union from the WIP cache doesn't mean that the assignment is relevant!
-              if (key && unionKey !== key) {  // this assignment isn't for this union
-                progress.setCompleted(path);  // clear out irrelevant assignments (always ignored)
-                return undefined;
-              }
-
+            if (key) {
+              return false;
             }
-            else {
-              // We haven't been able to resolve the union yet.
-              // If this assignment is targeting a specific resolved union member,
-              // then we need to skip it.
-              if (key) {
-                return undefined;
-              }
-              // If we have a cached container, set up Phase 3 below to use it.
-              // (Phase 3 will be reading or creating the appropriate container
-              // type for the schema found in Phase 1.)
-              //
-              // The current value pointer would normally still be at the parent
-              // container at this point, so we need to replace current with a new
-              // "fake" parent that contains our cache container.
-              if (wip !== undefined) {
-                unionCache = true;
-                current = {[part]: wip};
-              }
-              // otherwise, fall through and let the cache container be created below
+
+            if (staged) {
+              isStaged = true;
+              current = {[part]: staged};
             }
           }
+        }
+        else {
+          // Not a union...
+          if (!currentSchema.allowIncremental) {
+            const staged = progress.getValue(currentPath);
+
+            if (staged !== undefined) {
+              isStaged = true;
+              current = {[part]: staged}
+            }
+          }
+
         }
       }
 
@@ -502,7 +623,7 @@ export class CompiledSchema
         const condition = await currentSchema.checkCondition(value, result, currentSchema, currentPath);
         progress.setCondition(currentPath, condition);
         if (!condition) {
-          return undefined;
+          return false;
         }
       }
 
@@ -523,14 +644,19 @@ export class CompiledSchema
         }
         else {
           // Not at the last part, we need to create a container!
-
           try {
-            // There's a chance this container is some wacky custom type, so transform it:
-//            const processedContainer = await currentSchema.transform(rawContainer, result, currentPath);
-            let processedContainer = await currentSchema.transform(true, result, currentPath);
+            let processedContainer = await currentSchema.normalize(true, result, currentPath);
             if (!processedContainer) {
-              return undefined;
+              return false;
             }
+            if (currentSchema.allowIncremental) {
+              // There's a chance this container is some wacky custom type, so transform it:
+              processedContainer = await currentSchema.transform(processedContainer, result, currentPath);
+              if (!processedContainer) {
+                return false;
+              }
+            }
+
             if (typeof processedContainer !== 'object') {
               // Something weird happened.  Try to fix it.
               processedContainer = Number.isInteger(parts[i + 1])? [] : {};
@@ -541,15 +667,22 @@ export class CompiledSchema
               // common members of the union itself (and used for the
               // discriminator), or were skipped earlier.
               //
-              // We will cache these assignments off to the side to check with
+              // We will stage these assignments off to the side to check with
               // the union discriminator on a subsequent assignment loop.
               // todo - test edge case in case "final" gets triggered early?
-              unionCache = true;
+              // todo - union inside a union gets a separate cache (is this ok?)
+              isStaged = true;
+              progress.setValue(currentPath, processedContainer);
+              current = processedContainer;
+            }
+            else if (!currentSchema.allowIncremental) {
+              // This container wants to transform its value all at once
+              isStaged = true;
               progress.setValue(currentPath, processedContainer);
               current = processedContainer;
             }
             else {
-              // The "normal" path -- a regular container.
+              // The "normal" path -- a regular "object-like" container.
               current[part] = processedContainer;
               current = current[part];
             }
@@ -565,24 +698,24 @@ export class CompiledSchema
           const processedValue = await currentSchema.transform(value, result, path);
 
           if (processedValue === undefined) {
-            return undefined;
+            return false;
           }
 
-          if (unionCache) {
+          if (isStaged) {
             current[part] = processedValue;
             // Successfully processed the value, but it's an assignment to a
-            // cached property of an unresolved union, so it will need to
-            // be reprocessed. (The values in the cache may allow the union
-            // to resolve on a subsequent pass through the assignment loop.)
-            return undefined;
+            // staged property of an unresolved union, so it will need to
+            // be reprocessed.  (The staged data may allow the union to
+            // resolve on a subsequent pass through the assignment loop.)
+            //return undefined;
+            return true;
           }
           else if (!currentSchema.options.implicit) {
             current[part] = processedValue;
           }
 
           // Otherwise, this was a successful assignment, so it's done!
-          progress.setCompleted(path);
-          return processedValue;
+          return true;
         }
         catch (error) {
           if (error instanceof ValidationError) {
@@ -592,6 +725,7 @@ export class CompiledSchema
         }
       }
     }
+    throw new Error('wut')
   }
 
 
@@ -636,7 +770,7 @@ export class CompiledSchema
    * @param {Object} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
    */
-  async transform(value, configuration = {}, path, options) {
+  async transform(value, configuration = {}, path = this.path, options) {
     if (value !== null && this.values && this.values.length > 0) {
       // if we have children, we can't compare the value yet, we'll have to wait for validation.
       if (!this.hasChildren && !this.values.includes(value)) {
@@ -806,12 +940,19 @@ export class CompiledSchema
    * @returns {Map<string, any>} - output map of path-to-value associations
    */
   toAssignments(object, prefix = '') {
+    if (typeof object !== 'object') {
+      return new Map([['', object]])
+    }
+
     const assignments = new Map();
 
     function walk(schema, current, path) {
       const isContainer = Array.isArray(current) || isPlainObject(current);
 
-      if (isContainer && schema?.hasChildren) {
+      const allowIncremental = schema?.allowIncremental ?? true;
+      const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
+
+      if (isContainer && hasChildren) {//} && allowIncremental) {
         const entries = Array.isArray(current)? current.entries() : Object.entries(current);
 
         for (const [key, value] of entries) {
@@ -888,7 +1029,7 @@ export class CompiledSchema
     const populateDefaults = options?.populateDefaults ?? false;
     const visitDefaults = populateDefaults || (options?.visitDefaults ?? true);
 
-    const visited = new WeakMap(); // tracks object -> output mapping
+    const visited = new Map(); // tracks object -> output mapping
 
     /**
      *
@@ -945,11 +1086,14 @@ export class CompiledSchema
       if (Array.isArray(current)) {
         ret = [];
         visited.set(current, ret);
-        for (let i = 0; i < current.length; ++i) {
-          const propertyName = `${i}`;
+        const keys = Object.keys(current).map(key => /^\d+$/.test(key)? Number(key) : key);
+//        for (let i = 0; i < current.length; ++i) {
+//        for (const i in current) {
+        for (let key of keys) {
+          const propertyName = `${key}`;
           const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
           const propertySchema = schema.getPropertySchema(propertyName);
-          const propertyValue = current[i];
+          const propertyValue = current[key];
 
           if (propertyValue === undefined) {
             continue;  // skip sparse array members for now
@@ -958,7 +1102,7 @@ export class CompiledSchema
           if (propertySchema) {
             const r = await walk(propertySchema, propertyValue, propertyPath) ?? propertyValue;
             if (r !== EMPTY_VALUE) {
-              ret[i] = r;
+              ret[key] = r;
             }
           }
           else if (strict) {
@@ -996,7 +1140,7 @@ export class CompiledSchema
         visited.set(current, ret);
       }
 
-      if (populateDefaults) {
+      if (populateDefaults && schema.allowIncremental) {
         for (const propertyName in schema.properties) {
           const propertySchema = schema.properties[propertyName];
           if (propertyName === '*') {
@@ -1066,7 +1210,10 @@ export class CompiledSchema
         }
       }
       if (schema.hasChildren) {
-        if (ret === undefined || (schema.isArray && ret?.length === 0) || Object.keys(ret).length === 0) {
+        if (ret === undefined
+            || (/*path !== '' &&*/ schema.isArray && Array.isArray(ret) && ret?.length === 0)
+            || (/*path !== '' &&*/ typeof(ret) === 'object' && isPlainObject(ret) && Object.keys(ret).length === 0)
+        ) {
           return EMPTY_VALUE;
         }
       }
@@ -1105,6 +1252,9 @@ export class CompiledSchema
    * @returns {CompiledSchema}
    */
   getPropertySchema(propertyName) {
+//    if (propertyName === '') {
+//      return this;
+//    }
     return this.properties[propertyName] ?? this.properties['*'];
   }
 
@@ -1186,6 +1336,10 @@ export class CompiledSchema
 }
 
 
+/**
+ * Helper class for tracking assignment completion state
+ * @internal
+ */
 class AssignmentStatus {
   constructor(path) {
     this.path = path;
@@ -1193,6 +1347,10 @@ class AssignmentStatus {
   }
 }
 
+/**
+ * Helper class for tracking progress of all assignments
+ * @internal
+ */
 class AssignmentProgress {
   constructor(rootSchema, assignments, strict = true) {
     this.schema = rootSchema;
@@ -1209,13 +1367,23 @@ class AssignmentProgress {
     this.pathStatus = new Map();
 
     this.assignments = new Map([...assignments]);
+
+    this.counter = 0;
+  }
+
+
+  addAssignment(path, value) {
+    if (!this.assignments.has(path)) {
+      this.counter++;
+    }
+    this.assignments.set(path, value);
+
+    this.setCompleted(path, false); // reprocess!  (todo - verify this is what we want)
   }
 
   addAssignments(assignments) {
     for (let [path, value] of assignments) {
-      this.assignments.set(path, value);
-
-      this.setCompleted(path, false); // reprocess!  (todo - verify this is what we want)
+      this.addAssignment(path, value);
     }
   }
 
@@ -1269,6 +1437,19 @@ class AssignmentProgress {
 
   }
 
+  containerAssignmentsComplete(path) {
+    if (this.assignments.has(path)) {
+      return false;
+    }
+    for (const assignmentPath of this.assignments.keys()) {
+      if (assignmentPath.startsWith(`${path}.`)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
   findUnresolvedUnion(path) {
     while (true) {
       let schema = this.schema.find(path);
@@ -1303,6 +1484,7 @@ class AssignmentProgress {
     }
     this.getStatus(path).completed = completed;
     if (completed) {
+      this.counter++;
       this.assignments.delete(path);
     }
   }
@@ -1325,6 +1507,7 @@ class AssignmentProgress {
    */
   setResolvedSchema(path, key, schema) {
     if (this.getResolvedSchema(path)?.schema !== schema) {
+      this.counter++;
       this.resolvedSchemas.set(path, {key, schema});
       this.final = false;
     }
@@ -1350,7 +1533,13 @@ class AssignmentProgress {
   }
 
   setValue(path, value) {
-    this.values.set(path, value);
+    this.counter++;
+    if (value === undefined) {
+      this.values.delete(path)
+    }
+    else {
+      this.values.set(path, value);
+    }
   }
 }
 

@@ -42,8 +42,11 @@ export class SchemaDefaultsSource
     const assignments = new Map();
 
     schema.visitSchema(  (schema, path) => {
+      if (path === '') {
+        return;  // we deal with the root as a special case
+      }
       if (path.indexOf('*') !== -1) {
-        return;  // we can't synthesize default assignments for wildcard schemas!  or can we?  (leave the * as a marker?)
+//        return;  // we can't synthesize default assignments for wildcard schemas!  or can we?  (leave the * as a marker?)
       }
       if (schema.default !== undefined) {
         if (assignments.has(path) && assignments.get(path) !== schema.default) {
@@ -52,8 +55,12 @@ export class SchemaDefaultsSource
 
         if (schema.hasChildren) {
           const defaultAssignments = schema.toAssignments(schema.default, path);
-          for (let [p,v] of defaultAssignments) {
-            assignments.set(p, v);
+          if (defaultAssignments.size) {
+            for (let [p, v] of defaultAssignments) {
+              assignments.set(p, v);
+            }
+          } else {
+            assignments.set(path, schema.default);
           }
         }
         else {

@@ -336,6 +336,10 @@ export class Schema
       this._properties[property] = value;
       value._name = property;
       value._parent = this;
+
+      if (this.base === undefined && this.options.type === undefined) {
+        this.base = Number.isInteger(property)? 'array' : 'object';
+      }
     }
     else if (value instanceof CompiledSchema) {
       throw new SchemaError(`Unable to set property ${property} to a compiled schema`);
@@ -432,7 +436,7 @@ export class Schema
 
   /**
    * define the property name (or function) this union will use as a discriminator
-   * @param {string|SchemaValueFunction<CompiledSchema>} discriminator - property name
+   * @param {string|SchemaValueFunction<CompiledSchema|string>} discriminator - property name
    * @returns {Schema} - returns self for fluent chaining
    */
   unionDiscriminator(discriminator) {
@@ -475,7 +479,7 @@ export class Schema
       throw new SchemaError(`Unable to associate union member ${key} with a schema that is already attached`);
     }
 
-    if ((this.base === undefined || this.base === 'any') && Object.keys(schema.properties).length > 0) {
+    if ((this.base === undefined/* || this.base === 'any'*/) && Object.keys(schema.properties).length > 0) {
       this.base = (schema.properties['*'] || schema.properties['0']) ? 'array' : 'object';
     }
 
@@ -543,6 +547,18 @@ export class Schema
    */
   allowEmpty(value) {
     this.options.allowEmpty = value ?? true;
+    return this;
+  }
+
+  /**
+   * Mark this schema as allowing incremental assignment to children.
+   * (The default is true for any schema with children, so most of the
+   * time you'd be disabling it.)
+   * @param {boolean} [value]
+   * @returns {Schema}
+   */
+  allowIncremental(value) {
+    this.options.allowIncremental = value ?? true;
     return this;
   }
 

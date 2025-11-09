@@ -13,6 +13,8 @@ import {
 import { ConfiguratorError } from './errors.js';
 import { SchemaResolver } from './schema/schema-resolver.js';
 import { stringify } from './schema/helpers/stringify.js';
+import { expandWildcards } from './schema/helpers/wildcard.js'
+import { existingAssignment } from './schema/helpers/assignment-helpers.js';
 
 /** @import { SerializeOptions } from './schema/types.js' */
 
@@ -234,7 +236,7 @@ export class Configurator {
     let assignments = new Map();
 
 
-    function existingAssignment(path) {
+    function oldExistingAssignment(path) {
       while (true) {
         if (assignments.has(path)) {
           return true;
@@ -251,14 +253,14 @@ export class Configurator {
 
     for (let propertyPathAssignments of sourceAssignmentsList.reverse()) {
       for (let [path, value] of Array.from(propertyPathAssignments).reverse()) {
-        if (existingAssignment(path)) {
+        if (existingAssignment(assignments, path)) {
           continue;
         }
         assignments.set(path, value)
       }
     }
 
-    const transformed = await schema.processAssignments(assignments, {},{strict})
+    const transformed = await schema.processAssignments(assignments, null,{strict})
 
     if (this._dumpContextName && configurationContext[this._dumpContextName]) {
       await this.dump(schema, transformed, configurationContext[this._dumpContextName]);
