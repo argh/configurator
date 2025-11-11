@@ -1489,6 +1489,16 @@ export class SchemaResolver
         continue;
       }
 
+      if (schemaSet.size === 1) {
+        const [unionSchema] = schemaSet;
+        const propertySchema = unionSchema.properties[property];
+        if (propertySchema) {
+          // this feels dangerous...
+          schema.properties[property] = propertySchema;
+        }
+        continue;
+      }
+
       let base;
       let values = new Set();
 

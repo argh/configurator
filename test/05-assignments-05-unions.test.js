@@ -18,8 +18,8 @@ describe('Assignments - Unions', function() {
         .property('shape', new Schema('object')
           .property('type', new Schema('string'))
           .unionDiscriminator((value, _, unionSchema) => {
-            if (value.type === 'circle') return unionSchema.unionSchemas.circle;
-            if (value.type === 'rectangle') return unionSchema.unionSchemas.rectangle;
+            if (value?.type === 'circle') return unionSchema.unionSchemas.circle;
+            if (value?.type === 'rectangle') return unionSchema.unionSchemas.rectangle;
             return undefined;
           })
           .unionSchema('circle', new Schema('object')
@@ -55,8 +55,8 @@ describe('Assignments - Unions', function() {
         .property('shape', new Schema('object')
           .property('type', new Schema('string'))
           .unionDiscriminator((value, _, unionSchema) => {
-            if (value.type === 'circle') return unionSchema.unionSchemas.circle;
-            if (value.type === 'rectangle') return unionSchema.unionSchemas.rectangle;
+            if (value?.type === 'circle') return unionSchema.unionSchemas.circle;
+            if (value?.type === 'rectangle') return unionSchema.unionSchemas.rectangle;
             return undefined;
           })
           .unionSchema('circle', new Schema('object')

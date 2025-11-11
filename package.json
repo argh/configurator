@@ -38,5 +38,8 @@
     "c8": "^8.0.1",
     "mocha": "^10.2.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "eslint": "^9.39.1"
   }
 }

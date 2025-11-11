@@ -436,7 +436,7 @@ export class Schema
 
   /**
    * define the property name (or function) this union will use as a discriminator
-   * @param {string|SchemaValueFunction<CompiledSchema|string>} discriminator - property name
+   * @param {string|SchemaValueFunction<CompiledSchema|string|undefined>} discriminator - property name
    * @returns {Schema} - returns self for fluent chaining
    */
   unionDiscriminator(discriminator) {

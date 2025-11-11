@@ -29,12 +29,20 @@ export function findDiscriminatorProperties(schemas) {
       throw new ConfiguratorError('Schema needs at least one property with constrained values');
     }
   }
+
   // Augment list with unique properties
+  const eliminated = new Set();
   const multiple = new Set();
   for (let i = 0; i < schemas.length; i++) {
     const schema1 = schemas[i];
     for (const property of Object.keys(schema1.properties)) {
-      if (discriminatorPropertyMap.has(property) || multiple.has(property)) {
+      if (discriminatorPropertyMap.has(property) || multiple.has(property) || eliminated.has(property)) {
+        continue;
+      }
+      const propertySchema = schema1.properties[property];
+      if (propertySchema.options.default !== undefined) {
+        eliminated.add(property);
+        // a default would cause it to self-discriminate!
         continue;
       }
       let canDistinguish = true;
@@ -49,6 +57,11 @@ export function findDiscriminatorProperties(schemas) {
       if (canDistinguish) {
         discriminatorPropertyMap.set(property, new Set([schema1]))
       }
+    }
+  }
+  for (let p of discriminatorPropertyMap.keys()) {
+    if (eliminated.has(p)) {
+      discriminatorPropertyMap.delete(p);
     }
   }
   // After the main loop, check if all schemas are distinguishable
@@ -117,14 +130,20 @@ export function generateDiscriminatorFunction(schema) {
     let candidates = new Set(Object.values(schema.unionSchemas))
 
     for (const [property, schemaSet] of discriminatorProps) {
-      const propertyValue = inputObject[property];
+      const propertyValue = inputObject?.[property];
 
       if (propertyValue === undefined) {
         continue;
       }
 
       if (schemaSet.size === 1) {
-        candidates = new Set([...schemaSet]);
+        const [single] = schemaSet;
+        if (candidates.has(single)) {
+          candidates = new Set([single])
+        }
+        else {
+          candidates = new Set();
+        }
       }
       for (const schema of schemaSet) {
         if (!candidates.has(schema)) {

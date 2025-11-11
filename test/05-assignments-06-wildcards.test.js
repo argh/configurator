@@ -156,8 +156,9 @@ describe('Assignments - Wildcard Expansion', function() {
       const schema = new Schema('object')
         .property('various', new Schema('array')
           .property('*', new Schema('any')
-            .unionDiscriminator(((value) => `${typeof value}-key`))
+            .unionDiscriminator(value => (value ? `${typeof value}-key` : 'object-key'))
             .unionSchema('string-key', new Schema('string'))
+            .unionSchema('number-key', new Schema('number'))
             .unionSchema('object-key', new Schema('object')
               .property('filename', new Schema('string'))
               .property('encoding', new Schema('string').default('base64'))
@@ -173,7 +174,8 @@ describe('Assignments - Wildcard Expansion', function() {
         ['various.2.filename', 'file2.txt'],
         ['various.2.encoding', 'utf8'],
         // Wildcard default for encoding
-        ['various.*:object-key.encoding', 'base64']
+        ['various.*:object-key.encoding', 'base64'],
+        ['various.3', 'simple-number']
       ]);
 
       const result = await compiled.processAssignments(assignments);

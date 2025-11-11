@@ -260,7 +260,7 @@ export class Configurator {
       }
     }
 
-    const transformed = await schema.processAssignments(assignments, null,{strict})
+    const transformed = await schema.processAssignments(assignments, undefined,{strict})
 
     if (this._dumpContextName && configurationContext[this._dumpContextName]) {
       await this.dump(schema, transformed, configurationContext[this._dumpContextName]);

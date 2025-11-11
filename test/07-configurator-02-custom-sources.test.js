@@ -263,7 +263,7 @@ describe('Configurator - Custom Sources', function() {
           const assignments = new Map();
 
           assignments.set('combined', (currentValue, config) => {
-            if (!config.prefix || !config.suffix) {
+            if (!config?.prefix || !config?.suffix) {
               return undefined;
             }
             return `${config.prefix}-middle-${config.suffix}`;

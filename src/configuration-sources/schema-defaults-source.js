@@ -43,7 +43,7 @@ export class SchemaDefaultsSource
 
     schema.visitSchema(  (schema, path) => {
       if (path === '') {
-        return;  // we deal with the root as a special case
+//        return;  // we deal with the root as a special case
       }
       if (path.indexOf('*') !== -1) {
 //        return;  // we can't synthesize default assignments for wildcard schemas!  or can we?  (leave the * as a marker?)

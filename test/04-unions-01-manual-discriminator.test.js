@@ -116,17 +116,17 @@ describe('Unions: Manual Discriminator Function', function() {
     assert.strictEqual(compiled.findUnionKey(result), 'a');
   });
 
-  it('should return undefined when value is undefined', async function() {
+  it('should work even when value is undefined', async function() {
     const schema = new Schema('object')
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('a'))
       )
-      .unionDiscriminator(() => schema.unionSchemas.a);
+      .unionDiscriminator((v, c, s) => s.unionSchemas.a);
 
     const compiled = resolver.compile(schema);
 
     const result = await compiled.discriminateUnion(undefined, {}, '');
-    assert.strictEqual(result, undefined);
+    assert.strictEqual(result, compiled.unionSchemas.a);
   });
 
   it('should identify union schema correctly', function() {

@@ -485,7 +485,7 @@ describe('Configurator - Transforms Integration', function() {
         }),
         {
           name: 'SchemaError',
-          message: /Error assigning value/
+          message: /Assignment error for value/
         }
       );
     });
@@ -503,7 +503,7 @@ describe('Configurator - Transforms Integration', function() {
         async load() {
           const assignments = new Map();
           assignments.set('database.connectionString', (currentValue, config) => {
-            const db = config.database;
+            const db = config?.database;
             if (!db?.type || !db?.host || !db?.port || !db?.database) {
               return undefined; // Wait for required fields
             }

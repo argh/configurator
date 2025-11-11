@@ -374,7 +374,7 @@ export class CommandLineSource extends ConfigurationSource
             propertyAssignments.set(ctx.selector.path, selector);
             ctx = ctx.selectionContextMap.get(selector);
           }
-          else if (ctx.selector.values?.find?.(v => (v === selector || v.value === selector))) {
+          else if (ctx.selector.staged?.find?.(v => (v === selector || v.value === selector))) {
             // defined value without a context
             propertyAssignments.set(ctx.selector.path, selector);
           }
