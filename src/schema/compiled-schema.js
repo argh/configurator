@@ -483,7 +483,7 @@ export class CompiledSchema
       }
     }
 
-    const strict = this.strict ?? options?.strict ?? true;
+    const strict = options?.strict ?? true;
     const progress = new AssignmentProgress(this, assignments, strict);
 
     let done = false;
@@ -508,8 +508,10 @@ export class CompiledSchema
             result = previous;
           }
 
-          if (previous !== undefined && previous !== null && result !== previous) {
-            throw new SchemaError('somehow lost our result');
+          // Only enforce reference preservation for schemas with children (containers)
+          // Value types (primitives) can be replaced since they're immutable
+          if (this.hasChildren && previous !== undefined && previous !== null && result !== previous) {
+            throw new SchemaError('Original input container replaced');
           }
         }
         catch (error) {
@@ -1121,6 +1123,7 @@ export class CompiledSchema
    * @returns {Promise<any>} - validated value
    */
   async validate(input, options) {
+
     if (input === undefined) {
 //FIXME      throw new ValidationError(`Validation failed - input is undefined`)
     }
@@ -1379,17 +1382,23 @@ export class CompiledSchema
       }
 
       if (!schema.hasChildren && !schema.isUnion) {
-
         if (schema.default && (current === schema.default) && !visitDefaults) {
           return EMPTY_VALUE;
         }
 
-        if (current === undefined && populateDefaults && schema.default) {
-          current = await schema.normalize(schema.default, input, path);
-          if (current === undefined) {
-            return EMPTY_VALUE;
+        if (current === undefined) {
+          if (schema.default !== undefined && populateDefaults) {
+            current = await schema.normalize(schema.default, input, path);
+            if (current !== undefined) {
+              current = await schema.transform(current, input, path);
+            }
           }
-          current = await schema.transform(current, input, path);
+        }
+        if (current === undefined) {
+          if (schema.required && enforceRequired) {
+            throw new ValidationError(`A value for ${path} is required`);
+          }
+          return EMPTY_VALUE;
         }
 
         return visitor(current, input, schema, path) ?? current;
