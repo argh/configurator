@@ -221,8 +221,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
 
   describe('Union root schemas', function() {
 
-    it.skip('should configure with union root schema', async function() {
-      // TODO: Union root schemas fail with "Unknown property" - ObjectSource creates property assignments
+    it('should configure with union root schema', async function() {
       // that don't work at root level. Need special handling for root union resolution.
       const schema = new Schema('any')
         .unionDiscriminator((value) => typeof value === 'string' ? 'simple' : 'complex')
@@ -248,8 +247,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
       assert.deepStrictEqual(config, { name: 'test', value: 123 });
     });
 
-    it.skip('should discriminate string vs object at root level', async function() {
-      // TODO: Same issue - union at root level needs special handling
+    it('should discriminate string vs object at root level', async function() {
       const schema = new Schema('any')
         .unionDiscriminator((value) => typeof value === 'string' ? 'simple' : 'complex')
         .unionSchema('simple', new Schema('string'))
@@ -288,7 +286,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
       assert.deepStrictEqual(configObject, { data: 'object-value' });
     });
 
-    it.skip('should handle union with property-based discriminator at root', async function() {
+    it('should handle union with property-based discriminator at root', async function() {
       // TODO: Property-based union discriminator at root - fails with "Unknown property 'path'"
       const schema = new Schema('object')
         .property('type', new Schema('string'))
@@ -487,8 +485,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
 
   describe('Complex edge cases', function() {
 
-    it.skip('should handle union of primitive types at root', async function() {
-      // TODO: Same issue as other union root schemas - needs special handling
+    it('should handle union of primitive types at root', async function() {
       const schema = new Schema('any')
         .unionDiscriminator((value) => {
           if (typeof value === 'string') return 'string-type';

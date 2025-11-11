@@ -1285,7 +1285,7 @@ export class CompiledSchema
           walk(propertySchema, value, path ? `${path}.${key}` : `${key}`)
         }
       }
-      else if (path) {
+      else {
         assignments.set(path, current);
       }
     }

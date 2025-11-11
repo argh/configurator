@@ -31,8 +31,10 @@ export class ObjectSource extends ConfigurationSource
    */
   async load(schema, context, options) {
 
-    const object = context[this.contextName] ?? {};
-
+    const object = context[this.contextName];
+    if (!object) {
+      return new Map();
+    }
     // The schema already knows how to build assignments from an object!
     return schema.toAssignments(object);
   }

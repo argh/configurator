@@ -173,7 +173,14 @@ export class SchemaResolver
     this.registerSchema('string', new Schema()
       .option('type', 'string')
       .meta('valueName', 'string')
-      .normalizer((value) => String(value))
+      .normalizer((value) => {
+        if (typeof value === 'object') {
+          return stringify(value);
+        }
+        else {
+          return String(value)
+        }
+      })
       .validator((value) => {
         if (typeof value !== 'string') {
           throw new ValidationError('Not a string');
