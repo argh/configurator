@@ -1,10 +1,12 @@
-import { SchemaError, ValidationError } from '../errors.js';
+import { strict as assert } from 'assert';
+import { NormalizeError, SchemaError, ValidationError } from '../errors.js';
 import { isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
 import { existingAssignment } from './helpers/assignment-helpers.js';
 
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, VisitOptions, SerializeOptions, ValidateOptions } from './types.js' */
+
+/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, AsyncSchemaValueVisitorFunction, VisitOptions, SerializeOptions, ValidateOptions } from './types.js' */
 
 /** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
 
@@ -350,7 +352,7 @@ export class CompiledSchema
           }
         }
         catch (error) {
-          const message = path ? `Assignment error for ${path}` : 'Assignment error'
+          const message = fpm('Assignment error', path);
           throw new SchemaError(message, {cause: error});
         }
       }
@@ -373,7 +375,8 @@ export class CompiledSchema
           progress.assignments.keys()).join(', ')}`);
     }
 
-    return await this.validate(result, {strict, populateDefaults: true});
+    const populated = await this.populate(result);
+    return await this.validate(populated);
   }
 
   /**
@@ -465,7 +468,10 @@ export class CompiledSchema
     let propertySchema = undefined;
     let propertyCurrentValue = undefined;
 
-    if (propertyName !== '') {
+    if (!isAssignmentSchema) {
+      assert(propertyName);
+
+      // !isAssignmentSchema, but we're referencing propertyName, so being safe here...
       propertySchema = currentSchema.getPropertySchema(propertyName);
 
       if (!propertySchema) {
@@ -570,28 +576,22 @@ export class CompiledSchema
       }
     }
 
-    if (propertyValue !== undefined && (propertyValue !== propertyCurrentValue)) {
+    if (!isAssignmentSchema && propertyValue !== undefined && (propertyValue !== propertyCurrentValue)) {
       if (!returnValue || typeof returnValue !== 'object') {
         const schemaName = currentSchema.path || 'root'
         throw new SchemaError(`Current ${typeof returnValue} value at ${schemaName} cannot accept assignment to "${propertyName}"`)
       }
       if (/^\d+$/.test(propertyName)) {
-        const propertyIndex = parseInt(propertyName);
-        returnValue[propertyIndex] = propertyValue;
+        returnValue[Number(propertyName)] = propertyValue;
       }
       else {
         returnValue[propertyName] = propertyValue;
-      }
-      if (propertyName === '') {
-        progress.setCompleted(assignmentPath);
-        throw new Error('wut');  //fixme
-
       }
     }
 
     if (staged) {
       if (!currentSchema.isUnion && (currentSchema.allowIncremental || progress.containerAssignmentsComplete(currentPath))) {
-        // unstage!  todo - check if it's not a container (allowIncremental is off for those?)
+        // unstage!  todo - check if it's not a container (allowIncremental is false for value schemas!)
         returnValue = await currentSchema.transform(returnValue, result, currentPath);
         progress.clearStagedData(currentPath);
         staged = false;
@@ -639,6 +639,16 @@ export class CompiledSchema
     if (typeof normalizer !== 'function') {
       throw new SchemaError('Unresolved schema normalizer')
     }
+    // todo - should we allow async value functions (and thus make normalize async)?  or should we move this call out of normalize?
+    if (typeof value === 'function' && !isConstructor(value) && this.options.type !== 'function') {
+      try {
+        value = value(true, configuration, this, path, options);
+      }
+      catch (error) {
+        throw new NormalizeError(`${fpm('Exception calling value function', path)}`, {cause: error});
+      }
+    }
+
     return normalizer(value, configuration, this, path, options);
   }
 
@@ -669,33 +679,84 @@ export class CompiledSchema
     return transformer(value, configuration, this, path, {...options});
   }
 
+  async populate(input) {
+    return await this.visit(input, async (current, input, schema, path) => {
+      if (schema !== undefined && current === undefined) {
+        if (schema.default !== undefined) {
+          current = await schema.normalize(schema.default, input, path);
+          if (current !== undefined) {
+            current = await schema.transform(current, input, path);
+          }
+        }
+      }
+      return current;
+    }, {visitUndefined: true, update: true});
+  }
+
   /**
    * validate - ensure that an object matches the schema
    * @param {any} input - input value to validate
    * @param {ValidateOptions} [options] - any tweaks to the validator behavior
    * @returns {Promise<any>} - validated value
    */
-  async validate(input, options) {
+  async validate(input, options = {}) {
 
-    if (input === undefined) {
-//FIXME      throw new ValidationError(`Validation failed - input is undefined`)
-    }
+    const strict = options.strict ?? true;
+
+    const enforceUnionResolution = options.enforceUnionResolution ?? strict;
+    const disallowUnexpected = options.disallowUnexpected ?? strict;
+    const enforceRequired = options.enforceRequired ?? strict;
+    const deepRequired = options.deepRequired ?? true;
+
     try {
       return await this.visit(input, async (current, input, schema, path) => {
+        if (!schema) {
+          const parentSchema = this.findParent(path);
+
+          let strictParent = parentSchema?.options.strict ?? strict;
+
+          if (strictParent && disallowUnexpected) {
+            throw new ValidationError(fpm('Unexpected value', path));
+          }
+          return EMPTY_VALUE;
+        }
+
+        if (schema.isUnion && enforceUnionResolution) {
+          throw new ValidationError(fpm('Unable to discriminate union', path))
+        }
+
+        if (current === undefined) {
+          if (enforceRequired) {
+            if (schema.required && enforceRequired) {
+              throw new ValidationError(fpm('Missing required value', path));
+            }
+            if (schema.hasChildren && deepRequired) {
+              for (const property of Object.keys(schema.properties)) {
+                const childSchema = schema.properties[property];
+                if (property === '*') {
+                  continue;
+                }
+                if (childSchema.required) {
+                  throw new ValidationError(fpm('Missing required', path, childSchema.name));
+                }
+              }
+            }
+          }
+          return EMPTY_VALUE;
+        }
 
         /** @type {AsyncSchemaValueFunction<any>} */
         const validator = schema.options.validator;
         if (typeof validator !== 'function') {
-          throw new ValidationError(`Invalid validator for ${path}`)
+          throw new ValidationError(fpm('Invalid validator', path));
         }
         try {
-          return await validator(current, input, schema, path, options);
+          return await validator(current, input, schema, path, options) ?? current;
         }
         catch (error) {
-          const message = path ? `Error validating ${path}`: 'Validation error';
-          throw new ValidationError(message, {cause:error})
+          throw new ValidationError(fpm('Validation error', path), {cause:error})
         }
-      }, {...options})
+      }, {resolveUnions: true, visitUndefined: true, visitUnexpected: !disallowUnexpected, visitDefaults: true})
     }
     catch (error) {
       if (error instanceof ValidationError) {
@@ -706,6 +767,8 @@ export class CompiledSchema
       }
     }
   }
+
+
 
 
 
@@ -721,19 +784,19 @@ export class CompiledSchema
    */
   async serialize(config, options = {}) {
     return this.visit(config, async (value, configuration, schema, path, options) => {
-      if (schema.metadata.omitFromSerialize) {
+      if (schema === undefined || schema.metadata.omitFromSerialize) {
         return EMPTY_VALUE;
       }
       else {
         const serializer = schema.options.serializer;
 
         if (!serializer || typeof serializer !== 'function') {
-          throw new SchemaError('Serializer is not a function');
+          throw new SchemaError(fpm('Invalid serializer', path));
         }
 
         return serializer(value, configuration, schema, path, options);
       }
-    }, {enforceRequired: false, populateDefaults: false, ...options});
+    }, {...options, extract: true});
   }
 
   /**
@@ -755,7 +818,7 @@ export class CompiledSchema
       return undefined;
     }
     if (typeof discriminator !== 'function') {
-      throw new SchemaError('Unresolved discriminator')
+      throw new SchemaError(fpm('Unresolved discriminator', path));
     }
     let unionSchema = await discriminator(value, configuration, this, path, options);
 
@@ -766,7 +829,7 @@ export class CompiledSchema
       unionSchema = this.unionSchemas[unionSchema];
     }
     if (!(unionSchema instanceof CompiledSchema)) {
-      throw new SchemaError(`Union discriminator returned unexpected value`)
+      throw new SchemaError(fpm('Union discriminator returned unexpected value', path))
     }
     return unionSchema;
   }
@@ -801,7 +864,7 @@ export class CompiledSchema
       if (parts.length > 1) {
         pathComponent = parts[0];
       }
-      s = s?.properties[pathComponent];
+      s = s?.properties[pathComponent] ?? s?.properties['*'];
 
       if (s?.isUnion && parts.length > 1) {
         s = s.unionSchemas[parts[1]];
@@ -813,6 +876,29 @@ export class CompiledSchema
     }
     return s;
   }
+
+  /**
+   * Find the parent schema of a given path (which might be several levels deeper than the last known schema!)
+   * @param {string} path
+   * @returns {CompiledSchema|undefined}
+   */
+  findParent(path) {
+    if (!path || path === '' || path === '.') {
+      return undefined;
+    }
+    let dot = path.lastIndexOf('.');
+
+    if (dot === -1) {
+      return this;
+    }
+    path = path.substring(0, dot);
+    const parentSchema = this.find(path);
+    if (parentSchema) {
+      return parentSchema;
+    }
+    return this.findParent(path);
+  }
+
 
   /**
    * toAssignments - attempt to convert an input to a map of assignments
@@ -846,6 +932,27 @@ export class CompiledSchema
       }
     }
     walk(this, object, prefix);
+    return assignments;
+  }
+
+  async newToAssignments(object, prefix = '') {
+    if (typeof object !== 'object') {
+      return new Map([['', object]]);
+    }
+    const assignments = new Map();
+
+    await this.visit(object, async (current, configuration, schema, path) => {
+
+      const isContainer = Array.isArray(current) || isPlainObject(current);
+      const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
+
+      if (!isContainer && !hasChildren) {
+        // We visit intermediate nodes
+        assignments.set(path, current);
+      }
+
+    }, {update: false, visitUnexpected: true, visitUndefined: false, resolveUnions: false});
+
     return assignments;
   }
 
@@ -894,237 +1001,167 @@ export class CompiledSchema
 
   static get EMPTY_VALUE() { return EMPTY_VALUE }
 
+
+
+
+
+
   /**
    * visit - call an async visitor function on everything in an input object based on the schema definition;
    *         if any visitors return a falsey value, return early
    *
    * @param {any} input - input object
-   * @param {SchemaValueFunction<any>} visitor - async visitor
+   * @param {AsyncSchemaValueVisitorFunction} visitor - async visitor
    * @param {VisitOptions} [options] - options to pass to visitor
    * @returns {Promise<any>} - returns result of visitor call on outermost schema
    */
   async visit(input, visitor, options) {
-
     const resolveUnions = options?.resolveUnions ?? true;
-    const enforceRequired = options?.enforceRequired ?? true;
-    const populateDefaults = options?.populateDefaults ?? false;
-    const visitDefaults = populateDefaults || (options?.visitDefaults ?? true);
+    const visitDefaults = options?.visitDefaults ?? true;
+    const visitContainers = options?.visitContainers ?? true;
+    const visitUnexpected = options?.visitUnexpected ?? false;
+    const visitUndefined = options?.visitUndefined ?? false;
+    const update = options?.update ?? false;
+    const copy = options?.copy ?? false;
+    const extract = options?.extract ?? false;
 
-    const visited = new Map(); // tracks object -> output mapping
+    if (update && (copy || extract)) {
+      throw new SchemaError('Visit option conflict: specify only copy/extract or update, not both!');
+    }
 
     /**
      *
-     * @param {CompiledSchema} schema
-     * @param {any} current
+     * @param {CompiledSchema|undefined} schema
+     * @param {any|undefined} current
      * @param {string} path
      * @returns {Promise<any|symbol>}
      */
     async function walk(schema, current, path) {
-
-      const strict = schema.strict ?? options?.strict ?? true;         // true = require that input is clean
-
-      // todo - deal with "allowEmpty" ?
-
-      const condition = await schema.checkCondition(current, input, schema, path);
-      if (!condition) {
-        return EMPTY_VALUE;
-      }
-
-      if (schema.options.implicit) {
-        return current;
-      }
-
-      if (!schema.hasChildren && !schema.isUnion) {
-        if (schema.default && (current === schema.default) && !visitDefaults) {
+      if (schema !== undefined) {
+        const condition = await schema.checkCondition(current, input, schema, path);
+        if (!condition) {
           return EMPTY_VALUE;
         }
 
-        if (current === undefined) {
-          if (schema.default !== undefined && populateDefaults) {
-            current = await schema.normalize(schema.default, input, path);
-            if (current !== undefined) {
-              current = await schema.transform(current, input, path);
-            }
-          }
-        }
-        if (current === undefined) {
-          if (schema.required && enforceRequired) {
-            throw new ValidationError(`A value for ${path} is required`);
-          }
+        if (!visitDefaults && schema.default !== undefined && current === schema.default) {
           return EMPTY_VALUE;
         }
 
-        return visitor(current, input, schema, path) ?? current;
-      }
-
-      if (visited.has(current)) {
-        return visited.get(current);
-      }
-
-      let ret;
-
-      if (schema.isUnion && resolveUnions) {
-        /** @type {CompiledSchema|undefined} */
-        const unionSchema = await schema.discriminateUnion(current, input, path, {resolveUnions, enforceRequired, strict});
-        if (unionSchema) {
-          schema = unionSchema;
+        if (schema.options.implicit) {
+          return current;
         }
-        else {
-          if (true || (schema.required && enforceRequired)) {
-            throw new ValidationError(`Unable to discriminate union for "${path}"`)
+
+        if (schema.isUnion && resolveUnions && current !== undefined) {
+          /** @type {CompiledSchema|undefined} */
+          const unionSchema = await schema.discriminateUnion(current, input, path)
+
+          if (unionSchema) {
+            schema = unionSchema;
           }
-          return EMPTY_VALUE;
         }
       }
 
-      // First, walk the actual object and validate that all members are known
-      if (Array.isArray(current)) {
-        ret = [];
-        visited.set(current, ret);
-        const keys = Object.keys(current).map(key => /^\d+$/.test(key)? Number(key) : key);
-//        for (let i = 0; i < current.length; ++i) {
-//        for (const i in current) {
-        for (let key of keys) {
-          const propertyName = `${key}`;
-          const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
-          const propertySchema = schema.getPropertySchema(propertyName);
-          const propertyValue = current[key];
-
-          if (propertyValue === undefined) {
-            continue;  // skip sparse array members for now
-          }
-
-          if (propertySchema) {
-            const r = await walk(propertySchema, propertyValue, propertyPath) ?? propertyValue;
-            if (r !== EMPTY_VALUE) {
-              ret[key] = r;
-            }
-          }
-          else if (strict) {
-            throw new ValidationError(`Unexpected array index at "${propertyPath}"`)
-          }
-        }
-      }
-      else if (isPlainObject(current)) {
-        ret = {};
-        visited.set(current, ret);
-        // we don't walk into derived objects, we will only verify the declared schemas
-        for (let propertyName of Object.keys(current)) {
-          const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
-          const propertyValue = current[propertyName];
-          const propertySchema = schema.getPropertySchema(propertyName);
-
-          if (propertySchema) {
-            const r = await walk(propertySchema, propertyValue, propertyPath) ?? propertyValue;
-            if (r !== EMPTY_VALUE) {
-              ret[propertyName] = r;
-            }
-          }
-          else if (strict) {
-            throw new ValidationError(`Unexpected property at "${propertyPath}"`);
-          }
-          else {
-            // no idea what this is, but we're not in strict mode, so allow it...
-            ret[propertyName] = propertyValue;
-          }
-        }
-      }
-      else {
-        // we don't re-create any other containers, we just validate their child properties below
+      let ret = (copy || extract) ? undefined : current;
+      if (!schema?.hasChildren) {
         ret = current;
-        visited.set(current, ret);
       }
-
-      if (populateDefaults && schema.allowIncremental) {
-        for (const propertyName in schema.properties) {
-          const propertySchema = schema.properties[propertyName];
-          if (propertyName === '*') {
-            continue;
-          }
-          if (propertySchema.options.implicit) {
-            continue;
-          }
-
-          const propertyValue = current?.[propertyName];
-          const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
-          let propertyDefault = propertySchema.default;
-
-          if (propertyValue === undefined && propertyDefault === undefined && propertySchema.hasChildren) {
-            propertyDefault = propertySchema.isArray? [] : {};
-          }
-
-          if (propertyValue === undefined && propertyDefault !== undefined) {
-            let d = propertyDefault;
-            if (typeof d === 'function' && !isConstructor(d)) {
-              d = await d(null, ret, propertySchema, propertyPath);
-            }
-// fixme - pretty sure ret is not root obj here
-            const normalizedDefault = await propertySchema.normalize(d, ret, propertyPath);
-            if (normalizedDefault === undefined) {
-              continue;
-            }
-            const transformedDefault = await propertySchema.transform(d, ret, propertyPath);
-            if (transformedDefault === undefined) {
-              continue;
-            }
-
-            const r = await walk(propertySchema, transformedDefault, propertyPath);
-            if (r !== EMPTY_VALUE) {
-              if (ret === undefined) {
-                ret = await schema.normalize(true, undefined, path);
-                if (ret === undefined) {
-                  continue;
-                }
-                ret = await schema.transform(ret, undefined, path);
+      if (schema !== undefined && schema.hasChildren) {
+        const updateProperty = async (key, val) => {
+          if ((copy || update || extract) && val !== EMPTY_VALUE && val !== undefined) {
+            if (ret === undefined) {
+              if (extract) {
+                ret = schema.isArray? [] : {};
               }
-              ret[propertyName] = r;
+              else {
+                ret = await schema.normalize(true, input, path);
+
+                if (ret && schema.allowIncremental) {
+                  ret = await schema.transform(ret, input, path);
+                }
+              }
+            }
+            if (ret) {
+              ret[key] = val;
+            }
+          }
+          else if (update && (val === EMPTY_VALUE || val === undefined)) {
+            if (ret) {
+              delete ret[key];
             }
           }
         }
-      }
 
-      // Next, ensure that all required properties are set correctly
-      if (enforceRequired) {
-        for (const propertyName in schema.properties) {
-          if (propertyName === '*') {
-            continue;
-          }
-          const propertySchema = schema.properties[propertyName];
-          if (propertySchema.options.implicit) {
-            continue;
-          }
-          const propertyValue = ret?.[propertyName];
-          const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
+        /** {type {Set<string>}} */
+        const visited = new Set();
 
-          if (propertyValue !== undefined && (!isPlainObject(ret) && !Array.isArray(ret))) {
-            // we don't care about the return value, we just want to look for missing required values...
-            await walk(propertySchema, propertyValue, propertyPath);
-          }
-          else if (propertyValue === undefined && propertySchema.required) {
-            if (await propertySchema.checkCondition(undefined, ret, propertySchema, propertyPath)) {
-              throw new ValidationError(`Required property "${propertyPath}" is not set`);
+        // First, walk the actual object and validate that all members are known
+        // (We only walk "regular" objects; we trust the validator of transformed values.)
+        if (Array.isArray(current) || isPlainObject(current)) {
+          const keys = Object.keys(current).map(key => /^\d+$/.test(key) ? Number(key) : key);
+          for (let key of keys) {
+            const propertyName = `${key}`;
+            const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
+            const propertySchema = schema.getPropertySchema(propertyName);
+            const propertyValue = current[key];
+
+            visited.add(propertyPath);
+            if (propertySchema === undefined && schema.options.strict && !visitUnexpected) {
+              throw new ValidationError(fpm('Unexpected', path, propertyName));
             }
-          }
-          else if (propertyValue === undefined && propertySchema.hasChildren) {
-            // forge a propertyValue just so we can check for required child properties...
-            await walk(propertySchema, propertySchema.isArray? [] : {}, propertyPath);
+
+            if (propertyValue === undefined && !visitUndefined) {
+              continue;
+            }
+
+            const r = await walk(propertySchema, propertyValue, propertyPath) ?? propertyValue;
+
+            await updateProperty(key, r);
           }
         }
-      }
-      if (schema.hasChildren) {
-        if (ret === undefined
-            || (/*path !== '' &&*/ schema.isArray && Array.isArray(ret) && ret?.length === 0)
-            || (/*path !== '' &&*/ typeof(ret) === 'object' && isPlainObject(ret) && Object.keys(ret).length === 0)
-        ) {
-          return EMPTY_VALUE;
+        if (visitUndefined && schema.allowIncremental && (current === undefined || Array.isArray(current) || isPlainObject(current))) {
+          // Next, walk the schema and visit everything that was undefined
+          for (const propertyName in schema.properties) {
+            const propertySchema = schema.properties[propertyName];
+            const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
+            if (visited.has(propertyPath) || propertyName === '*' || propertySchema.options.implicit) {
+              continue;
+            }
+            const key = /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName;
+
+            // By definition, we've already walked anything that has a defined value
+            const r = await walk(propertySchema, undefined, propertyPath);
+
+            await updateProperty(key, r);
+          }
+          if ((copy || update) && ret !== undefined && !schema.allowIncremental) {
+            ret = await schema.transform(ret, input, path);
+          }
+        }
+        if (!visitContainers) {
+          return current;
         }
       }
-      return visitor(ret, input, schema, path) ?? ret;
+      if (ret === undefined && !visitUndefined) {
+        return undefined;
+      }
+      return await visitor(ret, input, schema, path) ?? ret;
     }
     const ret = await walk(this, input, '');
 
     return (ret === EMPTY_VALUE) ? undefined : ret;
   }
+
+
+
+
+
+
+
+
+
+
+
+
 
   /**
    * Compute all possible schema paths (including union schema properties)
@@ -1463,3 +1500,26 @@ class AssignmentProgress {
 }
 
 const EMPTY_VALUE = Symbol('EMPTY')
+
+/**
+ * format a path (possibly with property)
+ * @param {string} message
+ * @param {string} path
+ * @param {string} [property]
+ * @param {string} [prep]
+ * @returns {string}
+ */
+function fpm(message, path, property, prep = 'at') {
+
+  let m = message;
+
+  if (property) {
+    m += ` property ${property}`
+  }
+  if (path) {
+    m += ` ${prep} ${path}`;
+  }
+
+  return m;
+}
+

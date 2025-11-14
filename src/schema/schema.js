@@ -1,6 +1,7 @@
-import { SchemaError, ValidationError } from '../errors.js';
+import { ConfiguratorError, SchemaError, ValidationError } from '../errors.js';
 import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
+import { deepValue } from '../utils.js';
 
 /** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueFunction, SchemaData, ISchema } from './types.js' */
 
@@ -774,7 +775,6 @@ export class Schema
    * @returns {Schema}
    */
   static literal(literalValue, options, metadata) {
-
     let base = 'any';
     if (typeof literalValue === 'string') {
       base = 'string';
@@ -787,9 +787,22 @@ export class Schema
     }
 
     const schema = new Schema(base)
-      .option('literal', true)//.option('implicit', true)
       .option('values', [literalValue])
       .option('default', literalValue)
+      .option('compileHook', (eventName, hookSchema) => {
+        if (eventName === 'finalize') {
+          const p = hookSchema.path ? ` at "${hookSchema.path}"` : ``;
+          if (hookSchema.options.values?.length !== 1) {
+            throw new SchemaError(`Literal schema${p} needs one value defined`);
+          }
+          if (hookSchema.hasChildren) {
+            throw new SchemaError(`Literal schema${p} should not have child properties`)
+          }
+          if (hookSchema.isUnion) {
+            throw new SchemaError(`Literal schema${p} should not be a union`)
+          }
+        }
+      })
       .transformer((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
         return literalValue;
       })
@@ -808,6 +821,74 @@ export class Schema
     }
 
     return schema;
+  }
+
+  static inherit() {
+    return new Schema()
+      .option('compileHook', (hookEvent, hookSchema) => {
+        if (hookEvent !== 'finalize') {
+          return;
+        }
+        if (!hookSchema.parent) {
+          throw new SchemaError('A top-level schema cannot have an inherited value');
+        }
+      })
+      .normalizer((_value, _config, _schema, path) => {
+        return path.substring(path.lastIndexOf('.') + 1);
+      })
+      .transformer((propName, config, schema, path) => {
+        while (path && schema.parent) {
+          schema = schema.parent;
+          let lastDot = path.lastIndexOf('.');
+          if (lastDot === -1) {
+            path = '';
+          }
+          else {
+            path = path.substring(0, lastDot);
+          }
+          if (schema.properties[propName]) {
+            return deepValue(config, path ? `${path}.${propName}` : `${propName}`);
+          }
+        }
+        return undefined;
+      })
+      .serializer(() => undefined)
+      .default((_value, config, _schema, path) => {
+        return path.substring(path.lastIndexOf('.') + 1)
+      })
+      .meta('omitFromSerialize')
+      .meta('internal')
+  }
+
+  static reference(path) {
+    return new Schema()
+      .option('compileHook', (hookEvent, hookSchema) => {
+        if (hookEvent !== 'finalize') {
+          return;
+        }
+        if (!hookSchema.find(path)) {
+          throw new SchemaError(`Unable to find reference path ${path}`);
+        }
+      })
+      .normalizer(() => {
+        return path;
+      })
+      .transformer((_, config) => {
+        return deepValue(config, path);
+      })
+      .validator((value, config) => {
+        const configValue = deepValue(config, path);
+        if (configValue === value) { // fixme oh crap, there might be a different value where our reference points!  can't guarantee equality of reference!
+          return configValue;
+        }
+        throw new ValidationError(`Reference is not exactly the same as ${path}`)
+      })
+      .serializer(() => undefined)
+      .default(() => {
+        return path;
+      })
+      .meta('omitFromSerialize')
+      .meta('internal')
   }
 }
 

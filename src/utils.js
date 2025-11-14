@@ -214,14 +214,17 @@ export function deepValue(object, path) {
     return undefined;
   }
 
+  if (path === '') {
+    return object;
+  }
+
   // Handle empty or invalid path
-  if (!path || typeof path !== 'string') {
+  if (typeof path !== 'string') {
     return undefined;
   }
 
   // Split the path and filter out empty strings
   const keys = path.split('.').filter(key => key.length > 0);
-
 
   // If no valid keys, return undefined
   if (keys.length === 0) {
@@ -237,7 +240,12 @@ export function deepValue(object, path) {
     }
 
     // Move to the next level
-    current = current[key];
+    if (/^\d+$/.test(key)) {
+      current = current[Number(key)]
+    }
+    else {
+      current = current[key];
+    }
   }
 
   return current;

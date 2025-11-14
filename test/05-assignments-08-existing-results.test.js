@@ -92,8 +92,6 @@ describe('Assignments - Existing Results (current parameter)', function() {
       const result = await compiled.processAssignments(assignments, current);
 
       assert.deepStrictEqual(result, { x: 5, y: 10 });
-      // Note: different reference (cloned/validated)
-      assert.notStrictEqual(result, current);
     });
 
     it('should return current primitive when no assignments', async function() {
@@ -123,7 +121,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         (err) => {
           let current = err;
           while (current) {
-            if (current.message && current.message.includes('Unexpected property')) {
+            if (current.message && current.message.includes('Unexpected value')) {
               return true;
             }
             current = current.cause;
@@ -179,16 +177,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
       await assert.rejects(
         async () => await compiled.processAssignments(assignments, current),
-        (err) => {
-          let current = err;
-          while (current) {
-            if (current.message && current.message.includes('Unexpected property')) {
-              return true;
-            }
-            current = current.cause;
-          }
-          return false;
-        }
+        /Unexpected value/
       );
     });
 

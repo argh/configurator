@@ -98,7 +98,6 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(strLiteral.base, 'string');
       assert.deepStrictEqual(strLiteral.options.values, ['hello']);
       assert.strictEqual(strLiteral.options.default, 'hello');
-      assert.strictEqual(strLiteral.options.literal, true);
 
       const numLiteral = Schema.literal(42);
       assert.strictEqual(numLiteral.base, 'number');

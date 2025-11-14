@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { TransformError } from '../src/errors.js';
+import { SerializeError, TransformError } from '../src/errors.js';
 
 describe('Schema Compilation - Buffer Type', function() {
   let resolver;
@@ -196,14 +196,20 @@ describe('Schema Compilation - Buffer Type', function() {
       const schema = new Schema('buffer');
       const compiled = resolver.compile(schema);
 
-      const serialized1 = await compiled.serialize('not a buffer');
-      assert.strictEqual(serialized1, undefined);
+      await assert.rejects(
+        async () => await compiled.serialize('not a buffer'),
+        SerializeError
+      );
 
-      const serialized2 = await compiled.serialize(123);
-      assert.strictEqual(serialized2, undefined);
+      await assert.rejects(
+        async () => await compiled.serialize(123),
+        SerializeError
+      );
 
-      const serialized3 = await compiled.serialize(null);
-      assert.strictEqual(serialized3, undefined);
+      await assert.rejects(
+        async () => await compiled.serialize(null),
+        SerializeError
+      );
     });
   });
 

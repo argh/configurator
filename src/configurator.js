@@ -402,7 +402,12 @@ export class Configurator {
    */
   async dump(schema, config, destination, serializeOptions) {
 
-    const serialized = await schema.serialize(config, {...serializeOptions, enforceRequired: false});
+    const serialized = await schema.serialize(config, {...serializeOptions});
+
+    if (serialized === undefined) {
+      throw new ConfiguratorError('Empty configuration');
+    }
+
     const formattedConfig = stringify(serialized, {space: 2});
     if (destination === '-') {
       try {

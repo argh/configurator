@@ -485,7 +485,7 @@ describe('Configurator - Transforms Integration', function() {
         }),
         {
           name: 'SchemaError',
-          message: /Assignment error for value/
+          message: /Assignment error at value/
         }
       );
     });

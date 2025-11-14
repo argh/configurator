@@ -40,7 +40,7 @@ export function parseDate(value) {
       }
       const date = new Date(timestamp);
       if (isNaN(date.getTime())) {
-        throw new TransformError(`Invalid date value: ${value}`);
+        throw new TransformError(`Invalid date: ${value}`);
       }
       return date;
     }
@@ -48,7 +48,7 @@ export function parseDate(value) {
     // Fall back to standard Date parsing for ISO strings, etc.
     const date = new Date(value);
     if (isNaN(date.getTime())) {
-      throw new TransformError(`Invalid date value: ${value}`);
+      throw new TransformError(`Invalid date: ${value}`);
     }
     return date;
   }
@@ -59,17 +59,17 @@ export function parseDate(value) {
     const date = new Date(Math.abs(value) < 200000000 ? value * 1000 : value)
 
     if (isNaN(date.getTime())) {
-      throw new TransformError(`Invalid date value: ${value}`);
+      throw new TransformError(`Invalid date: ${value}`);
     }
     return date;
   }
 
   if (value instanceof Date) {
     if (isNaN(value.getTime())) {
-      throw new TransformError(`Invalid Date object: ${value}`);
+      throw new TransformError(`Invalid date: ${value}`);
     }
     return new Date(value.getTime()); // defensive copy
   }
 
-  throw new TransformError(`Invalid date value: ${value} (${typeof value})`);
+  throw new TransformError(`Invalid date: ${value} (${typeof value})`);
 }

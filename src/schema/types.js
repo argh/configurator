@@ -15,7 +15,34 @@ import { CompiledSchema } from "./compiled-schema.js";
 
 /**
  * @template TReturn
- * @callback SchemaValueFunction
+ * @template TSchema
+ * @callback SchemaValueFunctionBase
+ * @param {any} value
+ * @param {Object|Array<any>} configuration
+ * @param {TSchema} schema
+ * @param {String} path
+ * @param {Object} [options]
+ * @returns {TReturn}
+ */
+
+/**
+ * @template TReturn
+ * @typedef {SchemaValueFunctionBase<TReturn,CompiledSchema>} SchemaValueFunction
+ */
+
+/**
+ * @template TReturn
+ * @typedef {SchemaValueFunctionBase<Promise<TReturn>,CompiledSchema>} AsyncSchemaValueFunction
+ */
+
+/**
+ * @typedef {SchemaValueFunctionBase<Promise<any>,CompiledSchema|undefined>} AsyncSchemaValueVisitorFunction
+ */
+
+
+/**
+ * @template TReturn
+ * @callback SchemaValueFunction1
  * @param {any} value
  * @param {Object|Array<any>} configuration
  * @param {CompiledSchema} schema
@@ -26,7 +53,7 @@ import { CompiledSchema } from "./compiled-schema.js";
 
 /**
  * @template TReturn
- * @callback AsyncSchemaValueFunction
+ * @callback AsyncSchemaValueFunction1
  * @param {any} value
  * @param {Object|Array<any>} configuration
  * @param {CompiledSchema} schema
@@ -34,6 +61,7 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @param {Object} [options]
  * @returns {Promise<TReturn>}
  */
+
 
 /**
  * @typedef {Object} ISchemaMetadataCommon
@@ -65,6 +93,7 @@ import { CompiledSchema } from "./compiled-schema.js";
   * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>} [serializer] - convert a validated input to serialized form
   * @property {SchemaValueFunction<boolean>|AsyncSchemaValueFunction<any>|boolean} [condition] - conditional check whether to process this schema
   * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>|string} [discriminator] - function or property name that returns a union discriminator
+  * @property {function(string,CompiledSchema):void} [compileHook] - a function called during schema compilation
   * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
   * @property {boolean} [strict] - whether to do strict typechecking (defaults to true; must be explicitly false to be "lax")
   * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
@@ -112,14 +141,25 @@ import { CompiledSchema } from "./compiled-schema.js";
  */
 
 /** @typedef {Object} VisitOptions
- * @property {boolean} [resolveUnions] - true = enforce that unions resolve
- * @property {boolean} [enforceRequired] -     true = enforce presence of required values
- * @property {boolean} [populateDefaults] -   todo - pretend defaults were set
+ * @property {boolean} [update] - true = modify input if the visitor returns a different value
+ * @property {boolean} [copy] - true = return copy of input
+ * @property {boolean} [extract] - true = extract a simplified copy of the input
+ * @property {boolean} [resolveUnions] - true = attempt to resolve unions (otherwise just visit union itself)
+ * @property {boolean} [visitUndefined] - true = visit undefined properties
+ * @property {boolean} [visitUnexpected] - true = visit properties that were not expected
  * @property {boolean} [visitDefaults] -     true means visit even if value matches schema defaults
- * @property {boolean} [strict] - require that input is clean
+ * @property {boolean} [visitContainers] - true = call visitor on containers, not just leaf values
  */
 
-/** @typedef {VisitOptions} ValidateOptions
+/** @typedef {Object} ValidateOptions
+ * @property {boolean} [enforceUnionResolution]
+ * @property {boolean} [enforceRequired]
+ * @property {boolean} [deepRequired]
+ * @property {boolean} [disallowUnexpected]
+ * @property {boolean} [strict]
+ */
+
+/** @typedef {Object} PopulateOptions
  * @property {boolean} [strict]
  */
 

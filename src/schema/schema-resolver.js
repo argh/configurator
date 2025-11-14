@@ -182,10 +182,10 @@ export class SchemaResolver
         }
       })
       .validator((value) => {
-        if (typeof value !== 'string') {
-          throw new ValidationError('Not a string');
+        if (typeof value === 'string') {
+          return value;
         }
-        return value;
+        throw new ValidationError(`Invalid string: ${value}`);
       })
     );
 
@@ -195,14 +195,14 @@ export class SchemaResolver
       .normalizer((value) => {
         if (typeof value === 'number') return value;
         const num = Number(value);
-        if (isNaN(num)) throw new NormalizeError(`Invalid number: ${value}`);
+        if (isNaN(num)) throw new NormalizeError(`Invalid input for number: ${value}`);
         return num;
       })
       .validator((value) => {
         if (typeof value === 'number' && Number.isFinite(value)) {
           return value;
         }
-        throw new ValidationError(`Invalid number: "${value}`);
+        throw new ValidationError(`Invalid number: ${value}`);
       })
     );
 
@@ -234,14 +234,14 @@ export class SchemaResolver
             value = parse(value);
           }
           catch (error) {
-            throw new NormalizeError(`Invalid serialized object: ${value}`, {cause: error});
+            throw new NormalizeError(`Invalid input string for object: ${value}`, {cause: error});
           }
         }
         if (typeof value === 'object') {
           // if we need to be able to compare this value, it needs to be normalized as a string
           return Array.isArray(schema.values)? stringify(value) : value
         }
-        throw new NormalizeError(`Invalid object value: ${value}`);
+        throw new NormalizeError(`Invalid input for object: ${value}`);
       })
       .transformer((value) => {
         if (value === true) {
@@ -258,11 +258,11 @@ export class SchemaResolver
         if (typeof value === 'object') {
           return value;
         }
-        throw new TransformError(`Invalid object value: ${value}`)
+        throw new TransformError(`Invalid object: ${value}`)
       })
       .validator((value) => {
         if (typeof value !== 'object') {
-          throw new ValidationError(`Invalid object: "${value}"`)
+          throw new ValidationError(`Invalid object: ${value}`)
         }
         // NOTE: we let the schema validate object children; this should be used for specialization
         return value;
@@ -285,7 +285,7 @@ export class SchemaResolver
               value = parse(value);
             }
             catch (error) {
-              throw new NormalizeError(`Invalid serialized array: ${value}`);
+              throw new NormalizeError(`Invalid input string for array: ${value}`);
             }
           }
           else {
@@ -296,7 +296,7 @@ export class SchemaResolver
           // if we need to be able to compare this value, it needs to be normalized as a string
           return (Array.isArray(schema.values)? stringify(value) : value);
         }
-        throw new NormalizeError(`Invalid array value: ${value}`)
+        throw new NormalizeError(`Invalid input for array: ${value}`)
       })
       .transformer((value, _, schema) => {
         if (value === true) {
@@ -317,11 +317,11 @@ export class SchemaResolver
         if (Array.isArray(value)) {
           return value;
         }
-        throw new TransformError(`Invalid array value ${value}`);
+        throw new TransformError(`Invalid array: ${value}`);
       })
       .validator((value) => {
         if (!Array.isArray(value)) {
-          throw new ValidationError(`Invalid array "${value}"`)
+          throw new ValidationError(`Invalid array: ${value}`)
         }
         // NOTE: we let the schema validate array elements; this should be used for specialization
         return value;
@@ -332,16 +332,22 @@ export class SchemaResolver
       .meta('parserTypeHint', 'string')
       .meta('valueName', 'date')
       .meta('valueDescription', 'ms|iso date|"now"|[+|-]offset[d|h|m|s|ms]')
+      .normalizer((value) => {
+        if (typeof value === 'string' || typeof value === 'number' || value instanceof Date ) {
+          return value;
+        }
+        throw new NormalizeError(`Invalid input for date: ${value}`);
+      })
       .transformer(parseDate)
       .validator((value) => {
         if (value instanceof Date && !isNaN(value.getTime())) {
           return value;
         }
-        throw new ValidationError('Invalid date value')
+        throw new ValidationError(`Invalid date: ${value}`)
       })
       .serializer((value) => {
         if (!(value instanceof Date)) {
-          throw new SerializeError(`Expected Date object for serializing, got ${typeof value}`);
+          throw new SerializeError(`Invalid date: ${value}`);
         }
         return value.toISOString();
       })
@@ -349,6 +355,20 @@ export class SchemaResolver
     this.registerSchema('buffer', new Schema()
       .option('type', 'buffer')
       .meta('parserTypeHint', 'string')
+      .normalizer(value => {
+        if (typeof value === 'string' || Buffer.isBuffer(value)) {
+          return value;
+        }
+        if (typeof value === 'number') {
+          return Buffer.alloc(value);
+        }
+        if (typeof value === 'object') {
+          if (!value.size) {
+            throw new NormalizeError(`Invalid input for buffer: ${value}`);
+          }
+          return Buffer.alloc(value.size ?? 0, value.fill, value.encoding);
+        }
+      })
       .transformer((value) => {
         try {
           if (typeof value === 'string') {
@@ -359,18 +379,59 @@ export class SchemaResolver
           }
         }
         catch (error) {
-          throw new TransformError(`Invalid buffer value: ${value}`, {cause: error});
+          throw new TransformError(`Invalid buffer: ${value}`, {cause: error});
         }
+      })
+      .validator(value => {
+        if (Buffer.isBuffer(value)) {
+          return value;
+        }
+        throw new ValidationError(`Invalid buffer: ${value}`);
       })
       .serializer((value) => {
         if (Buffer.isBuffer(value)) {
           return value.toString('base64');
         }
-        else {
-          return undefined;
-        }
+        throw new SerializeError(`Invalid buffer: ${value}`)
       })
     );
+
+    this.registerSchema('function', new Schema()
+      .option('type', 'function')
+      .meta('parserTypeHint', 'string')
+      .meta('hidden')
+      .meta('internal')
+      .meta('omitFromSerialize')
+      .normalizer((value) => {
+        if (typeof value === 'function' || typeof value === 'string') {
+          return value;
+        }
+        throw new NormalizeError(`Invalid input for function: ${value}`)
+      })
+      .transformer((value, result) => {
+        if (typeof value === 'string') {
+          value = deepValue(result, value);  // look up the string as a reference in the current configuration
+        }
+        if (typeof value === 'function') {
+          return value;
+        }
+        throw new TransformError(`Invalid function: ${value}`)
+      })
+      .validator(value => {
+        if (typeof value === 'function') {
+          return value;
+        }
+        throw new ValidationError(`Invalid function: ${value}`);
+      })
+      .serializer((value) => {
+        if (typeof value === 'function') {
+          return value.name;
+        }
+        throw new SerializeError(`Invalid function: ${value}`)
+      })
+    );
+
+
   }
 
   /**
@@ -1088,8 +1149,8 @@ export class SchemaResolver
     // first pass over the defined options
     this._compileOptions({normalizer: undefined, ...source.options}, outputSchema);
 
-    if (outputSchema.options.hook && typeof outputSchema.options.hook === 'function') {
-      outputSchema.options.hook('compile', outputSchema);
+    if (outputSchema.options.compileHook && typeof outputSchema.options.compileHook === 'function') {
+      outputSchema.options.compileHook('compile', outputSchema);
     }
     return outputSchema;
   }
@@ -1185,9 +1246,6 @@ export class SchemaResolver
 
     const p = schema.path ? ` at "${schema.path}"` : ``;
 
-    if (schema.options.literal && (schema.options.values?.length !== 1)) {
-      throw new ConfiguratorError(`Literal schema${p} needs one value defined`);
-    }
     if (schema.isUnion && schema.options.discriminator === undefined) {
       throw new ConfiguratorError(`Union schema${p} needs a discriminator defined`);
     }
@@ -1196,8 +1254,8 @@ export class SchemaResolver
       throw new ConfiguratorError(`Schema${p} has children defined but is not a container`);
     }
 
-    if (schema.options.hook && typeof schema.options.hook === 'function') {
-      schema.options.hook('finalize', schema);
+    if (schema.options.compileHook && typeof schema.options.compileHook === 'function') {
+      schema.options.compileHook('finalize', schema);
     }
     return schema;
   }
