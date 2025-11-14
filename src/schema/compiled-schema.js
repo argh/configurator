@@ -375,7 +375,7 @@ export class CompiledSchema
           progress.assignments.keys()).join(', ')}`);
     }
 
-    const populated = await this.populate(result);
+    const populated = await this.populateDefaults(result);
     return await this.validate(populated);
   }
 
@@ -679,7 +679,13 @@ export class CompiledSchema
     return transformer(value, configuration, this, path, {...options});
   }
 
-  async populate(input) {
+  /**
+   * Populate defaults - by design, shallow only at this point.
+   * (The option to create deep defaults is implemented by SchemaDefaultsSource).
+   * @param {any} input
+   * @returns {Promise<any>}
+   */
+  async populateDefaults(input) {
     return await this.visit(input, async (current, input, schema, path) => {
       if (schema !== undefined && current === undefined) {
         if (schema.default !== undefined) {
@@ -690,7 +696,7 @@ export class CompiledSchema
         }
       }
       return current;
-    }, {visitUndefined: true, update: true});
+    }, {visitUndefinedShallow: true, update: true});
   }
 
   /**
@@ -706,7 +712,6 @@ export class CompiledSchema
     const enforceUnionResolution = options.enforceUnionResolution ?? strict;
     const disallowUnexpected = options.disallowUnexpected ?? strict;
     const enforceRequired = options.enforceRequired ?? strict;
-    const deepRequired = options.deepRequired ?? true;
 
     try {
       return await this.visit(input, async (current, input, schema, path) => {
@@ -730,6 +735,7 @@ export class CompiledSchema
             if (schema.required && enforceRequired) {
               throw new ValidationError(fpm('Missing required value', path));
             }
+            /*
             if (schema.hasChildren && deepRequired) {
               for (const property of Object.keys(schema.properties)) {
                 const childSchema = schema.properties[property];
@@ -741,6 +747,7 @@ export class CompiledSchema
                 }
               }
             }
+             */
           }
           return EMPTY_VALUE;
         }
@@ -756,7 +763,7 @@ export class CompiledSchema
         catch (error) {
           throw new ValidationError(fpm('Validation error', path), {cause:error})
         }
-      }, {resolveUnions: true, visitUndefined: true, visitUnexpected: !disallowUnexpected, visitDefaults: true})
+      }, {resolveUnions: true, visitUndefinedShallow: true, visitUnexpected: !disallowUnexpected, visitDefaults: true, ...options})
     }
     catch (error) {
       if (error instanceof ValidationError) {
@@ -1020,7 +1027,8 @@ export class CompiledSchema
     const visitDefaults = options?.visitDefaults ?? true;
     const visitContainers = options?.visitContainers ?? true;
     const visitUnexpected = options?.visitUnexpected ?? false;
-    const visitUndefined = options?.visitUndefined ?? false;
+    const visitUndefinedShallow = options?.visitUndefinedShallow ?? false;
+    const visitUndefined = visitUndefinedShallow || (options?.visitUndefined ?? false);
     const update = options?.update ?? false;
     const copy = options?.copy ?? false;
     const extract = options?.extract ?? false;
@@ -1065,7 +1073,9 @@ export class CompiledSchema
       if (!schema?.hasChildren) {
         ret = current;
       }
-      if (schema !== undefined && schema.hasChildren) {
+
+      // Traverse children?
+      if (schema !== undefined && schema.hasChildren && ((ret !== undefined) || !visitUndefinedShallow)) {
         const updateProperty = async (key, val) => {
           if ((copy || update || extract) && val !== EMPTY_VALUE && val !== undefined) {
             if (ret === undefined) {

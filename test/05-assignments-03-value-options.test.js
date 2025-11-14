@@ -13,7 +13,9 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
   describe('Default option', function() {
 
-    it('should apply default when property not assigned', async function() {
+    it('should apply default when property not assigned (shallow)', async function() {
+      // Shallow defaults: populateDefaults() fills in defaults for properties
+      // when the parent container exists
       const schema = new Schema('object')
         .property('port', new Schema('number', {
           default: 8080
@@ -23,11 +25,12 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
       const compiled = resolver.compile(schema);
 
       const assignments = new Map([
-        ['host', 'localhost']
+        ['host', 'localhost']  // This creates the root object
       ]);
 
       const result = await compiled.processAssignments(assignments);
 
+      // Default applied because root object was created by 'host' assignment
       assert.deepStrictEqual(result, {
         host: 'localhost',
         port: 8080
@@ -51,7 +54,8 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
       assert.strictEqual(result.port, 3000);
     });
 
-    it('should apply defaults for nested properties', async function() {
+    it('should apply defaults for nested properties (shallow)', async function() {
+      // Shallow defaults: populateDefaults() fills in defaults when parent exists
       const schema = new Schema('object')
         .property('server', new Schema('object')
           .property('port', new Schema('number', {
@@ -65,11 +69,12 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
       const compiled = resolver.compile(schema);
 
       const assignments = new Map([
-        ['server.port', '3000']
+        ['server.port', '3000']  // This creates the 'server' container
       ]);
 
       const result = await compiled.processAssignments(assignments);
 
+      // 'timeout' default applied because 'server' container was created
       assert.deepStrictEqual(result, {
         server: {
           port: 3000,
@@ -78,7 +83,39 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
       });
     });
 
-    it('should apply default with function value', async function() {
+    it('should NOT apply deep defaults when parent container does not exist', async function() {
+      // Shallow defaults: populateDefaults() does NOT create parent containers
+      // Deep defaults require SchemaDefaultsSource (not used in this test)
+      const schema = new Schema('object')
+        .property('server', new Schema('object')
+          .property('port', new Schema('number', {
+            default: 8080
+          }))
+          .property('timeout', new Schema('number', {
+            default: 5000
+          }))
+        )
+        .property('otherProp', new Schema('string'));
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['otherProp', 'value']  // Does NOT create 'server' container
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      // 'server' container is NOT created, so defaults are NOT applied
+      assert.deepStrictEqual(result, {
+        otherProp: 'value'
+        // No 'server' property
+      });
+      assert.strictEqual(result.server, undefined);
+    });
+
+    it('should return undefined with zero assignments (no container to populate)', async function() {
+      // Zero assignments → zero output (defaults only populate existing containers)
+      // To get deep defaults that create containers, use SchemaDefaultsSource
       const schema = new Schema('object')
         .property('timestamp', new Schema('number', {
           default: () => Date.now()
@@ -90,11 +127,12 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
       const result = await compiled.processAssignments(assignments);
 
-      assert.ok(typeof result.timestamp === 'number');
-      assert.ok(result.timestamp > 0);
+      // No assignments means no object created (populateDefaults is shallow)
+      assert.strictEqual(result, undefined);
     });
 
-    it('should apply default for array elements', async function() {
+    it('should apply default for array elements (shallow)', async function() {
+      // Shallow defaults: populateDefaults() fills in defaults when array element exists
       const schema = new Schema('object')
         .property('items', new Schema('array')
           .property('*', new Schema('object')
@@ -108,19 +146,49 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
       const compiled = resolver.compile(schema);
 
       const assignments = new Map([
-        ['items.0.name', 'Item 1'],
-        ['items.1.name', 'Item 2'],
+        ['items.0.name', 'Item 1'],        // Creates items[0]
+        ['items.1.name', 'Item 2'],        // Creates items[1]
         ['items.1.status', 'inactive']
       ]);
 
       const result = await compiled.processAssignments(assignments);
 
+      // 'status' defaults applied because array elements were created
       assert.deepStrictEqual(result, {
         items: [
           { name: 'Item 1', status: 'active' },
           { name: 'Item 2', status: 'inactive' }
         ]
       });
+    });
+
+    it('should NOT apply deep defaults to non-existent array elements', async function() {
+      // Shallow defaults: populateDefaults() does NOT create array elements
+      const schema = new Schema('object')
+        .property('items', new Schema('array')
+          .property('*', new Schema('object')
+            .property('status', new Schema('string', {
+              default: 'active'
+            }))
+            .property('name', new Schema('string'))
+          )
+        )
+        .property('otherProp', new Schema('string'));
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map([
+        ['otherProp', 'value']  // Does NOT create 'items' array
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      // 'items' array is NOT created, so element defaults are NOT applied
+      assert.deepStrictEqual(result, {
+        otherProp: 'value'
+        // No 'items' property
+      });
+      assert.strictEqual(result.items, undefined);
     });
   });
 
@@ -138,9 +206,26 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
       const assignments = new Map();
 
       await assert.rejects(
-        () => compiled.processAssignments(assignments),
+        () => compiled.processAssignments(assignments, {}),  // Pass {} to ensure root exists
         ValidationError
       );
+    });
+
+    it('should return undefined with zero assignments', async function() {
+      // Zero assignments → zero output (no object created to validate)
+      const schema = new Schema('object')
+        .property('name', new Schema('string', {
+          required: true
+        }));
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map();
+
+      const result = await compiled.processAssignments(assignments);
+
+      // No assignments means no object is created
+      assert.strictEqual(result, undefined);
     });
 
     it('should succeed when required property is provided', async function() {
@@ -226,8 +311,29 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
   describe('Interactions: default + required', function() {
 
-    it('should satisfy required with default value', async function() {
-      // TODO: Investigate - required check happens before defaults are applied
+    it('should satisfy required with default value when root exists', async function() {
+      // When root exists, defaults are applied and satisfy required
+      const schema = new Schema('object')
+        .property('status', new Schema('string', {
+          required: true,
+          default: 'active'
+        }));
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map();
+
+      const result = await compiled.processAssignments(assignments, {});  // Pass {} to ensure root exists
+
+      // Default satisfies required
+      assert.deepStrictEqual(result, {
+        status: 'active'
+      });
+    });
+
+    it('should return undefined with zero assignments (even with default)', async function() {
+      // Zero assignments → zero output (defaults only populate existing containers)
+      // To get deep defaults that create containers, use SchemaDefaultsSource
       const schema = new Schema('object')
         .property('status', new Schema('string', {
           required: true,
@@ -240,9 +346,8 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
       const result = await compiled.processAssignments(assignments);
 
-      assert.deepStrictEqual(result, {
-        status: 'active'
-      });
+      // No assignments means no object created (defaults are shallow, not deep)
+      assert.strictEqual(result, undefined);
     });
 
     it('should use assigned value over default for required property', async function() {

@@ -145,7 +145,8 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @property {boolean} [copy] - true = return copy of input
  * @property {boolean} [extract] - true = extract a simplified copy of the input
  * @property {boolean} [resolveUnions] - true = attempt to resolve unions (otherwise just visit union itself)
- * @property {boolean} [visitUndefined] - true = visit undefined properties
+ * @property {boolean} [visitUndefined] - true = visit entire schema hierarchy, even if the input object has undefined values
+ * @property {boolean} [visitUndefinedShallow] - true = visit hierarchy, but don't continue into child properties if parent is undefined
  * @property {boolean} [visitUnexpected] - true = visit properties that were not expected
  * @property {boolean} [visitDefaults] -     true means visit even if value matches schema defaults
  * @property {boolean} [visitContainers] - true = call visitor on containers, not just leaf values

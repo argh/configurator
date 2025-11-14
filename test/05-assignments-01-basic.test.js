@@ -537,9 +537,26 @@ describe('Assignments - Basic Processing', function() {
       const assignments = new Map();
 
       await assert.rejects(
-        () => compiled.processAssignments(assignments),
+        () => compiled.processAssignments(assignments, {}),  // Pass {} to ensure root exists
         ValidationError
       );
+    });
+
+    it('should return undefined with zero assignments', async function() {
+      // Zero assignments → zero output (no object created to validate)
+      const schema = new Schema('object')
+        .property('name', new Schema('string', {
+          required: true
+        }));
+
+      const compiled = resolver.compile(schema);
+
+      const assignments = new Map();
+
+      const result = await compiled.processAssignments(assignments);
+
+      // No assignments means no object is created
+      assert.strictEqual(result, undefined);
     });
 
     it('should succeed when required property provided', async function() {
