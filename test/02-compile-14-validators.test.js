@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
-import { ValidationError, TransformError } from '../src/errors.js';
+import { ValidationError, TransformError, ConstraintError } from '../src/errors.js';
 
 describe('Schema Compilation - Validator Registration and Resolution', function() {
   let resolver;
@@ -793,7 +793,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       // Transform should reject before validator runs
       await assert.rejects(
         () => compiled.transform('invalid', {}, ''),
-        ValidationError
+        ConstraintError
       );
     });
   });

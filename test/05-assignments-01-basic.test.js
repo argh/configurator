@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+import { ConstraintError, ValidationError } from '../src/errors.js';
 
 describe('Assignments - Basic Processing', function() {
   let resolver;
@@ -649,12 +649,12 @@ describe('Assignments - Basic Processing', function() {
         ['status', 'invalid-status']
       ]);
 
-      // Wrapped in SchemaError with ValidationError as cause
+      // Wrapped in SchemaError with ConstraintError as cause
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
           assert.ok(err instanceof Error);
-          return err.name === 'SchemaError' && err.cause instanceof ValidationError;
+          return err.name === 'SchemaError' && err.cause instanceof ConstraintError;
         }
       );
     });

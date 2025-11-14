@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { NormalizeError, SchemaError, ValidationError } from '../errors.js';
+import { ConstraintError, NormalizeError, SchemaError, ValidationError } from '../errors.js';
 import { isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
@@ -670,7 +670,7 @@ export class CompiledSchema
         const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
         const strict = this.strict ?? options?.strict ?? true;
         if (!isContainerInit && strict) {
-          throw new ValidationError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
+          throw new ConstraintError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
         }
       }
     }

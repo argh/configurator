@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, NormalizeError, TransformError } from '../src/errors.js';
+import { ValidationError, NormalizeError, TransformError, ConstraintError } from '../src/errors.js';
 
 describe('Schema Compilation - Object Type', function() {
   let resolver;
@@ -263,7 +263,7 @@ describe('Schema Compilation - Object Type', function() {
 
       await assert.rejects(
         () => compiled.transform({ valid: false }, {}, 'field'),
-        ValidationError
+        ConstraintError
       );
     });
   });

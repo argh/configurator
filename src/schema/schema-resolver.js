@@ -8,6 +8,7 @@ import {
   SchemaError,
   SerializeError,
   TransformError,
+  ConstraintError,
   ValidationError
 } from '../errors.js';
 import { constants } from 'node:fs';
@@ -185,7 +186,7 @@ export class SchemaResolver
         if (typeof value === 'string') {
           return value;
         }
-        throw new ValidationError(`Invalid string: ${value}`);
+        throw new ConstraintError(`Invalid string: ${value}`);
       })
     );
 
@@ -202,7 +203,7 @@ export class SchemaResolver
         if (typeof value === 'number' && Number.isFinite(value)) {
           return value;
         }
-        throw new ValidationError(`Invalid number: ${value}`);
+        throw new ConstraintError(`Invalid number: ${value}`);
       })
     );
 
@@ -262,7 +263,7 @@ export class SchemaResolver
       })
       .validator((value) => {
         if (typeof value !== 'object') {
-          throw new ValidationError(`Invalid object: ${value}`)
+          throw new ConstraintError(`Invalid object: ${value}`)
         }
         // NOTE: we let the schema validate object children; this should be used for specialization
         return value;
@@ -321,7 +322,7 @@ export class SchemaResolver
       })
       .validator((value) => {
         if (!Array.isArray(value)) {
-          throw new ValidationError(`Invalid array: ${value}`)
+          throw new ConstraintError(`Invalid array: ${value}`)
         }
         // NOTE: we let the schema validate array elements; this should be used for specialization
         return value;
@@ -343,7 +344,7 @@ export class SchemaResolver
         if (value instanceof Date && !isNaN(value.getTime())) {
           return value;
         }
-        throw new ValidationError(`Invalid date: ${value}`)
+        throw new ConstraintError(`Invalid date: ${value}`)
       })
       .serializer((value) => {
         if (!(value instanceof Date)) {
@@ -386,7 +387,7 @@ export class SchemaResolver
         if (Buffer.isBuffer(value)) {
           return value;
         }
-        throw new ValidationError(`Invalid buffer: ${value}`);
+        throw new ConstraintError(`Invalid buffer: ${value}`);
       })
       .serializer((value) => {
         if (Buffer.isBuffer(value)) {
@@ -421,7 +422,7 @@ export class SchemaResolver
         if (typeof value === 'function') {
           return value;
         }
-        throw new ValidationError(`Invalid function: ${value}`);
+        throw new ConstraintError(`Invalid function: ${value}`);
       })
       .serializer((value) => {
         if (typeof value === 'function') {
@@ -443,7 +444,7 @@ export class SchemaResolver
       const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
       if (!hostnameRegex.test(value)) {
-        throw new ValidationError('Invalid hostname format');
+        throw new ConstraintError('Invalid hostname format');
       }
       return value;
     });
@@ -452,14 +453,14 @@ export class SchemaResolver
       try {
         return new URL(value).toString();
       } catch {
-        throw new ValidationError('Invalid URL format');
+        throw new ConstraintError('Invalid URL format');
       }
     });
 
     this.registerValidator('email', (value) => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(value)) {
-        throw new ValidationError('Invalid email format');
+        throw new ConstraintError('Invalid email format');
       }
       return value;
     });
@@ -467,7 +468,7 @@ export class SchemaResolver
     this.registerValidator('port', (value) => {
       const num = Number(value);
       if (!(Number.isInteger(num) && num >= 1 && num <= 65535)) {
-        throw new ValidationError('Port must be between 1 and 65535');
+        throw new ConstraintError('Port must be between 1 and 65535');
       }
       return num;
     });
@@ -475,7 +476,7 @@ export class SchemaResolver
     this.registerValidator('ipv4', (value) => {
       const ipv4Regex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
       if (!ipv4Regex.test(value)) {
-        throw new ValidationError('Invalid IPv4 address');
+        throw new ConstraintError('Invalid IPv4 address');
       }
       return value;
     });
@@ -483,7 +484,7 @@ export class SchemaResolver
     this.registerValidator('ipv6', (value) => {
       const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
       if (!ipv6Regex.test(value)) {
-        throw new ValidationError('Invalid IPv6 address');
+        throw new ConstraintError('Invalid IPv6 address');
       }
       return value;
     });
@@ -491,7 +492,7 @@ export class SchemaResolver
     this.registerValidator('uuid', (value) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(value)) {
-        throw new ValidationError('Invalid UUID format');
+        throw new ConstraintError('Invalid UUID format');
       }
       return value;
     });
@@ -499,7 +500,7 @@ export class SchemaResolver
     this.registerValidator('alphanum', (value) => {
       const alphanumRegex = /^[a-zA-Z0-9]+$/;
       if (!alphanumRegex.test(value)) {
-        throw new ValidationError('Must contain only alphanumeric characters');
+        throw new ConstraintError('Must contain only alphanumeric characters');
       }
       return value;
     });
@@ -507,7 +508,7 @@ export class SchemaResolver
     this.registerValidator('alpha', (value) => {
       const alphaRegex = /^[a-zA-Z]+$/;
       if (!alphaRegex.test(value)) {
-        throw new ValidationError('Must contain only letters');
+        throw new ConstraintError('Must contain only letters');
       }
 
       return value;
@@ -516,7 +517,7 @@ export class SchemaResolver
     this.registerValidator('number', (value) => {
       const num = Number(value);
       if (Number.isNaN(num) || !Number.isFinite(num)) {
-        throw new ValidationError('Must be a number');
+        throw new ConstraintError('Must be a number');
       }
       return num;
     });
@@ -525,14 +526,14 @@ export class SchemaResolver
 
       const numericRegex = /^[0-9]+$/;
       if (!numericRegex.test(v)) {
-        throw new ValidationError('Must contain only digits');
+        throw new ConstraintError('Must contain only digits');
       }
       return value;
     });
 
     this.registerValidator('nonempty', (value) => {
       if (!(value && value.toString().trim().length > 0)) {
-        throw new ValidationError('Value cannot be empty');
+        throw new ConstraintError('Value cannot be empty');
       }
       return value;
     });
@@ -540,7 +541,7 @@ export class SchemaResolver
     this.registerValidator('positive', (value) => {
       const num = Number(value);
       if (!(Number.isFinite(num) && num > 0)) {
-        throw new ValidationError('Must be a positive number');
+        throw new ConstraintError('Must be a positive number');
       }
       return num;
     });
@@ -548,7 +549,7 @@ export class SchemaResolver
     this.registerValidator('negative', (value) => {
       const num = Number(value);
       if (!(Number.isFinite(num) && num < 0)) {
-        throw new ValidationError('Must be a negative number');
+        throw new ConstraintError('Must be a negative number');
       }
       return num;
     });
@@ -556,10 +557,10 @@ export class SchemaResolver
     this.registerValidator('integer', (value) => {
       const num = Number(value);
       if (Number.isNaN(num) || !Number.isFinite(num)) {
-        throw new ValidationError('Must be a number');
+        throw new ConstraintError('Must be a number');
       }
       if (num !== Math.floor(num)) {
-        throw new ValidationError('Must be an integer');
+        throw new ConstraintError('Must be an integer');
       }
       return num;
     });
@@ -569,14 +570,14 @@ export class SchemaResolver
       try {
         const stat = await fs.stat(value);
         if (!stat.isFile()) {
-          throw new ValidationError('Path exists but is not a file');
+          throw new ConstraintError('Path exists but is not a file');
         }
         return value;
       } catch (error) {
         if (error.code === 'ENOENT') {
-          throw new ValidationError('File does not exist');
+          throw new ConstraintError('File does not exist');
         }
-        throw new ValidationError(`Cannot access file: ${error.message}`);
+        throw new ConstraintError(`Cannot access file: ${error.message}`);
       }
     });
 
@@ -584,14 +585,14 @@ export class SchemaResolver
       try {
         const stat = await fs.stat(value);
         if (!stat.isDirectory()) {
-          throw new ValidationError('Path exists but is not a directory');
+          throw new ConstraintError('Path exists but is not a directory');
         }
         return value;
       } catch (error) {
         if (error.code === 'ENOENT') {
-          throw new ValidationError('Directory does not exist');
+          throw new ConstraintError('Directory does not exist');
         }
-        throw new ValidationError(`Cannot access directory: ${error.message}`);
+        throw new ConstraintError(`Cannot access directory: ${error.message}`);
       }
     });
 
@@ -600,7 +601,7 @@ export class SchemaResolver
         await fs.access(value, constants.R_OK);
         return value;
       } catch {
-        throw new ValidationError('File is not readable');
+        throw new ConstraintError('File is not readable');
       }
     }, () => 'path');
 
@@ -619,21 +620,21 @@ export class SchemaResolver
           try {
             const stat = await fs.stat(parentDir);
             if (!stat.isDirectory()) {
-              throw new ValidationError('Parent path exists but is not a directory');
+              throw new ConstraintError('Parent path exists but is not a directory');
             }
             await fs.access(parentDir, constants.W_OK);
             return value; // Parent is writable
           } catch (parentError) {
             if (parentError.code === 'ENOENT') {
-              throw new ValidationError('Parent directory does not exist');
+              throw new ConstraintError('Parent directory does not exist');
             }
-            else if (parentError instanceof ValidationError) {
+            else if (parentError instanceof ConstraintError) {
               throw parentError;
             }
-            throw new ValidationError('Parent directory is not writable');
+            throw new ConstraintError('Parent directory is not writable');
           }
         }
-        throw new ValidationError('File is not writable');
+        throw new ConstraintError('File is not writable');
       }
     }, () => 'path');
 
@@ -643,7 +644,7 @@ export class SchemaResolver
         await lookup(value);
         return value;
       } catch {
-        throw new ValidationError('Host is not reachable');
+        throw new ConstraintError('Host is not reachable');
       }
     });
 
@@ -651,14 +652,14 @@ export class SchemaResolver
       try {
         const url = new URL(value);
         if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new ValidationError('URL must use HTTP or HTTPS protocol');
+          throw new ConstraintError('URL must use HTTP or HTTPS protocol');
         }
         return value;
       } catch (error) {
-        if (error instanceof ValidationError) {
+        if (error instanceof ConstraintError) {
           throw error;
         }
-        throw new ValidationError('Invalid HTTP URL format', {cause: error});
+        throw new ConstraintError('Invalid HTTP URL format', {cause: error});
       }
     });
 
@@ -668,18 +669,18 @@ export class SchemaResolver
         JSON.parse(value);
         return value;
       } catch {
-        throw new ValidationError('Invalid JSON format');
+        throw new ConstraintError('Invalid JSON format');
       }
     });
 
     this.registerValidator('base64', (value) => {
       const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
       if (!base64Regex.test(value)) {
-        throw new ValidationError('Invalid base64 format');
+        throw new ConstraintError('Invalid base64 format');
       }
       // If there's padding, length must be multiple of 4
       if (value.includes('=') && value.length % 4 !== 0) {
-        throw new ValidationError('Invalid base64 format');
+        throw new ConstraintError('Invalid base64 format');
       }
       return value;
     });
@@ -687,7 +688,7 @@ export class SchemaResolver
     this.registerValidator('hex', (value) => {
       const hexRegex = /^[0-9a-fA-F]+$/;
       if (!hexRegex.test(value)) {
-        throw new ValidationError('Must contain only hexadecimal characters');
+        throw new ConstraintError('Must contain only hexadecimal characters');
       }
       return value;
     });
@@ -697,7 +698,7 @@ export class SchemaResolver
         await fs.access(value, constants.X_OK);
         return value;
       } catch {
-        throw new ValidationError('File is not executable');
+        throw new ConstraintError('File is not executable');
       }
     }, () => 'path');
 
@@ -715,17 +716,17 @@ export class SchemaResolver
             const size = stat.size;
 
             if (min !== undefined && size < min) {
-              throw new ValidationError(`File size must be at least ${min} bytes`);
+              throw new ConstraintError(`File size must be at least ${min} bytes`);
             }
             if (max !== undefined && size > max) {
-              throw new ValidationError(`File size must be at most ${max} bytes`);
+              throw new ConstraintError(`File size must be at most ${max} bytes`);
             }
             return value;
           } catch (error) {
-            if (error instanceof ValidationError) {
+            if (error instanceof ConstraintError) {
               throw error;
             }
-            throw new ValidationError(`Cannot access file: ${error.message}`);
+            throw new ConstraintError(`Cannot access file: ${error.message}`);
           }
         },
         description: min !== undefined && max !== undefined
@@ -779,7 +780,7 @@ export class SchemaResolver
               errors.push(error.message);
             }
           }
-          throw new ValidationError(`None of {${description}} matched`, {errors});
+          throw new ConstraintError(`None of {${description}} matched`, {errors});
         },
         description
       };
@@ -797,7 +798,7 @@ export class SchemaResolver
           catch (error) {
             return params[0];
           }
-          throw new ValidationError('Value must not match the specified condition');
+          throw new ConstraintError('Value must not match the specified condition');
         },
         description: compiled.description
                      ? (needParens ? `!(${compiled.description})` : `!${compiled.description}`)
@@ -814,13 +815,13 @@ export class SchemaResolver
         validator: async (value) => {
           const num = Number(value);
           if (!Number.isFinite(num)) {
-            throw new ValidationError('Value must be a number');
+            throw new ConstraintError('Value must be a number');
           }
           if (min !== undefined && num < min) {
-            throw new ValidationError(`Value must be at least ${min}`);
+            throw new ConstraintError(`Value must be at least ${min}`);
           }
           if (max !== undefined && num > max) {
-            throw new ValidationError(`Value must be at most ${max}`);
+            throw new ConstraintError(`Value must be at most ${max}`);
           }
           return value;
         },
@@ -846,13 +847,13 @@ export class SchemaResolver
           const unit = Array.isArray(value) ? 'elements' : 'characters';
 
           if (exact !== undefined && length !== exact) {
-            throw new ValidationError(`Length must be exactly ${exact} ${unit}`);
+            throw new ConstraintError(`Length must be exactly ${exact} ${unit}`);
           }
           if (min !== undefined && length < min) {
-            throw new ValidationError(`Length must be at least ${min} ${unit}`);
+            throw new ConstraintError(`Length must be at least ${min} ${unit}`);
           }
           if (max !== undefined && length > max) {
-            throw new ValidationError(`Length must be at most ${max} ${unit}`);
+            throw new ConstraintError(`Length must be at most ${max} ${unit}`);
           }
           return value;
         },
@@ -876,7 +877,7 @@ export class SchemaResolver
       return {
         validator: async (value) => {
           if (!args.includes(value)) {
-            throw new ValidationError(`Value must be one of: ${args.join(', ')}`);
+            throw new ConstraintError(`Value must be one of: ${args.join(', ')}`);
           }
           return value;
         },
@@ -891,7 +892,7 @@ export class SchemaResolver
         validator: async (...params) => {
           const value = params[0];
           if (!Array.isArray(value)) {
-            throw new ValidationError('Value must be an array');
+            throw new ConstraintError('Value must be an array');
           }
           const ret = [];
           for (const item of value) {
@@ -936,7 +937,7 @@ export class SchemaResolver
       return {
         validator: async (value) => {
           if (!spec.test(String(value))) {
-            throw new ValidationError(`Value does not match pattern ${spec}`);
+            throw new ConstraintError(`Value does not match pattern ${spec}`);
           }
           return value;
         },
@@ -956,7 +957,7 @@ export class SchemaResolver
         return {
           validator: async (value) => {
             if (!regex.test(String(value))) {
-              throw new ValidationError(`Value does not match pattern ${spec}`);
+              throw new ConstraintError(`Value does not match pattern ${spec}`);
             }
             return value;
           },
@@ -986,7 +987,7 @@ export class SchemaResolver
       return {
         validator: async (value) => {
           if (String(value) !== spec) {
-            throw new ValidationError(`Value must be exactly "${spec}"`);
+            throw new ConstraintError(`Value must be exactly "${spec}"`);
           }
           return value;
         },

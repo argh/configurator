@@ -69,6 +69,7 @@ export class ConfiguratorError extends Error {
 }
 
 export class SchemaError extends ConfiguratorError {}
+export class ConstraintError extends ConfiguratorError {}
 export class ValidationError extends ConfiguratorError {}
 export class NormalizeError extends ConfiguratorError {}
 export class TransformError extends ConfiguratorError {}
