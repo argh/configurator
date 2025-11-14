@@ -6,7 +6,7 @@ import { expandWildcards } from './helpers/wildcard.js';
 import { existingAssignment } from './helpers/assignment-helpers.js';
 
 
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, AsyncSchemaValueVisitorFunction, VisitOptions, SerializeOptions, ValidateOptions } from './types.js' */
+/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions } from './types.js' */
 
 /** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
 
@@ -290,10 +290,13 @@ export class CompiledSchema
    *
    * @param {Map<string,NonNullable<any>>} assignments - path-to-value pairs
    * @param {any} [result] - optional current value to use as the starting point for the result
-   * @param {{strict?: boolean}} [options] - optional assignment options
+   * @param {AssignmentOptions} [options] - optional assignment options
    * @returns {Promise<any>} - returns validated result
    */
   async processAssignments(assignments, result, options) {
+
+    const doPopulateDefaults = (options?.populateDefaults !== false);
+    const doValidate = (options?.validate !== false);
 
     // TODO - consider keeping wildcard defaults separate, and only expand relevant
     //        assignments when we actually use the wildcard schema!
@@ -375,8 +378,8 @@ export class CompiledSchema
           progress.assignments.keys()).join(', ')}`);
     }
 
-    const populated = await this.populateDefaults(result);
-    return await this.validate(populated);
+    const populated = doPopulateDefaults? await this.populateDefaults(result, options?.populateOptions) : result;
+    return doValidate? await this.validate(populated, options?.validateOptions) : populated;
   }
 
   /**
@@ -683,9 +686,10 @@ export class CompiledSchema
    * Populate defaults - by design, shallow only at this point.
    * (The option to create deep defaults is implemented by SchemaDefaultsSource).
    * @param {any} input
+   * @param {VisitOptions} [options]
    * @returns {Promise<any>}
    */
-  async populateDefaults(input) {
+  async populateDefaults(input, options) {
     return await this.visit(input, async (current, input, schema, path) => {
       if (schema !== undefined && current === undefined) {
         if (schema.default !== undefined) {
@@ -696,7 +700,7 @@ export class CompiledSchema
         }
       }
       return current;
-    }, {visitUndefinedShallow: true, update: true});
+    }, {visitUndefinedShallow: true, update: true, ...options});
   }
 
   /**
@@ -735,19 +739,6 @@ export class CompiledSchema
             if (schema.required && enforceRequired) {
               throw new ValidationError(fpm('Missing required value', path));
             }
-            /*
-            if (schema.hasChildren && deepRequired) {
-              for (const property of Object.keys(schema.properties)) {
-                const childSchema = schema.properties[property];
-                if (property === '*') {
-                  continue;
-                }
-                if (childSchema.required) {
-                  throw new ValidationError(fpm('Missing required', path, childSchema.name));
-                }
-              }
-            }
-             */
           }
           return EMPTY_VALUE;
         }

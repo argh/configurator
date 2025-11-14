@@ -153,6 +153,7 @@ import { CompiledSchema } from "./compiled-schema.js";
  */
 
 /** @typedef {Object} ValidateOptions
+ * @extends VisitOptions
  * @property {boolean} [enforceUnionResolution]
  * @property {boolean} [enforceRequired]
  * @property {boolean} [deepRequired]
@@ -161,10 +162,24 @@ import { CompiledSchema } from "./compiled-schema.js";
  */
 
 /** @typedef {Object} PopulateOptions
+ * @extends VisitOptions
  * @property {boolean} [strict]
  */
 
 /** @typedef {VisitOptions} SerializeOptions */
 
+/** @typedef {Object} AssignmentOptions
+ * @property {boolean} [strict]
+ * @property {boolean} [populateDefaults]
+ * @property {PopulateOptions} [populateOptions]
+ * @property {boolean} [validate]
+ * @property {ValidateOptions} [validateOptions]
+ */
+
+
+/** @typedef {Object} ConfigureOptions
+ * @property {boolean} [strict]
+ * @property {AssignmentOptions} [assignmentOptions]
+ */
 
 export {}; // Make this a module

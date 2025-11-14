@@ -16,7 +16,7 @@ import { stringify } from './schema/helpers/stringify.js';
 import { expandWildcards } from './schema/helpers/wildcard.js'
 import { existingAssignment } from './schema/helpers/assignment-helpers.js';
 
-/** @import { SerializeOptions } from './schema/types.js' */
+/** @import { SerializeOptions, ConfigureOptions } from './schema/types.js' */
 
 
 const MODULE_INFO = {
@@ -191,19 +191,38 @@ export class Configurator {
   }
 
   /**
-   * Main entry point.  Pull configuration assignments from all defined sources,
+   * Main entry point.  Load configuration assignments from all defined sources,
    * and use the highest priority assignments to build a configuration object
    * based on the defined schema.
    *
-   * @param {Object} context
-   * @param {boolean} strict
-   * @returns {Promise<Object>}
+   * @param {Object} context - configuration context
+   * @param {ConfigureOptions} [options] - advanced configuration options
+   * @returns {Promise<Object>} - configuration results
    */
-  async configure(context, strict = true) {
+  async configure(context, options = {}) {
+    const configurationContext = {...context};
+
+    const strict = options?.strict ?? true;
 
     const schema = this._resolver.compile(this._schema);
+    const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
+    const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
 
-    const configurationContext = {...context};
+    if (this._dumpContextName && configurationContext[this._dumpContextName]) {
+      await this.dump(schema, configuration, configurationContext[this._dumpContextName]);
+    }
+    return configuration;
+  }
+
+  /**
+   * Iterate over all sources and build a prioritized map of requested assignments
+   *
+   * @param {CompiledSchema} schema - the schema each ConfigurationSource should use to understand valid assignments
+   * @param {Object} context - configuration context
+   * @param {boolean} [strict] - whether to allow accept unexpected configuration inputs
+   * @returns {Promise<Map<string, NonNullable<any>>>}
+   */
+  async loadSourceAssignments(schema, context, strict = true) {
 
     // sort sources by sequence (processing priority)
     let sources = this.sources
@@ -218,36 +237,22 @@ export class Configurator {
     let sourceAssignmentsList = [];
 
     for (let source of sources) {
-      let sourceAssignments = await source.load(schema, configurationContext, {strict});
+      let sourceAssignments = await source.load(schema, context, {strict});
       if (!sourceAssignments) {
         sourceAssignments = new Map();  // useful to keep in the list for debugging purposes
       }
-      await this._handleContextAssignments(schema, sourceAssignments, configurationContext);
+      await this._handleContextAssignments(schema, sourceAssignments, context);
       sourceAssignmentsList.push(sourceAssignments);
     }
     // By contract, config file sources need to remove the config property from the context if they handled it
-    if (this._configContextName && configurationContext[this._configContextName]) {
-      throw new ConfiguratorError(`Unable to load configuration from ${configurationContext[this._configContextName]}`);
+    if (this._configContextName && context[this._configContextName]) {
+      throw new ConfiguratorError(`Unable to load configuration from ${context[this._configContextName]}`);
     }
 
     /**
      * @type {Map<string, NonNullable<any>>}
      */
     let assignments = new Map();
-
-
-    function oldExistingAssignment(path) {
-      while (true) {
-        if (assignments.has(path)) {
-          return true;
-        }
-        let dot = path.lastIndexOf('.');
-        if (dot === -1) {
-          return false;
-        }
-        path = path.slice(0, dot);
-      }
-    }
 
     // We iterate these in reverse to simplify computing "last (highest priority) definition wins".
 
@@ -259,13 +264,7 @@ export class Configurator {
         assignments.set(path, value)
       }
     }
-
-    const transformed = await schema.processAssignments(assignments, undefined,{strict})
-
-    if (this._dumpContextName && configurationContext[this._dumpContextName]) {
-      await this.dump(schema, transformed, configurationContext[this._dumpContextName]);
-    }
-    return transformed;
+    return assignments;
   }
 
   /**
