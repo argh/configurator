@@ -36,9 +36,9 @@ const MODULE_INFO = {
  * using the CompiledSchema to produce a validated configuration object.
  */
 export class Configurator {
-  static get Schema() { return Schema };
-  static get CompiledSchema() { return CompiledSchema };
-  static get SchemaResolver() { return SchemaResolver };
+  //static get Schema() { return Schema };
+  //static get CompiledSchema() { return CompiledSchema };
+  //static get SchemaResolver() { return SchemaResolver };
   /**
    * @typedef {Object} ConfiguratorOptions
    * @property {Schema} [schema]
@@ -204,7 +204,7 @@ export class Configurator {
 
     const strict = options?.strict ?? true;
 
-    const schema = this._resolver.compile(this._schema);
+    const schema = await this._resolver.compile(this._schema);
     const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
     const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
 

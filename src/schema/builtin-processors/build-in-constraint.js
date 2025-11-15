@@ -1,15 +1,17 @@
 import { ResolverError, ConstraintError } from '../../errors.js';
 
 /**
- * Compile the $in constraint - validates value is in allowed list
+ * Build the $in constraint - validates value is in allowed list
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const IN_CONSTRAINT = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$in requires an array of allowed values');
     }
 
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (value) => {
         if (!args.includes(value)) {
           throw new ConstraintError(`Value must be one of: ${args.join(', ')}`);

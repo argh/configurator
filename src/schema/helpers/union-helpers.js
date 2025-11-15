@@ -155,7 +155,7 @@ export function generateDiscriminatorFunction(schema) {
 //          continue;
 //        }
 
-        if (!propertySchema?.accepts(propertyValue)) {
+        if (!await propertySchema?.accepts(propertyValue)) {
           candidates.delete(schema);
 
           if (candidates.size === 0) {

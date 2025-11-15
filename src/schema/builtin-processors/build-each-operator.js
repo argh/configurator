@@ -1,13 +1,15 @@
 import { ConstraintError } from '../../errors.js';
 
 /**
- * Compile the $each operator - applies processor to each element of an array
+ * Build the $each operator - applies processor to each element of an array
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const EACH_OPERATOR = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     const compiled = compileSpec(args);
 
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (...params) => {
         const value = params[0];
         if (!Array.isArray(value)) {

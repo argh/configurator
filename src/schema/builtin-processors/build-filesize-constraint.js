@@ -2,16 +2,18 @@ import * as fs from 'node:fs/promises';
 import { ConstraintError, ResolverError } from '../../errors.js';
 
 /**
- * Compile the $filesize constraint - validates file size ranges
+ * Build the $filesize constraint processor - validates file size ranges
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const FILESIZE_CONSTRAINT = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     if (typeof args !== 'object' || args === null) {
       throw new ResolverError('$filesize requires an object with min/max properties');
     }
     const { min, max } = args;
 
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (value) => {
         try {
           const stat = await fs.stat(value);

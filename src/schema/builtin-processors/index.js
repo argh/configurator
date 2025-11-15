@@ -36,26 +36,28 @@ import { CONSTANTCASE_OPERATOR } from './constantcase-operator.js';
 import { HEADLINE_OPERATOR } from './headline-operator.js';
 
 // Parameterized processors
-import { FILESIZE_CONSTRAINT } from './compile-filesize-constraint.js';
-import { AND_OPERATOR } from './compile-and-operator.js';
-import { OR_OPERATOR } from './compile-or-operator.js';
-import { NOT_OPERATOR } from './compile-not-operator.js';
-import { RANGE_CONSTRAINT } from './compile-range-constraint.js';
-import { LENGTH_CONSTRAINT } from './compile-length-constraint.js';
-import { IN_CONSTRAINT } from './compile-in-constraint.js';
-import { EACH_OPERATOR } from './compile-each-operator.js';
-import { ROUND_OPERATOR } from './compile-round-operator.js';
-import { CEIL_OPERATOR } from './compile-ceil-operator.js';
-import { FLOOR_OPERATOR } from './compile-floor-operator.js';
+import { FILESIZE_CONSTRAINT } from './build-filesize-constraint.js';
+import { AND_OPERATOR } from './build-and-operator.js';
+import { OR_OPERATOR } from './build-or-operator.js';
+import { NOT_OPERATOR } from './build-not-operator.js';
+import { RANGE_CONSTRAINT } from './build-range-constraint.js';
+import { LENGTH_CONSTRAINT } from './build-length-constraint.js';
+import { IN_CONSTRAINT } from './build-in-constraint.js';
+import { EACH_OPERATOR } from './build-each-operator.js';
+import { ROUND_OPERATOR } from './build-round-operator.js';
+import { CEIL_OPERATOR } from './build-ceil-operator.js';
+import { FLOOR_OPERATOR } from './build-floor-operator.js';
+import { FILTER_OPERATOR } from './build-filter-operator.js';
 
+
+/** @import { ValueProcessorDefinition } from '../types.js'; */
 
 
 /**
  * Built-in value processors with simple process functions
  * Map of keyword -> processor definition
- * @type {Map<string, {process: import('../types.js').SchemaValueProcessor<any>, describe?: () => string}>}
  */
-export const SIMPLE_PROCESSORS = new Map([
+export const SIMPLE_PROCESSORS = /** @type {Map<string, ValueProcessorDefinition>} */ new Map([
   ['hostname', HOSTNAME_CONSTRAINT],
   ['url', URL_CONSTRAINT],
   ['email', EMAIL_CONSTRAINT],
@@ -91,12 +93,12 @@ export const SIMPLE_PROCESSORS = new Map([
   ['headline', HEADLINE_OPERATOR]
 ]);
 
+
 /**
  * Built-in parameterized processors (require compilation)
  * Map of keyword -> processor definition
- * @type {Map<string, {compile: import('../schema-resolver.js').ProcessorSpecCompiler}>}
  */
-export const PARAMETERIZED_PROCESSORS = new Map([
+export const PARAMETERIZED_PROCESSORS = /** @type {Map<string, ValueProcessorDefinition>} */ new Map([
   ['filesize', FILESIZE_CONSTRAINT],
   ['and', AND_OPERATOR],
   ['or', OR_OPERATOR],
@@ -107,5 +109,6 @@ export const PARAMETERIZED_PROCESSORS = new Map([
   ['each', EACH_OPERATOR],
   ['round', ROUND_OPERATOR],
   ['ceil', CEIL_OPERATOR],
-  ['floor', FLOOR_OPERATOR]
+  ['floor', FLOOR_OPERATOR],
+  ['pipeline', FILTER_OPERATOR]
 ]);

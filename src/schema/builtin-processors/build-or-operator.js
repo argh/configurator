@@ -1,10 +1,11 @@
 import { ResolverError, ConstraintError } from '../../errors.js';
 
 /**
- * Compile the $or operator - succeeds if any of the validators pass
+ * Build the $or operator - succeeds if any of the processors pass
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const OR_OPERATOR = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$or requires an array of validators');
     }
@@ -15,6 +16,7 @@ export const OR_OPERATOR = {
                             ? descriptions.map(d => d.includes('&') ? `(${d})` : d).join('|')
                             : descriptions[0]
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (v, c, s, p, o) => {
         const errors = [];
         for (const {processor} of compiled) {

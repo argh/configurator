@@ -1,16 +1,18 @@
 import { ResolverError, ConstraintError } from '../../errors.js';
 
 /**
- * Compile the $length constraint - validates length of strings or arrays
+ * Build the $length constraint - validates length of strings or arrays
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const LENGTH_CONSTRAINT = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     if (typeof args !== 'object' || args === null) {
       throw new ResolverError('$length requires an object with min/max/exact properties');
     }
     const { min, max, exact } = args;
 
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (value) => {
         const length = Array.isArray(value) ? value.length : String(value).length;
         const unit = Array.isArray(value) ? 'elements' : 'characters';

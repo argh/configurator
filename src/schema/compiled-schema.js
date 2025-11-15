@@ -18,7 +18,7 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
 /** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
 
 /** @typedef {ISchemaOptions & {
- *              normalizer?: SchemaValueProcessor<any>,
+ *              normalizer?: AsyncSchemaValueProcessor<any>,
  *              transformer?: AsyncSchemaValueProcessor<any>,
  *              validator?: AsyncSchemaValueProcessor<any>,
  *              serializer?: AsyncSchemaValueProcessor<any>,
@@ -207,14 +207,14 @@ export class CompiledSchema
   /**
    * return true if this schema seems to be able to handle a given input value
    * @param {any} value
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  accepts(value) {
+  async accepts(value) {
     if (!Array.isArray(this.values)) {
       return true;
     }
     try {
-      const normalizedValue = this.normalize(value);
+      const normalizedValue = await this.normalize(value);
       return this.values.includes(normalizedValue);
     }
     catch (_) {
@@ -644,17 +644,16 @@ export class CompiledSchema
    * @param {any} [configuration]
    * @param {string} [path]
    * @param {Object} [options]
-   * @returns {any}
+   * @returns {Promise<any>}
    */
-  normalize(value, configuration = {}, path = this.path, options) {
+  async normalize(value, configuration = {}, path = this.path, options) {
     const normalizer = this._options.normalizer;
     if (typeof normalizer !== 'function') {
       throw new SchemaError('Unresolved schema normalizer')
     }
-    // todo - should we allow async value functions (and thus make normalize async)?  or should we move this call out of normalize?
     if (typeof value === 'function' && !isConstructor(value) && this.options.type !== 'function') {
       try {
-        value = value(true, configuration, this, path, options);
+        value = await value(true, configuration, this, path, options);
       }
       catch (error) {
         throw new NormalizeError(fpm('Exception calling value function', path), {cause: error});
@@ -662,11 +661,7 @@ export class CompiledSchema
     }
 
     try {
-      const normalized = normalizer(value, configuration, this, path, options);
-
-      if (typeof normalized?.then === 'function') {
-        throw new SchemaError('Cannot use asynchronous value processors during normalization');
-      }
+      const normalized = await normalizer(value, configuration, this, path, options);
 
       return normalized;
     }

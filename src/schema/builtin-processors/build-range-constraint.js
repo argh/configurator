@@ -1,16 +1,18 @@
 import { ResolverError, ConstraintError } from '../../errors.js';
 
 /**
- * Compile the $range constraint - validates numeric ranges
+ * Build the $range constraint - validates numeric ranges
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const RANGE_CONSTRAINT = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     if (typeof args !== 'object' || args === null) {
       throw new ResolverError('$range requires an object with min/max properties');
     }
     const { min, max } = args;
 
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (value) => {
         const num = Number(value);
         if (!Number.isFinite(num)) {

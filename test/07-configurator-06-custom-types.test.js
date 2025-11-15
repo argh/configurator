@@ -399,7 +399,7 @@ describe('Configurator - Custom Types Integration', function() {
 
       const configurator = new Configurator({ schema, resolver });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Transform from string to ms
       const config = await configurator.configure({

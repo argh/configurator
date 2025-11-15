@@ -1,21 +1,23 @@
 import { ResolverError } from '../../errors.js';
 
 /**
- * Compile the $and operator - all processors must pass
+ * Build the $and operator from provided args - all processors must pass
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const AND_OPERATOR = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$and requires an array of processors');
     }
     const compiled = args.map(v => compileSpec(v));
     const descriptions = compiled.map(c => c.description).filter(Boolean);
 
-    return /** @type {import('../compiled-schema.js').CompiledSchemaOptions} */ ({
-      processor: async (...params) => {
-        let v = params[0];
+    return ({
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
+      processor: async (value, configuration, schema, path, options) => {
+        let v = value;
         for (const {processor} of compiled) {
-          v = await processor(v, ...params.slice(1));
+          v = await processor(v, configuration, schema, path, options);
         }
         return v;
       },

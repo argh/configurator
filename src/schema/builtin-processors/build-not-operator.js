@@ -1,14 +1,16 @@
 import { ConstraintError } from '../../errors.js';
 
 /**
- * Compile the $not operator - succeeds if the validator fails
+ * Build the $not operator - succeeds if the validator fails
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const NOT_OPERATOR = {
-  compile: (args, compileSpec) => {
+  build: (args, compileSpec) => {
     const compiled = compileSpec(args);
     const needParens = /[|& ]/.test(compiled.description);
 
     return {
+      /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (...params) => {
         try {
           await compiled.processor(...params);

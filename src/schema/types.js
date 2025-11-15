@@ -159,4 +159,39 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @property {AssignmentOptions} [assignmentOptions]
  */
 
+
+/** @typedef {Object} CompiledSpec
+ * @property {AsyncSchemaValueProcessor<any>} [processor]
+ * @property {string} [description]
+ * @property {Function} [compile]
+ */
+
+
+/** @typedef {Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
+
+/** @callback ProcessorSpecCompiler
+ * @param {ProcessorSpec} spec
+ */
+
+/** @callback ValueProcessorBuilder
+ * @param {ProcessorSpec|Array<ProcessorSpec>|undefined} args
+ * @param {ProcessorSpecCompiler} specCompiler
+ * @returns CompiledValueProcessorDefinition
+ */
+
+/**
+ * @typedef {Object} ValueProcessorDefinition
+ * @property {SchemaValueProcessor<any>|null} [process]
+ * @property {(() => string)|null} [describe]
+ * @property {ValueProcessorBuilder} [build]
+ */
+
+/**
+ * @typedef {Object} CompiledValueProcessorDefinition
+ * @property {SchemaValueProcessor<any>} processor
+ * @property {string} [description]
+ */
+
+
+
 export {}; // Make this a module
