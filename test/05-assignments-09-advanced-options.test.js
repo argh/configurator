@@ -26,7 +26,7 @@ describe('Assignments - Advanced Options', function() {
         )
         .property('otherProp', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['otherProp', 'value']
@@ -70,7 +70,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.populateDefaults({}, {
         visitUndefinedShallow: false,
@@ -101,7 +101,7 @@ describe('Assignments - Advanced Options', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.populateDefaults({}, {
         visitUndefinedShallow: false,
@@ -137,7 +137,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['server.port', '3000']
@@ -176,7 +176,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = {};
 
@@ -198,7 +198,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = {};
 
@@ -219,7 +219,7 @@ describe('Assignments - Advanced Options', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = {};
 
@@ -242,7 +242,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = {};
 
@@ -282,7 +282,7 @@ describe('Assignments - Advanced Options', function() {
         )
         .property('data', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data', 'test']
@@ -343,7 +343,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['existing.host', 'localhost']
@@ -380,7 +380,7 @@ describe('Assignments - Advanced Options', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Default (shallow) workflow
       const shallowResult = await compiled.processAssignments(new Map(), {});
@@ -418,7 +418,7 @@ describe('Assignments - Advanced Options', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.populateDefaults({}, {
         visitUndefinedShallow: false,
@@ -441,7 +441,7 @@ describe('Assignments - Advanced Options', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const input = {
         items: [

@@ -24,7 +24,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('y', new Schema('number'))
         .property('z', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // First batch
       const result1 = await compiled.processAssignments(new Map([['x', 10]]));
@@ -45,7 +45,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
     it('should allow chained calls with primitive schema', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result1 = await compiled.processAssignments(new Map([['', 'first']]));
       assert.strictEqual(result1, 'first');
@@ -65,7 +65,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('b', new Schema('string'))
         .property('c', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { a: 'keep-a', b: 'keep-b', c: 'keep-c' };
       const assignments = new Map([['b', 'new-b']]);
@@ -84,7 +84,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { x: 5, y: 10 };
       const assignments = new Map();
@@ -96,7 +96,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
     it('should return current primitive when no assignments', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = 'unchanged';
       const assignments = new Map();
@@ -111,7 +111,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { x: 5, y: 10, extraProp: 'not allowed' };
       const assignments = new Map();
@@ -141,7 +141,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { x: 5, y: 10, extraProp: 'extra' };
       const assignments = new Map([['y', 20]]);
@@ -156,7 +156,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .lax()
         .property('x', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { x: 5, extraProp: 'kept' };
       const assignments = new Map();
@@ -170,7 +170,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
       const schema = new Schema('object')
         .property('x', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { x: 5, extraProp: 'not allowed' };
       const assignments = new Map([['x', 10]]);
@@ -192,7 +192,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
           .property('b', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { nested: { a: 'old-a', b: 'old-b' } };
       const assignments = new Map([['nested.b', 'new-b']]);
@@ -209,7 +209,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
           .property('childProp', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { rootProp: 'root-value', nested: { childProp: 'old-child' } };
       const assignments = new Map([['nested.childProp', 'new-child']]);
@@ -230,7 +230,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
       const schema = new Schema('array')
         .property('*', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = ['a', 'b', 'c'];
       const assignments = new Map([['1', 'new-b']]);
@@ -244,7 +244,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
       const schema = new Schema('array')
         .property('*', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = [10, 20, 30, 40];
       const assignments = new Map([['0', 100]]);
@@ -269,7 +269,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
           })
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { num: 50 };
       const assignments = new Map([['num', 150]]);
@@ -293,7 +293,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
       const schema = new Schema('object')
         .property('num', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { num: 5 };
       const assignments = new Map([['num', '123']]);
@@ -313,7 +313,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { x: 5, y: 10 };
       const assignments = new Map([
@@ -333,7 +333,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('c', new Schema('string'))
         .property('d', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = { a: 'a1', b: 'b1', c: 'c1', d: 'd1' };
       const assignments = new Map([
@@ -355,7 +355,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const current = {};
       const assignments = new Map([['x', 10]]);
@@ -367,7 +367,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
     it('should handle number primitive updates', async function() {
       const schema = new Schema('number');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result1 = await compiled.processAssignments(new Map([['', 42]]));
       assert.strictEqual(result1, 42);
@@ -378,7 +378,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
     it('should handle boolean primitive updates', async function() {
       const schema = new Schema('boolean');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result1 = await compiled.processAssignments(new Map([['', true]]));
       assert.strictEqual(result1, true);

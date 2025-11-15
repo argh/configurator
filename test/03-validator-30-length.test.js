@@ -14,7 +14,7 @@ describe('Validator: length', function() {
   describe('String length validation', function() {
     it('should accept string within length range', async function() {
       const schema = new Schema('string').validator({length: {min: 3, max: 10}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('hello', {}, '');
       await compiled.validate('abc', {}, ''); // min boundary
@@ -23,21 +23,21 @@ describe('Validator: length', function() {
 
     it('should reject string too short', async function() {
       const schema = new Schema('string').validator({length: {min: 3, max: 10}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(() => compiled.validate('ab', {}, ''), ValidationError);
     });
 
     it('should reject string too long', async function() {
       const schema = new Schema('string').validator({length: {min: 3, max: 10}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(() => compiled.validate('12345678901', {}, ''), ValidationError);
     });
 
     it('should validate exact length', async function() {
       const schema = new Schema('string').validator({length: {exact: 5}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('hello', {}, '');
       await assert.rejects(() => compiled.validate('hi', {}, ''), ValidationError);
@@ -46,7 +46,7 @@ describe('Validator: length', function() {
 
     it('should validate min length only', async function() {
       const schema = new Schema('string').validator({length: {min: 3}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('abc', {}, '');
       await compiled.validate('verylongstring', {}, '');
@@ -55,7 +55,7 @@ describe('Validator: length', function() {
 
     it('should validate max length only', async function() {
       const schema = new Schema('string').validator({length: {max: 5}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('', {}, '');
       await compiled.validate('hello', {}, '');
@@ -66,7 +66,7 @@ describe('Validator: length', function() {
   describe('Array length validation', function() {
     it('should accept array within length range', async function() {
       const schema = new Schema('array').validator({length: {min: 2, max: 5}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate([1, 2, 3], {}, '');
       await compiled.validate([1, 2], {}, ''); // min boundary
@@ -75,21 +75,21 @@ describe('Validator: length', function() {
 
     it('should reject array too short', async function() {
       const schema = new Schema('array').validator({length: {min: 2, max: 5}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(() => compiled.validate([1], {}, ''), ValidationError);
     });
 
     it('should reject array too long', async function() {
       const schema = new Schema('array').validator({length: {min: 2, max: 5}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(() => compiled.validate([1, 2, 3, 4, 5, 6], {}, ''), ValidationError);
     });
 
     it('should validate exact array length', async function() {
       const schema = new Schema('array').validator({length: {exact: 3}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate([1, 2, 3], {}, '');
       await assert.rejects(() => compiled.validate([1, 2], {}, ''), ValidationError);
@@ -97,30 +97,30 @@ describe('Validator: length', function() {
   });
 
   describe('Description generation', function() {
-    it('should generate description for exact length', function() {
+    it('should generate description for exact length', async function() {
       const schema = new Schema('string').validator({length: {exact: 5}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[len=5]');
     });
 
-    it('should generate description for range', function() {
+    it('should generate description for range', async function() {
       const schema = new Schema('string').validator({length: {min: 3, max: 10}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[len=3-10]');
     });
 
-    it('should generate description for min only', function() {
+    it('should generate description for min only', async function() {
       const schema = new Schema('string').validator({length: {min: 3}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[len≥3]');
     });
 
-    it('should generate description for max only', function() {
+    it('should generate description for max only', async function() {
       const schema = new Schema('string').validator({length: {max: 10}});
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[len≤10]');
     });

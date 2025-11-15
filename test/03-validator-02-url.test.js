@@ -14,7 +14,7 @@ describe('Validator: url', function() {
   describe('Valid URLs', function() {
     it('should accept HTTP URL', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('http://example.com', {}, '');
       assert.strictEqual(result, 'http://example.com/');
@@ -22,7 +22,7 @@ describe('Validator: url', function() {
 
     it('should accept HTTPS URL', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('https://example.com', {}, '');
       assert.strictEqual(result, 'https://example.com/');
@@ -30,7 +30,7 @@ describe('Validator: url', function() {
 
     it('should accept URL with path', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('https://example.com/path/to/page', {}, '');
       assert.strictEqual(result, 'https://example.com/path/to/page');
@@ -38,7 +38,7 @@ describe('Validator: url', function() {
 
     it('should accept URL with query string', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('https://example.com?foo=bar', {}, '');
       assert.strictEqual(result, 'https://example.com/?foo=bar');
@@ -46,7 +46,7 @@ describe('Validator: url', function() {
 
     it('should accept URL with hash', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('https://example.com#section', {}, '');
       assert.strictEqual(result, 'https://example.com/#section');
@@ -54,7 +54,7 @@ describe('Validator: url', function() {
 
     it('should accept URL with port', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('https://example.com:8080/path', {}, '');
       assert.strictEqual(result, 'https://example.com:8080/path');
@@ -62,7 +62,7 @@ describe('Validator: url', function() {
 
     it('should accept file protocol URL', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('file:///path/to/file', {}, '');
       assert.strictEqual(result, 'file:///path/to/file');
@@ -70,7 +70,7 @@ describe('Validator: url', function() {
 
     it('should accept FTP URL', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('ftp://ftp.example.com/file.txt', {}, '');
       assert.strictEqual(result, 'ftp://ftp.example.com/file.txt');
@@ -80,7 +80,7 @@ describe('Validator: url', function() {
   describe('Invalid URLs', function() {
     it('should reject URL without protocol', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('example.com', {}, ''),
@@ -90,7 +90,7 @@ describe('Validator: url', function() {
 
     it('should reject empty string', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('', {}, ''),
@@ -100,7 +100,7 @@ describe('Validator: url', function() {
 
     it('should reject malformed URL', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('http://', {}, ''),
@@ -110,7 +110,7 @@ describe('Validator: url', function() {
 
     it('should accept valid URL with special characters', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // URL constructor accepts many characters, including query params
       const result = await compiled.validate('http://example.com/path?query=value', {}, '');
@@ -121,7 +121,7 @@ describe('Validator: url', function() {
   describe('URL normalization', function() {
     it('should normalize URL by adding trailing slash', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('http://example.com', {}, '');
       assert.strictEqual(result, 'http://example.com/');
@@ -129,7 +129,7 @@ describe('Validator: url', function() {
 
     it('should preserve existing path', async function() {
       const schema = new Schema('string').validator('$url');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('http://example.com/page', {}, '');
       assert.strictEqual(result, 'http://example.com/page');

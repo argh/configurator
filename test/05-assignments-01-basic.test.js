@@ -17,7 +17,7 @@ describe('Assignments - Basic Processing', function() {
       const schema = new Schema('object')
         .property('name', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['name', 'John']
@@ -34,7 +34,7 @@ describe('Assignments - Basic Processing', function() {
         .property('age', new Schema('number'))
         .property('active', new Schema('boolean'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['name', 'Alice'],
@@ -57,7 +57,7 @@ describe('Assignments - Basic Processing', function() {
           normalizer: (v) => v.toLowerCase()
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['email', 'USER@EXAMPLE.COM']
@@ -76,7 +76,7 @@ describe('Assignments - Basic Processing', function() {
           transformer: (v) => new Date(Number(v))
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['timestamp', '1609459200000']
@@ -98,7 +98,7 @@ describe('Assignments - Basic Processing', function() {
           .property('email', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['user.name', 'Bob'],
@@ -125,7 +125,7 @@ describe('Assignments - Basic Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['company.department.team.lead', 'Alice']
@@ -153,7 +153,7 @@ describe('Assignments - Basic Processing', function() {
           .property('*', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0', 'first'],
@@ -175,7 +175,7 @@ describe('Assignments - Basic Processing', function() {
           .property('*', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['values.0', '10'],
@@ -198,7 +198,7 @@ describe('Assignments - Basic Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['matrix.0.0', '1'],
@@ -226,7 +226,7 @@ describe('Assignments - Basic Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['users.0.name', 'Alice'],
@@ -255,7 +255,7 @@ describe('Assignments - Basic Processing', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['stuff', '*']  // Shorthand for all wildcard values
@@ -281,7 +281,7 @@ describe('Assignments - Basic Processing', function() {
           .property('2', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['tuple.0', 'first'],
@@ -304,7 +304,7 @@ describe('Assignments - Basic Processing', function() {
           .property('1', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['tuple.0', 'first'],
@@ -331,7 +331,7 @@ describe('Assignments - Basic Processing', function() {
           .property('*', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['tuple.0', 'first'],      // Uses '0' schema (string)
@@ -357,7 +357,7 @@ describe('Assignments - Basic Processing', function() {
           .property('*', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.0', 'header'],      // String, normalized to uppercase
@@ -386,7 +386,7 @@ describe('Assignments - Basic Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['complex.0', 'label'],
@@ -418,7 +418,7 @@ describe('Assignments - Basic Processing', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['tuple.0', 'first']
@@ -442,7 +442,7 @@ describe('Assignments - Basic Processing', function() {
           .property('1', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['tuple.1', '42']
@@ -465,7 +465,7 @@ describe('Assignments - Basic Processing', function() {
         }))
         .property('host', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['host', 'localhost']
@@ -485,7 +485,7 @@ describe('Assignments - Basic Processing', function() {
           default: 8080
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['port', '3000']
@@ -507,7 +507,7 @@ describe('Assignments - Basic Processing', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['config.timeout', '10000']
@@ -532,7 +532,7 @@ describe('Assignments - Basic Processing', function() {
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -549,7 +549,7 @@ describe('Assignments - Basic Processing', function() {
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -565,7 +565,7 @@ describe('Assignments - Basic Processing', function() {
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['name', 'Required Value']
@@ -586,7 +586,7 @@ describe('Assignments - Basic Processing', function() {
         }))
         .property('email', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['username', 'admin']
@@ -608,7 +608,7 @@ describe('Assignments - Basic Processing', function() {
           validator: /@/
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['email', 'invalid-email']
@@ -626,7 +626,7 @@ describe('Assignments - Basic Processing', function() {
           validator: /@/
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['email', 'user@example.com']
@@ -643,7 +643,7 @@ describe('Assignments - Basic Processing', function() {
           values: ['active', 'inactive', 'pending']
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['status', 'invalid-status']
@@ -667,7 +667,7 @@ describe('Assignments - Basic Processing', function() {
       const schema = new Schema('object')
         .property('optional', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -683,7 +683,7 @@ describe('Assignments - Basic Processing', function() {
           normalizer: (v) => v === 'undefined' ? undefined : v
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['random', 10],
@@ -703,7 +703,7 @@ describe('Assignments - Basic Processing', function() {
       const schema = new Schema('object')
         .property('known', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['known', 'value'],
@@ -724,7 +724,7 @@ describe('Assignments - Basic Processing', function() {
       const schema = new Schema('object')
         .property('known', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['known', 'value'],
@@ -765,7 +765,7 @@ describe('Assignments - Basic Processing', function() {
           .property('fullName', new Schema('string').implicit())
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['person.firstName', 'John'],
@@ -786,7 +786,7 @@ describe('Assignments - Basic Processing', function() {
         .property('computed', new Schema('string').implicit())
         .property('regular', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Verify the convenience getter works
       assert.strictEqual(compiled.properties.computed.implicit, true);
@@ -824,7 +824,7 @@ describe('Assignments - Basic Processing', function() {
           .property('id', new Schema('string').implicit())
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['record.data', 'test123'],
@@ -867,7 +867,7 @@ describe('Assignments - Basic Processing', function() {
           .property('formatted', new Schema('string').implicit())
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['user.street', '123 Main St'],
@@ -909,7 +909,7 @@ describe('Assignments - Basic Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0.name', 'Widget'],

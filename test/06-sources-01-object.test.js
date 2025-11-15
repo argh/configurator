@@ -18,7 +18,7 @@ describe('Sources - ObjectSource', function() {
         .property('name', new Schema('string'))
         .property('port', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -42,7 +42,7 @@ describe('Sources - ObjectSource', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -66,7 +66,7 @@ describe('Sources - ObjectSource', function() {
           .property('*', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -89,7 +89,7 @@ describe('Sources - ObjectSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -104,7 +104,7 @@ describe('Sources - ObjectSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource({ contextName: 'defaults' });
 
       const context = {
@@ -119,7 +119,7 @@ describe('Sources - ObjectSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource({ contextName: 'missing' });
 
       const context = {
@@ -157,7 +157,7 @@ describe('Sources - ObjectSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -188,7 +188,7 @@ describe('Sources - ObjectSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -214,7 +214,7 @@ describe('Sources - ObjectSource', function() {
           .property('value', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -229,7 +229,7 @@ describe('Sources - ObjectSource', function() {
       const schema = new Schema('object')
         .property('optional', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {
@@ -249,7 +249,7 @@ describe('Sources - ObjectSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const assignments = await source.load(compiled, {});
@@ -262,7 +262,7 @@ describe('Sources - ObjectSource', function() {
       const schema = new Schema('object')
         .property('name', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new ObjectSource();
 
       const context = {

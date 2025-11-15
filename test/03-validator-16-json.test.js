@@ -13,7 +13,7 @@ describe('Validator: json', function() {
 
   it('should accept valid JSON object', async function() {
     const schema = new Schema('string').validator('$json');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('{"key":"value"}', {}, '');
     await compiled.validate('{"a":1,"b":2}', {}, '');
@@ -21,7 +21,7 @@ describe('Validator: json', function() {
 
   it('should accept valid JSON array', async function() {
     const schema = new Schema('string').validator('$json');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('[1,2,3]', {}, '');
     await compiled.validate('["a","b","c"]', {}, '');
@@ -29,7 +29,7 @@ describe('Validator: json', function() {
 
   it('should accept JSON primitives', async function() {
     const schema = new Schema('string').validator('$json');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('null', {}, '');
     await compiled.validate('true', {}, '');
@@ -39,7 +39,7 @@ describe('Validator: json', function() {
 
   it('should reject invalid JSON', async function() {
     const schema = new Schema('string').validator('$json');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('{invalid}', {}, ''), ValidationError);
     await assert.rejects(() => compiled.validate("{'single':quotes}", {}, ''), ValidationError);

@@ -29,7 +29,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('optimize', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -62,7 +62,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('append', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -87,7 +87,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('name', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -116,7 +116,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('memory', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -142,7 +142,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -178,7 +178,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -212,7 +212,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -242,7 +242,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('force', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -268,7 +268,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('timeout', new Schema('number', { default: 10000 }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -302,7 +302,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -337,7 +337,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -368,7 +368,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -393,7 +393,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('detailed', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -422,7 +422,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('force', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -452,7 +452,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -479,7 +479,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -507,7 +507,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('cache', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -533,7 +533,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
         .property('start', new Schema('object', { selection: true }))
         .property('stop', new Schema('object', { selection: true }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -560,7 +560,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           .property('optimize', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -618,7 +618,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {
@@ -662,7 +662,7 @@ describe('Sources - CommandLineSource - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new CommandLineSource();
 
       const context = {

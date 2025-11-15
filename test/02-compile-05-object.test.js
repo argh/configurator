@@ -13,72 +13,76 @@ describe('Schema Compilation - Object Type', function() {
 
   describe('Object normalization', function() {
 
-    it('should normalize object values unchanged', function() {
+    it('should normalize object values unchanged', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { a: 1, b: 2 };
-      const normalized = compiled.normalize(obj);
+      const normalized = await compiled.normalize(obj);
       assert.deepStrictEqual(normalized, obj);
     });
 
-    it('should normalize empty object', function() {
+    it('should normalize empty object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = {};
-      const normalized = compiled.normalize(obj);
+      const normalized = await compiled.normalize(obj);
       assert.deepStrictEqual(normalized, obj);
     });
 
-    it('should normalize true to empty object', function() {
+    it('should normalize true to empty object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      const normalized = compiled.normalize(true);
+      const normalized = await compiled.normalize(true);
       assert.deepStrictEqual(normalized, {});
     });
 
-    it('should normalize JSON string to object', function() {
+    it('should normalize JSON string to object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      const normalized = compiled.normalize('{"x":10,"y":20}');
+      const normalized = await compiled.normalize('{"x":10,"y":20}');
       assert.deepStrictEqual(normalized, { x: 10, y: 20 });
     });
 
-    it('should normalize JSON string with nested objects', function() {
+    it('should normalize JSON string with nested objects', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      const normalized = compiled.normalize('{"user":{"name":"Alice","age":30}}');
+      const normalized = await compiled.normalize('{"user":{"name":"Alice","age":30}}');
       assert.deepStrictEqual(normalized, { user: { name: 'Alice', age: 30 } });
     });
 
-    it('should throw NormalizeError for invalid JSON', function() {
+    it('should throw NormalizeError for invalid JSON', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.throws(() => compiled.normalize('{invalid-json}'), NormalizeError);
-      assert.throws(() => compiled.normalize('not an object'), NormalizeError);
+      await assert.rejects(
+      async () => await compiled.normalize('{invalid-json}'), NormalizeError);
+      await assert.rejects(
+      async () => await compiled.normalize('not an object'), NormalizeError);
     });
 
-    it('should throw NormalizeError for non-object values', function() {
+    it('should throw NormalizeError for non-object values', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.throws(() => compiled.normalize(123), NormalizeError);
-      assert.throws(() => compiled.normalize(false), NormalizeError);
+      await assert.rejects(
+      async () => await compiled.normalize(123), NormalizeError);
+      await assert.rejects(
+      async () => await compiled.normalize(false), NormalizeError);
     });
 
-    it('should normalize object to string when values constraint exists', function() {
+    it('should normalize object to string when values constraint exists', async function() {
       const schema = new Schema('object')
         .values([{ a: 1 }]);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // When values exist, normalization should stringify for comparison
-      const normalized = compiled.normalize({ a: 1 });
+      const normalized = await compiled.normalize({ a: 1 });
       assert.strictEqual(typeof normalized, 'string');
       assert.strictEqual(normalized, '{"a":1}');
     });
@@ -88,7 +92,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should transform object values unchanged', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { x: 1, y: 2 };
       const transformed = await compiled.transform(obj, {}, 'field');
@@ -97,7 +101,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should transform empty object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform({}, {}, 'field');
       assert.deepStrictEqual(transformed, {});
@@ -105,7 +109,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should transform true to empty object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform(true, {}, 'field');
       assert.deepStrictEqual(transformed, {});
@@ -113,7 +117,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should transform JSON string to object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform('{"a":1,"b":2}', {}, 'field');
       assert.deepStrictEqual(transformed, { a: 1, b: 2 });
@@ -121,7 +125,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should transform JSON string with whitespace', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform('  {"key":"value"}  ', {}, 'field');
       assert.deepStrictEqual(transformed, { key: 'value' });
@@ -129,7 +133,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should throw TransformError for invalid JSON string', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         async () => await compiled.transform('{not-valid-json}', {}, 'field'),
@@ -139,7 +143,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should throw TransformError for non-object values', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         async () => await compiled.transform(123, {}, 'field'),
@@ -157,7 +161,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should validate object values', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { a: 1, b: 2 };
       const validated = await compiled.validate(obj);
@@ -166,7 +170,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should validate empty object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const validated = await compiled.validate({});
       assert.deepStrictEqual(validated, {});
@@ -174,7 +178,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should validate nested objects', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { outer: { inner: { value: 42 } } };
       const validated = await compiled.validate(obj);
@@ -183,7 +187,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should reject primitive values during validation', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('string'),
@@ -206,7 +210,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should serialize object values', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { x: 10, y: 20 };
       const serialized = await compiled.serialize(obj);
@@ -215,7 +219,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should serialize empty object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const serialized = await compiled.serialize({});
       assert.deepStrictEqual(serialized, {});
@@ -223,7 +227,7 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should serialize nested objects', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { level1: { level2: { value: 'test' } } };
       const serialized = await compiled.serialize(obj);
@@ -233,11 +237,11 @@ describe('Schema Compilation - Object Type', function() {
 
   describe('Object with values constraint', function() {
 
-    it('should compile object with allowed values', function() {
+    it('should compile object with allowed values', async function() {
       const schema = new Schema('object')
         .values([{ type: 'A' }, { type: 'B' }]);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Values should be stringified for comparison
       assert.strictEqual(compiled.values.length, 2);
@@ -245,13 +249,13 @@ describe('Schema Compilation - Object Type', function() {
       assert.strictEqual(compiled.values[1], '{"type":"B"}');
     });
 
-    it('should normalize and check matching values', function() {
+    it('should normalize and check matching values', async function() {
       const schema = new Schema('object')
         .values([{ x: 1 }]);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      const normalized = compiled.normalize({ x: 1 });
+      const normalized = await compiled.normalize({ x: 1 });
       assert.strictEqual(normalized, '{"x":1}');
     });
 
@@ -259,7 +263,7 @@ describe('Schema Compilation - Object Type', function() {
       const schema = new Schema('object')
         .values([{ valid: true }]);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.transform({ valid: false }, {}, 'field'),
@@ -270,12 +274,12 @@ describe('Schema Compilation - Object Type', function() {
 
   describe('Object with properties', function() {
 
-    it('should compile object with child properties', function() {
+    it('should compile object with child properties', async function() {
       const schema = new Schema('object')
         .property('name', new Schema('string'))
         .property('age', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.properties.name);
       assert.ok(compiled.properties.age);
@@ -287,7 +291,7 @@ describe('Schema Compilation - Object Type', function() {
         .property('title', new Schema('string'))
         .property('count', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const obj = { title: 'Test', count: 42 };
       const validated = await compiled.validate(obj);
@@ -297,11 +301,11 @@ describe('Schema Compilation - Object Type', function() {
 
   describe('Object with default value', function() {
 
-    it('should have default value in compiled schema', function() {
+    it('should have default value in compiled schema', async function() {
       const schema = new Schema('object')
         .default({ x: 10 });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.deepStrictEqual(compiled.default, { x: 10 });
     });
@@ -310,7 +314,7 @@ describe('Schema Compilation - Object Type', function() {
       const schema = new Schema('object')
         .default({ status: 'active' });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const validated = await compiled.validate({ status: 'active' });
       assert.deepStrictEqual(validated, { status: 'active' });
@@ -319,20 +323,20 @@ describe('Schema Compilation - Object Type', function() {
 
   describe('Object with required option', function() {
 
-    it('should compile with required flag', function() {
+    it('should compile with required flag', async function() {
       const schema = new Schema('object')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.required, true);
     });
 
-    it('should have valueDescription with angle brackets when required', function() {
+    it('should have valueDescription with angle brackets when required', async function() {
       const schema = new Schema('object')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '<object>');
     });
@@ -340,20 +344,20 @@ describe('Schema Compilation - Object Type', function() {
 
   describe('Object metadata', function() {
 
-    it('should preserve metadata during compilation', function() {
+    it('should preserve metadata during compilation', async function() {
       const schema = new Schema('object')
         .meta('description', 'Configuration object')
         .meta('example', { key: 'value' });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'Configuration object');
       assert.deepStrictEqual(compiled.metadata.example, { key: 'value' });
     });
 
-    it('should have valueName set from base type', function() {
+    it('should have valueName set from base type', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueName, 'object');
     });
@@ -363,10 +367,10 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should handle normalize -> transform -> validate workflow', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = compiled.normalize('{"key":"value"}');
+      const normalized = await compiled.normalize('{"key":"value"}');
       assert.deepStrictEqual(normalized, { key: 'value' });
 
       // Transform
@@ -380,10 +384,10 @@ describe('Schema Compilation - Object Type', function() {
 
     it('should handle workflow with true input', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = compiled.normalize(true);
+      const normalized = await compiled.normalize(true);
       assert.deepStrictEqual(normalized, {});
 
       // Transform
@@ -399,10 +403,10 @@ describe('Schema Compilation - Object Type', function() {
       const schema = new Schema('object')
         .values([{ type: 'test' }]);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Normalize (should stringify for comparison)
-      const normalized = compiled.normalize({ type: 'test' });
+      const normalized = await compiled.normalize({ type: 'test' });
       assert.strictEqual(normalized, '{"type":"test"}');
 
       // Transform from string (normalized form) back to object

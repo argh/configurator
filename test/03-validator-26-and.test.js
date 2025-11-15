@@ -15,7 +15,7 @@ describe('Validator: and', function() {
     const schema = new Schema('string').validator({
       and: [/^test/, /test$/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('test', {}, '');
     await compiled.validate('testest', {}, '');
@@ -28,7 +28,7 @@ describe('Validator: and', function() {
         /^hello$/
       ]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('HELLO', {}, '');
     assert.strictEqual(result, 'hello');
@@ -38,7 +38,7 @@ describe('Validator: and', function() {
     const schema = new Schema('string').validator({
       and: [/^test/, /end$/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('other', {}, ''),
@@ -50,7 +50,7 @@ describe('Validator: and', function() {
     const schema = new Schema('string').validator({
       and: [/^test/, /end$/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('test', {}, ''),
@@ -62,18 +62,18 @@ describe('Validator: and', function() {
     const schema = new Schema('string').validator({
       and: ['$alpha', /^[a-z]+$/, {length: {min: 3}}]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('abc', {}, '');
     await assert.rejects(() => compiled.validate('ab', {}, ''), ValidationError);
     await assert.rejects(() => compiled.validate('ABC', {}, ''), ValidationError);
   });
 
-  it('should generate combined description', function() {
+  it('should generate combined description', async function() {
     const schema = new Schema('string').validator({
       and: [/^test/, /end$/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[/^test/ & /end$/]');
   });

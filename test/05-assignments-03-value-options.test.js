@@ -22,7 +22,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
         }))
         .property('host', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['host', 'localhost']  // This creates the root object
@@ -43,7 +43,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           default: 8080
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['port', '3000']
@@ -66,7 +66,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['server.port', '3000']  // This creates the 'server' container
@@ -97,7 +97,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
         )
         .property('otherProp', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['otherProp', 'value']  // Does NOT create 'server' container
@@ -121,7 +121,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           default: () => Date.now()
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -143,7 +143,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0.name', 'Item 1'],        // Creates items[0]
@@ -175,7 +175,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
         )
         .property('otherProp', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['otherProp', 'value']  // Does NOT create 'items' array
@@ -201,7 +201,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -218,7 +218,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -234,7 +234,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['name', 'Test']
@@ -255,7 +255,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
         }))
         .property('email', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['username', 'admin']
@@ -277,7 +277,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -295,7 +295,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['user.name', 'Alice']
@@ -319,7 +319,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           default: 'active'
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -340,7 +340,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           default: 'active'
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 
@@ -357,7 +357,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
           default: 'active'
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['status', 'inactive']

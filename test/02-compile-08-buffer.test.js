@@ -13,9 +13,9 @@ describe('Schema Compilation - Buffer Type', function() {
 
   describe('Buffer normalization', function() {
 
-    it('should not have a custom normalizer by default', function() {
+    it('should not have a custom normalizer by default', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Buffer type relies on transformer, not normalizer
       // The base 'any' normalizer should be inherited
@@ -27,7 +27,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should transform Buffer objects unchanged', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from('hello world', 'utf8');
       const transformed = await compiled.transform(buffer, {}, 'field');
@@ -38,7 +38,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should transform base64 string to Buffer', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const base64 = 'aGVsbG8gd29ybGQ='; // "hello world" in base64
       const transformed = await compiled.transform(base64, {}, 'field');
@@ -49,7 +49,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should transform empty string to empty Buffer', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform('', {}, 'field');
 
@@ -59,7 +59,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should transform array of bytes to Buffer', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const bytes = [72, 101, 108, 108, 111]; // "Hello" in ASCII
       const transformed = await compiled.transform(bytes, {}, 'field');
@@ -70,7 +70,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should transform Uint8Array to Buffer', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const uint8 = new Uint8Array([72, 105]); // "Hi"
       const transformed = await compiled.transform(uint8, {}, 'field');
@@ -81,7 +81,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle base64 with padding', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const base64 = 'dGVzdA=='; // "test" with padding
       const transformed = await compiled.transform(base64, {}, 'field');
@@ -92,7 +92,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle base64 without padding', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const base64 = 'dGVzdA'; // "test" without padding
       const transformed = await compiled.transform(base64, {}, 'field');
@@ -103,7 +103,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should throw TransformError for invalid values if Buffer.from throws', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // These might work or throw depending on Buffer.from implementation
       // If they throw, it should be wrapped in TransformError
@@ -120,7 +120,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should validate Buffer objects', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from('test data');
       const validated = await compiled.validate(buffer);
@@ -131,7 +131,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should validate empty Buffer', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([]);
       const validated = await compiled.validate(buffer);
@@ -142,7 +142,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should validate Buffer with binary data', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([0x00, 0xFF, 0xAB, 0xCD]);
       const validated = await compiled.validate(buffer);
@@ -160,7 +160,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should serialize Buffer to base64 string', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from('hello world', 'utf8');
       const serialized = await compiled.serialize(buffer);
@@ -171,7 +171,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should serialize empty Buffer to empty string', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([]);
       const serialized = await compiled.serialize(buffer);
@@ -181,7 +181,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should serialize binary Buffer to base64', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([0xFF, 0x00, 0xAB, 0xCD]);
       const serialized = await compiled.serialize(buffer);
@@ -194,7 +194,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should return undefined for non-Buffer values', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         async () => await compiled.serialize('not a buffer'),
@@ -215,12 +215,12 @@ describe('Schema Compilation - Buffer Type', function() {
 
   describe('Buffer with default value', function() {
 
-    it('should have default Buffer value', function() {
+    it('should have default Buffer value', async function() {
       const defaultBuffer = Buffer.from('default');
       const schema = new Schema('buffer')
         .default(defaultBuffer);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(Buffer.isBuffer(compiled.default));
       assert.strictEqual(compiled.default.toString('utf8'), 'default');
@@ -229,20 +229,20 @@ describe('Schema Compilation - Buffer Type', function() {
 
   describe('Buffer with required option', function() {
 
-    it('should compile with required flag', function() {
+    it('should compile with required flag', async function() {
       const schema = new Schema('buffer')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.required, true);
     });
 
-    it('should have valueDescription with angle brackets when required', function() {
+    it('should have valueDescription with angle brackets when required', async function() {
       const schema = new Schema('buffer')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '<buffer>');
     });
@@ -250,20 +250,20 @@ describe('Schema Compilation - Buffer Type', function() {
 
   describe('Buffer metadata', function() {
 
-    it('should preserve metadata during compilation', function() {
+    it('should preserve metadata during compilation', async function() {
       const schema = new Schema('buffer')
         .meta('description', 'Binary data')
         .meta('encoding', 'base64');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'Binary data');
       assert.strictEqual(compiled.metadata.encoding, 'base64');
     });
 
-    it('should have parserTypeHint set to string', function() {
+    it('should have parserTypeHint set to string', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.parserTypeHint, 'string');
     });
@@ -273,7 +273,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle transform -> validate -> serialize workflow with base64', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const base64Input = 'dGVzdCBkYXRh'; // "test data"
 
@@ -293,7 +293,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle workflow with byte array', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const bytes = [65, 66, 67]; // "ABC"
 
@@ -313,7 +313,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should round-trip serialize and transform', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const originalBuffer = Buffer.from('Hello, Buffer!', 'utf8');
 
@@ -330,7 +330,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle empty Buffer round-trip', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const emptyBuffer = Buffer.from([]);
 
@@ -346,7 +346,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle binary data round-trip', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const binaryBuffer = Buffer.from([0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD]);
 
@@ -365,7 +365,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle large buffers', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const largeBuffer = Buffer.alloc(10000);
       largeBuffer.fill('x');
@@ -380,7 +380,7 @@ describe('Schema Compilation - Buffer Type', function() {
 
     it('should handle buffer with UTF-8 multibyte characters', async function() {
       const schema = new Schema('buffer');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const text = 'Hello 世界 🌍';
       const buffer = Buffer.from(text, 'utf8');

@@ -31,7 +31,7 @@ describe('Validator: executable', function() {
 
   it('should accept executable file', async function() {
     const schema = new Schema('string').validator('$executable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate(testFile, {}, '');
     assert.strictEqual(result, testFile);
@@ -43,7 +43,7 @@ describe('Validator: executable', function() {
     await fs.chmod(nonExec, 0o644); // Not executable
 
     const schema = new Schema('string').validator('$executable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     try {
       await assert.rejects(
@@ -57,7 +57,7 @@ describe('Validator: executable', function() {
 
   it('should reject non-existent file', async function() {
     const schema = new Schema('string').validator('$executable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('/nonexistent/file', {}, ''),
@@ -65,9 +65,9 @@ describe('Validator: executable', function() {
     );
   });
 
-  it('should have path description', function() {
+  it('should have path description', async function() {
     const schema = new Schema('string').validator('$executable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[path]');
   });

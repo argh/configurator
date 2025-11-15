@@ -25,7 +25,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('name', Schema.literal('grape'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // The common 'name' property should be hoisted to the union schema
     assert.ok(compiled.properties.name);
@@ -51,7 +51,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('animal', Schema.literal('Cat').normalizer(normalizer))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.ok(compiled.properties.animal);
 
@@ -61,7 +61,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.strictEqual(compiled.findUnionKey(result), 'Dog');
   });
 
-  it('should combine values from all union schemas for hoisted property', function() {
+  it('should combine values from all union schemas for hoisted property', async function() {
     const schema = new Schema('object')
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('alpha'))
@@ -73,7 +73,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('type', Schema.literal('gamma'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const hoistedProperty = compiled.properties.type;
     assert.ok(hoistedProperty);
@@ -84,7 +84,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.ok(hoistedProperty.values.includes('gamma'));
   });
 
-  it('should preserve base type from hoisted property', function() {
+  it('should preserve base type from hoisted property', async function() {
     const schema = new Schema('object')
       .unionSchema('num1', new Schema('object')
         .property('id', new Schema('number').values([1]))
@@ -93,7 +93,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('id', new Schema('number').values([2]))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const hoistedProperty = compiled.properties.id;
     assert.ok(hoistedProperty);
@@ -101,7 +101,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.strictEqual(hoistedProperty.metadata.parserTypeHint, 'number');
   });
 
-  it('should use any base when union properties have incompatible types', function() {
+  it('should use any base when union properties have incompatible types', async function() {
     // When union properties have incompatible base types (string vs number),
     // should fall back to 'any' base type with no normalizer
     const schema = new Schema('object')
@@ -112,7 +112,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('value', new Schema('number').values([42]))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const hoistedProperty = compiled.properties.value;
     assert.ok(hoistedProperty);
@@ -124,7 +124,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.ok(hoistedProperty.values.includes(42));
   });
 
-  it('should not hoist property that already exists in parent', function() {
+  it('should not hoist property that already exists in parent', async function() {
     // If the union schema already defines a property, it shouldn't be hoisted
     const schema = new Schema('object')
       .property('name', new Schema('string'))
@@ -135,7 +135,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('name', Schema.literal('b'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // The parent property should be used, not hoisted from union schemas
     const nameProperty = compiled.properties.name;
@@ -150,7 +150,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
         .property('type', Schema.literal('valid'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // When no union member accepts the value, should throw ValidationError
     await assert.rejects(

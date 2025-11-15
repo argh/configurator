@@ -13,7 +13,7 @@ describe('Validator: reachable', function() {
 
   it('should accept localhost', async function() {
     const schema = new Schema('string').validator('$reachable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('localhost', {}, '');
     assert.strictEqual(result, 'localhost');
@@ -22,7 +22,7 @@ describe('Validator: reachable', function() {
   it('should accept well-known domain', async function() {
     this.timeout(5000); // DNS lookup may take time
     const schema = new Schema('string').validator('$reachable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('google.com', {}, '');
   });
@@ -30,7 +30,7 @@ describe('Validator: reachable', function() {
   it('should reject non-existent domain', async function() {
     this.timeout(5000);
     const schema = new Schema('string').validator('$reachable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('this-domain-definitely-does-not-exist-12345.com', {}, ''),
@@ -40,7 +40,7 @@ describe('Validator: reachable', function() {
 
   it('should reject invalid hostname', async function() {
     const schema = new Schema('string').validator('$reachable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('!!!invalid!!!', {}, ''),

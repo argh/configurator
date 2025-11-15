@@ -13,9 +13,9 @@ describe('Schema Compilation - Date Type', function() {
 
   describe('Date normalization', function() {
 
-    it('should not have a normalizer by default', function() {
+    it('should not have a normalizer by default', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Date type relies on transformer, not normalizer
       // The base 'any' normalizer should be inherited
@@ -27,7 +27,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform Date objects unchanged', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const date = new Date('2024-01-01T00:00:00Z');
       const transformed = await compiled.transform(date, {}, 'field');
@@ -38,7 +38,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform ISO date string to Date', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform('2024-01-15T12:30:45Z', {}, 'field');
 
@@ -48,7 +48,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform "now" to current Date', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const before = Date.now();
       const transformed = await compiled.transform('now', {}, 'field');
@@ -61,7 +61,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform millisecond timestamp to Date', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const timestamp = 1704067200000; // 2024-01-01 00:00:00 UTC
       const transformed = await compiled.transform(timestamp, {}, 'field');
@@ -72,7 +72,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform small timestamp as seconds to Date', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Small timestamp (< 200000000) gets treated as seconds
       const timestamp = 100000000; // Small enough to be treated as seconds
@@ -84,7 +84,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform numeric string timestamp to Date', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const transformed = await compiled.transform('1704067200000', {}, 'field');
 
@@ -94,7 +94,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform relative time offset +1d', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const before = Date.now() + (24 * 60 * 60 * 1000);
       const transformed = await compiled.transform('+1d', {}, 'field');
@@ -107,7 +107,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform relative time offset -1h', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const before = Date.now() - (60 * 60 * 1000);
       const transformed = await compiled.transform('-1h', {}, 'field');
@@ -120,7 +120,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should transform relative time with units: ms, s, m, h, d, w', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Test various time units
       const units = [
@@ -144,7 +144,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should throw TransformError for invalid date string', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.transform('not-a-date', {}, 'field'),
@@ -154,7 +154,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should throw TransformError for invalid Date object', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.transform(new Date('invalid'), {}, 'field'),
@@ -164,7 +164,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should throw TransformError for non-date values', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.transform(true, {}, 'field'),
@@ -182,7 +182,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should validate Date objects', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const date = new Date('2024-06-15');
       const validated = await compiled.validate(date);
@@ -193,7 +193,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should reject non-Date values during validation', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('2024-01-01'),
@@ -213,7 +213,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should reject invalid Date objects', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate(new Date('invalid')),
@@ -226,7 +226,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should serialize Date to ISO string', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const date = new Date('2024-03-20T15:30:00Z');
       const serialized = await compiled.serialize(date);
@@ -236,7 +236,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should serialize Date at epoch', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const date = new Date(0);
       const serialized = await compiled.serialize(date);
@@ -246,7 +246,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should throw SerializeError for non-Date values', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.serialize('2024-01-01'),
@@ -262,12 +262,12 @@ describe('Schema Compilation - Date Type', function() {
 
   describe('Date with default value', function() {
 
-    it('should have default Date value', function() {
+    it('should have default Date value', async function() {
       const defaultDate = new Date('2024-01-01');
       const schema = new Schema('date')
         .default(defaultDate);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.default instanceof Date);
       assert.strictEqual(compiled.default.toISOString(), defaultDate.toISOString());
@@ -276,11 +276,11 @@ describe('Schema Compilation - Date Type', function() {
 
   describe('Date with required option', function() {
 
-    it('should compile with required flag', function() {
+    it('should compile with required flag', async function() {
       const schema = new Schema('date')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.required, true);
     });
@@ -288,34 +288,34 @@ describe('Schema Compilation - Date Type', function() {
 
   describe('Date metadata', function() {
 
-    it('should preserve metadata during compilation', function() {
+    it('should preserve metadata during compilation', async function() {
       const schema = new Schema('date')
         .meta('description', 'Event timestamp')
         .meta('example', '2024-01-01T00:00:00Z');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'Event timestamp');
       assert.strictEqual(compiled.metadata.example, '2024-01-01T00:00:00Z');
     });
 
-    it('should have valueName set from base type', function() {
+    it('should have valueName set from base type', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueName, 'date');
     });
 
-    it('should have valueDescription set from base type', function() {
+    it('should have valueDescription set from base type', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, 'ms|iso date|"now"|[+|-]offset[d|h|m|s|ms]');
     });
 
-    it('should have parserTypeHint set to string', function() {
+    it('should have parserTypeHint set to string', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.parserTypeHint, 'string');
     });
@@ -325,7 +325,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should handle transform -> validate -> serialize workflow with ISO string', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Transform
       const transformed = await compiled.transform('2024-12-25T00:00:00Z', {}, 'field');
@@ -342,7 +342,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should handle workflow with "now"', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Transform
       const transformed = await compiled.transform('now', {}, 'field');
@@ -359,7 +359,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should handle workflow with timestamp', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const timestamp = 1704067200000;
 
@@ -379,7 +379,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should handle workflow with relative offset', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Transform
       const transformed = await compiled.transform('+2h', {}, 'field');
@@ -396,7 +396,7 @@ describe('Schema Compilation - Date Type', function() {
 
     it('should round-trip serialize and transform', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const originalDate = new Date('2024-06-15T10:30:00Z');
 

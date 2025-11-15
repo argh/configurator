@@ -13,44 +13,44 @@ describe('Schema Compilation - String Type', function() {
 
   describe('String normalization', function() {
 
-    it('should normalize string values to strings', function() {
+    it('should normalize string values to strings', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize('hello'), 'hello');
-      assert.strictEqual(compiled.normalize(''), '');
+      assert.strictEqual(await compiled.normalize('hello'), 'hello');
+      assert.strictEqual(await compiled.normalize(''), '');
     });
 
-    it('should normalize numbers to strings', function() {
+    it('should normalize numbers to strings', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize(123), '123');
-      assert.strictEqual(compiled.normalize(0), '0');
-      assert.strictEqual(compiled.normalize(-42), '-42');
-      assert.strictEqual(compiled.normalize(3.14), '3.14');
+      assert.strictEqual(await compiled.normalize(123), '123');
+      assert.strictEqual(await compiled.normalize(0), '0');
+      assert.strictEqual(await compiled.normalize(-42), '-42');
+      assert.strictEqual(await compiled.normalize(3.14), '3.14');
     });
 
-    it('should normalize booleans to strings', function() {
+    it('should normalize booleans to strings', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize(true), 'true');
-      assert.strictEqual(compiled.normalize(false), 'false');
+      assert.strictEqual(await compiled.normalize(true), 'true');
+      assert.strictEqual(await compiled.normalize(false), 'false');
     });
 
-    it('should normalize null to string', function() {
+    it('should normalize null to string', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize(null), 'null');
+      assert.strictEqual(await compiled.normalize(null), 'null');
     });
 
-    it('should normalize undefined to string', function() {
+    it('should normalize undefined to string', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize(undefined), 'undefined');
+      assert.strictEqual(await compiled.normalize(undefined), 'undefined');
     });
   });
 
@@ -58,7 +58,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should transform string values unchanged', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(await compiled.transform('test', {}, 'field'), 'test');
       assert.strictEqual(await compiled.transform('', {}, 'field'), '');
@@ -66,7 +66,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should use the inherited transformer from base type', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // String base type doesn't have a custom transformer, so it should pass through
       assert.strictEqual(await compiled.transform('hello', {}, 'field'), 'hello');
@@ -77,7 +77,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should validate string values', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('test');
       assert.strictEqual(result, 'test');
@@ -85,7 +85,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should validate empty strings', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('');
       assert.strictEqual(result, '');
@@ -93,7 +93,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should reject non-string values during validation', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate(123),
@@ -116,7 +116,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should serialize string values', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.serialize('test value');
       assert.strictEqual(result, 'test value');
@@ -124,7 +124,7 @@ describe('Schema Compilation - String Type', function() {
 
     it('should serialize empty strings', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.serialize('');
       assert.strictEqual(result, '');
@@ -133,11 +133,11 @@ describe('Schema Compilation - String Type', function() {
 
   describe('String with values constraint', function() {
 
-    it('should compile string with allowed values', function() {
+    it('should compile string with allowed values', async function() {
       const schema = new Schema('string')
         .values(['red', 'green', 'blue']);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.deepStrictEqual(compiled.values, ['red', 'green', 'blue']);
     });
@@ -146,9 +146,9 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string')
         .values(['active', 'inactive']);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize('active'), 'active');
+      assert.strictEqual(await compiled.normalize('active'), 'active');
       const validated = await compiled.validate('active');
       assert.strictEqual(validated, 'active');
     });
@@ -157,7 +157,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string')
         .values(['yes', 'no']);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.transform('maybe', {}, 'field'),
@@ -165,11 +165,11 @@ describe('Schema Compilation - String Type', function() {
       );
     });
 
-    it('should normalize numeric values to strings in values list', function() {
+    it('should normalize numeric values to strings in values list', async function() {
       const schema = new Schema('string')
         .values([1, 2, 3]);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Values should be normalized to strings during compilation
       assert.deepStrictEqual(compiled.values, ['1', '2', '3']);
@@ -178,11 +178,11 @@ describe('Schema Compilation - String Type', function() {
 
   describe('String with default value', function() {
 
-    it('should have default value in compiled schema', function() {
+    it('should have default value in compiled schema', async function() {
       const schema = new Schema('string')
         .default('default-value');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.default, 'default-value');
     });
@@ -191,7 +191,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string')
         .default('hello');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // The default itself should be a valid string
       const validated = await compiled.validate('hello');
@@ -201,29 +201,29 @@ describe('Schema Compilation - String Type', function() {
 
   describe('String with required option', function() {
 
-    it('should compile with required flag', function() {
+    it('should compile with required flag', async function() {
       const schema = new Schema('string')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.required, true);
     });
 
-    it('should compile with required false', function() {
+    it('should compile with required false', async function() {
       const schema = new Schema('string')
         .required(false);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.required, false);
     });
 
-    it('should have valueDescription with angle brackets when required', function() {
+    it('should have valueDescription with angle brackets when required', async function() {
       const schema = new Schema('string')
         .required(true);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '<string>');
     });
@@ -231,20 +231,20 @@ describe('Schema Compilation - String Type', function() {
 
   describe('String metadata', function() {
 
-    it('should preserve metadata during compilation', function() {
+    it('should preserve metadata during compilation', async function() {
       const schema = new Schema('string')
         .meta('description', 'A test string')
         .meta('example', 'hello world');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'A test string');
       assert.strictEqual(compiled.metadata.example, 'hello world');
     });
 
-    it('should have valueName set from base type', function() {
+    it('should have valueName set from base type', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueName, 'string');
     });
@@ -254,10 +254,10 @@ describe('Schema Compilation - String Type', function() {
 
     it('should handle normalize -> transform -> validate workflow', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = compiled.normalize(123);
+      const normalized = await compiled.normalize(123);
       assert.strictEqual(normalized, '123');
 
       // Transform
@@ -273,10 +273,10 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string')
         .values(['small', 'medium', 'large']);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = compiled.normalize('medium');
+      const normalized = await compiled.normalize('medium');
       assert.strictEqual(normalized, 'medium');
 
       // Transform (should check against values)

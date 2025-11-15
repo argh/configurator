@@ -28,7 +28,7 @@ describe('Assignments - Selectors', function() {
           .property('workers', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['mode', 'dev'],
@@ -61,7 +61,7 @@ describe('Assignments - Selectors', function() {
           .property('workers', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['mode', 'dev'],
@@ -96,7 +96,7 @@ describe('Assignments - Selectors', function() {
           .property('graceful', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['command', 'start'],
@@ -139,7 +139,7 @@ describe('Assignments - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['service', 'storage'],
@@ -183,7 +183,7 @@ describe('Assignments - Selectors', function() {
           .property('instances', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['service', 'compute'],
@@ -226,7 +226,7 @@ describe('Assignments - Selectors', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['service', 'storage'],
@@ -271,7 +271,7 @@ describe('Assignments - Selectors', function() {
           .property('graceful', new Schema('boolean'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['command', 'start'],
@@ -317,7 +317,7 @@ describe('Assignments - Selectors', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['env', 'development'],
@@ -359,7 +359,7 @@ describe('Assignments - Selectors', function() {
           .property('prodProp', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['env', 'production'],
@@ -398,7 +398,7 @@ describe('Assignments - Selectors', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['command', 'deploy']
@@ -428,7 +428,7 @@ describe('Assignments - Selectors', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['command', 'deploy'],
@@ -460,7 +460,7 @@ describe('Assignments - Selectors', function() {
           .property('suite', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['command', 'test'],
@@ -494,7 +494,7 @@ describe('Assignments - Selectors', function() {
           .property('region', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['command', 'deploy'],
@@ -537,7 +537,7 @@ describe('Assignments - Selectors', function() {
           .property('replicas', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['mode', 'staging'],
@@ -569,7 +569,7 @@ describe('Assignments - Selectors', function() {
           .property('replicas', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['mode', 'staging'],

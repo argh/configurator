@@ -13,7 +13,7 @@ describe('Validator: nonempty', function() {
 
   it('should accept non-empty string', async function() {
     const schema = new Schema('string').validator('$nonempty');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('hello', {}, '');
     assert.strictEqual(result, 'hello');
@@ -21,7 +21,7 @@ describe('Validator: nonempty', function() {
 
   it('should accept string with only spaces if not trimmed to empty', async function() {
     const schema = new Schema('string').validator('$nonempty');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // nonempty trims and checks, so only spaces will fail
     await assert.rejects(() => compiled.validate('   ', {}, ''), ValidationError);
@@ -29,14 +29,14 @@ describe('Validator: nonempty', function() {
 
   it('should accept string with content and spaces', async function() {
     const schema = new Schema('string').validator('$nonempty');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('  hello  ', {}, '');
   });
 
   it('should accept numbers as strings', async function() {
     const schema = new Schema('string').validator('$nonempty');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('123', {}, '');
     await compiled.validate('0', {}, '');
@@ -44,14 +44,14 @@ describe('Validator: nonempty', function() {
 
   it('should reject empty string', async function() {
     const schema = new Schema('string').validator('$nonempty');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('', {}, ''), ValidationError);
   });
 
   it('should reject whitespace-only string', async function() {
     const schema = new Schema('string').validator('$nonempty');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('   ', {}, ''), ValidationError);
     await assert.rejects(() => compiled.validate('\t\n', {}, ''), ValidationError);

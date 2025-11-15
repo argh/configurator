@@ -22,7 +22,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           .property('y', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['point.x', 10],
@@ -52,7 +52,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           .property('y', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.x', 10],
@@ -83,7 +83,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           .property('y', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should succeed with both fields
       const assignments1 = new Map([
@@ -129,7 +129,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           .property('y', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['point.x', 10],
@@ -156,7 +156,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           .property('y', new Schema('number').default(10))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['calc.x', 5],
@@ -194,7 +194,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['item.a', 'hello'],
@@ -229,7 +229,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['points.0.x', 3],
@@ -263,7 +263,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           .property('b', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['child.a', 'hello'],
@@ -302,7 +302,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['wrapper.child.a', 'hello'],
@@ -334,7 +334,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
         .property('y', new Schema('number'))
         .property('z', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Only assign some properties
       const assignments = new Map([
@@ -366,7 +366,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0.name', 'widget'],
@@ -398,7 +398,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map();
 

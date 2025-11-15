@@ -18,7 +18,7 @@ describe('Sources - SchemaDefaultsSource', function() {
         .property('name', new Schema('string', { default: 'myapp' }))
         .property('port', new Schema('number', { default: 3000 }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -35,7 +35,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           .property('port', new Schema('number', { default: 5432 }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -49,7 +49,7 @@ describe('Sources - SchemaDefaultsSource', function() {
         .property('required', new Schema('string'))  // No default
         .property('withDefault', new Schema('string', { default: 'value' }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -66,7 +66,7 @@ describe('Sources - SchemaDefaultsSource', function() {
         .property('enabled', new Schema('boolean', { default: true }))
         .property('disabled', new Schema('boolean', { default: false }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -79,7 +79,7 @@ describe('Sources - SchemaDefaultsSource', function() {
       const schema = new Schema('object')
         .property('tags', new Schema('array', { default: ['one', 'two'] }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -96,7 +96,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           default: { host: 'localhost', port: 8080 }
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -116,7 +116,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           .property('timeout', new Schema('number', { inherit: true }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -132,7 +132,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           .property('timeout', new Schema('number', { inherit: true }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -154,7 +154,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -195,7 +195,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -220,7 +220,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -237,7 +237,7 @@ describe('Sources - SchemaDefaultsSource', function() {
         .property('required', new Schema('string'))
         .property('optional', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -252,7 +252,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           .property('*', new Schema('string', { default: 'default-item' }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -279,7 +279,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});
@@ -301,7 +301,7 @@ describe('Sources - SchemaDefaultsSource', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new SchemaDefaultsSource();
 
       const assignments = await source.load(compiled, {});

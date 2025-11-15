@@ -133,44 +133,44 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
   describe('Schema resolution during compilation', function() {
 
-    it('should resolve base type and inherit its properties', function() {
+    it('should resolve base type and inherit its properties', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have inherited the normalizer from string base type
       assert.strictEqual(typeof compiled.options.normalizer, 'function');
-      assert.strictEqual(compiled.normalize(123), '123');
+      assert.strictEqual(await compiled.normalize(123), '123');
     });
 
-    it('should resolve base type and inherit validator', function() {
+    it('should resolve base type and inherit validator', async function() {
       const schema = new Schema('number');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have inherited the validator from number base type
       assert.strictEqual(typeof compiled.options.validator, 'function');
     });
 
-    it('should resolve base type and inherit transformer', function() {
+    it('should resolve base type and inherit transformer', async function() {
       const schema = new Schema('boolean');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have inherited transformer
       assert.strictEqual(typeof compiled.options.transformer, 'function');
     });
 
-    it('should handle schema without base type', function() {
+    it('should handle schema without base type', async function() {
       const schema = new Schema();
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should compile with 'any' as default base
       assert.ok(compiled);
     });
 
-    it('should throw for unknown base types', function() {
+    it('should throw for unknown base types', async function() {
       const schema = new Schema('nonexistent-type');
 
-      assert.throws(
-        () => resolver.compile(schema),
+      await assert.rejects(
+      async () => await resolver.compile(schema),
         /Unable to resolve "nonexistent-type"/
       );
     });
@@ -178,32 +178,32 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
   describe('Metadata inheritance from base types', function() {
 
-    it('should inherit valueName from base type', function() {
+    it('should inherit valueName from base type', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueName, 'string');
     });
 
-    it('should inherit valueDescription from boolean base type', function() {
+    it('should inherit valueDescription from boolean base type', async function() {
       const schema = new Schema('boolean');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[true|false]');
     });
 
-    it('should inherit parserTypeHint from date base type', function() {
+    it('should inherit parserTypeHint from date base type', async function() {
       const schema = new Schema('date');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.parserTypeHint, 'string');
     });
 
-    it('should not override local metadata with base metadata', function() {
+    it('should not override local metadata with base metadata', async function() {
       const schema = new Schema('string')
         .meta('valueName', 'custom-name');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Local metadata should take precedence
       assert.strictEqual(compiled.metadata.valueName, 'custom-name');
@@ -212,48 +212,48 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
   describe('Options inheritance from base types', function() {
 
-    it('should inherit type option from base', function() {
+    it('should inherit type option from base', async function() {
       const schema = new Schema('array');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.options.type, 'array');
     });
 
-    it('should not override local options with base options', function() {
+    it('should not override local options with base options', async function() {
       const customNormalizer = (v) => `custom-${v}`;
       const schema = new Schema('string')
         .normalizer(customNormalizer);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Local normalizer should take precedence
-      assert.strictEqual(compiled.normalize('test'), 'custom-test');
+      assert.strictEqual(await compiled.normalize('test'), 'custom-test');
     });
   });
 
   describe('Nested schema resolution', function() {
 
-    it('should resolve base types for nested property schemas', function() {
+    it('should resolve base types for nested property schemas', async function() {
       const schema = new Schema('object')
         .property('name', new Schema('string'))
         .property('age', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Nested schemas should have resolved their base types
       assert.strictEqual(typeof compiled.properties.name.options.normalizer, 'function');
       assert.strictEqual(typeof compiled.properties.age.options.normalizer, 'function');
-      assert.strictEqual(compiled.properties.name.normalize(123), '123');
-      assert.strictEqual(compiled.properties.age.normalize('456'), 456);
+      assert.strictEqual(await compiled.properties.name.normalize(123), '123');
+      assert.strictEqual(await compiled.properties.age.normalize('456'), 456);
     });
 
-    it('should resolve base types at multiple levels of nesting', function() {
+    it('should resolve base types at multiple levels of nesting', async function() {
       const schema = new Schema('object')
         .property('user', new Schema('object')
           .property('name', new Schema('string'))
           .property('active', new Schema('boolean')));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Deep nested schemas should resolve their base types
       const nameSchema = compiled.properties.user.properties.name;
@@ -266,14 +266,14 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
   describe('Resolution chain', function() {
 
-    it('should follow resolution chain for Schema base', function() {
+    it('should follow resolution chain for Schema base', async function() {
       const baseSchema = new Schema('string')
         .meta('category', 'text');
 
       const schema = new Schema(baseSchema)
         .meta('description', 'Extended string');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have metadata from both base schema and ultimate base type
       assert.strictEqual(compiled.metadata.category, 'text');
@@ -281,16 +281,16 @@ describe('Schema Compilation - Base Type Resolution', function() {
       assert.strictEqual(compiled.metadata.valueName, 'string');
     });
 
-    it('should resolve through multiple Schema layers', function() {
+    it('should resolve through multiple Schema layers', async function() {
       const level1 = new Schema('number');
       const level2 = new Schema(level1).meta('level', 2);
       const level3 = new Schema(level2).meta('level', 3);
 
-      const compiled = resolver.compile(level3);
+      const compiled = await resolver.compile(level3);
 
       // Should resolve through all layers to number base type
       assert.strictEqual(typeof compiled.options.normalizer, 'function');
-      assert.strictEqual(compiled.normalize('42'), 42);
+      assert.strictEqual(await compiled.normalize('42'), 42);
       // Local metadata should win
       assert.strictEqual(compiled.metadata.level, 3);
     });
@@ -298,7 +298,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
   describe('Base type registration chain', function() {
 
-    it('should maintain independent resolver instances', function() {
+    it('should maintain independent resolver instances', async function() {
       const resolver1 = new SchemaResolver();
       const resolver2 = new SchemaResolver();
 
@@ -312,7 +312,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       );
     });
 
-    it('should not affect other resolvers when registering schemas', function() {
+    it('should not affect other resolvers when registering schemas', async function() {
       const resolver1 = new SchemaResolver();
       const resolver2 = new SchemaResolver();
 
@@ -322,12 +322,12 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const schema = new Schema('newtype');
 
       // Should compile with resolver1
-      const compiled1 = resolver1.compile(schema);
+      const compiled1 = await resolver1.compile(schema);
       assert.ok(compiled1);
 
       // Should fail with resolver2
-      assert.throws(
-        () => resolver2.compile(schema),
+      await assert.rejects(
+      async () => await resolver2.compile(schema),
         /Unable to resolve "newtype"/
       );
     });
@@ -335,19 +335,19 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
   describe('Registry error handling', function() {
 
-    it('should throw descriptive error for missing base type', function() {
+    it('should throw descriptive error for missing base type', async function() {
       const schema = new Schema('missing-type');
 
-      assert.throws(
-        () => resolver.compile(schema),
+      await assert.rejects(
+      async () => await resolver.compile(schema),
 
         /Unable to resolve "missing-type"/
       );
     });
-    it('should not throw for missing base type in lax mode', function() {
+    it('should not throw for missing base type in lax mode', async function() {
       const schema = new Schema('missing-type').lax();
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       assert.ok(compiled);
     });
 

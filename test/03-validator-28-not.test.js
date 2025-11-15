@@ -15,7 +15,7 @@ describe('Validator: not', function() {
     const schema = new Schema('string').validator({
       not: /^test/
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('other', {}, '');
     await compiled.validate('something', {}, '');
@@ -25,7 +25,7 @@ describe('Validator: not', function() {
     const schema = new Schema('string').validator({
       not: /^test/
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('test123', {}, ''),
@@ -37,26 +37,26 @@ describe('Validator: not', function() {
     const schema = new Schema('string').validator({
       not: '$numeric'
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('abc', {}, '');
     await assert.rejects(() => compiled.validate('123', {}, ''), ValidationError);
   });
 
-  it('should generate negated description', function() {
+  it('should generate negated description', async function() {
     const schema = new Schema('string').validator({
       not: /^test/
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[!/^test/]');
   });
 
-  it('should add parentheses for complex descriptions', function() {
+  it('should add parentheses for complex descriptions', async function() {
     const schema = new Schema('string').validator({
       not: {and: [/^a/, /b$/]}
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.ok(compiled.metadata.valueDescription.includes('!('));
   });

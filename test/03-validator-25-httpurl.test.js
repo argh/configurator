@@ -13,7 +13,7 @@ describe('Validator: httpurl', function() {
 
   it('should accept HTTP URL', async function() {
     const schema = new Schema('string').validator('$httpurl');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('http://example.com', {}, '');
     assert.strictEqual(result, 'http://example.com');
@@ -21,7 +21,7 @@ describe('Validator: httpurl', function() {
 
   it('should accept HTTPS URL', async function() {
     const schema = new Schema('string').validator('$httpurl');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('https://example.com', {}, '');
     await compiled.validate('https://example.com/path', {}, '');
@@ -30,7 +30,7 @@ describe('Validator: httpurl', function() {
 
   it('should reject FTP URL', async function() {
     const schema = new Schema('string').validator('$httpurl');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('ftp://example.com', {}, ''),
@@ -40,7 +40,7 @@ describe('Validator: httpurl', function() {
 
   it('should reject file URL', async function() {
     const schema = new Schema('string').validator('$httpurl');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('file:///path/to/file', {}, ''),
@@ -50,7 +50,7 @@ describe('Validator: httpurl', function() {
 
   it('should reject URL without protocol', async function() {
     const schema = new Schema('string').validator('$httpurl');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('example.com', {}, ''),
@@ -60,7 +60,7 @@ describe('Validator: httpurl', function() {
 
   it('should reject malformed URL', async function() {
     const schema = new Schema('string').validator('$httpurl');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('http://', {}, ''),

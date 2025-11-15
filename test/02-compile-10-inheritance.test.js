@@ -12,32 +12,32 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Inheriting from base type strings', function() {
 
-    it('should inherit normalizer from string base', function() {
+    it('should inherit normalizer from string base', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.normalizer, 'function');
-      assert.strictEqual(compiled.normalize(42), '42');
-      assert.strictEqual(compiled.normalize(true), 'true');
+      assert.strictEqual(await compiled.normalize(42), '42');
+      assert.strictEqual(await compiled.normalize(true), 'true');
     });
 
-    it('should inherit validator from number base', function() {
+    it('should inherit validator from number base', async function() {
       const schema = new Schema('number');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.validator, 'function');
     });
 
-    it('should inherit transformer from boolean base', function() {
+    it('should inherit transformer from boolean base', async function() {
       const schema = new Schema('boolean');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.transformer, 'function');
     });
 
-    it('should inherit all handlers from object base', function() {
+    it('should inherit all handlers from object base', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.normalizer, 'function');
       assert.strictEqual(typeof compiled.options.transformer, 'function');
@@ -47,14 +47,14 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Local options take precedence over base', function() {
 
-    it('should use local normalizer over base normalizer', function() {
+    it('should use local normalizer over base normalizer', async function() {
       const customNormalizer = (v) => `CUSTOM:${v}`;
       const schema = new Schema('string')
         .normalizer(customNormalizer);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.normalize('test'), 'CUSTOM:test');
+      assert.strictEqual(await compiled.normalize('test'), 'CUSTOM:test');
     });
 
     it('should use local validator over base validator', async function() {
@@ -65,7 +65,7 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('string')
         .validator(customValidator);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.options.validator('invalid', {}, compiled, ''),
@@ -81,7 +81,7 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('string')
         .transformer(customTransformer);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.transform('input', {}, 'field');
       assert.strictEqual(result, 'transformed-input');
@@ -92,7 +92,7 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('string')
         .serializer(customSerializer);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.serialize('data');
       assert.strictEqual(result, 'serialized:data');
@@ -101,30 +101,30 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Local metadata takes precedence', function() {
 
-    it('should override valueName from base', function() {
+    it('should override valueName from base', async function() {
       const schema = new Schema('string')
         .meta('valueName', 'custom-value-name');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueName, 'custom-value-name');
     });
 
-    it('should override valueDescription from base', function() {
+    it('should override valueDescription from base', async function() {
       const schema = new Schema('boolean')
         .meta('valueDescription', 'yes or no');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, 'yes or no');
     });
 
-    it('should supplement base metadata with additional fields', function() {
+    it('should supplement base metadata with additional fields', async function() {
       const schema = new Schema('string')
         .meta('description', 'A custom string field')
         .meta('example', 'hello');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have both base metadata and custom metadata
       assert.strictEqual(compiled.metadata.valueName, 'string'); // from base
@@ -135,14 +135,14 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Inheriting from Schema instances', function() {
 
-    it('should inherit from another Schema instance', function() {
+    it('should inherit from another Schema instance', async function() {
       const baseSchema = new Schema('string')
         .meta('category', 'text');
 
       const derivedSchema = new Schema(baseSchema)
         .meta('description', 'Extended from base');
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       // Should have metadata from both schemas
       assert.strictEqual(compiled.metadata.category, 'text');
@@ -151,48 +151,48 @@ describe('Schema Compilation - Inheritance', function() {
       assert.strictEqual(compiled.metadata.valueName, 'string');
     });
 
-    it('should inherit properties from Schema base', function() {
+    it('should inherit properties from Schema base', async function() {
       const baseSchema = new Schema('object')
         .property('id', new Schema('number'));
 
       const derivedSchema = new Schema(baseSchema)
         .property('name', new Schema('string'));
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       // Should have properties from both
       assert.ok(compiled.properties.id);
       assert.ok(compiled.properties.name);
     });
 
-    it('should prioritize derived schema properties over base properties', function() {
+    it('should prioritize derived schema properties over base properties', async function() {
       const baseSchema = new Schema('object')
         .property('status', new Schema('string').default('pending'));
 
       const derivedSchema = new Schema(baseSchema)
         .property('status', new Schema('string').default('active'));
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       // Derived schema's property should win
       assert.strictEqual(compiled.properties.status.default, 'active');
     });
 
-    it('should inherit options from Schema base', function() {
+    it('should inherit options from Schema base', async function() {
       const baseSchema = new Schema('string')
         .required(true);
 
       const derivedSchema = new Schema(baseSchema)
         .default('default-value');
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       // Should have both required from base and default from derived
       assert.strictEqual(compiled.required, true);
       assert.strictEqual(compiled.default, 'default-value');
     });
 
-    it('should prioritize derived options over base options', function() {
+    it('should prioritize derived options over base options', async function() {
       const baseSchema = new Schema('string')
         .required(true)
         .default('base-default');
@@ -201,7 +201,7 @@ describe('Schema Compilation - Inheritance', function() {
         .required(false)
         .default('derived-default');
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       // Derived schema's options should win
       assert.strictEqual(compiled.required, false);
@@ -211,7 +211,7 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Multi-level inheritance chains', function() {
 
-    it('should resolve through multiple Schema layers', function() {
+    it('should resolve through multiple Schema layers', async function() {
       const level1 = new Schema('number')
         .meta('level', 1);
 
@@ -223,11 +223,11 @@ describe('Schema Compilation - Inheritance', function() {
         .meta('level', 3)
         .meta('layer3', true);
 
-      const compiled = resolver.compile(level3);
+      const compiled = await resolver.compile(level3);
 
       // Should resolve to number base type
       assert.strictEqual(typeof compiled.options.normalizer, 'function');
-      assert.strictEqual(compiled.normalize('42'), 42);
+      assert.strictEqual(await compiled.normalize('42'), 42);
 
       // Local metadata should win
       assert.strictEqual(compiled.metadata.level, 3);
@@ -236,7 +236,7 @@ describe('Schema Compilation - Inheritance', function() {
       assert.strictEqual(compiled.metadata.layer3, true);
     });
 
-    it('should follow precedence rules through chain', function() {
+    it('should follow precedence rules through chain', async function() {
       const base = new Schema('string')
         .option('opt1', 'base')
         .option('opt2', 'base')
@@ -249,7 +249,7 @@ describe('Schema Compilation - Inheritance', function() {
       const top = new Schema(middle)
         .option('opt3', 'top');
 
-      const compiled = resolver.compile(top);
+      const compiled = await resolver.compile(top);
 
       // Each level should override previous levels
       assert.strictEqual(compiled.options.opt1, 'base');
@@ -257,7 +257,7 @@ describe('Schema Compilation - Inheritance', function() {
       assert.strictEqual(compiled.options.opt3, 'top');
     });
 
-    it('should accumulate properties through chain', function() {
+    it('should accumulate properties through chain', async function() {
       const base = new Schema('object')
         .property('a', new Schema('string'));
 
@@ -267,7 +267,7 @@ describe('Schema Compilation - Inheritance', function() {
       const top = new Schema(middle)
         .property('c', new Schema('boolean'));
 
-      const compiled = resolver.compile(top);
+      const compiled = await resolver.compile(top);
 
       // Should have properties from all levels
       assert.ok(compiled.properties.a);
@@ -278,7 +278,7 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Inheriting custom base types', function() {
 
-    it('should inherit from custom registered base type', function() {
+    it('should inherit from custom registered base type', async function() {
       const emailSchema = new Schema('string')
         .normalizer((v) => String(v).toLowerCase().trim())
         .validator((v) => {
@@ -289,13 +289,13 @@ describe('Schema Compilation - Inheritance', function() {
       resolver.registerSchema('email', emailSchema);
 
       const schema = new Schema('email');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should inherit email normalizer
-      assert.strictEqual(compiled.normalize('  TEST@EXAMPLE.COM  '), 'test@example.com');
+      assert.strictEqual(await compiled.normalize('  TEST@EXAMPLE.COM  '), 'test@example.com');
     });
 
-    it('should extend custom base type with additional constraints', function() {
+    it('should extend custom base type with additional constraints', async function() {
       const positiveNumberSchema = new Schema('number')
         .validator((v) => {
           if (v <= 0) throw new Error('Must be positive');
@@ -308,47 +308,47 @@ describe('Schema Compilation - Inheritance', function() {
         .meta('description', 'A positive integer')
         .default(1);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have both number normalizer and positive validator
-      assert.strictEqual(compiled.normalize('42'), 42);
+      assert.strictEqual(await compiled.normalize('42'), 42);
       assert.strictEqual(compiled.default, 1);
     });
   });
 
   describe('Inheritance with values', function() {
 
-    it('should inherit base type but add values constraint', function() {
+    it('should inherit base type but add values constraint', async function() {
       const schema = new Schema('string')
         .values(['red', 'green', 'blue']);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have string normalizer from base
-      assert.strictEqual(compiled.normalize(123), '123');
+      assert.strictEqual(await compiled.normalize(123), '123');
       // Should have values from schema
       assert.deepStrictEqual(compiled.values, ['red', 'green', 'blue']);
     });
 
-    it('should inherit values from base Schema', function() {
+    it('should inherit values from base Schema', async function() {
       const baseSchema = new Schema('string')
         .values(['option1', 'option2']);
 
       const derivedSchema = new Schema(baseSchema);
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       assert.deepStrictEqual(compiled.values, ['option1', 'option2']);
     });
 
-    it('should accumulate values from both base and derived schemas', function() {
+    it('should accumulate values from both base and derived schemas', async function() {
       const baseSchema = new Schema('string')
         .values(['a', 'b']);
 
       const derivedSchema = new Schema(baseSchema)
         .values(['x', 'y']);
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       // Values are accumulated from both
       assert.deepStrictEqual(compiled.values, ['a', 'b', 'x', 'y']);
@@ -357,25 +357,25 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Inheritance with defaults', function() {
 
-    it('should inherit default from base Schema', function() {
+    it('should inherit default from base Schema', async function() {
       const baseSchema = new Schema('string')
         .default('base-default');
 
       const derivedSchema = new Schema(baseSchema);
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       assert.strictEqual(compiled.default, 'base-default');
     });
 
-    it('should override base default with derived default', function() {
+    it('should override base default with derived default', async function() {
       const baseSchema = new Schema('number')
         .default(0);
 
       const derivedSchema = new Schema(baseSchema)
         .default(42);
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
 
       assert.strictEqual(compiled.default, 42);
     });
@@ -383,7 +383,7 @@ describe('Schema Compilation - Inheritance', function() {
 
   describe('Inheritance precedence summary', function() {
 
-    it('should follow precedence: local > schema base > type base', function() {
+    it('should follow precedence: local > schema base > type base', async function() {
       const typeBase = resolver.getSchema('string'); // has String() normalizer
 
       const schemaBase = new Schema('string')
@@ -395,7 +395,7 @@ describe('Schema Compilation - Inheritance', function() {
         .option('localOption', 'from-local')
         .normalizer((v) => `local:${v}`);
 
-      const compiled = resolver.compile(local);
+      const compiled = await resolver.compile(local);
 
       // Local metadata wins
       assert.strictEqual(compiled.metadata.source, 'local');
@@ -403,10 +403,10 @@ describe('Schema Compilation - Inheritance', function() {
       assert.strictEqual(compiled.options.baseOption, 'from-schema');
       assert.strictEqual(compiled.options.localOption, 'from-local');
       // Local normalizer wins
-      assert.strictEqual(compiled.normalize('test'), 'local:test');
+      assert.strictEqual(await compiled.normalize('test'), 'local:test');
     });
 
-    it('should demonstrate full inheritance chain', function() {
+    it('should demonstrate full inheritance chain', async function() {
       // Type base: string (has String() normalizer)
 
       // Schema base layer 1
@@ -427,7 +427,7 @@ describe('Schema Compilation - Inheritance', function() {
         .option('opt1', 'local')
         .option('opt3', 'local');
 
-      const compiled = resolver.compile(local);
+      const compiled = await resolver.compile(local);
 
       // Type base provides normalizer (not overridden)
       assert.strictEqual(typeof compiled.options.normalizer, 'function');

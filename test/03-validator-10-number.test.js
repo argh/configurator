@@ -13,7 +13,7 @@ describe('Validator: number', function() {
 
   it('should accept integers and return number', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('42', {}, '');
     assert.strictEqual(result, 42);
@@ -22,7 +22,7 @@ describe('Validator: number', function() {
 
   it('should accept decimals and return number', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('3.14', {}, '');
     assert.strictEqual(result, 3.14);
@@ -30,7 +30,7 @@ describe('Validator: number', function() {
 
   it('should accept negative numbers', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('-42', {}, '');
     assert.strictEqual(result, -42);
@@ -38,7 +38,7 @@ describe('Validator: number', function() {
 
   it('should accept scientific notation', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('1e5', {}, '');
     assert.strictEqual(result, 100000);
@@ -46,21 +46,21 @@ describe('Validator: number', function() {
 
   it('should reject non-numeric strings', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('abc', {}, ''), ValidationError);
   });
 
   it('should reject Infinity', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('Infinity', {}, ''), ValidationError);
   });
 
   it('should reject NaN', async function() {
     const schema = new Schema('string').validator('$number');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('NaN', {}, ''), ValidationError);
   });

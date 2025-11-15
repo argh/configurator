@@ -20,7 +20,7 @@ describe('Assignments - Conditional Processing', function() {
           condition: (value, configuration) => configuration.enabled === true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['enabled', 'false'],
@@ -42,7 +42,7 @@ describe('Assignments - Conditional Processing', function() {
           condition: (value, configuration) => configuration.enabled === true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['enabled', 'true'],
@@ -67,7 +67,7 @@ describe('Assignments - Conditional Processing', function() {
           condition: (value, configuration) => configuration.mode === 'production'
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['mode', 'development'],
@@ -97,7 +97,7 @@ describe('Assignments - Conditional Processing', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['useRemote', 'false'],
@@ -123,7 +123,7 @@ describe('Assignments - Conditional Processing', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['useRemote', 'true'],
@@ -158,7 +158,7 @@ describe('Assignments - Conditional Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['logger.type', 'remote'],
@@ -194,7 +194,7 @@ describe('Assignments - Conditional Processing', function() {
           condition: (value, configuration) => configuration.step2 !== undefined
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['step1', 'first'],
@@ -221,7 +221,7 @@ describe('Assignments - Conditional Processing', function() {
           condition: (value, configuration) => configuration.a !== undefined
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['a', 'valueA'],
@@ -249,7 +249,7 @@ describe('Assignments - Conditional Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['includeOptional', 'false'],
@@ -286,7 +286,7 @@ describe('Assignments - Conditional Processing', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0.enabled', 'true'],
@@ -316,7 +316,7 @@ describe('Assignments - Conditional Processing', function() {
           default: 'default-value'
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['enabled', 'true']
@@ -339,7 +339,7 @@ describe('Assignments - Conditional Processing', function() {
           default: 'default-value'
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['enabled', 'false']
@@ -365,7 +365,7 @@ describe('Assignments - Conditional Processing', function() {
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['enabled', 'false']
@@ -387,7 +387,7 @@ describe('Assignments - Conditional Processing', function() {
           required: true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['enabled', 'true']
@@ -424,7 +424,7 @@ describe('Assignments - Conditional Processing', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Environment variables specify remote logger config
       // but command line overrides to local

@@ -23,7 +23,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Parameterized validator registration', function() {
 
-    it('should pass compile function that can recursively compile specs', function() {
+    it('should pass compile function that can recursively compile specs', async function() {
       let capturedCompileSpec;
 
       const compileFn = (args, compileSpec) => {
@@ -40,7 +40,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator({ recursive: { nested: true } });
 
-      resolver.compile(schema);
+      await resolver.compile(schema);
 
       // The compileSpec function should have been passed
       assert.strictEqual(typeof capturedCompileSpec, 'function');
@@ -49,12 +49,12 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Validator resolution with $ prefix', function() {
 
-    it('should throw error for unknown $keyword', function() {
+    it('should throw error for unknown $keyword', async function() {
       const schema = new Schema('string')
         .validator('$nonExistent');
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
 
@@ -69,14 +69,14 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('$capture');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('test-value', {}, '');
 
       assert.strictEqual(invokedWith, 'test-value');
     });
 
-    it('should use describe function for valueDescription', function() {
+    it('should use describe function for valueDescription', async function() {
       resolver.registerValueProcessor('described',
         (value) => value,
         () => 'custom description text'
@@ -85,18 +85,18 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('$described');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[custom description text]');
     });
 
-    it('should use keyword as description when describeFn not provided', function() {
+    it('should use keyword as description when describeFn not provided', async function() {
       resolver.registerValueProcessor('simpleKeyword', (value) => value);
 
       const schema = new Schema('string')
         .validator('$simpleKeyword');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[simpleKeyword]');
     });
@@ -117,7 +117,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('number')
         .validator({ min: 10 });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should pass
       await compiled.validate(15, {}, '');
@@ -129,27 +129,27 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       );
     });
 
-    it('should throw error for unknown parameterized keyword', function() {
+    it('should throw error for unknown parameterized keyword', async function() {
       const schema = new Schema('string')
         .validator({ unknownValidator: 42 });
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
 
-    it('should throw error when simple validator used with parameters', function() {
+    it('should throw error when simple validator used with parameters', async function() {
       resolver.registerValueProcessor('simple', (value) => value);
 
       const schema = new Schema('string')
         .validator({ simple: { arg: 'value' } });
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
 
-    it('should throw error for validator object with multiple keys', function() {
+    it('should throw error for validator object with multiple keys', async function() {
       resolver.registerParameterizedValueProcessor('validator1', (args) => ({
         processor: async (value) => value
       }));
@@ -157,12 +157,12 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator({ validator1: 1, validator2: 2 });
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
 
-    it('should set description from parameterized validator', function() {
+    it('should set description from parameterized validator', async function() {
       resolver.registerParameterizedValueProcessor('range', (args, compileSpec) => {
         return {
           processor: async (value) => value,
@@ -173,7 +173,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('number')
         .validator({ range: { min: 1, max: 10 } });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[between 1 and 10]');
     });
@@ -188,7 +188,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
           return value;
         });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('correct', {}, '');
 
@@ -202,17 +202,17 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator((value) => value.toUpperCase());
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('test', {}, '');
       assert.strictEqual(result, 'TEST');
     });
 
-    it('should not set description for inline function', function() {
+    it('should not set description for inline function', async function() {
       const schema = new Schema('string')
         .validator((value) => value);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should not have description from function
       assert.strictEqual(compiled.metadata.valueDescription, '[string]');
@@ -225,7 +225,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator(/^\d{3}-\d{4}$/);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should pass
       await compiled.validate('123-4567', {}, '');
@@ -237,11 +237,11 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       );
     });
 
-    it('should set description from RegExp toString', function() {
+    it('should set description from RegExp toString', async function() {
       const schema = new Schema('string')
         .validator(/^test$/i);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[/^test$/i]');
     });
@@ -250,7 +250,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator(/^123$/);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Number should be converted to string
       await compiled.validate('123', {}, '');
@@ -263,7 +263,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('/^\\d+$/');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('12345', {}, '');
 
@@ -277,27 +277,27 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('/^hello$/i');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('HELLO', {}, '');
       await compiled.validate('hello', {}, '');
       await compiled.validate('HeLLo', {}, '');
     });
 
-    it('should throw error for invalid regex pattern', function() {
+    it('should throw error for invalid regex pattern', async function() {
       const schema = new Schema('string')
         .validator('/[invalid/');
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
 
-    it('should set description from string pattern', function() {
+    it('should set description from string pattern', async function() {
       const schema = new Schema('string')
         .validator('/^\\w+$/g');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[/^\\w+$/g]');
     });
@@ -309,7 +309,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('required-value');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('required-value', {}, '');
 
@@ -323,7 +323,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('123');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // String value should match
       await compiled.validate('123', {}, '');
@@ -335,11 +335,11 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       );
     });
 
-    it('should set description with quotes', function() {
+    it('should set description with quotes', async function() {
       const schema = new Schema('string')
         .validator('literal-value');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '["literal-value"]');
     });
@@ -349,7 +349,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('/^\\$price$/');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await compiled.validate('$price', {}, '');
     });
@@ -358,7 +358,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('notAKeyword');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should validate exact match
       await compiled.validate('notAKeyword', {}, '');
@@ -372,11 +372,11 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Validator precedence and inheritance', function() {
 
-    it('should not override existing validator from base type', function() {
+    it('should not override existing validator from base type', async function() {
       // String base has a validator
       const schema = new Schema('string');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have string validator from base
       assert.strictEqual(typeof compiled.options.validator, 'function');
@@ -389,7 +389,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
           return value;
         });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Custom validator should be used, not base string validator
       await compiled.validate('custom', {}, '');
@@ -400,19 +400,19 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       );
     });
 
-    it('should use type fallback when replacing validator that had description', function() {
+    it('should use type fallback when replacing validator that had description', async function() {
       // Boolean base has {$in: [true, false]} validator generating 'true|false'
       // Replacing with function validator (no description) loses that description
       const schema = new Schema('boolean')
         .validator((value) => value);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Falls back to type-based description since new validator has no description
       assert.strictEqual(compiled.metadata.valueDescription, '[boolean]');
     });
 
-    it('should use new validator description when replacing base validator', function() {
+    it('should use new validator description when replacing base validator', async function() {
       resolver.registerValueProcessor('custom',
         (value) => value,
         () => 'custom description'
@@ -423,13 +423,13 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('boolean')
         .validator('$custom');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Derived validator description takes precedence (derived overrides base)
       assert.strictEqual(compiled.metadata.valueDescription, '[custom description]');
     });
 
-    it('should set valueDescription when base has none', function() {
+    it('should set valueDescription when base has none', async function() {
       resolver.registerValueProcessor('withDesc',
         (value) => value,
         () => 'validator description'
@@ -439,7 +439,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator('$withDesc');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.valueDescription, '[validator description]');
     });
@@ -447,7 +447,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Multiple validator types across properties', function() {
 
-    it('should compile different validator types for different properties', function() {
+    it('should compile different validator types for different properties', async function() {
       resolver.registerValueProcessor('positive', (value) => {
         if (value <= 0) throw new Error('Must be positive');
         return value;
@@ -462,7 +462,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
           return v;
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.properties.name.options.validator);
       assert.ok(compiled.properties.age.options.validator);
@@ -475,7 +475,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
         .property('a', new Schema('string').validator(/^a/))
         .property('b', new Schema('string').validator(/^b/));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Each property's validator should work independently
       await compiled.properties.a.validate('apple', {}, 'a');
@@ -519,7 +519,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
           ]
         });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should pass both validators
       await compiled.validate('testing', {}, '');
@@ -544,7 +544,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator(null);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('anything', {}, '');
       assert.strictEqual(result, 'anything');
@@ -554,27 +554,27 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator(undefined);
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('anything', {}, '');
       assert.strictEqual(result, 'anything');
     });
 
-    it('should throw error for invalid validator spec type', function() {
+    it('should throw error for invalid validator spec type', async function() {
       const schema = new Schema('string')
         .validator(123);
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
 
-    it('should throw error for array validator spec', function() {
+    it('should throw error for array validator spec', async function() {
       const schema = new Schema('string')
         .validator([/test/, /other/]);
 
-      assert.throws(
-        () => resolver.compile(schema)
+      await assert.rejects(
+      async () => await resolver.compile(schema)
       );
     });
   });
@@ -593,7 +593,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
         .values(['RED', 'GREEN', 'BLUE'])
         .validator('$uppercase');
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should pass both values check and validator
       await compiled.validate('RED', {}, '');
@@ -610,7 +610,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
           return value;
         });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Transform should reject before validator runs
       await assert.rejects(

@@ -30,7 +30,7 @@ describe('Validator: writable', function() {
 
   it('should accept existing writable file', async function() {
     const schema = new Schema('string').validator('$writable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate(testFile, {}, '');
     assert.strictEqual(result, testFile);
@@ -38,7 +38,7 @@ describe('Validator: writable', function() {
 
   it('should accept non-existent file in writable directory', async function() {
     const schema = new Schema('string').validator('$writable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const nonExistent = path.join(__dirname, 'new-file-that-does-not-exist.txt');
     await compiled.validate(nonExistent, {}, '');
@@ -46,7 +46,7 @@ describe('Validator: writable', function() {
 
   it('should reject file in non-existent directory', async function() {
     const schema = new Schema('string').validator('$writable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('/nonexistent/directory/file.txt', {}, ''),
@@ -54,9 +54,9 @@ describe('Validator: writable', function() {
     );
   });
 
-  it('should have path description', function() {
+  it('should have path description', async function() {
     const schema = new Schema('string').validator('$writable');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[path]');
   });

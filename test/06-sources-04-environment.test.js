@@ -18,7 +18,7 @@ describe('Sources - EnvironmentSource', function() {
         .property('name', new Schema('string'))
         .property('port', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -42,7 +42,7 @@ describe('Sources - EnvironmentSource', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -64,7 +64,7 @@ describe('Sources - EnvironmentSource', function() {
         .property('maxRetries', new Schema('number'))
         .property('isEnabled', new Schema('boolean'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -88,7 +88,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -110,7 +110,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -134,7 +134,7 @@ describe('Sources - EnvironmentSource', function() {
           .property('bar', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -160,7 +160,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -179,7 +179,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource({ contextName: 'customEnv' });
 
       const context = {
@@ -200,7 +200,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -236,7 +236,7 @@ describe('Sources - EnvironmentSource', function() {
           .property('*', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -263,7 +263,7 @@ describe('Sources - EnvironmentSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -287,7 +287,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('known', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -308,7 +308,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('known', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -335,7 +335,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -352,7 +352,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const assignments = await source.load(compiled, {});
@@ -365,7 +365,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('count', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -385,7 +385,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('enabled', new Schema('boolean'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -411,7 +411,7 @@ describe('Sources - EnvironmentSource', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -430,7 +430,7 @@ describe('Sources - EnvironmentSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {
@@ -461,7 +461,7 @@ describe('Sources - EnvironmentSource', function() {
           .property('maxRetries', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new EnvironmentSource();
 
       const context = {

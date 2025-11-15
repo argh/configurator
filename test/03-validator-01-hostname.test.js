@@ -14,7 +14,7 @@ describe('Validator: hostname', function() {
   describe('Valid hostnames', function() {
     it('should accept simple hostname', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('example', {}, '');
       assert.strictEqual(result, 'example');
@@ -22,7 +22,7 @@ describe('Validator: hostname', function() {
 
     it('should accept hostname with domain', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('example.com', {}, '');
       assert.strictEqual(result, 'example.com');
@@ -30,7 +30,7 @@ describe('Validator: hostname', function() {
 
     it('should accept subdomain', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('www.example.com', {}, '');
       assert.strictEqual(result, 'www.example.com');
@@ -38,7 +38,7 @@ describe('Validator: hostname', function() {
 
     it('should accept deep subdomain', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('api.v2.example.com', {}, '');
       assert.strictEqual(result, 'api.v2.example.com');
@@ -46,7 +46,7 @@ describe('Validator: hostname', function() {
 
     it('should accept hostname with hyphens', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('my-server.example-site.com', {}, '');
       assert.strictEqual(result, 'my-server.example-site.com');
@@ -54,7 +54,7 @@ describe('Validator: hostname', function() {
 
     it('should accept hostname with numbers', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('server1.example2.com', {}, '');
       assert.strictEqual(result, 'server1.example2.com');
@@ -62,7 +62,7 @@ describe('Validator: hostname', function() {
 
     it('should accept single character labels', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('a.b.c', {}, '');
       assert.strictEqual(result, 'a.b.c');
@@ -72,7 +72,7 @@ describe('Validator: hostname', function() {
   describe('Invalid hostnames', function() {
     it('should reject hostname starting with hyphen', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('-invalid.com', {}, ''),
@@ -82,7 +82,7 @@ describe('Validator: hostname', function() {
 
     it('should reject hostname ending with hyphen', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('invalid-.com', {}, ''),
@@ -92,7 +92,7 @@ describe('Validator: hostname', function() {
 
     it('should reject hostname with underscore', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('invalid_host.com', {}, ''),
@@ -102,7 +102,7 @@ describe('Validator: hostname', function() {
 
     it('should reject hostname with spaces', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('invalid host.com', {}, ''),
@@ -112,7 +112,7 @@ describe('Validator: hostname', function() {
 
     it('should reject hostname with special characters', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('invalid@host.com', {}, ''),
@@ -122,7 +122,7 @@ describe('Validator: hostname', function() {
 
     it('should reject empty string', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('', {}, ''),
@@ -132,7 +132,7 @@ describe('Validator: hostname', function() {
 
     it('should reject hostname with consecutive dots', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
         () => compiled.validate('invalid..com', {}, ''),
@@ -144,7 +144,7 @@ describe('Validator: hostname', function() {
   describe('Edge cases', function() {
     it('should accept localhost', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.validate('localhost', {}, '');
       assert.strictEqual(result, 'localhost');
@@ -152,7 +152,7 @@ describe('Validator: hostname', function() {
 
     it('should accept long hostname', async function() {
       const schema = new Schema('string').validator('$hostname');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const longLabel = 'a'.repeat(63);
       const result = await compiled.validate(`${longLabel}.com`, {}, '');

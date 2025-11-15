@@ -18,7 +18,7 @@ describe('Assignments - Wildcard Expansion', function() {
           .property('*', new Schema('string').default('default-string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Wildcard only expands to existing concrete paths
       // If we have items.0, items.1, items.2 as concrete paths, wildcard won't add new values
@@ -43,7 +43,7 @@ describe('Assignments - Wildcard Expansion', function() {
           .property('*', new Schema('string').default('untagged'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['tags.0', 'important'],
@@ -64,7 +64,7 @@ describe('Assignments - Wildcard Expansion', function() {
           .property('*', new Schema('string').default('default-string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Only wildcard assignment, no concrete paths
       const assignments = new Map([
@@ -90,7 +90,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['points.0.x', 5],
@@ -123,7 +123,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['matrix.0.row', 0],
@@ -166,7 +166,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['various.0', 'simple-string'],
@@ -204,7 +204,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['configs.0.type', 'database'],
@@ -244,7 +244,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0.type', 'a'],
@@ -277,7 +277,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['grid.0.0', 1],
@@ -306,7 +306,7 @@ describe('Assignments - Wildcard Expansion', function() {
           .property('*', new Schema('string').default('unknown'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.field1', 'value1'],
@@ -337,7 +337,7 @@ describe('Assignments - Wildcard Expansion', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['items.0.name', 'explicit-name'],

@@ -15,7 +15,7 @@ describe('Validator: or', function() {
     const schema = new Schema('string').validator({
       or: [/^test/, /^other/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('test123', {}, '');
   });
@@ -24,7 +24,7 @@ describe('Validator: or', function() {
     const schema = new Schema('string').validator({
       or: [/^test/, /^other/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('other123', {}, '');
   });
@@ -33,7 +33,7 @@ describe('Validator: or', function() {
     const schema = new Schema('string').validator({
       or: ['$numeric', '$alpha']
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('123', {}, '');
     await compiled.validate('abc', {}, '');
@@ -43,7 +43,7 @@ describe('Validator: or', function() {
     const schema = new Schema('string').validator({
       or: [/^test/, /^other/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('invalid', {}, ''),
@@ -58,17 +58,17 @@ describe('Validator: or', function() {
         (v) => v.toLowerCase()
       ]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('test', {}, '');
     assert.strictEqual(result, 'TEST'); // First validator wins
   });
 
-  it('should generate combined description', function() {
+  it('should generate combined description', async function() {
     const schema = new Schema('string').validator({
       or: [/^test/, /^other/]
     });
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[/^test/|/^other/]');
   });

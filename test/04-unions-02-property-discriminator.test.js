@@ -23,7 +23,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('side', new Schema('number'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const resultCircle = await compiled.discriminateUnion({type: 'circle', radius: 5}, {}, '');
     assert.ok(resultCircle);
@@ -51,7 +51,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('type', Schema.literal('SQUARE').normalizer(normalizer))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // Input with different casing should still match due to normalization
     const result = await compiled.discriminateUnion({type: 'Circle'}, {}, '');
@@ -70,7 +70,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('kind', Schema.literal('b'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion({kind: 'a'}, {}, '');
     assert.ok(result);
@@ -85,7 +85,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('type', Schema.literal('valid'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion({type: 'invalid'}, {}, '');
     assert.strictEqual(result, undefined);
@@ -99,13 +99,13 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('type', Schema.literal('a'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion({}, {}, '');
     assert.strictEqual(result, undefined);
   });
 
-  it('should synthesize discriminator property values from union keys', function() {
+  it('should synthesize discriminator property values from union keys', async function() {
     const schema = new Schema('object')
       .property('type', new Schema('string'))
       .unionDiscriminator('type')
@@ -119,7 +119,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('type', Schema.literal('option3'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // The discriminator property should have values synthesized from union keys
     const typeProperty = compiled.properties.type;
@@ -139,7 +139,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .property('code', Schema.literal(2))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion({code: 1}, {}, '');
     assert.ok(result);

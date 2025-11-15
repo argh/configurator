@@ -30,7 +30,7 @@ describe('Validator: file', function() {
 
   it('should accept existing file', async function() {
     const schema = new Schema('string').validator('$file');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate(testFile, {}, '');
     assert.strictEqual(result, testFile);
@@ -38,14 +38,14 @@ describe('Validator: file', function() {
 
   it('should accept this test file itself', async function() {
     const schema = new Schema('string').validator('$file');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate(__filename, {}, '');
   });
 
   it('should reject non-existent file', async function() {
     const schema = new Schema('string').validator('$file');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('/nonexistent/file.txt', {}, ''),
@@ -55,7 +55,7 @@ describe('Validator: file', function() {
 
   it('should reject directory path', async function() {
     const schema = new Schema('string').validator('$file');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate(__dirname, {}, ''),

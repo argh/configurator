@@ -30,7 +30,7 @@ describe('Validator: directory', function() {
 
   it('should accept existing directory', async function() {
     const schema = new Schema('string').validator('$directory');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate(testDir, {}, '');
     assert.strictEqual(result, testDir);
@@ -38,14 +38,14 @@ describe('Validator: directory', function() {
 
   it('should accept test directory itself', async function() {
     const schema = new Schema('string').validator('$directory');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate(__dirname, {}, '');
   });
 
   it('should reject non-existent directory', async function() {
     const schema = new Schema('string').validator('$directory');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate('/nonexistent/directory', {}, ''),
@@ -55,7 +55,7 @@ describe('Validator: directory', function() {
 
   it('should reject file path', async function() {
     const schema = new Schema('string').validator('$directory');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(
       () => compiled.validate(__filename, {}, ''),

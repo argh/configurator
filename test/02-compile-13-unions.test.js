@@ -54,93 +54,93 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schema compilation', function() {
 
-    it('should compile union schemas into CompiledSchema instances', function() {
+    it('should compile union schemas into CompiledSchema instances', async function() {
       const schema = new Schema('object')
         .unionSchema('optionA', new Schema('object')
           .property('type', new Schema('string').values(['A'])))
         .unionSchema('optionB', new Schema('object')
           .property('type', new Schema('string').values(['B'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.unionSchemas.optionA instanceof CompiledSchema);
       assert.ok(compiled.unionSchemas.optionB instanceof CompiledSchema);
     });
 
-    it('should compile union schema properties', function() {
+    it('should compile union schema properties', async function() {
       const schema = new Schema('object')
         .unionSchema('option1', new Schema('object')
           .property('field', new Schema('string'))
           .property('type', new Schema('string').values(['option1'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.unionSchemas.option1.properties.field instanceof CompiledSchema);
       assert.ok(compiled.unionSchemas.option1.properties.type instanceof CompiledSchema);
     });
 
-    it('should compile nested union schema structures', function() {
+    it('should compile nested union schema structures', async function() {
       const schema = new Schema('object')
         .unionSchema('nested', new Schema('object')
           .property('kind', new Schema('string').values(['nested']))
           .property('inner', new Schema('object')
             .property('deep', new Schema('string'))));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const deepField = compiled.unionSchemas.nested.properties.inner.properties.deep;
       assert.ok(deepField instanceof CompiledSchema);
     });
 
-    it('should resolve base types in union schemas', function() {
+    it('should resolve base types in union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('typed', new Schema('object')
           .property('kind', new Schema('string').values(['typed']))
           .property('value', new Schema('number')));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have number base type normalizer
       const valueSchema = compiled.unionSchemas.typed.properties.value;
       assert.strictEqual(typeof valueSchema.normalize, 'function');
-      assert.strictEqual(valueSchema.normalize('42'), 42);
+      assert.strictEqual(await valueSchema.normalize('42'), 42);
     });
   });
 
   describe('isUnion flag', function() {
 
-    it('should set isUnion to true when union schemas exist', function() {
+    it('should set isUnion to true when union schemas exist', async function() {
       const schema = new Schema('object')
         .unionSchema('option', new Schema('object')
           .property('type', new Schema('string').values(['option'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
     });
 
-    it('should set isUnion to false when no union schemas exist', function() {
+    it('should set isUnion to false when no union schemas exist', async function() {
       const schema = new Schema('object')
         .property('regular', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, false);
     });
 
-    it('should set isUnion to false for empty schema', function() {
+    it('should set isUnion to false for empty schema', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, false);
     });
 
-    it('should set isUnion to true even with just one union schema', function() {
+    it('should set isUnion to true even with just one union schema', async function() {
       const schema = new Schema('object')
         .unionSchema('single', new Schema('object')
           .property('type', new Schema('string').values(['single'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
     });
@@ -148,32 +148,32 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Discriminator presence', function() {
 
-    it('should always have a discriminator when isUnion is true', function() {
+    it('should always have a discriminator when isUnion is true', async function() {
       const schema = new Schema('object')
         .unionSchema('optionA', new Schema('object')
           .property('type', new Schema('string').values(['A'])))
         .unionSchema('optionB', new Schema('object')
           .property('type', new Schema('string').values(['B'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
       assert.strictEqual(typeof compiled.options.discriminator, 'function');
     });
 
-    it('should have discriminator for auto-generated case', function() {
+    it('should have discriminator for auto-generated case', async function() {
       const schema = new Schema('object')
         .unionSchema('a', new Schema('object')
           .property('kind', new Schema('string').values(['a'])))
         .unionSchema('b', new Schema('object')
           .property('kind', new Schema('string').values(['b'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.discriminator, 'function');
     });
 
-    it('should have discriminator when manually provided', function() {
+    it('should have discriminator when manually provided', async function() {
       const schema = new Schema('object')
         .unionSchema('optionA', new Schema('object')
           .property('type', new Schema('string').values(['A'])))
@@ -181,17 +181,17 @@ describe('Schema Compilation - Union Structure', function() {
           return value.type === 'A' ? schema.unionSchemas.optionA : undefined;
         });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
       assert.strictEqual(typeof compiled.options.discriminator, 'function');
     });
 
-    it('should not have discriminator when isUnion is false', function() {
+    it('should not have discriminator when isUnion is false', async function() {
       const schema = new Schema('object')
         .property('regular', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, false);
       assert.strictEqual(compiled.options.discriminator, undefined);
@@ -200,46 +200,46 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schemas object structure', function() {
 
-    it('should freeze unionSchemas object after compilation', function() {
+    it('should freeze unionSchemas object after compilation', async function() {
       const schema = new Schema('object')
         .unionSchema('option', new Schema('object')
           .property('type', new Schema('string').values(['option'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(Object.isFrozen(compiled.unionSchemas));
     });
 
-    it('should freeze each compiled union schema', function() {
+    it('should freeze each compiled union schema', async function() {
       const schema = new Schema('object')
         .unionSchema('a', new Schema('object').property('type', new Schema('string').values(['a'])))
         .unionSchema('b', new Schema('object').property('type', new Schema('string').values(['b'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(Object.isFrozen(compiled.unionSchemas.a));
       assert.ok(Object.isFrozen(compiled.unionSchemas.b));
     });
 
-    it('should preserve union schema keys', function() {
+    it('should preserve union schema keys', async function() {
       const schema = new Schema('object')
         .unionSchema('customKey', new Schema('object')
           .property('type', new Schema('string').values(['customKey'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.unionSchemas.customKey);
       assert.strictEqual(Object.keys(compiled.unionSchemas)[0], 'customKey');
     });
 
-    it('should allow various key formats', function() {
+    it('should allow various key formats', async function() {
       const schema = new Schema('object')
         .unionSchema('simple', new Schema('object').property('t', new Schema('string').values(['s'])))
         .unionSchema('with-dashes', new Schema('object').property('t', new Schema('string').values(['d'])))
         .unionSchema('with_underscores', new Schema('object').property('t', new Schema('string').values(['u'])))
         .unionSchema('CamelCase', new Schema('object').property('t', new Schema('string').values(['c'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.unionSchemas.simple);
       assert.ok(compiled.unionSchemas['with-dashes']);
@@ -250,35 +250,35 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('findUnionKey helper', function() {
 
-    it('should find the key for a union schema', function() {
+    it('should find the key for a union schema', async function() {
       const schema = new Schema('object')
         .unionSchema('myKey', new Schema('object')
           .property('type', new Schema('string').values(['myKey'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const key = compiled.findUnionKey(compiled.unionSchemas.myKey);
       assert.strictEqual(key, 'myKey');
     });
 
-    it('should return undefined for non-existent union schema', function() {
+    it('should return undefined for non-existent union schema', async function() {
       const schema = new Schema('object')
         .unionSchema('exists', new Schema('object')
           .property('type', new Schema('string').values(['exists'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
-      const otherSchema = resolver.compile(new Schema('number'));
+      const otherSchema = await resolver.compile(new Schema('number'));
       const key = compiled.findUnionKey(otherSchema);
       assert.strictEqual(key, undefined);
     });
 
-    it('should find keys for multiple union schemas', function() {
+    it('should find keys for multiple union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('first', new Schema('object').property('type', new Schema('string').values(['first'])))
         .unionSchema('second', new Schema('object').property('type', new Schema('string').values(['second'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.findUnionKey(compiled.unionSchemas.first), 'first');
       assert.strictEqual(compiled.findUnionKey(compiled.unionSchemas.second), 'second');
@@ -289,38 +289,38 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schemas with regular properties', function() {
 
-    it('should allow union schemas alongside regular properties', function() {
+    it('should allow union schemas alongside regular properties', async function() {
       const schema = new Schema('object')
         .property('regular', new Schema('string'))
         .unionSchema('variant', new Schema('object')
           .property('type', new Schema('string').values(['variant']))
           .property('special', new Schema('number')));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.properties.regular);
       assert.ok(compiled.unionSchemas.variant);
       assert.ok(compiled.unionSchemas.variant.properties.special);
     });
 
-    it('should handle both hasChildren and isUnion being true', function() {
+    it('should handle both hasChildren and isUnion being true', async function() {
       const schema = new Schema('object')
         .property('name', new Schema('string'))
         .unionSchema('type', new Schema('object')
           .property('kind', new Schema('string').values(['type'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.hasChildren, true);
       assert.strictEqual(compiled.isUnion, true);
     });
 
-    it('should hoist discriminator property making hasChildren true', function() {
+    it('should hoist discriminator property making hasChildren true', async function() {
       const schema = new Schema('object')
         .unionSchema('only', new Schema('object')
           .property('type', new Schema('string').values(['only'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // When discriminator properties are hoisted, they become regular properties
       assert.strictEqual(compiled.hasChildren, true);
@@ -332,18 +332,18 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schema metadata and options', function() {
 
-    it('should preserve metadata in union schemas', function() {
+    it('should preserve metadata in union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('documented', new Schema('object')
           .property('type', new Schema('string').values(['documented']))
           .meta('description', 'A documented variant'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.unionSchemas.documented.metadata.description, 'A documented variant');
     });
 
-    it('should preserve options in union schemas', function() {
+    it('should preserve options in union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('required', new Schema('object')
           .property('type', new Schema('string').values(['required']))
@@ -352,19 +352,19 @@ describe('Schema Compilation - Union Structure', function() {
           .property('type', new Schema('string').values(['optional']))
           .required(false));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.unionSchemas.required.required, true);
       assert.strictEqual(compiled.unionSchemas.optional.required, false);
     });
 
-    it('should preserve defaults in union schemas', function() {
+    it('should preserve defaults in union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('withDefault', new Schema('object')
           .property('type', new Schema('string').values(['withDefault']))
           .default({type: 'withDefault'}));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.deepStrictEqual(compiled.unionSchemas.withDefault.default, {type: 'withDefault'});
     });
@@ -372,7 +372,7 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schemas with different base types', function() {
 
-    it('should compile union with object schemas having different structures', function() {
+    it('should compile union with object schemas having different structures', async function() {
       const schema = new Schema('object')
         .unionSchema('obj1', new Schema('object')
           .property('kind', new Schema('string').values(['obj1']))
@@ -381,13 +381,13 @@ describe('Schema Compilation - Union Structure', function() {
           .property('kind', new Schema('string').values(['obj2']))
           .property('b', new Schema('number')));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.unionSchemas.obj1.properties.a);
       assert.ok(compiled.unionSchemas.obj2.properties.b);
     });
 
-    it('should compile union with array schemas', function() {
+    it('should compile union with array schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('strings', new Schema('object')
           .property('type', new Schema('string').values(['strings']))
@@ -398,7 +398,7 @@ describe('Schema Compilation - Union Structure', function() {
           .property('items', new Schema('array')
             .property('*', new Schema('number'))));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled.unionSchemas.strings.properties.items.properties['*']);
       assert.ok(compiled.unionSchemas.numbers.properties.items.properties['*']);
@@ -407,7 +407,7 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schema inheritance', function() {
 
-    it('should inherit from base schemas in union definitions', function() {
+    it('should inherit from base schemas in union definitions', async function() {
       const baseObject = new Schema('object')
         .property('type', new Schema('string').values(['base']))
         .meta('category', 'config');
@@ -416,40 +416,40 @@ describe('Schema Compilation - Union Structure', function() {
         .unionSchema('derived', new Schema(baseObject)
           .meta('variant', 'special'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.unionSchemas.derived.metadata.category, 'config');
       assert.strictEqual(compiled.unionSchemas.derived.metadata.variant, 'special');
     });
 
-    it('should resolve base types for properties in union schemas', function() {
+    it('should resolve base types for properties in union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('typed', new Schema('object')
           .property('kind', new Schema('string').values(['typed']))
           .property('count', new Schema('number')));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should have number base type normalizer
-      assert.strictEqual(compiled.unionSchemas.typed.properties.count.normalize('42'), 42);
+      assert.strictEqual(await compiled.unionSchemas.typed.properties.count.normalize('42'), 42);
     });
   });
 
   describe('Empty unions', function() {
 
-    it('should handle schema with no union schemas', function() {
+    it('should handle schema with no union schemas', async function() {
       const schema = new Schema('object')
         .property('regular', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, false);
       assert.strictEqual(Object.keys(compiled.unionSchemas).length, 0);
     });
 
-    it('should compile schema with empty unionSchemas object', function() {
+    it('should compile schema with empty unionSchemas object', async function() {
       const schema = new Schema('object');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, false);
       assert.ok(compiled.unionSchemas);
@@ -459,25 +459,25 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Error conditions', function() {
 
-    it('should throw error when union has no value constraints and no discriminator', function() {
+    it('should throw error when union has no value constraints and no discriminator', async function() {
       const schema = new Schema('object')
         .unionSchema('noValues', new Schema('object')
           .property('field', new Schema('string')));
 
-      assert.throws(
-        () => resolver.compile(schema),
+      await assert.rejects(
+      async () => await resolver.compile(schema),
         /Schema needs at least one property with constrained values/
       );
     });
 
-    it('should compile successfully when all union schemas have value constraints', function() {
+    it('should compile successfully when all union schemas have value constraints', async function() {
       const schema = new Schema('object')
         .unionSchema('optionA', new Schema('object')
           .property('type', new Schema('string').values(['A'])))
         .unionSchema('optionB', new Schema('object')
           .property('type', new Schema('string').values(['B'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.ok(compiled);
       assert.strictEqual(compiled.isUnion, true);
@@ -486,17 +486,17 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schema count', function() {
 
-    it('should handle two union schemas', function() {
+    it('should handle two union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('a', new Schema('object').property('type', new Schema('string').values(['a'])))
         .unionSchema('b', new Schema('object').property('type', new Schema('string').values(['b'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(Object.keys(compiled.unionSchemas).length, 2);
     });
 
-    it('should handle many union schemas', function() {
+    it('should handle many union schemas', async function() {
       const schema = new Schema('object')
         .unionSchema('opt1', new Schema('object').property('type', new Schema('string').values(['opt1'])))
         .unionSchema('opt2', new Schema('object').property('type', new Schema('string').values(['opt2'])))
@@ -504,7 +504,7 @@ describe('Schema Compilation - Union Structure', function() {
         .unionSchema('opt4', new Schema('object').property('type', new Schema('string').values(['opt4'])))
         .unionSchema('opt5', new Schema('object').property('type', new Schema('string').values(['opt5'])));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(Object.keys(compiled.unionSchemas).length, 5);
       assert.strictEqual(compiled.isUnion, true);

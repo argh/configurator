@@ -50,7 +50,7 @@ describe('Sources - JsonFileSource', function() {
         .property('name', new Schema('string'))
         .property('port', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempFile = await createTempJsonFile({
@@ -75,7 +75,7 @@ describe('Sources - JsonFileSource', function() {
           .property('port', new Schema('number'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempFile = await createTempJsonFile({
@@ -98,7 +98,7 @@ describe('Sources - JsonFileSource', function() {
           .property('*', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempFile = await createTempJsonFile({
@@ -120,7 +120,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempFile = await createTempJsonFile({ value: 'test' });
@@ -135,7 +135,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource({ contextName: 'customConfig' });
 
       const tempFile = await createTempJsonFile({ value: 'custom' });
@@ -151,7 +151,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = {};
@@ -164,7 +164,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = { config: 123 };
@@ -193,7 +193,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempFile = await createTempJsonFile({ value: 'test' });
@@ -208,7 +208,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempPath = path.join(__dirname, `temp-${Date.now()}.JSON`);
@@ -225,7 +225,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = { config: 'config.txt' };
@@ -241,7 +241,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = { config: '/nonexistent/path/config.json' };
@@ -259,7 +259,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       // Create a directory with .json extension
@@ -282,7 +282,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempPath = path.join(__dirname, `temp-invalid-${Date.now()}.json`);
@@ -307,7 +307,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const tempFile = await createTempJsonFile({ value: 'test' });
@@ -322,7 +322,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = { config: '/nonexistent/file.json' };
@@ -349,7 +349,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = { config: '' };
@@ -362,7 +362,7 @@ describe('Sources - JsonFileSource', function() {
       const schema = new Schema('object')
         .property('value', new Schema('string'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const source = new JsonFileSource();
 
       const context = { config: '   ' };

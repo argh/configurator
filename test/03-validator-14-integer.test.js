@@ -13,7 +13,7 @@ describe('Validator: integer', function() {
 
   it('should accept positive integers and return number', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('42', {}, '');
     assert.strictEqual(result, 42);
@@ -22,7 +22,7 @@ describe('Validator: integer', function() {
 
   it('should accept negative integers', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('-42', {}, '');
     assert.strictEqual(result, -42);
@@ -30,7 +30,7 @@ describe('Validator: integer', function() {
 
   it('should accept zero', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('0', {}, '');
     assert.strictEqual(result, 0);
@@ -38,7 +38,7 @@ describe('Validator: integer', function() {
 
   it('should accept large integers', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('9007199254740991', {}, ''); // MAX_SAFE_INTEGER
     assert.strictEqual(result, 9007199254740991);
@@ -46,7 +46,7 @@ describe('Validator: integer', function() {
 
   it('should reject decimals', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('3.14', {}, ''), ValidationError);
     // Note: '42.0' parses to 42 which IS an integer, so it passes
@@ -56,14 +56,14 @@ describe('Validator: integer', function() {
 
   it('should reject non-numeric strings', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('abc', {}, ''), ValidationError);
   });
 
   it('should reject Infinity', async function() {
     const schema = new Schema('string').validator('$integer');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('Infinity', {}, ''), ValidationError);
   });

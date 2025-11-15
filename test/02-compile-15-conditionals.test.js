@@ -13,27 +13,27 @@ describe('Schema Compilation - Conditionals', function() {
 
   describe('Default condition behavior', function() {
 
-    it('should have condition function after compilation', function() {
+    it('should have condition function after compilation', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.condition, 'function');
     });
 
     it('should default to always true when no condition specified', async function() {
       const schema = new Schema('string');
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
       assert.strictEqual(result, true);
     });
 
-    it('should have condition on all property schemas', function() {
+    it('should have condition on all property schemas', async function() {
       const schema = new Schema('object')
         .property('a', new Schema('string'))
         .property('b', new Schema('number'));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.properties.a.options.condition, 'function');
       assert.strictEqual(typeof compiled.properties.b.options.condition, 'function');
@@ -45,7 +45,7 @@ describe('Schema Compilation - Conditionals', function() {
           .property('value', new Schema('string'))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.properties.nested.properties.value.checkCondition(
         'test',
@@ -59,12 +59,12 @@ describe('Schema Compilation - Conditionals', function() {
 
   describe('Custom condition functions', function() {
 
-    it('should accept function as condition', function() {
+    it('should accept function as condition', async function() {
       const schema = new Schema('string', {
         condition: () => true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.condition, 'function');
     });
@@ -78,7 +78,7 @@ describe('Schema Compilation - Conditionals', function() {
         }
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(invoked, true);
@@ -93,7 +93,7 @@ describe('Schema Compilation - Conditionals', function() {
         }
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test-value', {}, compiled, 'path');
 
       assert.strictEqual(capturedValue, 'test-value');
@@ -108,7 +108,7 @@ describe('Schema Compilation - Conditionals', function() {
         }
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const config = { setting: 'value' };
       await compiled.checkCondition('test', config, compiled, 'path');
 
@@ -124,7 +124,7 @@ describe('Schema Compilation - Conditionals', function() {
         }
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(capturedSchema, compiled);
@@ -139,7 +139,7 @@ describe('Schema Compilation - Conditionals', function() {
         }
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test', {}, compiled, 'some.nested.path');
 
       assert.strictEqual(capturedPath, 'some.nested.path');
@@ -150,7 +150,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, true);
@@ -161,7 +161,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => false
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -175,7 +175,7 @@ describe('Schema Compilation - Conditionals', function() {
         }
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, true);
@@ -186,7 +186,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value === 'expected'
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('expected', {}, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -203,7 +203,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value && value.length > 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('non-empty', {}, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -217,7 +217,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => typeof value === 'string'
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('text', {}, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -231,7 +231,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value > 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition(5, {}, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -245,7 +245,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value === true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition(true, {}, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -262,7 +262,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.enabled === true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('test', { enabled: true }, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -276,7 +276,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.mode === 'advanced'
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('test', { mode: 'advanced' }, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -290,7 +290,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.settings?.debug === true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition(
         'test',
@@ -314,7 +314,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.optional?.setting ?? false
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
       assert.strictEqual(result, false);
@@ -329,7 +329,7 @@ describe('Schema Compilation - Conditionals', function() {
           value && value.length > 0 && configuration.enabled === true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('text', { enabled: true }, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -347,7 +347,7 @@ describe('Schema Compilation - Conditionals', function() {
           configuration.mode === 'debug' || configuration.mode === 'development'
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue1 = await compiled.checkCondition('test', { mode: 'debug' }, compiled, 'path');
       assert.strictEqual(resultTrue1, true);
@@ -364,7 +364,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.disabled !== true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.checkCondition('test', { disabled: false }, compiled, 'path');
       assert.strictEqual(resultTrue, true);
@@ -380,7 +380,7 @@ describe('Schema Compilation - Conditionals', function() {
           (configuration.env === 'development')
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue1 = await compiled.checkCondition(
         'test',
@@ -417,7 +417,7 @@ describe('Schema Compilation - Conditionals', function() {
           condition: (value, configuration) => configuration.showConditional === true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const alwaysResult = await compiled.properties.always.checkCondition(
         'test',
@@ -453,7 +453,7 @@ describe('Schema Compilation - Conditionals', function() {
           condition: (value, configuration) => configuration.verbose === true
         }));
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const debugResult = await compiled.properties.debug.checkCondition(
         'test',
@@ -480,7 +480,7 @@ describe('Schema Compilation - Conditionals', function() {
           }))
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultTrue = await compiled.properties.outer.properties.inner.checkCondition(
         'test',
@@ -502,12 +502,12 @@ describe('Schema Compilation - Conditionals', function() {
 
   describe('Condition precedence and inheritance', function() {
 
-    it('should not override explicit condition with base type default', function() {
+    it('should not override explicit condition with base type default', async function() {
       const schema = new Schema('string', {
         condition: () => false
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Should not use base string's condition
       assert.strictEqual(typeof compiled.options.condition, 'function');
@@ -524,7 +524,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => true
       });
 
-      const compiled = resolver.compile(derivedSchema);
+      const compiled = await resolver.compile(derivedSchema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       // Should use derived condition (true), not base condition (false)
@@ -539,7 +539,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value !== undefined
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition(undefined, {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -550,7 +550,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => Object.keys(configuration).length > 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -565,7 +565,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => 'truthy string'
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, true);
@@ -577,7 +577,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -589,7 +589,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => undefined
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -601,7 +601,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => null
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -613,7 +613,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => ''
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -625,7 +625,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -636,7 +636,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, true);
@@ -647,7 +647,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: () => false
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
 
       assert.strictEqual(result, false);
@@ -662,7 +662,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value && value.length > 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.validator, 'function');
       assert.strictEqual(typeof compiled.options.condition, 'function');
@@ -674,7 +674,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value && value.length > 0
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(typeof compiled.options.transformer, 'function');
       assert.strictEqual(typeof compiled.options.condition, 'function');
@@ -686,7 +686,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value) => value !== 'a'
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const resultB = await compiled.checkCondition('b', {}, compiled, 'path');
       assert.strictEqual(resultB, true);
@@ -701,7 +701,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.useDefault === true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.options.default, 'default-value');
       assert.strictEqual(typeof compiled.options.condition, 'function');
@@ -713,7 +713,7 @@ describe('Schema Compilation - Conditionals', function() {
         condition: (value, configuration) => configuration.required === true
       });
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.options.required, true);
       assert.strictEqual(typeof compiled.options.condition, 'function');

@@ -29,7 +29,7 @@ describe('Unions: Manual Discriminator Function', function() {
         return undefined;
       });
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // Test discriminateUnion directly
     const resultA = await compiled.discriminateUnion({type: 'a', aValue: 'test'}, {}, '');
@@ -52,7 +52,7 @@ describe('Unions: Manual Discriminator Function', function() {
         return undefined;
       });
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion({type: 'unknown'}, {}, '');
     assert.strictEqual(result, undefined);
@@ -77,7 +77,7 @@ describe('Unions: Manual Discriminator Function', function() {
         return unionSchema.unionSchemas.lax;
       });
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const resultStrict = await compiled.discriminateUnion(
       {mode: 'strict', value: 'test'},
@@ -109,7 +109,7 @@ describe('Unions: Manual Discriminator Function', function() {
         return undefined;
       });
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion({type: 'a'}, {}, '');
     assert.ok(result);
@@ -123,13 +123,13 @@ describe('Unions: Manual Discriminator Function', function() {
       )
       .unionDiscriminator((v, c, s) => s.unionSchemas.a);
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.discriminateUnion(undefined, {}, '');
     assert.strictEqual(result, compiled.unionSchemas.a);
   });
 
-  it('should identify union schema correctly', function() {
+  it('should identify union schema correctly', async function() {
     const schema = new Schema('object')
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('a'))
@@ -143,13 +143,13 @@ describe('Unions: Manual Discriminator Function', function() {
         return undefined;
       });
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.isUnion, true);
     assert.strictEqual(Object.keys(compiled.unionSchemas).length, 2);
   });
 
-  it('should find union key for given schema', function() {
+  it('should find union key for given schema', async function() {
     const schemaA = new Schema('object')
       .property('a', Schema.literal('a-value'));
     const schemaB = new Schema('object')
@@ -164,7 +164,7 @@ describe('Unions: Manual Discriminator Function', function() {
         return undefined;
       });
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const compiledA = compiled.unionSchemas.keyA;
     const compiledB = compiled.unionSchemas.keyB;

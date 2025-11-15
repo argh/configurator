@@ -26,7 +26,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('color', Schema.literal('purple'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // Both properties should be hoisted
     assert.ok(compiled.properties.name);
@@ -56,7 +56,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('size', Schema.literal('small'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // All three properties should be hoisted
     assert.ok(compiled.properties.fruit);
@@ -85,7 +85,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('subtype', Schema.literal('dog'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.ok(compiled.properties.type);
     assert.ok(compiled.properties.subtype);
@@ -96,7 +96,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.strictEqual(compiled.findUnionKey(result), 'vehicle-car');
   });
 
-  it('should hoist properties with different base types', function() {
+  it('should hoist properties with different base types', async function() {
     const schema = new Schema('object')
       .unionSchema('opt1', new Schema('object')
         .property('id', new Schema('number').values([1]))
@@ -107,7 +107,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('name', new Schema('string').values(['second']))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const idProp = compiled.properties.id;
     const nameProp = compiled.properties.name;
@@ -129,7 +129,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('type', Schema.literal('b'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     assert.ok(compiled.properties.flag);
     assert.ok(compiled.properties.type);
@@ -139,7 +139,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.strictEqual(compiled.findUnionKey(result), 'option-a');
   });
 
-  it('should combine all values for each hoisted property', function() {
+  it('should combine all values for each hoisted property', async function() {
     const schema = new Schema('object')
       .unionSchema('a', new Schema('object')
         .property('x', Schema.literal(1))
@@ -154,7 +154,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('y', Schema.literal('baz'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const xProp = compiled.properties.x;
     const yProp = compiled.properties.y;
@@ -172,7 +172,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(yProp.values.includes('baz'));
   });
 
-  it('should hoist all properties with constrained values even if not common', function() {
+  it('should hoist all properties with constrained values even if not common', async function() {
     // Properties with constrained values are hoisted even if not present in all schemas
     // This allows discriminating by property existence
     const schema = new Schema('object')
@@ -185,7 +185,7 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('uniqueToB', Schema.literal('bbb'))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     // All properties with constrained values should be hoisted
     assert.ok(compiled.properties.common);
@@ -193,7 +193,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(compiled.properties.uniqueToB);
   });
 
-  it('should handle normalizers consistently across hoisted properties', function() {
+  it('should handle normalizers consistently across hoisted properties', async function() {
     const normalizer = (v) => v.trim().toLowerCase();
 
     const schema = new Schema('object')
@@ -204,13 +204,13 @@ describe('Unions: Multi-Property Hoisting', function() {
         .property('code', Schema.literal('BETA').normalizer(normalizer))
       );
 
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const hoistedProp = compiled.properties.code;
     assert.ok(hoistedProp);
 
     // The hoisted property should have the same normalizer
-    const normalized = hoistedProp.normalize('  Alpha  ');
+    const normalized = await hoistedProp.normalize('  Alpha  ');
     assert.strictEqual(normalized, 'alpha');
   });
 });

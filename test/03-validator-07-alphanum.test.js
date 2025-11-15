@@ -13,21 +13,21 @@ describe('Validator: alphanum', function() {
 
   it('should accept letters only', async function() {
     const schema = new Schema('string').validator('$alphanum');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('abcABC', {}, '');
   });
 
   it('should accept numbers only', async function() {
     const schema = new Schema('string').validator('$alphanum');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await compiled.validate('123456', {}, '');
   });
 
   it('should accept mix of letters and numbers', async function() {
     const schema = new Schema('string').validator('$alphanum');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     const result = await compiled.validate('abc123XYZ789', {}, '');
     assert.strictEqual(result, 'abc123XYZ789');
@@ -35,14 +35,14 @@ describe('Validator: alphanum', function() {
 
   it('should reject spaces', async function() {
     const schema = new Schema('string').validator('$alphanum');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('abc 123', {}, ''), ValidationError);
   });
 
   it('should reject special characters', async function() {
     const schema = new Schema('string').validator('$alphanum');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('abc-123', {}, ''), ValidationError);
     await assert.rejects(() => compiled.validate('abc_123', {}, ''), ValidationError);
@@ -51,7 +51,7 @@ describe('Validator: alphanum', function() {
 
   it('should reject empty string', async function() {
     const schema = new Schema('string').validator('$alphanum');
-    const compiled = resolver.compile(schema);
+    const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('', {}, ''), ValidationError);
   });

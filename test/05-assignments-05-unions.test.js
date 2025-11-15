@@ -33,7 +33,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['shape.type', 'circle'],
@@ -70,7 +70,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['shape.type', 'rectangle'],
@@ -107,7 +107,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['animal.type', 'cat'],
@@ -140,7 +140,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['vehicle.type', 'car'],
@@ -177,7 +177,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['config.mode', 'dev'],
@@ -212,7 +212,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.kind', 'A'],
@@ -242,7 +242,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.kind', 'A'],
@@ -259,7 +259,7 @@ describe('Assignments - Unions', function() {
       );
     });
 
-    it('should fail to compile ambiguous union definition (identical schemas)', function() {
+    it('should fail to compile ambiguous union definition (identical schemas)', async function() {
       const schema = new Schema('object')
         .property('data', new Schema('object')
           .unionSchema('option1', new Schema('object')
@@ -272,8 +272,8 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      assert.throws(
-        () => resolver.compile(schema),
+      await assert.rejects(
+      async () => await resolver.compile(schema),
         /ambiguous|cannot.*discriminate|indistinguishable/i
       );
     });
@@ -291,7 +291,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.kind', 'C']  // No matching union member
@@ -322,7 +322,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
      // Assign a property that exists in both union members but don't specify which type
       const assignments = new Map([
@@ -355,7 +355,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Try to assign https-specific property without specifying protocol
       const assignments = new Map([
@@ -390,7 +390,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['item.name', 'APPLE'],  // Will be normalized to 'apple'
@@ -431,7 +431,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['value.type', 'number-type'],
@@ -464,7 +464,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['config.type', 'database']
@@ -492,7 +492,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['config.type', 'cache'],
@@ -531,7 +531,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['server.protocol', 'https']
@@ -564,7 +564,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Simulate SchemaDefaultsSource synthesized assignment with union key
       const assignments = new Map([
@@ -603,7 +603,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['data.outer', 'wrapper'],
@@ -656,7 +656,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       const assignments = new Map([
         ['connection.type', 'database'],
@@ -695,7 +695,7 @@ describe('Assignments - Unions', function() {
           )
         );
 
-      const compiled = resolver.compile(schema);
+      const compiled = await resolver.compile(schema);
 
       // Assignments might arrive in any order - implementation should handle this
       const assignments = new Map([
