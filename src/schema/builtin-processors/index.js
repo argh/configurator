@@ -25,6 +25,16 @@ import { EXECUTABLE_CONSTRAINT } from './executable-constraint.js';
 import { REACHABLE_CONSTRAINT } from './reachable-constraint.js';
 import { HTTPURL_CONSTRAINT } from './httpurl-constraint.js';
 
+// Simple operators
+import { TRIM_OPERATOR } from './trim-operator.js';
+import { LOWERCASE_OPERATOR } from './lowercase-operator.js';
+import { UPPERCASE_OPERATOR } from './uppercase-operator.js';
+import { CAMELCASE_OPERATOR } from './camelcase-operator.js';
+import { PASCALCASE_OPERATOR } from './pascalcase-operator.js';
+import { KEBABCASE_OPERATOR } from './kebabcase-operator.js';
+import { CONSTANTCASE_OPERATOR } from './constantcase-operator.js';
+import { HEADLINE_OPERATOR } from './headline-operator.js';
+
 // Parameterized processors
 import { FILESIZE_CONSTRAINT } from './compile-filesize-constraint.js';
 import { AND_OPERATOR } from './compile-and-operator.js';
@@ -34,6 +44,9 @@ import { RANGE_CONSTRAINT } from './compile-range-constraint.js';
 import { LENGTH_CONSTRAINT } from './compile-length-constraint.js';
 import { IN_CONSTRAINT } from './compile-in-constraint.js';
 import { EACH_OPERATOR } from './compile-each-operator.js';
+import { ROUND_OPERATOR } from './compile-round-operator.js';
+import { CEIL_OPERATOR } from './compile-ceil-operator.js';
+import { FLOOR_OPERATOR } from './compile-floor-operator.js';
 
 
 
@@ -67,7 +80,15 @@ export const SIMPLE_PROCESSORS = new Map([
   ['writable', WRITABLE_CONSTRAINT],
   ['executable', EXECUTABLE_CONSTRAINT],
   ['reachable', REACHABLE_CONSTRAINT],
-  ['httpurl', HTTPURL_CONSTRAINT]
+  ['httpurl', HTTPURL_CONSTRAINT],
+  ['trim', TRIM_OPERATOR],
+  ['lowercase', LOWERCASE_OPERATOR],
+  ['uppercase', UPPERCASE_OPERATOR],
+  ['camelcase', CAMELCASE_OPERATOR],
+  ['pascalcase', PASCALCASE_OPERATOR],
+  ['kebabcase', KEBABCASE_OPERATOR],
+  ['constantcase', CONSTANTCASE_OPERATOR],
+  ['headline', HEADLINE_OPERATOR]
 ]);
 
 /**
@@ -83,5 +104,8 @@ export const PARAMETERIZED_PROCESSORS = new Map([
   ['range', RANGE_CONSTRAINT],
   ['length', LENGTH_CONSTRAINT],
   ['in', IN_CONSTRAINT],
-  ['each', EACH_OPERATOR]
+  ['each', EACH_OPERATOR],
+  ['round', ROUND_OPERATOR],
+  ['ceil', CEIL_OPERATOR],
+  ['floor', FLOOR_OPERATOR]
 ]);
