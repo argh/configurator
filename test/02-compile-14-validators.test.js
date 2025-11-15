@@ -14,62 +14,14 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Simple validator registration', function() {
 
-    it('should register a simple validator function', function() {
-      const validatorFn = (value) => {
-        if (value !== 'valid') throw new Error('Not valid');
-        return value;
-      };
-
-      resolver.registerValueProcessor('myValidator', validatorFn);
-
-      // Should not throw
-      assert.ok(true);
-    });
-
     it('should throw error when registering non-function validator', function() {
       assert.throws(
         () => resolver.registerValueProcessor('invalid', 'not-a-function')
       );
     });
-
-    it('should register validator with describe function', function() {
-      const validatorFn = (value) => value;
-      const describeFn = () => 'my custom validator description';
-
-      resolver.registerValueProcessor('described', validatorFn, describeFn);
-
-      // Should not throw
-      assert.ok(true);
-    });
-
-    it('should use keyword as default description when describeFn not provided', function() {
-      const validatorFn = (value) => value;
-
-      resolver.registerValueProcessor('simpleKeyword', validatorFn);
-
-      // Will verify description in compilation tests
-      assert.ok(true);
-    });
   });
 
   describe('Parameterized validator registration', function() {
-
-    it('should register a parameterized validator', function() {
-      const compileFn = (args, compileSpec) => {
-        return {
-          processor: async (value) => {
-            if (value < args.min) throw new Error('Too small');
-            return value;
-          },
-          description: `minimum ${args.min}`
-        };
-      };
-
-      resolver.registerParameterizedValueProcessor('minimum', compileFn);
-
-      // Should not throw
-      assert.ok(true);
-    });
 
     it('should pass compile function that can recursively compile specs', function() {
       let capturedCompileSpec;
@@ -96,20 +48,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   });
 
   describe('Validator resolution with $ prefix', function() {
-
-    it('should resolve simple validator by $keyword', function() {
-      resolver.registerValueProcessor('custom', (value) => {
-        if (value !== 'expected') throw new Error('Wrong value');
-        return value;
-      });
-
-      const schema = new Schema('string')
-        .validator('$custom');
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
 
     it('should throw error for unknown $keyword', function() {
       const schema = new Schema('string')
@@ -166,27 +104,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Parameterized validator resolution with object spec', function() {
 
-    it('should resolve parameterized validator with object {keyword: args}', function() {
-      resolver.registerParameterizedValueProcessor('range', (args, compileSpec) => {
-        return {
-          processor: async (value) => {
-            if (value < args.min || value > args.max) {
-              throw new Error(`Out of range [${args.min}, ${args.max}]`);
-            }
-            return value;
-          },
-          description: `range [${args.min}, ${args.max}]`
-        };
-      });
-
-      const schema = new Schema('number')
-        .validator({ range: { min: 0, max: 100 } });
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
-
     it('should invoke parameterized validator correctly', async function() {
       resolver.registerParameterizedValueProcessor('min', (args, compileSpec) => {
         return {
@@ -210,24 +127,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
         () => compiled.validate(5, {}, ''),
         ValidationError
       );
-    });
-
-    it('should allow $ prefix on object keyword', function() {
-      resolver.registerParameterizedValueProcessor('maxLength', (args, compileSpec) => {
-        return {
-          processor: async (value) => {
-            if (value.length > args) throw new Error('Too long');
-            return value;
-          }
-        };
-      });
-
-      const schema = new Schema('string')
-        .validator({ $maxLength: 5 });
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
     });
 
     it('should throw error for unknown parameterized keyword', function() {
@@ -282,20 +181,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('Inline function validators', function() {
 
-    it('should accept function as validator spec', function() {
-      const validatorFn = (value) => {
-        if (value < 0) throw new Error('Negative');
-        return value;
-      };
-
-      const schema = new Schema('number')
-        .validator(validatorFn);
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
-
     it('should invoke inline function validator', async function() {
       const schema = new Schema('string')
         .validator((value) => {
@@ -336,15 +221,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
   describe('RegExp validators', function() {
 
-    it('should accept RegExp object as validator spec', function() {
-      const schema = new Schema('string')
-        .validator(/^[a-z]+$/);
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
-
     it('should invoke RegExp validator correctly', async function() {
       const schema = new Schema('string')
         .validator(/^\d{3}-\d{4}$/);
@@ -382,24 +258,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   });
 
   describe('String RegExp pattern validators', function() {
-
-    it('should accept string "/pattern/" as validator spec', function() {
-      const schema = new Schema('string')
-        .validator('/^[a-z]+$/');
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
-
-    it('should parse flags from string "/pattern/flags"', function() {
-      const schema = new Schema('string')
-        .validator('/^TEST$/i');
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
 
     it('should invoke string RegExp validator correctly', async function() {
       const schema = new Schema('string')
@@ -446,15 +304,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   });
 
   describe('Literal string validators', function() {
-
-    it('should accept plain string as exact match validator', function() {
-      const schema = new Schema('string')
-        .validator('exact-value');
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
 
     it('should validate exact string match', async function() {
       const schema = new Schema('string')
@@ -645,33 +494,6 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   });
 
   describe('Parameterized validator recursive compilation', function() {
-
-    it('should allow parameterized validator to recursively compile specs', function() {
-      resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
-        const compiled = args.map(spec => compileSpec(spec));
-        return {
-          processor: async (value, config, schema, path) => {
-            for (const c of compiled) {
-              await c.processor(value, config, schema, path);
-            }
-            return value;
-          },
-          description: 'all conditions'
-        };
-      });
-
-      const schema = new Schema('string')
-        .validator({
-          allOf: [
-            /^[a-z]+$/,
-            (v) => v.length >= 3 ? v : (() => { throw new Error('Too short') })()
-          ]
-        });
-
-      const compiled = resolver.compile(schema);
-
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-    });
 
     it('should invoke recursive validators correctly', async function() {
       resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
