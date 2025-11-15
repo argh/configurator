@@ -94,7 +94,7 @@ export const SIMPLE_PROCESSORS = new Map([
 /**
  * Built-in parameterized processors (require compilation)
  * Map of keyword -> processor definition
- * @type {Map<string, {compile: import('../schema-resolver.js').ValidatorSpecCompiler}>}
+ * @type {Map<string, {compile: import('../schema-resolver.js').ProcessorSpecCompiler}>}
  */
 export const PARAMETERIZED_PROCESSORS = new Map([
   ['filesize', FILESIZE_CONSTRAINT],

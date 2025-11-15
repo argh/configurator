@@ -28,13 +28,21 @@ import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 /** @import { CompiledSchemaMetadata, CompiledSchemaOptions } from './compiled-schema.js'; */
 
 // typedef {import("./compiled-schema.js").CompiledSchemaOptions} CompiledSchemaOptions
-/** @typedef {(spec:any) => CompiledSchemaOptions} ValidatorSpecCompiler */
+
+
+/** @typedef {Object} CompiledSpec
+ * @property {AsyncSchemaValueProcessor<any>} [processor]
+ * @property {string} [description]
+ * @property {Function} [compile]
+ */
+
+/** @typedef {(spec:any) => CompiledSpec} ProcessorSpecCompiler */
 
 /**
  * @typedef {Object} ValueProcessorDefinition
- * @property {SchemaValueProcessor<any>|null} validate
+ * @property {SchemaValueProcessor<any>|null} process
  * @property {(() => string)|null} describe
- * @property {((args:any, compileSpec:ValidatorSpecCompiler) => CompiledSchemaOptions)|null} compile - The validator specification
+ * @property {((args:any, compileSpec:ProcessorSpecCompiler) => CompiledSpec)|null} compile - The validator specification
  */
 
 export class SchemaResolver
@@ -91,16 +99,16 @@ export class SchemaResolver
   /**
    * register a named "simple" ValueProcessor
    * @param {string} keyword
-   * @param {SchemaValueProcessor<any>} validatorFn
+   * @param {SchemaValueProcessor<any>} processorFn
    * @param {() => string} [describeFn]
    * @returns {SchemaResolver}
    */
-  registerValueProcessor(keyword, validatorFn, describeFn) {
-    if (typeof validatorFn !== 'function') {
-      throw new ResolverError(`Validator for keyword '${keyword}' must be a function`);
+  registerValueProcessor(keyword, processorFn, describeFn) {
+    if (typeof processorFn !== 'function') {
+      throw new ResolverError(`Processor for keyword '${keyword}' must be a function`);
     }
     this.processorMap.set(keyword, {
-      validate: validatorFn,
+      process: processorFn,
       describe: describeFn ?? (() => keyword),
       compile: null
     });
@@ -110,12 +118,12 @@ export class SchemaResolver
   /**
    * register a complex ValueProcessor that needs to be compiled based on schema processor spec
    * @param {string} keyword
-   * @param {(args:any, specCompiler:ValidatorSpecCompiler)=> CompiledSchemaOptions} compileFn
+   * @param {(args:any, specCompiler:ProcessorSpecCompiler)=> CompiledSchemaOptions} compileFn
    * @returns {SchemaResolver}
    */
   registerParameterizedValueProcessor(keyword, compileFn) {
     this.processorMap.set(keyword, {
-      validate: null,
+      process: null,
       describe: null,
       compile: compileFn
     })
@@ -153,17 +161,10 @@ export class SchemaResolver
     }
   }
 
-  /** @typedef {Object} CompiledSpec
-   * @property {AsyncSchemaValueProcessor<any>} [validator]
-   * @property {string} [description]
-   * @property {Function} [compile]
-   */
-
-
   /**
    * Wrap a user-provided processor specification into a processor function
    * @param {any} spec - The processor specification
-   * @returns {CompiledSchemaOptions} Async validation function that returns true or error message
+   * @returns {CompiledSpec}
    */
   _compileProcessorSpec(spec) {
     if (!spec) {
@@ -224,8 +225,8 @@ export class SchemaResolver
         throw new ResolverError(`Unknown validator keyword: ${spec}`);
       }
 
-      return {
-        processor: async (...args) => registered.validate?.(...args),
+     return {
+        processor: async (v,c,s,p,o) => registered.process?.(v,c,s,p,o),
         description: registered.describe?.()
       }
     }
