@@ -15,11 +15,11 @@ export const OR_OPERATOR = {
                             ? descriptions.map(d => d.includes('&') ? `(${d})` : d).join('|')
                             : descriptions[0]
     return {
-      validator: async (v, c, s, p, o) => {
+      processor: async (v, c, s, p, o) => {
         const errors = [];
-        for (const {validator} of compiled) {
+        for (const {processor} of compiled) {
           try {
-            return await validator(v, c, s, p, o);
+            return await processor(v, c, s, p, o);
           } catch (error) {
             errors.push(error.message);
           }

@@ -9,9 +9,9 @@ export const NOT_OPERATOR = {
     const needParens = /[|& ]/.test(compiled.description);
 
     return {
-      validator: async (...params) => {
+      processor: async (...params) => {
         try {
-          await compiled.validator(...params);
+          await compiled.processor(...params);
         }
         catch (error) {
           return params[0];

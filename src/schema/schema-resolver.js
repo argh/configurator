@@ -44,7 +44,7 @@ export class SchemaResolver
     this.schemaMap = new Map();
 
     /** @type {Map<string,ValueProcessorDefinition>} */
-    this.validatorMap = new Map();
+    this.processorMap = new Map();
     this._registerBuiltInSchemas();
     this._registerBuiltInValueProcessors()
   }
@@ -99,7 +99,7 @@ export class SchemaResolver
     if (typeof validatorFn !== 'function') {
       throw new ResolverError(`Validator for keyword '${keyword}' must be a function`);
     }
-    this.validatorMap.set(keyword, {
+    this.processorMap.set(keyword, {
       validate: validatorFn,
       describe: describeFn ?? (() => keyword),
       compile: null
@@ -114,7 +114,7 @@ export class SchemaResolver
    * @returns {SchemaResolver}
    */
   registerParameterizedValueProcessor(keyword, compileFn) {
-    this.validatorMap.set(keyword, {
+    this.processorMap.set(keyword, {
       validate: null,
       describe: null,
       compile: compileFn
@@ -161,21 +161,21 @@ export class SchemaResolver
 
 
   /**
-   * Wrap a user-provided validator specification into a validation function
-   * @param {any} spec - The validator specification
+   * Wrap a user-provided processor specification into a processor function
+   * @param {any} spec - The processor specification
    * @returns {CompiledSchemaOptions} Async validation function that returns true or error message
    */
-  _compileValidatorSpec(spec) {
+  _compileProcessorSpec(spec) {
     if (!spec) {
       return {
-        validator: async (value) => value,
+        processor: async (value) => value,
 //        description: 'any'
       }
     }
     // Already a function - wrap to ensure it's async
     if (typeof spec === 'function') {
       return {
-        validator: async (v, c, s, p, o) => spec(v, c, s, p, o),
+        processor: async (v, c, s, p, o) => spec(v, c, s, p, o),
         description: undefined
       }
     }
@@ -183,7 +183,7 @@ export class SchemaResolver
     // Regular expression object
     if (spec instanceof RegExp) {
       return {
-        validator: async (value) => {
+        processor: async (value) => {
           if (!spec.test(String(value))) {
             throw new ConstraintError(`Value does not match pattern ${spec}`);
           }
@@ -203,7 +203,7 @@ export class SchemaResolver
       try {
         const regex = new RegExp(pattern, flags);
         return {
-          validator: async (value) => {
+          processor: async (value) => {
             if (!regex.test(String(value))) {
               throw new ConstraintError(`Value does not match pattern ${spec}`);
             }
@@ -218,14 +218,14 @@ export class SchemaResolver
 
     if (typeof spec === 'string' && spec.startsWith('$')) {
       const keyword = spec.slice(1);
-      const registered = this.validatorMap.get(keyword);
+      const registered = this.processorMap.get(keyword);
 
       if (!registered) {
         throw new ResolverError(`Unknown validator keyword: ${spec}`);
       }
 
       return {
-        validator: async (...args) => registered.validate?.(...args),
+        processor: async (...args) => registered.validate?.(...args),
         description: registered.describe?.()
       }
     }
@@ -233,7 +233,7 @@ export class SchemaResolver
     if (typeof spec === 'string') {
       // Plain string - treat as exact match
       return {
-        validator: async (value) => {
+        processor: async (value) => {
           if (String(value) !== spec) {
             throw new ConstraintError(`Value must be exactly "${spec}"`);
           }
@@ -255,7 +255,7 @@ export class SchemaResolver
       const keywordName = keyword.startsWith('$') ? keyword.slice(1) : keyword;
       const args = spec[keyword];
 
-      const registered = this.validatorMap.get(keywordName);
+      const registered = this.processorMap.get(keywordName);
 
       if (!registered) {
         throw new ResolverError(`Unknown validator keyword: ${keyword}`);
@@ -263,7 +263,7 @@ export class SchemaResolver
 
       if (registered.compile) {
         // Parameterized validator - pass args and recursive compiler
-        return registered.compile(args, (spec) => this._compileValidatorSpec(spec));
+        return registered.compile(args, (spec) => this._compileProcessorSpec(spec));
       } else {
         throw new ResolverError(`Validator ${keyword} does not accept arguments`);
       }
@@ -672,8 +672,8 @@ export class SchemaResolver
         if (dst.options.validator) {
           return;
         }
-        const c = this._compileValidatorSpec(value);
-        dst.options.validator = c.validator;
+        const c = this._compileProcessorSpec(value);
+        dst.options.validator = c.processor;
         dst.metadata.validatorDescription = c.description ;
 
 //        if (c.description && !dst.metadata.valueDescription) {

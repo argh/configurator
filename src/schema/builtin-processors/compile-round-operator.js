@@ -6,7 +6,7 @@ export const ROUND_OPERATOR = {
     const multiplier = Math.pow(10, precision);
 
     return {
-      validator: async (value) => {
+      processor: async (value) => {
         const num = Number(value);
         if (!Number.isFinite(num)) {
           return value; // Pass through non-numeric values unchanged

@@ -12,10 +12,10 @@ export const AND_OPERATOR = {
     const descriptions = compiled.map(c => c.description).filter(Boolean);
 
     return /** @type {import('../compiled-schema.js').CompiledSchemaOptions} */ ({
-      validator: async (...params) => {
+      processor: async (...params) => {
         let v = params[0];
-        for (const {validator} of compiled) {
-          v = await validator(v, ...params.slice(1));
+        for (const {processor} of compiled) {
+          v = await processor(v, ...params.slice(1));
         }
         return v;
       },

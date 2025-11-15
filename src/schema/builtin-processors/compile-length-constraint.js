@@ -11,7 +11,7 @@ export const LENGTH_CONSTRAINT = {
     const { min, max, exact } = args;
 
     return {
-      validator: async (value) => {
+      processor: async (value) => {
         const length = Array.isArray(value) ? value.length : String(value).length;
         const unit = Array.isArray(value) ? 'elements' : 'characters';
 

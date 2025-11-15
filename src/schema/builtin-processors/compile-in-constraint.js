@@ -10,7 +10,7 @@ export const IN_CONSTRAINT = {
     }
 
     return {
-      validator: async (value) => {
+      processor: async (value) => {
         if (!args.includes(value)) {
           throw new ConstraintError(`Value must be one of: ${args.join(', ')}`);
         }

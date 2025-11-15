@@ -12,7 +12,7 @@ export const FILESIZE_CONSTRAINT = {
     const { min, max } = args;
 
     return {
-      validator: async (value) => {
+      processor: async (value) => {
         try {
           const stat = await fs.stat(value);
           const size = stat.size;

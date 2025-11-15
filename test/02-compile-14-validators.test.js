@@ -57,7 +57,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should register a parameterized validator', function() {
       const compileFn = (args, compileSpec) => {
         return {
-          validator: async (value) => {
+          processor: async (value) => {
             if (value < args.min) throw new Error('Too small');
             return value;
           },
@@ -77,7 +77,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compileFn = (args, compileSpec) => {
         capturedCompileSpec = compileSpec;
         return {
-          validator: async (value) => value,
+          processor: async (value) => value,
           description: 'test'
         };
       };
@@ -169,7 +169,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should resolve parameterized validator with object {keyword: args}', function() {
       resolver.registerParameterizedValueProcessor('range', (args, compileSpec) => {
         return {
-          validator: async (value) => {
+          processor: async (value) => {
             if (value < args.min || value > args.max) {
               throw new Error(`Out of range [${args.min}, ${args.max}]`);
             }
@@ -190,7 +190,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should invoke parameterized validator correctly', async function() {
       resolver.registerParameterizedValueProcessor('min', (args, compileSpec) => {
         return {
-          validator: async (value) => {
+          processor: async (value) => {
             if (value < args) throw new ValidationError(`Below minimum ${args}`);
             return value;
           }
@@ -215,7 +215,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should allow $ prefix on object keyword', function() {
       resolver.registerParameterizedValueProcessor('maxLength', (args, compileSpec) => {
         return {
-          validator: async (value) => {
+          processor: async (value) => {
             if (value.length > args) throw new Error('Too long');
             return value;
           }
@@ -252,7 +252,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should throw error for validator object with multiple keys', function() {
       resolver.registerParameterizedValueProcessor('validator1', (args) => ({
-        validator: async (value) => value
+        processor: async (value) => value
       }));
 
       const schema = new Schema('string')
@@ -266,7 +266,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should set description from parameterized validator', function() {
       resolver.registerParameterizedValueProcessor('range', (args, compileSpec) => {
         return {
-          validator: async (value) => value,
+          processor: async (value) => value,
           description: `between ${args.min} and ${args.max}`
         };
       });
@@ -650,9 +650,9 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
         const compiled = args.map(spec => compileSpec(spec));
         return {
-          validator: async (value, config, schema, path) => {
+          processor: async (value, config, schema, path) => {
             for (const c of compiled) {
-              await c.validator(value, config, schema, path);
+              await c.processor(value, config, schema, path);
             }
             return value;
           },
@@ -677,9 +677,9 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
         const compiled = args.map(spec => compileSpec(spec));
         return {
-          validator: async (value, config, schema, path) => {
+          processor: async (value, config, schema, path) => {
             for (const c of compiled) {
-              await c.validator(value, config, schema, path);
+              await c.processor(value, config, schema, path);
             }
             return value;
           }

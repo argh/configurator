@@ -11,7 +11,7 @@ export const RANGE_CONSTRAINT = {
     const { min, max } = args;
 
     return {
-      validator: async (value) => {
+      processor: async (value) => {
         const num = Number(value);
         if (!Number.isFinite(num)) {
           throw new ConstraintError('Value must be a number');
