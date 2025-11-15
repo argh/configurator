@@ -16,7 +16,7 @@ import { CompiledSchema } from "./compiled-schema.js";
 /**
  * @template TReturn
  * @template TSchema
- * @callback SchemaValueFunctionBase
+ * @callback SchemaValueProcessorBase
  * @param {any} value
  * @param {Object|Array<any>} configuration
  * @param {TSchema} schema
@@ -27,39 +27,16 @@ import { CompiledSchema } from "./compiled-schema.js";
 
 /**
  * @template TReturn
- * @typedef {SchemaValueFunctionBase<TReturn,CompiledSchema>} SchemaValueFunction
+ * @typedef {SchemaValueProcessorBase<TReturn,CompiledSchema>} SchemaValueProcessor
  */
 
 /**
  * @template TReturn
- * @typedef {SchemaValueFunctionBase<Promise<TReturn>,CompiledSchema>} AsyncSchemaValueFunction
+ * @typedef {SchemaValueProcessorBase<Promise<TReturn>,CompiledSchema>} AsyncSchemaValueProcessor
  */
 
 /**
- * @typedef {SchemaValueFunctionBase<Promise<any>,CompiledSchema|undefined>} AsyncSchemaValueVisitorFunction
- */
-
-
-/**
- * @template TReturn
- * @callback SchemaValueFunction1
- * @param {any} value
- * @param {Object|Array<any>} configuration
- * @param {CompiledSchema} schema
- * @param {String} path
- * @param {Object} [options]
- * @returns {TReturn}
- */
-
-/**
- * @template TReturn
- * @callback AsyncSchemaValueFunction1
- * @param {any} value
- * @param {Object|Array<any>} configuration
- * @param {CompiledSchema} schema
- * @param {String} path
- * @param {Object} [options]
- * @returns {Promise<TReturn>}
+ * @typedef {SchemaValueProcessorBase<Promise<any>,CompiledSchema|undefined>} AsyncSchemaValueVisitorFunction
  */
 
 
@@ -87,12 +64,12 @@ import { CompiledSchema } from "./compiled-schema.js";
  /**
   * @typedef {Object} ISchemaOptionsCommon
   * @property {SchemaFundamentalType} [type] - should only be set on the core types supported by the schema
-  * @property {SchemaValueFunction<any>} [normalizer] - ensure value is of correct shape.
-  * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>} [transformer] - value resolver - map input value to output value.
-  * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>|string|RegExp|object} [validator] - validator specification.
-  * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>} [serializer] - convert a validated input to serialized form
-  * @property {SchemaValueFunction<boolean>|AsyncSchemaValueFunction<any>|boolean} [condition] - conditional check whether to process this schema
-  * @property {SchemaValueFunction<any>|AsyncSchemaValueFunction<any>|string} [discriminator] - function or property name that returns a union discriminator
+  * @property {SchemaValueProcessor<any>} [normalizer] - ensure value is of correct shape.
+  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>} [transformer] - value resolver - map input value to output value.
+  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>|string|RegExp|object} [validator] - validator specification.
+  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>} [serializer] - convert a validated input to serialized form
+  * @property {SchemaValueProcessor<boolean>|AsyncSchemaValueProcessor<any>|boolean} [condition] - conditional check whether to process this schema
+  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>|string} [discriminator] - function or property name that returns a union discriminator
   * @property {function(string,CompiledSchema):void} [compileHook] - a function called during schema compilation
   * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
   * @property {boolean} [strict] - whether to do strict typechecking (defaults to true; must be explicitly false to be "lax")

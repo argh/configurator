@@ -20,7 +20,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
         return value;
       };
 
-      resolver.registerValidator('myValidator', validatorFn);
+      resolver.registerValueProcessor('myValidator', validatorFn);
 
       // Should not throw
       assert.ok(true);
@@ -28,7 +28,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should throw error when registering non-function validator', function() {
       assert.throws(
-        () => resolver.registerValidator('invalid', 'not-a-function')
+        () => resolver.registerValueProcessor('invalid', 'not-a-function')
       );
     });
 
@@ -36,7 +36,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const validatorFn = (value) => value;
       const describeFn = () => 'my custom validator description';
 
-      resolver.registerValidator('described', validatorFn, describeFn);
+      resolver.registerValueProcessor('described', validatorFn, describeFn);
 
       // Should not throw
       assert.ok(true);
@@ -45,7 +45,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should use keyword as default description when describeFn not provided', function() {
       const validatorFn = (value) => value;
 
-      resolver.registerValidator('simpleKeyword', validatorFn);
+      resolver.registerValueProcessor('simpleKeyword', validatorFn);
 
       // Will verify description in compilation tests
       assert.ok(true);
@@ -65,7 +65,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
         };
       };
 
-      resolver.registerParameterizedValidator('minimum', compileFn);
+      resolver.registerParameterizedValueProcessor('minimum', compileFn);
 
       // Should not throw
       assert.ok(true);
@@ -82,7 +82,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
         };
       };
 
-      resolver.registerParameterizedValidator('recursive', compileFn);
+      resolver.registerParameterizedValueProcessor('recursive', compileFn);
 
       // Compile a schema that uses it
       const schema = new Schema('string')
@@ -98,7 +98,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   describe('Validator resolution with $ prefix', function() {
 
     it('should resolve simple validator by $keyword', function() {
-      resolver.registerValidator('custom', (value) => {
+      resolver.registerValueProcessor('custom', (value) => {
         if (value !== 'expected') throw new Error('Wrong value');
         return value;
       });
@@ -123,7 +123,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should invoke simple validator correctly', async function() {
       let invokedWith = null;
 
-      resolver.registerValidator('capture', (value) => {
+      resolver.registerValueProcessor('capture', (value) => {
         invokedWith = value;
         return value;
       });
@@ -139,7 +139,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should use describe function for valueDescription', function() {
-      resolver.registerValidator('described',
+      resolver.registerValueProcessor('described',
         (value) => value,
         () => 'custom description text'
       );
@@ -153,7 +153,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should use keyword as description when describeFn not provided', function() {
-      resolver.registerValidator('simpleKeyword', (value) => value);
+      resolver.registerValueProcessor('simpleKeyword', (value) => value);
 
       const schema = new Schema('string')
         .validator('$simpleKeyword');
@@ -167,7 +167,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   describe('Parameterized validator resolution with object spec', function() {
 
     it('should resolve parameterized validator with object {keyword: args}', function() {
-      resolver.registerParameterizedValidator('range', (args, compileSpec) => {
+      resolver.registerParameterizedValueProcessor('range', (args, compileSpec) => {
         return {
           validator: async (value) => {
             if (value < args.min || value > args.max) {
@@ -188,7 +188,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should invoke parameterized validator correctly', async function() {
-      resolver.registerParameterizedValidator('min', (args, compileSpec) => {
+      resolver.registerParameterizedValueProcessor('min', (args, compileSpec) => {
         return {
           validator: async (value) => {
             if (value < args) throw new ValidationError(`Below minimum ${args}`);
@@ -213,7 +213,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should allow $ prefix on object keyword', function() {
-      resolver.registerParameterizedValidator('maxLength', (args, compileSpec) => {
+      resolver.registerParameterizedValueProcessor('maxLength', (args, compileSpec) => {
         return {
           validator: async (value) => {
             if (value.length > args) throw new Error('Too long');
@@ -240,7 +240,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should throw error when simple validator used with parameters', function() {
-      resolver.registerValidator('simple', (value) => value);
+      resolver.registerValueProcessor('simple', (value) => value);
 
       const schema = new Schema('string')
         .validator({ simple: { arg: 'value' } });
@@ -251,7 +251,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should throw error for validator object with multiple keys', function() {
-      resolver.registerParameterizedValidator('validator1', (args) => ({
+      resolver.registerParameterizedValueProcessor('validator1', (args) => ({
         validator: async (value) => value
       }));
 
@@ -264,7 +264,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should set description from parameterized validator', function() {
-      resolver.registerParameterizedValidator('range', (args, compileSpec) => {
+      resolver.registerParameterizedValueProcessor('range', (args, compileSpec) => {
         return {
           validator: async (value) => value,
           description: `between ${args.min} and ${args.max}`
@@ -564,7 +564,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should use new validator description when replacing base validator', function() {
-      resolver.registerValidator('custom',
+      resolver.registerValueProcessor('custom',
         (value) => value,
         () => 'custom description'
       );
@@ -581,7 +581,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should set valueDescription when base has none', function() {
-      resolver.registerValidator('withDesc',
+      resolver.registerValueProcessor('withDesc',
         (value) => value,
         () => 'validator description'
       );
@@ -599,7 +599,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   describe('Multiple validator types across properties', function() {
 
     it('should compile different validator types for different properties', function() {
-      resolver.registerValidator('positive', (value) => {
+      resolver.registerValueProcessor('positive', (value) => {
         if (value <= 0) throw new Error('Must be positive');
         return value;
       });
@@ -647,7 +647,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   describe('Parameterized validator recursive compilation', function() {
 
     it('should allow parameterized validator to recursively compile specs', function() {
-      resolver.registerParameterizedValidator('allOf', (args, compileSpec) => {
+      resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
         const compiled = args.map(spec => compileSpec(spec));
         return {
           validator: async (value, config, schema, path) => {
@@ -674,7 +674,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     });
 
     it('should invoke recursive validators correctly', async function() {
-      resolver.registerParameterizedValidator('allOf', (args, compileSpec) => {
+      resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
         const compiled = args.map(spec => compileSpec(spec));
         return {
           validator: async (value, config, schema, path) => {
@@ -760,7 +760,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
   describe('Validator with values constraint', function() {
 
     it('should apply validator in addition to values constraint', async function() {
-      resolver.registerValidator('uppercase', (value) => {
+      resolver.registerValueProcessor('uppercase', (value) => {
         if (value !== value.toUpperCase()) {
           throw new Error('Must be uppercase');
         }
@@ -793,7 +793,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       // Transform should reject before validator runs
       await assert.rejects(
         () => compiled.transform('invalid', {}, ''),
-        ConstraintError
+        TransformError
       );
     });
   });

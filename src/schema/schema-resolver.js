@@ -1,5 +1,4 @@
 //import { Buffer } from 'node:buffer';
-import * as fs from 'node:fs/promises';
 import { CompiledSchema } from './compiled-schema.js';
 import { Schema} from './schema.js';
 import {
@@ -9,23 +8,31 @@ import {
   SerializeError,
   TransformError,
   ConstraintError,
-  ValidationError
+  ValidationError, ResolverError
 } from '../errors.js';
-import { constants } from 'node:fs';
-import { lookup } from 'node:dns/promises';
 import { deepValue, toKebabCase } from '../utils.js';
 import { findDiscriminatorProperties, generateDiscriminatorFunction } from './helpers/union-helpers.js';
-import { parse, stringify } from './helpers/stringify.js';
-import { parseDate } from './helpers/parse-date.js';
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction } from './types.js' */
+
+import { ANY_SCHEMA } from './builtin-schemas/any-schema.js';
+import { STRING_SCHEMA } from './builtin-schemas/string-schema.js';
+import { NUMBER_SCHEMA } from './builtin-schemas/number-schema.js';
+import { BOOLEAN_SCHEMA } from './builtin-schemas/boolean-schema.js';
+import { OBJECT_SCHEMA } from './builtin-schemas/object-schema.js';
+import { ARRAY_SCHEMA } from './builtin-schemas/array-schema.js';
+import { DATE_SCHEMA } from './builtin-schemas/date-schema.js';
+import { BUFFER_SCHEMA } from './builtin-schemas/buffer-schema.js';
+import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
+import { SIMPLE_PROCESSORS, PARAMETERIZED_PROCESSORS } from './builtin-processors/index.js';
+import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
+/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor } from './types.js' */
 /** @import { CompiledSchemaMetadata, CompiledSchemaOptions } from './compiled-schema.js'; */
 
 // typedef {import("./compiled-schema.js").CompiledSchemaOptions} CompiledSchemaOptions
 /** @typedef {(spec:any) => CompiledSchemaOptions} ValidatorSpecCompiler */
 
 /**
- * @typedef {Object} ValidatorDefinition
- * @property {SchemaValueFunction<any>|null} validate
+ * @typedef {Object} ValueProcessorDefinition
+ * @property {SchemaValueProcessor<any>|null} validate
  * @property {(() => string)|null} describe
  * @property {((args:any, compileSpec:ValidatorSpecCompiler) => CompiledSchemaOptions)|null} compile - The validator specification
  */
@@ -36,10 +43,10 @@ export class SchemaResolver
     /** @type {Map<string,Schema>} */
     this.schemaMap = new Map();
 
-    /** @type {Map<string,ValidatorDefinition>} */
+    /** @type {Map<string,ValueProcessorDefinition>} */
     this.validatorMap = new Map();
-    this._registerBuiltins();
-    this._registerBuiltInValidators()
+    this._registerBuiltInSchemas();
+    this._registerBuiltInValueProcessors()
   }
 
   /**
@@ -82,13 +89,13 @@ export class SchemaResolver
   }
 
   /**
-   * register a named simple validator
+   * register a named "simple" ValueProcessor
    * @param {string} keyword
-   * @param {SchemaValueFunction<any>} validatorFn
+   * @param {SchemaValueProcessor<any>} validatorFn
    * @param {() => string} [describeFn]
    * @returns {SchemaResolver}
    */
-  registerValidator(keyword, validatorFn, describeFn) {
+  registerValueProcessor(keyword, validatorFn, describeFn) {
     if (typeof validatorFn !== 'function') {
       throw new ResolverError(`Validator for keyword '${keyword}' must be a function`);
     }
@@ -101,12 +108,12 @@ export class SchemaResolver
   }
 
   /**
-   * register a complex validator that needs to be compiled based on schema validator spec
+   * register a complex ValueProcessor that needs to be compiled based on schema processor spec
    * @param {string} keyword
    * @param {(args:any, specCompiler:ValidatorSpecCompiler)=> CompiledSchemaOptions} compileFn
    * @returns {SchemaResolver}
    */
-  registerParameterizedValidator(keyword, compileFn) {
+  registerParameterizedValueProcessor(keyword, compileFn) {
     this.validatorMap.set(keyword, {
       validate: null,
       describe: null,
@@ -118,795 +125,36 @@ export class SchemaResolver
   /**
    * @private
    */
-  _registerBuiltins() {
-    this.registerSchema('root-schema', new Schema()
-      .default(true)
-      .meta('hidden')
-      .meta('internal')
-      .meta('omitFromSerialize')
-      .normalizer(() => 'root-schema')
-      .transformer((_v, _c, schema) => {
-        while (schema?.parent) {
-          schema = schema.parent;
-        }
-        return schema;
-      })
-      .serializer((_v, _c, schema) => {
-        while (schema?.parent) {
-          schema = schema.parent;
-        }
-        return schema.toData();
-      })
-    );
-
-    this.registerSchema('any', new Schema()
-      .option('type', 'any')
-      .normalizer((value, _, schema) => {
-        if (value === true) {
-          const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
-
-          if (hasChildren) {
-            let check = s => Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
-
-            let hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
-
-            return hasStringProps ? {} : [];
-          }
-        }
-        return value;
-      })
-      .transformer((value, _, schema) => {
-        if (value === true) {
-          const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
-
-          if (hasChildren) {
-            let check = s => Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
-
-            let hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
-
-            return hasStringProps ? {} : [];
-          }
-        }
-        return value;
-      })
-    );
-
-    this.registerSchema('string', new Schema()
-      .option('type', 'string')
-      .meta('valueName', 'string')
-      .normalizer((value) => {
-        if (typeof value === 'object') {
-          return stringify(value);
-        }
-        else {
-          return String(value)
-        }
-      })
-      .validator((value) => {
-        if (typeof value === 'string') {
-          return value;
-        }
-        throw new ConstraintError(`Invalid string: ${value}`);
-      })
-    );
-
-    this.registerSchema('number', new Schema()
-      .option('type', 'number')
-      .meta('valueName', 'number')
-      .normalizer((value) => {
-        if (typeof value === 'number') return value;
-        const num = Number(value);
-        if (isNaN(num)) throw new NormalizeError(`Invalid input for number: ${value}`);
-        return num;
-      })
-      .validator((value) => {
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          return value;
-        }
-        throw new ConstraintError(`Invalid number: ${value}`);
-      })
-    );
-
-    this.registerSchema('boolean', new Schema()
-      .option('type', 'boolean')
-      .meta('valueName', 'boolean')
-      .validator({$in: [true, false]})
-      .normalizer((value) => {
-        if (typeof value === 'boolean') return value;
-        if (typeof value === 'string') {
-          const lower = value.toLowerCase();
-          if (lower === 'true' || lower === '1' || lower === 'yes') return true;
-          if (lower === 'false' || lower === '0' || lower === 'no') return false;
-        }
-        return Boolean(value);
-      })
-    );
-
-    this.registerSchema('object', new Schema()
-      .option('type', 'object')
-      .meta('valueName', 'object')
-      .normalizer((value, _, schema) => {
-        if (value === true) {
-          value = {};
-        }
-        if (typeof value === 'string') {
-          // otherwise, we normalize as an object
-          try {
-            value = parse(value);
-          }
-          catch (error) {
-            throw new NormalizeError(`Invalid input string for object: ${value}`, {cause: error});
-          }
-        }
-        if (typeof value === 'object') {
-          // if we need to be able to compare this value, it needs to be normalized as a string
-          return Array.isArray(schema.values)? stringify(value) : value
-        }
-        throw new NormalizeError(`Invalid input for object: ${value}`);
-      })
-      .transformer((value) => {
-        if (value === true) {
-          value = {};
-        }
-        if (typeof value === 'string') {
-          try {
-            value = parse(value.trim());
-          }
-          catch (error) {
-            throw new TransformError(`Invalid serialized object: ${value}`, {cause: error});
-          }
-        }
-        if (typeof value === 'object') {
-          return value;
-        }
-        throw new TransformError(`Invalid object: ${value}`)
-      })
-      .validator((value) => {
-        if (typeof value !== 'object') {
-          throw new ConstraintError(`Invalid object: ${value}`)
-        }
-        // NOTE: we let the schema validate object children; this should be used for specialization
-        return value;
-      })
-    );
-
-    this.registerSchema('array', new Schema()
-      .option('type', 'array')
-      .normalizer((value, _, schema) => {
-        if (value === true) {
-          value = [];
-        }
-        else if (value === '*' && schema.properties['*']?.values?.length) {
-          value = [...schema.properties['*'].values];
-        }
-        if (typeof value === 'string') {
-          value = value.trim();
-          if (value.length > 0 && value[0] === '[' && value[value.length - 1] === ']') {
-            try {
-              value = parse(value);
-            }
-            catch (error) {
-              throw new NormalizeError(`Invalid input string for array: ${value}`);
-            }
-          }
-          else {
-            value = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-          }
-        }
-        if (Array.isArray(value)) {
-          // if we need to be able to compare this value, it needs to be normalized as a string
-          return (Array.isArray(schema.values)? stringify(value) : value);
-        }
-        throw new NormalizeError(`Invalid input for array: ${value}`)
-      })
-      .transformer((value, _, schema) => {
-        if (value === true) {
-          value = [];
-        }
-        else if (value === '*' && schema.properties['*']?.values?.length) {
-          value = [...schema.properties['*'].values];
-        }
-        if (typeof value === 'string') {
-          value = value.trim();
-          try {
-            value = parse(value);
-          }
-          catch (error) {
-            throw new TransformError(`Invalid serialized array: ${value}`, {cause: error});
-          }
-        }
-        if (Array.isArray(value)) {
-          return value;
-        }
-        throw new TransformError(`Invalid array: ${value}`);
-      })
-      .validator((value) => {
-        if (!Array.isArray(value)) {
-          throw new ConstraintError(`Invalid array: ${value}`)
-        }
-        // NOTE: we let the schema validate array elements; this should be used for specialization
-        return value;
-      })
-    );
-    this.registerSchema('date', new Schema()
-      .option('type', 'date')
-      .meta('parserTypeHint', 'string')
-      .meta('valueName', 'date')
-      .meta('valueDescription', 'ms|iso date|"now"|[+|-]offset[d|h|m|s|ms]')
-      .normalizer((value) => {
-        if (typeof value === 'string' || typeof value === 'number' || value instanceof Date ) {
-          return value;
-        }
-        throw new NormalizeError(`Invalid input for date: ${value}`);
-      })
-      .transformer(parseDate)
-      .validator((value) => {
-        if (value instanceof Date && !isNaN(value.getTime())) {
-          return value;
-        }
-        throw new ConstraintError(`Invalid date: ${value}`)
-      })
-      .serializer((value) => {
-        if (!(value instanceof Date)) {
-          throw new SerializeError(`Invalid date: ${value}`);
-        }
-        return value.toISOString();
-      })
-    );
-    this.registerSchema('buffer', new Schema()
-      .option('type', 'buffer')
-      .meta('parserTypeHint', 'string')
-      .normalizer(value => {
-        if (typeof value === 'string' || Buffer.isBuffer(value)) {
-          return value;
-        }
-        if (typeof value === 'number') {
-          return Buffer.alloc(value);
-        }
-        if (typeof value === 'object') {
-          if (!value.size) {
-            throw new NormalizeError(`Invalid input for buffer: ${value}`);
-          }
-          return Buffer.alloc(value.size ?? 0, value.fill, value.encoding);
-        }
-      })
-      .transformer((value) => {
-        try {
-          if (typeof value === 'string') {
-            return Buffer.from(value, 'base64');
-          }
-          else {
-            return Buffer.from(value);
-          }
-        }
-        catch (error) {
-          throw new TransformError(`Invalid buffer: ${value}`, {cause: error});
-        }
-      })
-      .validator(value => {
-        if (Buffer.isBuffer(value)) {
-          return value;
-        }
-        throw new ConstraintError(`Invalid buffer: ${value}`);
-      })
-      .serializer((value) => {
-        if (Buffer.isBuffer(value)) {
-          return value.toString('base64');
-        }
-        throw new SerializeError(`Invalid buffer: ${value}`)
-      })
-    );
-
-    this.registerSchema('function', new Schema()
-      .option('type', 'function')
-      .meta('parserTypeHint', 'string')
-      .meta('hidden')
-      .meta('internal')
-      .meta('omitFromSerialize')
-      .normalizer((value) => {
-        if (typeof value === 'function' || typeof value === 'string') {
-          return value;
-        }
-        throw new NormalizeError(`Invalid input for function: ${value}`)
-      })
-      .transformer((value, result) => {
-        if (typeof value === 'string') {
-          value = deepValue(result, value);  // look up the string as a reference in the current configuration
-        }
-        if (typeof value === 'function') {
-          return value;
-        }
-        throw new TransformError(`Invalid function: ${value}`)
-      })
-      .validator(value => {
-        if (typeof value === 'function') {
-          return value;
-        }
-        throw new ConstraintError(`Invalid function: ${value}`);
-      })
-      .serializer((value) => {
-        if (typeof value === 'function') {
-          return value.name;
-        }
-        throw new SerializeError(`Invalid function: ${value}`)
-      })
-    );
-
-
+  _registerBuiltInSchemas() {
+    this.registerSchema('root-schema', ROOT_SCHEMA);
+    this.registerSchema('any', ANY_SCHEMA);
+    this.registerSchema('string', STRING_SCHEMA);
+    this.registerSchema('number', NUMBER_SCHEMA);
+    this.registerSchema('boolean', BOOLEAN_SCHEMA);
+    this.registerSchema('object', OBJECT_SCHEMA);
+    this.registerSchema('array', ARRAY_SCHEMA);
+    this.registerSchema('date', DATE_SCHEMA);
+    this.registerSchema('buffer', BUFFER_SCHEMA);
+    this.registerSchema('function', FUNCTION_SCHEMA);
   }
 
   /**
    * @private
    */
-  _registerBuiltInValidators() {
-    // Synchronous validators
-    this.registerValidator('hostname', (value) => {
-      const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  _registerBuiltInValueProcessors() {
+    // Register all simple processors
+    for (const [keyword, processor] of SIMPLE_PROCESSORS) {
+      this.registerValueProcessor(keyword, processor.process, processor.describe);
+    }
 
-      if (!hostnameRegex.test(value)) {
-        throw new ConstraintError('Invalid hostname format');
-      }
-      return value;
-    });
-
-    this.registerValidator('url', (value) => {
-      try {
-        return new URL(value).toString();
-      } catch {
-        throw new ConstraintError('Invalid URL format');
-      }
-    });
-
-    this.registerValidator('email', (value) => {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(value)) {
-        throw new ConstraintError('Invalid email format');
-      }
-      return value;
-    });
-
-    this.registerValidator('port', (value) => {
-      const num = Number(value);
-      if (!(Number.isInteger(num) && num >= 1 && num <= 65535)) {
-        throw new ConstraintError('Port must be between 1 and 65535');
-      }
-      return num;
-    });
-
-    this.registerValidator('ipv4', (value) => {
-      const ipv4Regex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
-      if (!ipv4Regex.test(value)) {
-        throw new ConstraintError('Invalid IPv4 address');
-      }
-      return value;
-    });
-
-    this.registerValidator('ipv6', (value) => {
-      const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
-      if (!ipv6Regex.test(value)) {
-        throw new ConstraintError('Invalid IPv6 address');
-      }
-      return value;
-    });
-
-    this.registerValidator('uuid', (value) => {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(value)) {
-        throw new ConstraintError('Invalid UUID format');
-      }
-      return value;
-    });
-
-    this.registerValidator('alphanum', (value) => {
-      const alphanumRegex = /^[a-zA-Z0-9]+$/;
-      if (!alphanumRegex.test(value)) {
-        throw new ConstraintError('Must contain only alphanumeric characters');
-      }
-      return value;
-    });
-
-    this.registerValidator('alpha', (value) => {
-      const alphaRegex = /^[a-zA-Z]+$/;
-      if (!alphaRegex.test(value)) {
-        throw new ConstraintError('Must contain only letters');
-      }
-
-      return value;
-    });
-
-    this.registerValidator('number', (value) => {
-      const num = Number(value);
-      if (Number.isNaN(num) || !Number.isFinite(num)) {
-        throw new ConstraintError('Must be a number');
-      }
-      return num;
-    });
-    this.registerValidator('numeric', (value) => {
-      let v = `${value}`
-
-      const numericRegex = /^[0-9]+$/;
-      if (!numericRegex.test(v)) {
-        throw new ConstraintError('Must contain only digits');
-      }
-      return value;
-    });
-
-    this.registerValidator('nonempty', (value) => {
-      if (!(value && value.toString().trim().length > 0)) {
-        throw new ConstraintError('Value cannot be empty');
-      }
-      return value;
-    });
-
-    this.registerValidator('positive', (value) => {
-      const num = Number(value);
-      if (!(Number.isFinite(num) && num > 0)) {
-        throw new ConstraintError('Must be a positive number');
-      }
-      return num;
-    });
-
-    this.registerValidator('negative', (value) => {
-      const num = Number(value);
-      if (!(Number.isFinite(num) && num < 0)) {
-        throw new ConstraintError('Must be a negative number');
-      }
-      return num;
-    });
-
-    this.registerValidator('integer', (value) => {
-      const num = Number(value);
-      if (Number.isNaN(num) || !Number.isFinite(num)) {
-        throw new ConstraintError('Must be a number');
-      }
-      if (num !== Math.floor(num)) {
-        throw new ConstraintError('Must be an integer');
-      }
-      return num;
-    });
-
-    // Asynchronous validators for file system operations
-    this.registerValidator('file', async (value) => {
-      try {
-        const stat = await fs.stat(value);
-        if (!stat.isFile()) {
-          throw new ConstraintError('Path exists but is not a file');
-        }
-        return value;
-      } catch (error) {
-        if (error.code === 'ENOENT') {
-          throw new ConstraintError('File does not exist');
-        }
-        throw new ConstraintError(`Cannot access file: ${error.message}`);
-      }
-    });
-
-    this.registerValidator('directory', async (value) => {
-      try {
-        const stat = await fs.stat(value);
-        if (!stat.isDirectory()) {
-          throw new ConstraintError('Path exists but is not a directory');
-        }
-        return value;
-      } catch (error) {
-        if (error.code === 'ENOENT') {
-          throw new ConstraintError('Directory does not exist');
-        }
-        throw new ConstraintError(`Cannot access directory: ${error.message}`);
-      }
-    });
-
-    this.registerValidator('readable', async (value) => {
-      try {
-        await fs.access(value, constants.R_OK);
-        return value;
-      } catch {
-        throw new ConstraintError('File is not readable');
-      }
-    }, () => 'path');
-
-    this.registerValidator('writable', async (value) => {
-      try {
-        // Try to access the file
-        await fs.access(value, constants.W_OK);
-        return value;
-      } catch (error) {
-        // File doesn't exist or isn't writable
-        if (error.code === 'ENOENT') {
-          // File doesn't exist - check if parent directory is writable
-          const path = await import('node:path');
-          const parentDir = path.dirname(value);
-
-          try {
-            const stat = await fs.stat(parentDir);
-            if (!stat.isDirectory()) {
-              throw new ConstraintError('Parent path exists but is not a directory');
-            }
-            await fs.access(parentDir, constants.W_OK);
-            return value; // Parent is writable
-          } catch (parentError) {
-            if (parentError.code === 'ENOENT') {
-              throw new ConstraintError('Parent directory does not exist');
-            }
-            else if (parentError instanceof ConstraintError) {
-              throw parentError;
-            }
-            throw new ConstraintError('Parent directory is not writable');
-          }
-        }
-        throw new ConstraintError('File is not writable');
-      }
-    }, () => 'path');
-
-    // Async network validators
-    this.registerValidator('reachable', async (value) => {
-      try {
-        await lookup(value);
-        return value;
-      } catch {
-        throw new ConstraintError('Host is not reachable');
-      }
-    });
-
-    this.registerValidator('httpurl', async (value) => {
-      try {
-        const url = new URL(value);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new ConstraintError('URL must use HTTP or HTTPS protocol');
-        }
-        return value;
-      } catch (error) {
-        if (error instanceof ConstraintError) {
-          throw error;
-        }
-        throw new ConstraintError('Invalid HTTP URL format', {cause: error});
-      }
-    });
-
-    // Additional validators
-    this.registerValidator('json', (value) => {
-      try {
-        JSON.parse(value);
-        return value;
-      } catch {
-        throw new ConstraintError('Invalid JSON format');
-      }
-    });
-
-    this.registerValidator('base64', (value) => {
-      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-      if (!base64Regex.test(value)) {
-        throw new ConstraintError('Invalid base64 format');
-      }
-      // If there's padding, length must be multiple of 4
-      if (value.includes('=') && value.length % 4 !== 0) {
-        throw new ConstraintError('Invalid base64 format');
-      }
-      return value;
-    });
-
-    this.registerValidator('hex', (value) => {
-      const hexRegex = /^[0-9a-fA-F]+$/;
-      if (!hexRegex.test(value)) {
-        throw new ConstraintError('Must contain only hexadecimal characters');
-      }
-      return value;
-    });
-
-    this.registerValidator('executable', async (value) => {
-      try {
-        await fs.access(value, constants.X_OK);
-        return value;
-      } catch {
-        throw new ConstraintError('File is not executable');
-      }
-    }, () => 'path');
-
-    // Parameterized validators
-    this.registerParameterizedValidator('filesize', (args, compileSpec) => {
-      if (typeof args !== 'object' || args === null) {
-        throw new ResolverError('$filesize requires an object with min/max properties');
-      }
-      const { min, max } = args;
-
-      return {
-        validator: async (value) => {
-          try {
-            const stat = await fs.stat(value);
-            const size = stat.size;
-
-            if (min !== undefined && size < min) {
-              throw new ConstraintError(`File size must be at least ${min} bytes`);
-            }
-            if (max !== undefined && size > max) {
-              throw new ConstraintError(`File size must be at most ${max} bytes`);
-            }
-            return value;
-          } catch (error) {
-            if (error instanceof ConstraintError) {
-              throw error;
-            }
-            throw new ConstraintError(`Cannot access file: ${error.message}`);
-          }
-        },
-        description: min !== undefined && max !== undefined
-                     ? `${min}-${max}B`
-                     : min !== undefined
-                       ? `≥${min}B`
-                       : max !== undefined
-                         ? `≤${max}B`
-                         : undefined
-      };
-    });
-
-    this.registerParameterizedValidator('and', (args, compileSpec) => {
-      if (!Array.isArray(args)) {
-        throw new ResolverError('$and requires an array of validators');
-      }
-      const compiled = args.map(v => compileSpec(v));
-      const descriptions = compiled.map(c => c.description).filter(Boolean);
-
-      return /** @type {CompiledSchemaOptions} */ ({
-        validator: async (...params) => {
-          let v = params[0];
-          for (const {validator} of compiled) {
-            v = await validator(v, ...params.slice(1));
-          }
-          return v;
-        },
-        description: descriptions.length > 1
-                     ? descriptions.map(d => d.includes('|') ? `(${d})` : d).join(' & ')
-                     : descriptions[0]
-      });
-    });
-
-    this.registerParameterizedValidator('or', (args, compileSpec) => {
-      if (!Array.isArray(args)) {
-        throw new ResolverError('$or requires an array of validators');
-      }
-      const compiled = args.map(v => compileSpec(v));
-      const descriptions = compiled.map(c => c.description).filter(Boolean);
-
-      const description = descriptions.length > 1
-                              ? descriptions.map(d => d.includes('&') ? `(${d})` : d).join('|')
-                              : descriptions[0]
-      return {
-        validator: async (v, c, s, p, o) => {
-          const errors = [];
-          for (const {validator} of compiled) {
-            try {
-              return await validator(v, c, s, p, o);
-            } catch (error) {
-              errors.push(error.message);
-            }
-          }
-          throw new ConstraintError(`None of {${description}} matched`, {errors});
-        },
-        description
-      };
-    });
-
-    this.registerParameterizedValidator('not', (args, compileSpec) => {
-      const compiled = compileSpec(args);
-      const needParens = /[|& ]/.test(compiled.description);
-
-      return {
-        validator: async (...params) => {
-          try {
-            await compiled.validator(...params);
-          }
-          catch (error) {
-            return params[0];
-          }
-          throw new ConstraintError('Value must not match the specified condition');
-        },
-        description: compiled.description
-                     ? (needParens ? `!(${compiled.description})` : `!${compiled.description}`)
-                     : undefined
-      };
-    });
-    this.registerParameterizedValidator('range', (args, compileSpec) => {
-      if (typeof args !== 'object' || args === null) {
-        throw new ResolverError('$range requires an object with min/max properties');
-      }
-      const { min, max } = args;
-
-      return {
-        validator: async (value) => {
-          const num = Number(value);
-          if (!Number.isFinite(num)) {
-            throw new ConstraintError('Value must be a number');
-          }
-          if (min !== undefined && num < min) {
-            throw new ConstraintError(`Value must be at least ${min}`);
-          }
-          if (max !== undefined && num > max) {
-            throw new ConstraintError(`Value must be at most ${max}`);
-          }
-          return value;
-        },
-        description: min !== undefined && max !== undefined
-                     ? `${min}-${max}`
-                     : min !== undefined
-                       ? `≥${min}`
-                       : max !== undefined
-                         ? `≤${max}`
-                         : undefined
-      };
-    });
-
-    this.registerParameterizedValidator('length', (args, compileSpec) => {
-      if (typeof args !== 'object' || args === null) {
-        throw new ResolverError('$length requires an object with min/max/exact properties');
-      }
-      const { min, max, exact } = args;
-
-      return {
-        validator: async (value) => {
-          const length = Array.isArray(value) ? value.length : String(value).length;
-          const unit = Array.isArray(value) ? 'elements' : 'characters';
-
-          if (exact !== undefined && length !== exact) {
-            throw new ConstraintError(`Length must be exactly ${exact} ${unit}`);
-          }
-          if (min !== undefined && length < min) {
-            throw new ConstraintError(`Length must be at least ${min} ${unit}`);
-          }
-          if (max !== undefined && length > max) {
-            throw new ConstraintError(`Length must be at most ${max} ${unit}`);
-          }
-          return value;
-        },
-        description: exact !== undefined
-                     ? `len=${exact}`
-                     : min !== undefined && max !== undefined
-                       ? `len=${min}-${max}`
-                       : min !== undefined
-                         ? `len≥${min}`
-                         : max !== undefined
-                           ? `len≤${max}`
-                           : undefined
-      };
-    });
-
-    this.registerParameterizedValidator('in', (args, compileSpec) => {
-      if (!Array.isArray(args)) {
-        throw new ResolverError('$in requires an array of allowed values');
-      }
-
-      return {
-        validator: async (value) => {
-          if (!args.includes(value)) {
-            throw new ConstraintError(`Value must be one of: ${args.join(', ')}`);
-          }
-          return value;
-        },
-        description: args.map(v => typeof v === 'string' ? v : JSON.stringify(v)).join('|')
-      };
-    });
-
-    this.registerParameterizedValidator('each', (args, compileSpec) => {
-      const compiled = compileSpec(args);
-
-      return {
-        validator: async (...params) => {
-          const value = params[0];
-          if (!Array.isArray(value)) {
-            throw new ConstraintError('Value must be an array');
-          }
-          const ret = [];
-          for (const item of value) {
-            ret.push(await compiled.validator(item, ...params.slice(1)));
-          }
-          return ret;
-        },
-        description: compiled.description !== undefined ? `[${compiled.description}]...` : 'values...'
-      };
-    });
+    // Register all parameterized processors
+    for (const [keyword, processor] of PARAMETERIZED_PROCESSORS) {
+      this.registerParameterizedValueProcessor(keyword, processor.compile);
+    }
   }
 
   /** @typedef {Object} CompiledSpec
-   * @property {AsyncSchemaValueFunction<any>} [validator]
+   * @property {AsyncSchemaValueProcessor<any>} [validator]
    * @property {string} [description]
    * @property {Function} [compile]
    */
@@ -1263,9 +511,9 @@ export class SchemaResolver
 
   /**
    * @template TReturn
-   * @param {SchemaValueFunction<TReturn>|TReturn} fn
+   * @param {SchemaValueProcessor<TReturn>|TReturn} fn
    * @param {TReturn} [d]
-   * @returns {SchemaValueFunction<TReturn>}
+   * @returns {SchemaValueProcessor<TReturn>}
    * @private
    */
   _svf(fn, d) {
@@ -1291,9 +539,9 @@ export class SchemaResolver
 
   /**
    * @template TReturn
-   * @param {SchemaValueFunction<TReturn>|TReturn} fn
+   * @param {SchemaValueProcessor<TReturn>|TReturn} fn
    * @param {TReturn} [d]
-   * @returns {AsyncSchemaValueFunction<TReturn>}
+   * @returns {AsyncSchemaValueProcessor<TReturn>}
    * @private
    */
   _asyncifySVF(fn, d) {
@@ -1628,4 +876,3 @@ export class SchemaResolver
   }
 }
 
-class ResolverError extends ConfiguratorError {}

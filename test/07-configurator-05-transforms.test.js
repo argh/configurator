@@ -484,8 +484,8 @@ describe('Configurator - Transforms Integration', function() {
           env: { 'APP_VALUE': '-5' }  // Env provides negative value
         }),
         {
-          name: 'SchemaError',
-          message: /Assignment error at value/
+          name: 'TransformError',
+          message: /Unable to transform at value/
         }
       );
     });

@@ -320,7 +320,7 @@ resolver.registerSchema('MutilateOperation',
 // Here is an example of an asynchronous validator that checks whether the path
 // value provided lives within a git repository:
 
-resolver.registerValidator('inside-git-repo', async (value) => {
+resolver.registerValueProcessor('inside-git-repo', async (value) => {
   async function check(current) {
     try {
       const s = await stat(path.join(current, '.git'));

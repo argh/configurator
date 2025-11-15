@@ -313,7 +313,7 @@ describe('Schema Compilation - Array Type', function() {
 
       await assert.rejects(
         () => compiled.transform(['x', 'y'], {}, 'field'),
-        ConstraintError
+        TransformError
       );
     });
   });

@@ -1,22 +1,29 @@
 import { strict as assert } from 'assert';
-import { ConstraintError, NormalizeError, SchemaError, ValidationError } from '../errors.js';
+import {
+  ConstraintError,
+  NormalizeError,
+  SchemaError,
+  SerializeError,
+  TransformError,
+  ValidationError
+} from '../errors.js';
 import { isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
 import { existingAssignment } from './helpers/assignment-helpers.js';
 
 
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueFunction, AsyncSchemaValueFunction, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions } from './types.js' */
+/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions } from './types.js' */
 
 /** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
 
 /** @typedef {ISchemaOptions & {
- *              normalizer?: SchemaValueFunction<any>,
- *              transformer?: AsyncSchemaValueFunction<any>,
- *              validator?: AsyncSchemaValueFunction<any>,
- *              serializer?: AsyncSchemaValueFunction<any>,
- *              condition?: AsyncSchemaValueFunction<boolean>,
- *              discriminator?: AsyncSchemaValueFunction<CompiledSchema>
+ *              normalizer?: SchemaValueProcessor<any>,
+ *              transformer?: AsyncSchemaValueProcessor<any>,
+ *              validator?: AsyncSchemaValueProcessor<any>,
+ *              serializer?: AsyncSchemaValueProcessor<any>,
+ *              condition?: AsyncSchemaValueProcessor<boolean>,
+ *              discriminator?: AsyncSchemaValueProcessor<CompiledSchema>
  * }} CompiledSchemaOptions
  */
 
@@ -355,6 +362,9 @@ export class CompiledSchema
           }
         }
         catch (error) {
+          if (error instanceof SchemaError && error?.message.includes(path)) {
+            throw error;
+          }
           const message = fpm('Assignment error', path);
           throw new SchemaError(message, {cause: error});
         }
@@ -488,8 +498,7 @@ export class CompiledSchema
           return originalCurrentValue;
         }
         if (progress.final && progress.strict) {
-          const message = currentPath ? `Unknown property "${propertyName}" at ${currentPath}` : `Unknown property "${propertyName}"`;
-          throw new ValidationError(message);
+          throw new ValidationError(fpm('Unknown', currentPath, propertyName));
         }
         return staged? originalCurrentValue : currentValue;
       }
@@ -518,7 +527,7 @@ export class CompiledSchema
     let returnValue = currentValue;
 
     if (isAssignmentSchema && typeof assignmentValue === 'function' && !isConstructor(assignmentValue)) {
-      // if value is a function, it must act like an AsyncSchemaValueFunction that returns the actual value
+      // if value is a function, it must act like an AsyncSchemaValueProcessor that returns the actual value
       // todo - add option to allow setting the value to a function without calling it
       assignmentValue = await assignmentValue(currentValue, result, currentSchema, currentPath);
 
@@ -648,11 +657,22 @@ export class CompiledSchema
         value = value(true, configuration, this, path, options);
       }
       catch (error) {
-        throw new NormalizeError(`${fpm('Exception calling value function', path)}`, {cause: error});
+        throw new NormalizeError(fpm('Exception calling value function', path), {cause: error});
       }
     }
 
-    return normalizer(value, configuration, this, path, options);
+    try {
+      const normalized = normalizer(value, configuration, this, path, options);
+
+      if (typeof normalized?.then === 'function') {
+        throw new SchemaError('Cannot use asynchronous value processors during normalization');
+      }
+
+      return normalized;
+    }
+    catch (error) {
+      throw new NormalizeError(fpm('Could not normalize', path), {cause: error});
+    }
   }
 
   /**
@@ -664,22 +684,26 @@ export class CompiledSchema
    * @returns {Promise<any>} - transformed value
    */
   async transform(value, configuration = {}, path = this.path, options) {
-    if (value !== null && this.values && this.values.length > 0) {
-      // if we have children, we can't compare the value yet, we'll have to wait for validation.
-      if (!this.hasChildren && !this.values.includes(value)) {
-        const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
-        const strict = this.strict ?? options?.strict ?? true;
-        if (!isContainerInit && strict) {
-          throw new ConstraintError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
+    try {
+      if (value !== null && this.values && this.values.length > 0) {
+        // if we have children, we can't compare the value yet, we'll have to wait for validation.
+        if (!this.hasChildren && !this.values.includes(value)) {
+          const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
+          const strict = this.strict ?? options?.strict ?? true;
+          if (!isContainerInit && strict) {
+            throw new ConstraintError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
+          }
         }
       }
+      const transformer = this._options.transformer;
+      if (typeof transformer !== 'function') {
+        throw new SchemaError('Unresolved schema transformer')
+      }
+      return await transformer(value, configuration, this, path, {...options});
     }
-    const transformer = this._options.transformer;
-    if (typeof transformer !== 'function') {
-      throw new SchemaError('Unresolved schema transformer')
+    catch (error) {
+      throw new TransformError(fpm('Unable to transform', path), {cause: error})
     }
-
-    return transformer(value, configuration, this, path, {...options});
   }
 
   /**
@@ -743,7 +767,7 @@ export class CompiledSchema
           return EMPTY_VALUE;
         }
 
-        /** @type {AsyncSchemaValueFunction<any>} */
+        /** @type {AsyncSchemaValueProcessor<any>} */
         const validator = schema.options.validator;
         if (typeof validator !== 'function') {
           throw new ValidationError(fpm('Invalid validator', path));
@@ -782,17 +806,22 @@ export class CompiledSchema
    */
   async serialize(config, options = {}) {
     return this.visit(config, async (value, configuration, schema, path, options) => {
-      if (schema === undefined || schema.metadata.omitFromSerialize) {
-        return EMPTY_VALUE;
-      }
-      else {
-        const serializer = schema.options.serializer;
-
-        if (!serializer || typeof serializer !== 'function') {
-          throw new SchemaError(fpm('Invalid serializer', path));
+      try {
+        if (schema === undefined || schema.metadata.omitFromSerialize) {
+          return EMPTY_VALUE;
         }
+        else {
+          const serializer = schema.options.serializer;
 
-        return serializer(value, configuration, schema, path, options);
+          if (!serializer || typeof serializer !== 'function') {
+            throw new SchemaError('Invalid serializer');
+          }
+
+          return await serializer(value, configuration, schema, path, options);
+        }
+      }
+      catch (error) {
+        throw new SerializeError(`${fpm('Error serializing', path)}`);
       }
     }, {...options, extract: true});
   }

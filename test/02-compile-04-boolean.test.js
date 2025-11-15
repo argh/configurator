@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ConstraintError, ValidationError } from '../src/errors.js';
+import { ConstraintError, TransformError, ValidationError } from '../src/errors.js';
 
 describe('Schema Compilation - Boolean Type', function() {
   let resolver;
@@ -218,7 +218,7 @@ describe('Schema Compilation - Boolean Type', function() {
 
       await assert.rejects(
         () => compiled.transform(false, {}, 'field'),
-        ConstraintError
+        TransformError
       );
     });
   });
@@ -380,7 +380,7 @@ describe('Schema Compilation - Boolean Type', function() {
       // Transform should fail due to values constraint
       await assert.rejects(
         () => compiled.transform(normalized, {}, 'field'),
-        ConstraintError
+        TransformError
       );
     });
   });

@@ -3,7 +3,7 @@ import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
 import { deepValue } from '../utils.js';
 
-/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueFunction, SchemaData, ISchema } from './types.js' */
+/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
@@ -437,7 +437,7 @@ export class Schema
 
   /**
    * define the property name (or function) this union will use as a discriminator
-   * @param {string|SchemaValueFunction<CompiledSchema|string|undefined>} discriminator - property name
+   * @param {string|SchemaValueProcessor<CompiledSchema|string|undefined>} discriminator - property name
    * @returns {Schema} - returns self for fluent chaining
    */
   unionDiscriminator(discriminator) {
@@ -638,7 +638,7 @@ export class Schema
 
   /**
    * Set the condition handler that determines if the schema should be processed at all
-   * @param {SchemaValueFunction<boolean>|boolean} c
+   * @param {SchemaValueProcessor<boolean>|boolean} c
    * @returns {Schema}
    */
   condition(c) {
@@ -648,7 +648,7 @@ export class Schema
 
   /**
    * Set the normalize handler that ensures input is in a format that the transformer can handle
-   * @param {SchemaValueFunction<any>} fn
+   * @param {SchemaValueProcessor<any>} fn
    * @returns {Schema}
    */
   normalizer(fn) {
@@ -661,7 +661,7 @@ export class Schema
 
   /**
    * Set the transform handler that converts an input value into the output value used in the final configuration
-   * @param {SchemaValueFunction<any>|NonNullable<any>} fn
+   * @param {SchemaValueProcessor<any>|NonNullable<any>} fn
    * @returns {Schema}
    */
   transformer(fn) {
@@ -674,7 +674,7 @@ export class Schema
 
   /**
    * Set the validate handler that ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value
-   * @param {SchemaValueFunction<any>|string|object|RegExp} v
+   * @param {SchemaValueProcessor<any>|string|object|RegExp} v
    * @returns {Schema}
    */
   validator(v) {
@@ -684,7 +684,7 @@ export class Schema
 
   /**
    * Set the serialize handler that will restore a configuration value to its pre-transform normalized form
-   * @param {SchemaValueFunction<any>|NonNullable<any>} fn
+   * @param {SchemaValueProcessor<any>|NonNullable<any>} fn
    * @returns {Schema}
    */
   serializer(fn) {

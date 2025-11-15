@@ -108,7 +108,7 @@ export function findDiscriminatorProperties(schemas) {
 /**
  * @package
  * @param {CompiledSchema} schema
- * @returns {import("../types.js").AsyncSchemaValueFunction<any>}
+ * @returns {import("../types.js").AsyncSchemaValueProcessor<any>}
  */
 export function generateDiscriminatorFunction(schema) {
   if (!schema.isUnion) {

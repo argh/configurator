@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, NormalizeError, ConstraintError } from '../src/errors.js';
+import { ValidationError, NormalizeError, ConstraintError, TransformError } from '../src/errors.js';
 
 describe('Schema Compilation - Number Type', function() {
   let resolver;
@@ -215,7 +215,7 @@ describe('Schema Compilation - Number Type', function() {
 
       await assert.rejects(
         () => compiled.transform(99, {}, 'field'),
-        ConstraintError
+        TransformError
       );
     });
 
@@ -373,7 +373,7 @@ describe('Schema Compilation - Number Type', function() {
       // Transform should fail due to values constraint
       await assert.rejects(
         () => compiled.transform(normalized, {}, 'field'),
-        ConstraintError
+        TransformError
       );
     });
   });

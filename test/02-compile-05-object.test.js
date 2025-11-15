@@ -132,7 +132,7 @@ describe('Schema Compilation - Object Type', function() {
       const compiled = resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.transform('{not-valid-json}', {}, 'field'),
+        async () => await compiled.transform('{not-valid-json}', {}, 'field'),
         TransformError
       );
     });
@@ -142,12 +142,12 @@ describe('Schema Compilation - Object Type', function() {
       const compiled = resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.transform(123, {}, 'field'),
+        async () => await compiled.transform(123, {}, 'field'),
         TransformError
       );
 
       await assert.rejects(
-        () => compiled.transform('plain string', {}, 'field'),
+        async () => await compiled.transform('plain string', {}, 'field'),
         TransformError
       );
     });
@@ -263,7 +263,7 @@ describe('Schema Compilation - Object Type', function() {
 
       await assert.rejects(
         () => compiled.transform({ valid: false }, {}, 'field'),
-        ConstraintError
+        TransformError
       );
     });
   });

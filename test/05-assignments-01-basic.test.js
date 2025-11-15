@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ConstraintError, ValidationError } from '../src/errors.js';
+import { ConstraintError, TransformError, ValidationError } from '../src/errors.js';
 
 describe('Assignments - Basic Processing', function() {
   let resolver;
@@ -653,8 +653,9 @@ describe('Assignments - Basic Processing', function() {
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
-          assert.ok(err instanceof Error);
-          return err.name === 'SchemaError' && err.cause instanceof ConstraintError;
+          assert.ok(err instanceof TransformError);
+          assert.ok(err.cause instanceof ConstraintError);
+          return true;
         }
       );
     });
@@ -713,8 +714,8 @@ describe('Assignments - Basic Processing', function() {
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
-          assert.ok(err instanceof Error);
-          return err.name === 'SchemaError' && err.message.includes('unknown');
+          assert.ok(err instanceof ValidationError);
+          return err.message.includes('unknown');
         }
       );
     });
