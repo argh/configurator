@@ -44,16 +44,16 @@ const resolver = new SchemaResolver();
 // Here is an example of a schema that can accept either a positive number,
 // an ISO string, or the string "now" to indicate the current time should be used:
 
-resolver.registerSchema('timestamp', new Schema('any', {
-  normalizer: (value) => {
+resolver.registerSchema('timestamp', new Schema('any')
+  .normalizer((value) => {
     if ((typeof value === 'number') || (typeof value === 'string') || value instanceof Date) {
       return value;
     }
     else {
       throw new Error(`Unsupported date format "${value}"`);
     }
-  },
-  transformer: (value) => {
+  })
+  .transformer((value) => {
     if (typeof value === 'number') {
       if (value < 0) {
         throw new Error(`Invalid negative timestamp value: ${value}`);
@@ -73,21 +73,21 @@ resolver.registerSchema('timestamp', new Schema('any', {
     else {
       throw new Error(`Invalid timestamp value: ${value}`);
     }
-  },
-  validator: (value) => {
+  })
+  .validator((value) => {
     let t = new Date(value).getTime();
     if (isNaN(t)) {
       throw new Error(`Invalid timestamp value: ${value}`);
     }
     return t;
-  },
-  serializer(value) {
+  })
+  .serializer(function(value) {
     // You can provide a serializer function to convert the resolved value back to
     // a representation that can be written to a config file.  This will be
     // used if you pass the --dump option to the Configurator.
     return new Date(value).toISOString();
-  }
-}));
+  })
+);
 
 // This is an example of a class instance factory schema.  The string provided is used to look up
 // a provided constructor.
@@ -106,8 +106,8 @@ class Havarti extends Cheese { }
 
 const cheeses = new Map([Cheddar, Mozzarella, Parmesan, Provolone, Stilton, Gouda, Emmental, Brie, Muenster, Havarti].map(c => [c.name.toLowerCase(), c]));
 
-resolver.registerSchema('Cheese', new Schema('any', {
-  transformer: (value) => {
+resolver.registerSchema('Cheese', new Schema('any')
+  .transformer((value) => {
     if (typeof value === 'string') {
       value = value.toLowerCase();
       if (cheeses.has(value)) {
@@ -133,15 +133,15 @@ resolver.registerSchema('Cheese', new Schema('any', {
     else {
       throw new Error('cannot use unnamed cheese')
     }
-  },
-  validator: (value) => {
+  })
+  .validator((value) => {
     if (value instanceof Cheese) {
       return value;
     }
     throw new Error('not a cheese!')
-  },
-  serializer: (value) => value.name
-}));
+  })
+  .serializer((value) => value.name)
+);
 
 // Here is an example where we define a Printer type that will resolve to a
 // singleton of a Printer type instance, selected based on the string name
@@ -161,8 +161,8 @@ class BazPrinter extends Printer { print(message) { console.log('baz!', message)
 
 let printerSingleton = undefined;
 
-resolver.registerSchema('Printer', new Schema('any', {
-  transformer: (value) => {
+resolver.registerSchema('Printer', new Schema('any')
+  .transformer((value) => {
     if (printerSingleton) {
       // once the singleton has been set, always return it...
       return printerSingleton;
@@ -184,8 +184,8 @@ resolver.registerSchema('Printer', new Schema('any', {
       throw new Error('unknown printer type');
     }
     return printerSingleton;
-  }
-}));
+  })
+);
 
 
 // This is an example of a union.
@@ -258,50 +258,44 @@ resolver.registerSchema('RepoOperation',
 );
 
 resolver.registerSchema('SeekOperation',
-  new Schema('RepoOperation', {
-    transformer: () => new SeekOperation()
-  })
-    .property('type', new Schema('string', {value: 'seek'}))
-    .property('x', new Schema('number' ))
+  new Schema('RepoOperation')
+    .transformer(() => new SeekOperation())
+    .property('type', new Schema('string').value('seek'))
+    .property('x', new Schema('number'))
     .property('y', new Schema('number'))
 );
 
 resolver.registerSchema('PunchOperation',
-  new Schema('RepoOperation', {
-    transformer: () => new PunchOperation()
-  })
-    .property('type', new Schema('string', {value: 'punch'}))
-    .property('punchCount', new Schema('number', {validator: '$positive'}))
+  new Schema('RepoOperation')
+    .transformer(() => new PunchOperation())
+    .property('type', new Schema('string').value('punch'))
+    .property('punchCount', new Schema('number').validator('$positive'))
 );
 resolver.registerSchema('ReadOperation',
-  new Schema('RepoOperation', {
-    transformer: () => new ReadOperation()
-  })
-    .property('type', new Schema('string', {value: 'read'}))
-    .property('readLength', new Schema('number', {validator: '$positive'}))
+  new Schema('RepoOperation')
+    .transformer(() => new ReadOperation())
+    .property('type', new Schema('string').value('read'))
+    .property('readLength', new Schema('number').validator('$positive'))
 );
 resolver.registerSchema('FoldOperation',
-  new Schema('RepoOperation', {
-    transformer: () => new FoldOperation()
-  })
-    .property('type', new Schema('string', {value: 'fold'}))
-    .property('foldCount', new Schema('number', {validator: '$positive'}))
+  new Schema('RepoOperation')
+    .transformer(() => new FoldOperation())
+    .property('type', new Schema('string').value('fold'))
+    .property('foldCount', new Schema('number').validator('$positive'))
 );
 resolver.registerSchema('SpindleOperation',
-  new Schema('RepoOperation', {
-    transformer: () => new SpindleOperation()
-  })
+  new Schema('RepoOperation')
+    .transformer(() => new SpindleOperation())
     .property('type', Schema.literal('spindle'))
-    .property('x', new Schema('number' ))
-    .property('y', new Schema('number' ))
-)
+    .property('x', new Schema('number'))
+    .property('y', new Schema('number'))
+);
 resolver.registerSchema('MutilateOperation',
-  new Schema('RepoOperation', {
-    transformer: () => new MutilateOperation()
-  })
+  new Schema('RepoOperation')
+    .transformer(() => new MutilateOperation())
     .property('type', Schema.literal('mutilate'))
-    .property('severityPercent', new Schema('number', {validator: {$range: {min:0.1, max: 1.0}}}))
-)
+    .property('severityPercent', new Schema('number').validator({$range: {min:0.1, max: 1.0}}))
+);
 
 // Validators are used to provide constraints on top of the type system, by checking
 // whether the typed value meets one or more provided criteria.  Validators may also
@@ -353,45 +347,56 @@ resolver.registerValueProcessor('inside-git-repo', async (value) => {
 //
 // Schema names and Validator names will not be resolved until the configuration is being populated.
 
-const schema = new Schema('object', { resolver })
-  .property('halp', Configurator.createHelpSchema({_flagHint:'H'}))
+const schema = new Schema('object')
+  .property('halp', Configurator.createHelpSchema().meta('flagHint', 'H'))
   .property('app', new Schema('object')
-    .property('verbose', new Schema('boolean', {default: false, _flagHint: 'V', _advanced: true}))
-    .property('devMode', new Schema('boolean', {_flagHint: 'D', _advanced: true}))
-    .property('foo', new Schema('boolean', {default: false}))
-    .property('fakeSecretDelay', new Schema('number', {
-      default: 500,
-      hidden: true
-    }))
-    .property('printer', new Schema('Printer', {
-      validator: (v => {
+    .property('verbose', new Schema('boolean')
+      .default(false)
+      .meta('flagHint', 'V')
+      .meta('advanced', true)
+    )
+    .property('devMode', new Schema('boolean')
+      .meta('flagHint', 'D')
+      .meta('advanced', true)
+    )
+    .property('foo', new Schema('boolean')
+      .default(false)
+    )
+    .property('fakeSecretDelay', new Schema('number')
+      .default(500)
+      .meta('hidden', true)
+    )
+    .property('printer', new Schema('Printer')
+      .validator((v => {
         if (v instanceof BazPrinter) {
           throw new Error('PC LOAD LETTER')
         }
         return v;
-      })
-    }))
+      }))
+    )
   )
   .property('user', new Schema('object')
-    .property('nickname', new Schema('string', {
-      required: true,
-      validator: /[a-z]{3,}/i
-    }))
-    .property('token', new Schema('string', {
-      required: true,
-      validator: /[0-9|a-f]{12}/i,
-      _secret: true  // this is a private metadata value that we use in the source below
-    }))
-    .property('cheeses', new Schema('array', {default: [Cheddar, Provolone]})
-      .property('*', new Schema('Cheese')))
+    .property('nickname', new Schema('string')
+      .required()
+      .validator(/[a-z]{3,}/i)
+    )
+    .property('token', new Schema('string')
+      .required()
+      .validator(/[0-9|a-f]{12}/i)
+      .meta('secret', true)  // this is a private metadata value that we use in the source below
+    )
+    .property('cheeses', new Schema('array')
+      .default([Cheddar, Provolone])
+      .property('*', new Schema('Cheese'))
+    )
   )
   .property('work', new Schema('object')
-    .property('repo', new Schema('string', {
-      validator: {$and: ['$directory', '$inside-git-repo']}
-    }))
-    .property('modified', new Schema('timestamp', {
-      default: 'now'
-    }))
+    .property('repo', new Schema('string')
+      .validator({$and: ['$directory', '$inside-git-repo']})
+    )
+    .property('modified', new Schema('timestamp')
+      .default('now')
+    )
     .property('operations', new Schema('array')
       .property('*',
         new Schema()
@@ -490,7 +495,10 @@ const sources = [
 ];
 
 // This demonstrates a Configurator being provided all custom values, even redefining the default config file field name:
-schema.property('profile', Configurator.createConfigSchema({context: 'profilePath', _flagHint: 'P'}));
+schema.property('profile', Configurator.createConfigSchema()
+  .option('context', 'profilePath')
+  .meta('flagHint', 'P')
+);
 const configurator = new Configurator({ schema, resolver, sources });
 
 // Write a demo profile file for the example...

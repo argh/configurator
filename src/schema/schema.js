@@ -3,12 +3,22 @@ import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
 import { deepValue } from '../utils.js';
 
-/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema } from './types.js' */
+/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
-/** @typedef {Object.<string, Schema>} SchemaProperties */
-/** @typedef {Object.<any, Schema>} SchemaUnionSchemas */
+// This is stupid, but my IDE keeps preferring a global Schema reference over the local one:
+/** @typedef {Object.<string, import('./schema.js').Schema>} SchemaProperties */
+/** @typedef {Object.<string, import('./schema.js').Schema>} SchemaUnionSchemas */
+
+/** @typedef {Object} SchemaHandlers
+ * @property {Array<ProcessorSpec>} [normalizers]
+ * @property {Array<ProcessorSpec>} [transformers]
+ * @property {Array<ProcessorSpec>} [validators]
+ * @property {Array<ProcessorSpec>} [serializers]
+ * @property {Array<ProcessorSpec>} [conditions]
+ * @property {SchemaValueProcessor<string|CompiledSchema|undefined>} [unionDiscriminator]
+ */
 
 /**
  * Schema - defines a valid configuration
@@ -28,6 +38,10 @@ export class Schema
    * @param {ISchemaMetadata} [metadata] - schema metadata
    */
   constructor(base, options, metadata) {
+
+    if (options || metadata) {
+// FIXME      throw new Error('lets seee..')
+    }
     /**
      * @type {Schema|undefined}
      * @internal
@@ -45,6 +59,12 @@ export class Schema
      * @internal
      */
     this._properties = {};
+
+    /**
+     * @type {SchemaHandlers}
+     * @private
+     */
+    this._handlers = {};
 
     /**
      * @type {SchemaOptions}
@@ -154,6 +174,14 @@ export class Schema
   }
 
   /**
+   * handlers
+   * @type {SchemaHandlers}
+   */
+  get handlers() {
+    return this._handlers;
+  }
+
+  /**
    * settings that define how the schema behaves
    * @returns {SchemaOptions}
    */
@@ -200,56 +228,44 @@ export class Schema
       return this;
     }
     else if (attributeName === 'metadata') {
-      if (typeof attributeValue !== 'object') {
-        throw new SchemaError('Invalid metadata definition')
-      }
-      for (const [key, value] of Object.entries(attributeValue ?? {})) {
-        this.meta(key, value);
-      }
-      return this;
+      return this.addMetadata(attributeValue);
     }
     else if (attributeName === 'options') {
-      if (typeof attributeValue !== 'object') {
-        throw new SchemaError('Invalid options definition')
-      }
-      for (const [key, value] of Object.entries(attributeValue ?? {})) {
-        this.option(key, value);
-      }
-      return this;
+      return this.addOptions(attributeValue ?? {});
+    }
+    else if (attributeName === 'handlers') {
+      return this.addHandlers(attributeValue ?? {});
     }
     else if (attributeName === 'properties') {
-      if (typeof attributeValue !== 'object') {
-        throw new SchemaError('Invalid properties definition')
-      }
-      for (const [key, value] of Object.entries(attributeValue ?? {})) {
-        this.property(key, new Schema(value));
-      }
-      return this;
+      return this.addProperties(attributeValue ?? {});
     }
     else if (attributeName === 'unionSchemas') {
-      if (typeof attributeValue !== 'object') {
-        throw new SchemaError('Invalid unionSchemas definition')
-      }
-      for (const [key, value] of Object.entries(attributeValue ?? {})) {
-        this.unionSchema(key, new Schema(value));
-      }
-      return this;
+      return this.addUnionSchemas(attributeValue ?? {})
     }
     else if (attributeName === 'value') {
-      if (!this.options.values) {
-        this.options.values = [];
-      }
-      this.options.values.push(attributeValue);
+      return this.value(attributeValue);
     }
-    else if (attributeName === 'literal') {
-      this.options.values = [attributeValue];
-      this.metadata.literal = true;
+    else if (attributeName === 'transformer') {
+      return this.transformer(attributeValue);
+    }
+    else if (attributeName === 'normalizer') {
+      return this.normalizer(attributeValue);
+    }
+    else if (attributeName === 'validator') {
+      return this.validator(attributeValue)
+    }
+    else if (attributeName === 'condition') {
+      return this.condition(attributeValue);
+    }
+    else if (attributeName === 'unionDiscriminator' || attributeName === 'discriminator') {
+      return this.unionDiscriminator(attributeValue);
     }
 
     const parts = attributeName.split('.').map(p => p.trim());
 
     if (parts.length === 1) {
       if (attributeName.startsWith('_')) {
+        // This was a terrible hack.  I'm still paying the price.  Don't use this approach.
         return this.meta(attributeName.slice(1), attributeValue);
       }
       else {
@@ -257,15 +273,21 @@ export class Schema
       }
     }
     else if (parts.length === 2) {
+      throw new Error('UNSUPPORTED, KILL THIS!');  // FIXME
+      /*
       if (parts[0] === 'option') {
         return this.option(parts[1], attributeValue);
       }
       else if ((parts[0] === 'meta') || (parts[0] === 'metadata')) {
         return this.meta(parts[1], attributeValue);
       }
+      else if (parts[0] === 'handler') {
+        return this.handler(parts[1], attributeValue)
+      }
       else {
         throw new SchemaError(`Unknown attribute family "${parts[0]}"`)
       }
+       */
     }
     throw new SchemaError(`Bad attribute "${attributeName}"`);
   }
@@ -290,95 +312,78 @@ export class Schema
 
   /**
    * property - add a named child schema
-   * @param {string|Object} property - property name
-   * @param {Schema|any|undefined} value - schema to associate with the property
+   * @param {string} propertyName - property name
+   * @param {Schema|undefined} propertySchema - schema to associate with the property, undefined to delete current
    * @returns {Schema} - returns self for fluent chaining
    */
-  property(property, value) {
-    if (typeof property === 'object') {
-      if (value !== undefined) {
-        if (value !== true && value !== false) {
-          throw new SchemaError('Property group overwrite setting must be true, false, or undefined');
-        }
-      }
-      const overwrite = value ?? true;
-
-      for (const [key, value] of Object.entries(property)) {
-        if (overwrite || this._properties[key] === undefined) {
-          this.property(key, value);
-        }
-      }
-      return this;
-    }
-
-    if (typeof property !== 'string') {
+  property(propertyName, propertySchema) {
+    if (typeof propertyName !== 'string') {
       throw new SchemaError('Properties must be associated with a valid name');
     }
-    if (typeof value === 'string') {
-      value = new Schema(value);
+    if (propertySchema instanceof CompiledSchema) {
+      throw new SchemaError(`Unable to set property ${propertyName} to a compiled schema`);
     }
-
-    const current = this._properties[property];
-
-    if (current) {
-      if (current === this) {
-        return this;  // no-op
+    if (!(propertySchema instanceof Schema)) {
+      if (propertySchema === undefined) {
+        delete this.properties[propertyName]?._name;
+        delete this.properties[propertyName]?._parent;
+        delete this.properties[propertyName];
+        return this;
       }
-      delete current._name;
-      delete current._parent;
-    }
-    if (value === undefined) {
-      delete this._properties[property];
-    }
-    else if (value instanceof Schema) {
-      if (value._name || value._parent) {
-        throw new SchemaError(`Unable to set property ${property} to a schema that is already attached`);
-      }
-      this._properties[property] = value;
-      value._name = property;
-      value._parent = this;
-
-      if (this.base === undefined && this.options.type === undefined) {
-        this.base = Number.isInteger(property)? 'array' : 'object';
+      else {
+        throw new SchemaError('Property value must be a schema');
       }
     }
-    else if (value instanceof CompiledSchema) {
-      throw new SchemaError(`Unable to set property ${property} to a compiled schema`);
+    if (propertySchema === this) {
+      throw new SchemaError('Cannot add self as a child schema');
     }
-    else {
-      throw new SchemaError(`Invalid schema for property ${property}`);
+    if (propertySchema.parent) {
+      if (propertySchema.parent === this) {
+        return this;   // no-op
+      }
+      throw new SchemaError(`Cannot set property ${propertyName} to a schema that is already bound to a different parent`);
     }
+    this.properties[propertyName] = propertySchema;
+    propertySchema._name = propertyName;
+    propertySchema._parent = this;
 
+    if (this.base === undefined && this.options.type === undefined) {
+      this.base = Number.isInteger(propertyName)? 'array' : 'object';
+    }
+    return this;
+  }
+
+  /**
+   * bulk-add properties
+   * @param {SchemaProperties} properties - property name
+   * @param {boolean} [overwrite] - whether to overwrite existing properties
+   * @returns {Schema} - returns self for fluent chaining
+   * @internal
+   */
+  addProperties(properties, overwrite = false) {
+    if (typeof properties !== 'object') {
+      throw new SchemaError('Invalid properties definition');
+    }
+    for (const [key, schema] of Object.entries(properties)) {
+      if (overwrite || this._properties[key] === undefined) {
+        this.property(key, Schema.createFromModel(schema));
+      }
+    }
     return this;
   }
 
   /**
    * define a schema option
-   * @param {string|Object} option - option
+   * @param {string} option - option
    * @param {any} [value] - option value
    * @returns {Schema} - returns self for fluent chaining
    */
   option(option, value) {
-    if (typeof option === 'object') {
-      if (value !== undefined) {
-        if (value !== true && value !== false) {
-          throw new SchemaError('Options group overwrite setting must be true, false, or undefined');
-        }
-      }
-      const overwrite = value ?? true;
-
-      for (const [key, value] of Object.entries(option)) {
-        if (overwrite || this._options[key] === undefined) {
-          this.option(key, value);
-        }
-      }
-      return this;
-    }
-    else if (typeof option !== 'string') {
+    if (typeof option !== 'string') {
       throw new SchemaError('Options must be associated with a valid key');
     }
     else if (option.startsWith('_')) {
-      throw new SchemaError('Options cannot have a leading underscore');
+      throw new SchemaError('Option keys cannot have a leading underscore');
     }
     if (value === undefined) {
       value = true;
@@ -393,6 +398,97 @@ export class Schema
   }
 
   /**
+   * bulk add options
+   * @param {Object} options
+   * @param {boolean} [overwrite]
+   * @returns {Schema}
+   * @internal
+   */
+  addOptions(options, overwrite = false) {
+    if (typeof options !== 'object') {
+      throw new SchemaError('Options definition must be an object');
+    }
+    for (const [key, value] of Object.entries(options)) {
+      if (overwrite || this._options[key] === undefined) {
+        this.option(key, value);
+      }
+    }
+    return this;
+  }
+
+  /**
+   *
+   * @param {string} handlerName
+   * @param {Array<ProcessorSpec>} processorSpecs
+   * @returns {Schema}
+   */
+  handler(handlerName, processorSpecs) {
+    if (typeof handlerName !== 'string') {
+      throw new SchemaError('Handlers must be associated with a valid key');
+    }
+    if (processorSpecs === null) {
+      delete this._handlers[handlerName];
+      return this;
+    }
+    else if (processorSpecs === undefined) {
+      return this;
+    }
+    if (!Array.isArray(processorSpecs)) {
+      processorSpecs = [processorSpecs];
+    }
+
+    if (!Array.isArray(this._handlers[handlerName])) {
+      this._handlers[handlerName] = [];
+    }
+
+    this._handlers[handlerName].push(...processorSpecs);
+
+    return this;
+  }
+
+  /**
+   * bulk add handlers
+   * @param {Object} handlers
+   * @param {boolean} [overwrite]
+   * @returns {Schema}
+   * @internal
+   */
+  addHandlers(handlers, overwrite = false) {
+    if (typeof handlers !== 'object') {
+      throw new SchemaError('Handlers definition must be an object')
+    }
+
+    for (const [key, value] of Object.entries(handlers)) {
+      if (overwrite || this._handlers[key] === undefined) {
+        this.handler(key, value);
+      }
+    }
+    return this;
+  }
+
+  /**
+   *
+   * @param {Array<ProcessorSpec>} processorSpecs
+   * @returns {Schema}
+   */
+  normalizers(processorSpecs) {
+    return this.addHandlers({'normalizers': processorSpecs});
+  }
+  conditions(processorSpecs) {
+    return this.addHandlers({'conditions': processorSpecs});
+  }
+  transformers(processorSpecs) {
+    return this.addHandlers({'transformers': processorSpecs});
+  }
+  validators(processorSpecs) {
+    return this.addHandlers({'validators': processorSpecs});
+  }
+  serializers(processorSpecs) {
+    return this.addHandlers({'serializers': processorSpecs});
+  }
+
+
+  /**
    * define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
    *
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
@@ -402,21 +498,7 @@ export class Schema
    * @returns {Schema} - returns self for fluent chaining
    */
   meta(meta, value) {
-    if (typeof meta === 'object') {
-      if (value !== undefined) {
-        if (value !== true && value !== false) {
-          throw new SchemaError('Metadata group overwrite setting must be true, false, or undefined');
-        }
-      }
-      const overwrite = value ?? true;
 
-      for (const [key, value] of Object.entries(meta)) {
-        if (overwrite || this._metadata[key] === undefined) {
-          this.meta(key, value);
-        }
-      }
-      return this;
-    }
     if (typeof meta !== 'string') {
       throw new SchemaError('Metadata must be associated with a valid key');
     }
@@ -436,6 +518,26 @@ export class Schema
   }
 
   /**
+   * Bulk-add metadata
+   *
+   * @param {Object} metadata
+   * @param {boolean} [overwrite]
+   * @returns {Schema}
+   * @internal
+   */
+  addMetadata(metadata, overwrite = false) {
+    if (typeof metadata !== 'object') {
+      throw new SchemaError('Invalid metadata definition');
+    }
+    for (const [key, value] of Object.entries(metadata)) {
+      if (overwrite || this._metadata[key] === undefined) {
+        this.meta(key, value);
+      }
+    }
+    return this;
+  }
+
+  /**
    * define the property name (or function) this union will use as a discriminator
    * @param {string|SchemaValueProcessor<CompiledSchema|string|undefined>} discriminator - property name
    * @returns {Schema} - returns self for fluent chaining
@@ -450,51 +552,33 @@ export class Schema
 
   /**
    * add a schema as a member of this schema's union
-   * @param {string|Object} key - union schema key (used by some discriminators to select this schema)
-   * @param {Schema|boolean} value - schema that the discriminator selects, or true/false override if a group
+   * @param {string} key - union schema key (used by some discriminators to select this schema)
+   * @param {Schema} unionSchema - schema that the discriminator selects, or true/false override if a group
    * @returns {Schema}
    */
-  unionSchema(key, value) {
-    if (typeof key === 'object') {
-      if (value !== undefined) {
-        if (value !== true && value !== false) {
-          throw new SchemaError('Union schema group overwrite setting must be true, false, or undefined');
-        }
-      }
-      const overwrite = value ?? true;
-
-      for (const [k, value] of Object.entries(key)) {
-        if (overwrite || this._unionSchemas[k] === undefined) {
-          this.unionSchema(k, value);
-        }
-      }
-      return this;
-    }
-
-    const schema = /** @type {Schema} */ (value);
-
-    if (!(schema instanceof Schema )) {
+  unionSchema(key, unionSchema) {
+    if (!(unionSchema instanceof Schema )) {
       throw new SchemaError(`Invalid schema for union member ${key}`);
     }
-    if (schema._name || schema._parent) {
+    if (unionSchema._name || unionSchema._parent) {
       throw new SchemaError(`Unable to associate union member ${key} with a schema that is already attached`);
     }
 
-    if ((this.base === undefined/* || this.base === 'any'*/) && Object.keys(schema.properties).length > 0) {
-      this.base = (schema.properties['*'] || schema.properties['0']) ? 'array' : 'object';
+    if ((this.base === undefined/* || this.base === 'any'*/) && Object.keys(unionSchema.properties).length > 0) {
+      this.base = (unionSchema.properties['*'] || unionSchema.properties['0']) ? 'array' : 'object';
     }
 
-    this._unionSchemas[key] = schema;
+    this._unionSchemas[key] = unionSchema;
 
     // NOTE: the current schema might not have been attached yet, so we will set a dynamic lookup
     // on the union schemas
     const self = this;
-    Object.defineProperty(schema, 'name', {
+    Object.defineProperty(unionSchema, 'name', {
       get() { return self.name },
       enumerable: true,
       configurable: true
     })
-    Object.defineProperty(schema, 'parent', {
+    Object.defineProperty(unionSchema, 'parent', {
       get() { return self.parent },
       enumerable: true,
       configurable: true
@@ -504,11 +588,32 @@ export class Schema
   }
 
   /**
+   * Bulk-add union schemas
+   * @param {Object.<string,Schema>} unionSchemas
+   * @param {boolean} [overwrite]
+   * @returns {Schema}
+   * @internal
+   */
+  addUnionSchemas(unionSchemas, overwrite = false) {
+    if (typeof unionSchemas !== 'object') {
+      throw new SchemaError('Invalid union schemas object');
+    }
+
+    for (const [key, unionSchema] of Object.entries(unionSchemas)) {
+      if (overwrite || this._unionSchemas[key] === undefined) {
+        this.unionSchema(key, Schema.createFromModel(unionSchema));
+      }
+    }
+    return this;
+  }
+
+  /**
    * mark this schema as a selector
+   * @param {boolean} [value]
    * @returns {Schema}
    */
-  selector() {
-    this.options.selector = true;
+  selector(value) {
+    this.options.selector = Boolean(value ?? true);
     return this;
   }
 
@@ -557,10 +662,31 @@ export class Schema
    * time you'd be disabling it.)
    * @param {boolean} [value]
    * @returns {Schema}
+   * @deprecated
    */
   allowIncremental(value) {
     this.options.allowIncremental = value ?? true;
     return this;
+  }
+
+  /**
+   * Mark this schema as defining a value whose internal structure is hidden after transformation.
+   *
+   * This has implications both for assignment processing and validation.
+   *
+   * Deep property assignments usually result in any mid-path containers being automatically created
+   * (normalized and transformed) and property values are incrementally assigned.
+   *
+   * Opaque schemas do not allow incremental assignments, so they only create normalized mid-path containers
+   * that are staged until all relevant assignments are complete.  The transform is then run, and passed
+   * the staged normalized container contents as input.
+   *
+   * Validators for opaque schemas only run on the value itself, and do not traverse into any child properties.
+   *
+   * @param {boolean} [value]
+   */
+  opaque(value = true) {
+    this.options.allowIncremental = !value;
   }
 
   /**
@@ -638,11 +764,19 @@ export class Schema
 
   /**
    * Set the condition handler that determines if the schema should be processed at all
-   * @param {SchemaValueProcessor<boolean>|boolean} c
+   * @param {SchemaValueProcessor<any>|boolean} c
    * @returns {Schema}
    */
   condition(c) {
     this.options.condition = c;
+
+
+    if (!Array.isArray(this.handlers.conditions)) {
+      this.handlers.conditions = [];
+    }
+
+    this.handlers.conditions.push(c);
+
     return this;
   }
 
@@ -656,6 +790,13 @@ export class Schema
       throw new SchemaError('Normalizer must be a function');
     }
     this.options.normalizer = fn;
+
+    if (!Array.isArray(this.handlers.normalizers)) {
+      this.handlers.normalizers = [];
+    }
+
+    this.handlers.normalizers.push(fn);
+
     return this;
   }
 
@@ -669,16 +810,31 @@ export class Schema
 //      throw new SchemaError('Transformer must be a function');
     }
     this.options.transformer = fn;
+
+    if (!Array.isArray(this.handlers.transformers)) {
+      this.handlers.transformers = [];
+    }
+
+    this.handlers.transformers.push(fn);
+
+
     return this;
   }
 
   /**
    * Set the validate handler that ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value
-   * @param {SchemaValueProcessor<any>|string|object|RegExp} v
+   * @param {ProcessorSpec} v
    * @returns {Schema}
    */
   validator(v) {
     this.options.validator = v;
+
+
+    if (!Array.isArray(this.handlers.validators)) {
+      this.handlers.validators = [];
+    }
+    this.handlers.validators.push(v);
+
     return this;
   }
 
@@ -692,6 +848,12 @@ export class Schema
 //      throw new SchemaError('Serializer must be a function');
     }
     this.options.serializer = fn;
+
+    if (!Array.isArray(this.handlers.serializers)) {
+      this.handlers.serializers = [];
+    }
+    this.handlers.serializers.push(fn);
+
     return this;
   }
 
@@ -710,23 +872,17 @@ export class Schema
       this.base = otherSchema.base;
     }
 
-    // Merge properties (local properties take precedence)
-    for (const [key, value] of Object.entries(otherSchema.properties ?? {})) {
-      if (!this._properties.hasOwnProperty(key)) {
-        this.property(key, Schema.createFromModel(value));
-      }
-    }
+    this.addProperties(Object.fromEntries(
+      Object.entries(otherSchema.properties ?? {})
+            .map(([propertyName, propertySchema]) => [propertyName, Schema.createFromModel(propertySchema)])));
+    this.addUnionSchemas(Object.fromEntries(
+      Object.entries(otherSchema.unionSchemas ?? {})
+            .map(([unionKey, unionSchema]) => [unionKey, Schema.createFromModel(unionSchema)])));
 
-    // we can use the bulk-write for these since we just want the existing values
-    this.option(otherSchema.options ?? {}, false);
-    this.meta(otherSchema.metadata ?? {}, false);
+    this.addOptions(otherSchema.options ?? {}, false);
+    this.addMetadata(otherSchema.metadata ?? {}, false);
+    this.addHandlers(otherSchema.handlers ?? {}, false);
 
-    // Merge union schemas
-    for (const [key, value] of Object.entries(otherSchema.unionSchemas ?? {})) {
-      if (this._unionSchemas[key] === undefined && value !== undefined) {
-        this.unionSchema(key, Schema.createFromModel(value));
-      }
-    }
     return this;
   }
 
@@ -817,7 +973,7 @@ export class Schema
       schema._setAttributes(options);
     }
     if (metadata) {
-      schema.meta(metadata, true);
+      schema.addMetadata(metadata, true);
     }
 
     return schema;

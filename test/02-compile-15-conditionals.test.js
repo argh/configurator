@@ -60,9 +60,7 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Custom condition functions', function() {
 
     it('should accept function as condition', async function() {
-      const schema = new Schema('string', {
-        condition: () => true
-      });
+      const schema = new Schema('string').condition(() => true)
 
       const compiled = await resolver.compile(schema);
 
@@ -71,12 +69,11 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should invoke custom condition function', async function() {
       let invoked = false;
-      const schema = new Schema('string', {
-        condition: () => {
+      const schema = new Schema('string')
+        .condition(() => {
           invoked = true;
           return true;
-        }
-      });
+        });
 
       const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test', {}, compiled, 'path');
@@ -86,12 +83,11 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should pass value to condition function', async function() {
       let capturedValue;
-      const schema = new Schema('string', {
-        condition: (value) => {
+      const schema = new Schema('string')
+        .condition((value) => {
           capturedValue = value;
           return true;
-        }
-      });
+        });
 
       const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test-value', {}, compiled, 'path');
@@ -101,12 +97,11 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should pass configuration to condition function', async function() {
       let capturedConfig;
-      const schema = new Schema('string', {
-        condition: (value, configuration) => {
+      const schema = new Schema('string')
+        .condition((value, configuration) => {
           capturedConfig = configuration;
           return true;
-        }
-      });
+        });
 
       const compiled = await resolver.compile(schema);
       const config = { setting: 'value' };
@@ -117,12 +112,11 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should pass schema to condition function', async function() {
       let capturedSchema;
-      const schema = new Schema('string', {
-        condition: (value, configuration, schema) => {
+      const schema = new Schema('string')
+        .condition((value, configuration, schema) => {
           capturedSchema = schema;
           return true;
-        }
-      });
+        });
 
       const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test', {}, compiled, 'path');
@@ -132,12 +126,11 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should pass path to condition function', async function() {
       let capturedPath;
-      const schema = new Schema('string', {
-        condition: (value, configuration, schema, path) => {
+      const schema = new Schema('string')
+        .condition((value, configuration, schema, path) => {
           capturedPath = path;
           return true;
-        }
-      });
+        });
 
       const compiled = await resolver.compile(schema);
       await compiled.checkCondition('test', {}, compiled, 'some.nested.path');
@@ -146,9 +139,7 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should return true when condition passes', async function() {
-      const schema = new Schema('string', {
-        condition: () => true
-      });
+      const schema = new Schema('string').condition(() => true);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -157,9 +148,7 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should return false when condition fails', async function() {
-      const schema = new Schema('string', {
-        condition: () => false
-      });
+      const schema = new Schema('string').condition(() => false);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -168,12 +157,12 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should handle async condition functions', async function() {
-      const schema = new Schema('string', {
-        condition: async () => {
+      const schema = new Schema('string')
+        .condition( async () => {
           await new Promise(resolve => setTimeout(resolve, 1));
           return true;
-        }
-      });
+        });
+
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -182,9 +171,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should wrap sync condition functions', async function() {
-      const schema = new Schema('string', {
-        condition: (value) => value === 'expected'
-      });
+      const schema = new Schema('string')
+        .condition((value) => value === 'expected');
 
       const compiled = await resolver.compile(schema);
 
@@ -199,9 +187,8 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Value-based conditionals', function() {
 
     it('should allow condition based on value content', async function() {
-      const schema = new Schema('string', {
-        condition: (value) => value && value.length > 0
-      });
+      const schema = new Schema('string')
+        .condition((value) => value && value.length > 0);
 
       const compiled = await resolver.compile(schema);
 
@@ -213,9 +200,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should allow condition based on value type', async function() {
-      const schema = new Schema('any', {
-        condition: (value) => typeof value === 'string'
-      });
+      const schema = new Schema('any')
+        .condition((value) => typeof value === 'string');
 
       const compiled = await resolver.compile(schema);
 
@@ -227,9 +213,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should allow condition based on numeric value', async function() {
-      const schema = new Schema('number', {
-        condition: (value) => value > 0
-      });
+      const schema = new Schema('number')
+        .condition((value) => value > 0);
+
 
       const compiled = await resolver.compile(schema);
 
@@ -241,9 +227,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should allow condition based on boolean value', async function() {
-      const schema = new Schema('boolean', {
-        condition: (value) => value === true
-      });
+      const schema = new Schema('boolean')
+        .condition((value) => value === true)
 
       const compiled = await resolver.compile(schema);
 
@@ -258,9 +243,8 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Configuration-based conditionals', function() {
 
     it('should allow condition based on configuration state', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) => configuration.enabled === true
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => configuration.enabled === true)
 
       const compiled = await resolver.compile(schema);
 
@@ -272,9 +256,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should allow condition based on other configuration properties', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) => configuration.mode === 'advanced'
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => configuration.mode === 'advanced');
 
       const compiled = await resolver.compile(schema);
 
@@ -286,9 +269,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should allow condition based on nested configuration', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) => configuration.settings?.debug === true
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => configuration.settings?.debug === true);
 
       const compiled = await resolver.compile(schema);
 
@@ -310,9 +292,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should handle missing configuration properties', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) => configuration.optional?.setting ?? false
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => configuration.optional?.setting ?? false);
 
       const compiled = await resolver.compile(schema);
 
@@ -324,10 +305,9 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Complex conditional logic', function() {
 
     it('should support AND conditions', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) =>
-          value && value.length > 0 && configuration.enabled === true
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => value && value.length > 0 && configuration.enabled === true);
+
 
       const compiled = await resolver.compile(schema);
 
@@ -342,10 +322,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should support OR conditions', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) =>
-          configuration.mode === 'debug' || configuration.mode === 'development'
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => (configuration.mode === 'debug' || configuration.mode === 'development'));
 
       const compiled = await resolver.compile(schema);
 
@@ -360,9 +338,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should support NOT conditions', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) => configuration.disabled !== true
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => configuration.disabled !== true);
 
       const compiled = await resolver.compile(schema);
 
@@ -374,11 +351,10 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should support nested logical expressions', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) =>
+      const schema = new Schema('string')
+        .condition((value, configuration) =>
           (configuration.env === 'production' && configuration.logging === 'verbose') ||
-          (configuration.env === 'development')
-      });
+          (configuration.env === 'development'));
 
       const compiled = await resolver.compile(schema);
 
@@ -413,9 +389,9 @@ describe('Schema Compilation - Conditionals', function() {
     it('should apply conditions to individual properties', async function() {
       const schema = new Schema('object')
         .property('always', new Schema('string'))
-        .property('conditional', new Schema('string', {
-          condition: (value, configuration) => configuration.showConditional === true
-        }));
+        .property('conditional', new Schema('string')
+          .condition((value, configuration) => configuration.showConditional === true)
+        );
 
       const compiled = await resolver.compile(schema);
 
@@ -446,12 +422,12 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should support different conditions on different properties', async function() {
       const schema = new Schema('object')
-        .property('debug', new Schema('string', {
-          condition: (value, configuration) => configuration.debug === true
-        }))
-        .property('verbose', new Schema('string', {
-          condition: (value, configuration) => configuration.verbose === true
-        }));
+        .property('debug', new Schema('string')
+          .condition((value, configuration) => configuration.debug === true)
+        )
+        .property('verbose', new Schema('string')
+          .condition((value, configuration) => configuration.verbose === true)
+        )
 
       const compiled = await resolver.compile(schema);
 
@@ -475,10 +451,11 @@ describe('Schema Compilation - Conditionals', function() {
     it('should support conditions on nested properties', async function() {
       const schema = new Schema('object')
         .property('outer', new Schema('object')
-          .property('inner', new Schema('string', {
-            condition: (value, configuration) => configuration.enableInner === true
-          }))
+          .property('inner', new Schema('string')
+            .condition((value, configuration) => configuration.enableInner === true)
+          )
         );
+
 
       const compiled = await resolver.compile(schema);
 
@@ -503,9 +480,8 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Condition precedence and inheritance', function() {
 
     it('should not override explicit condition with base type default', async function() {
-      const schema = new Schema('string', {
-        condition: () => false
-      });
+      const schema = new Schema('string')
+        .condition(() => false);
 
       const compiled = await resolver.compile(schema);
 
@@ -514,15 +490,11 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should use local condition over base schema condition', async function() {
-      const baseSchema = new Schema('string', {
-        condition: () => false
-      });
+      const baseSchema = new Schema('string').condition(() => false);
 
       resolver.registerSchema('falseBase', baseSchema);
 
-      const derivedSchema = new Schema('falseBase', {
-        condition: () => true
-      });
+      const derivedSchema = new Schema('falseBase').condition(() => true);
 
       const compiled = await resolver.compile(derivedSchema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -535,9 +507,8 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Edge cases', function() {
 
     it('should handle condition with undefined value parameter', async function() {
-      const schema = new Schema('string', {
-        condition: (value) => value !== undefined
-      });
+      const schema = new Schema('string')
+        .condition((value) => value !== undefined)
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition(undefined, {}, compiled, 'path');
@@ -546,9 +517,8 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should handle condition with empty configuration', async function() {
-      const schema = new Schema('string', {
-        condition: (value, configuration) => Object.keys(configuration).length > 0
-      });
+      const schema = new Schema('string')
+        .condition((value, configuration) => Object.keys(configuration).length > 0);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -560,10 +530,9 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Condition type coercion', function() {
 
     it('should coerce truthy non-boolean values to true', async function() {
-      const schema = new Schema('string', {
+      const schema = new Schema('string')
         // @ts-ignore
-        condition: () => 'truthy string'
-      });
+        .condition(() => 'truthy string');
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -572,10 +541,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should coerce falsy non-boolean values to false', async function() {
-      const schema = new Schema('string', {
+      const schema = new Schema('string')
         // @ts-ignore
-        condition: () => 0
-      });
+        .condition(() => 0);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -584,10 +552,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should coerce undefined to false', async function() {
-      const schema = new Schema('string', {
+      const schema = new Schema('string')
         // @ts-ignore
-        condition: () => undefined
-      });
+        .condition(() => undefined);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -596,10 +563,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should coerce null to false', async function() {
-      const schema = new Schema('string', {
+      const schema = new Schema('string')
         // @ts-ignore
-        condition: () => null
-      });
+        .condition(() => null);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -608,10 +574,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should coerce empty string to false', async function() {
-      const schema = new Schema('string', {
+      const schema = new Schema('string')
         // @ts-ignore
-        condition: () => ''
-      });
+        .condition(() => '');
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -620,10 +585,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should coerce 0 to false', async function() {
-      const schema = new Schema('string', {
+      const schema = new Schema('string')
         // @ts-ignore
-        condition: () => 0
-      });
+        .condition(() => 0)
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -632,9 +596,7 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should preserve true as true', async function() {
-      const schema = new Schema('string', {
-        condition: () => true
-      });
+      const schema = new Schema('string').condition(() => true);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -643,9 +605,7 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should preserve false as false', async function() {
-      const schema = new Schema('string', {
-        condition: () => false
-      });
+      const schema = new Schema('string').condition(() => false);
 
       const compiled = await resolver.compile(schema);
       const result = await compiled.checkCondition('test', {}, compiled, 'path');
@@ -657,10 +617,9 @@ describe('Schema Compilation - Conditionals', function() {
   describe('Conditions with other schema features', function() {
 
     it('should work with validators', async function() {
-      const schema = new Schema('string', {
-        validator: /^\d+$/,
-        condition: (value) => value && value.length > 0
-      });
+      const schema = new Schema('string')
+        .validator(/^\d+$/)
+        .condition((value) => value && value.length > 0);
 
       const compiled = await resolver.compile(schema);
 
@@ -669,10 +628,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should work with transformers', async function() {
-      const schema = new Schema('string', {
-        transformer: (value) => value.toUpperCase(),
-        condition: (value) => value && value.length > 0
-      });
+      const schema = new Schema('string')
+        .transformer((value) => value.toUpperCase())
+        .condition((value) => value && value.length > 0)
 
       const compiled = await resolver.compile(schema);
 
@@ -681,10 +639,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should work with values constraint', async function() {
-      const schema = new Schema('string', {
-        values: ['a', 'b', 'c'],
-        condition: (value) => value !== 'a'
-      });
+      const schema = new Schema('string')
+        .values(['a', 'b', 'c'])
+        .condition((value) => value !== 'a');
 
       const compiled = await resolver.compile(schema);
 
@@ -696,10 +653,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should work with default values', async function() {
-      const schema = new Schema('string', {
-        default: 'default-value',
-        condition: (value, configuration) => configuration.useDefault === true
-      });
+      const schema = new Schema('string')
+        .default('default-value')
+        .condition((value, configuration) => configuration.useDefault === true);
 
       const compiled = await resolver.compile(schema);
 
@@ -708,10 +664,9 @@ describe('Schema Compilation - Conditionals', function() {
     });
 
     it('should work with required flag', async function() {
-      const schema = new Schema('string', {
-        required: true,
-        condition: (value, configuration) => configuration.required === true
-      });
+      const schema = new Schema('string')
+        .required()
+        .condition((value, configuration) => configuration.required === true);
 
       const compiled = await resolver.compile(schema);
 

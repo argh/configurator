@@ -6,34 +6,36 @@ const appName = 'cloud';
 
 // Top-level schema
 const rootSchema = new Schema()
-  .property('debug', new Schema('boolean', {
-    'metadata.hidden': true,
-    'metadata.description': 'enable debug mode (secret flag!)'
-  }))
+  .property('debug', new Schema('boolean')
+    .meta('hidden')
+    .meta('description', 'enable debug mode (secret flag!)')
+  );
 
 // This will be the "app" schema.  The "command" field will be used to drive the app's behavior.
 const cloudSchema = new Schema('object')
-  .property('region', new Schema('string', {
-    'metadata.description': 'cloud region',
-    default: 'west-1',
-    validator: {$in: ['west-1', 'west-2', 'east-1']}
-  }))
-  .property('command', new Schema('string', {
-    selector: true,
-    required: true,
-    'metadata.description': 'cloud command'
-  }))
+  .property('region', new Schema('string')
+    .meta('description', 'cloud region')
+    .default('west-1')
+    .validator({$in: ['west-1', 'west-2', 'east-1']})
+  )
+  .property('command', new Schema('string')
+    .selector()
+    .required()
+    .meta('description','cloud command')
+  )
   // add some hierarchical properties to demonstrate difference with selectors
   .property('credentials', new Schema('object')
-    .property('token', new Schema('string', {
-      'metadata.description': 'cloud security token',
-      required: true
-    }))
-    .property('key', new Schema('string', {
-      'metadata.description': 'cloud security key',
-      required: true
-    }))
-);
+    .property('token', new Schema('string')
+      .meta('description', 'cloud security token')
+      .required()
+    )
+    .property('key', new Schema('string')
+      .required()
+      .meta('description', 'cloud security key')
+    )
+  );
+
+
 
 rootSchema.property('cloud', cloudSchema);
 
@@ -59,86 +61,84 @@ rootSchema.property('cloud', cloudSchema);
 
 // To demonstrate a command hierarchy, we will also define a sub-command for "storage" called "storageCommand".
 
-const storageSchema = new Schema('object', {
-  selection: 'storage'
-})
-  .property('bandwidth', new Schema('number', {
-    default: 500,
-    validator: {$range: {min: 1, max: 1000}},
-    _description: 'storage bandwidth in Mbps'
-  }))
-  .property('iops', new Schema('number', {
-    default: 100,
-    validator: {$range: {min: 1, max: 10000}},
-    _description: 'storage IOPS'
-  }))
-  .property('storageCommand', new Schema('string', {
-    selector: true,
-    required: true,
-    _description: 'storage command'
-  }));
+const storageSchema = new Schema('object')
+  .selection('storage')
+  .property('bandwidth', new Schema('number')
+    .default(500)
+    .validator({$range: {min: 1, max: 1000}})
+    .meta('description', 'storage bandwidth in Mbps')
+  )
+  .property('iops', new Schema('number')
+    .default(100)
+    .validator({$range: {min: 1, max: 10000}})
+    .meta('description', 'storage IOPS')
+  )
+  .property('storageCommand', new Schema('string')
+    .selector()
+    .required()
+    .meta('description', 'storage command')
+  );
 cloudSchema.property('storage', storageSchema);
 
 
 // STORAGE SUB-COMMANDS
 
-storageSchema.property('list', new Schema('object', {
-  selection: true
-})
-  .property('bucket', new Schema('string', {
-    _description: 'storage bucket name',
-    required: true
-  }))
-  .property('recursive', new Schema('boolean', {
-    _description: 'list subdirectories',
-    default: false
-  })));
+storageSchema.property('list', new Schema('object')
+  .selection(true)
+  .property('bucket', new Schema('string')
+    .meta('description', 'storage bucket name')
+    .required()
+  )
+  .property('recursive', new Schema('boolean')
+    .meta('description', 'list subdirectories')
+    .default(false)
+  )
+);
 
-storageSchema.property('getConfig', new Schema('object', {
-  selection: 'get'
-})
-  .property('bucket', new Schema('string', {
-    _description: 'storage bucket name',
-    required: true
-  }))
-  .property('key', new Schema('string', {
-    _description: 'storage key name',
-    required: true
-  })));
+storageSchema.property('getConfig', new Schema('object')
+  .selection('get')
+  .property('bucket', new Schema('string')
+    .meta('description', 'storage bucket name')
+    .required()
+  )
+  .property('key', new Schema('string')
+    .meta('description', 'storage key name')
+    .required()
+  )
+);
 
-storageSchema.property('put', new Schema('object', {
-  selection: true
-})
-  .property('bucket', new Schema('string', {
-    _description: 'storage bucket name',
-    required: true
-  }))
-  .property('key', new Schema('string', {
-    _description: 'storage key name',
-    required: true
-  }))
-  .property('data', new Schema('string', {
-    validator: '$file',
-    general: true,
-    _description: 'storage file to upload'
-  })));
+storageSchema.property('put', new Schema('object')
+  .selection(true)
+  .property('bucket', new Schema('string')
+    .meta('description', 'storage bucket name')
+    .required()
+  )
+  .property('key', new Schema('string')
+    .meta('description', 'storage key name')
+    .required()
+  )
+  .property('data', new Schema('string')
+    .validator('$file')
+    .meta('general', true)
+    .meta('description', 'storage file to upload')
+  )
+);
 
 
 // COMPUTE
 
 // As with "storage" above, we'll create a sub-command for "compute" called "computeCommand".
 
-const computeSchema = new Schema('object', {
-  selection: true
-})
-  .property('watch', new Schema('boolean', {
-    _description: 'watch for compute events',
-    default: false
-  }))
-  .property('computeCommand', new Schema('string', {
-    selector: true,
-    required: true
-  }));
+const computeSchema = new Schema('object')
+  .selection(true)
+  .property('watch', new Schema('boolean')
+    .meta('description', 'watch for compute events')
+    .default(false)
+  )
+  .property('computeCommand', new Schema('string')
+    .selector()
+    .required()
+  );
 
 cloudSchema.property('compute', computeSchema);
 
@@ -148,17 +148,16 @@ cloudSchema.property('compute', computeSchema);
 // ("De-normalizing" settings can often be simpler than trying to provide ways to provide access to a common setting
 // throughout the application.)
 
-const computeCommandSchema = new Schema('object', {
-  selection: true
-})
-  .property('cluster', new Schema('string', {
-    _description: 'compute cluster name',
-    validator: '$alphanum',
-    required: true
-  }))
-  .property('debug', new Schema('boolean', {
-    inherit: true
-  }));
+const computeCommandSchema = new Schema('object')
+  .selection(true)
+  .property('cluster', new Schema('string')
+    .meta('description', 'compute cluster name')
+    .validator('$alphanum')
+    .required()
+  )
+  .property('debug', new Schema('boolean')
+    .inherit(true)
+  );
 
 // COMPUTE SUB-COMMANDS
 
@@ -166,28 +165,31 @@ computeSchema
   .property('create', computeCommandSchema.clone())
   .property('destroy', computeCommandSchema.clone())
   .property('describe', computeCommandSchema.clone()
-                                            .property('id', new Schema('string', {
-                                              _description: 'compute instance id',
-                                              validator: '$uuid',
-                                              required: true
-                                            })))
+    .property('id', new Schema('string')
+      .meta('description', 'compute instance id')
+      .validator('$uuid')
+      .required()
+    )
+  )
   .property('instances', computeCommandSchema.clone()
-                                             .property('filter', new Schema('string', {
-                                               validator: {$in: ['running', 'stopped', 'all', 'long-text', 'otherstuff', 'chopchop', 'keepgoing', 'long', 'wtf', 'this-is-silly']},
-                                               _description: 'compute instance filter, but maybe the description is really long and needs to be wrapped',
-                                               default: 'running'
-                                             })))
+    .property('filter', new Schema('string')
+      .validator({$in: ['running', 'stopped', 'all', 'long-text', 'otherstuff', 'chopchop', 'keepgoing', 'long', 'wtf', 'this-is-silly']})
+      .meta('description', 'compute instance filter, but maybe the description is really long and needs to be wrapped')
+      .default('running')
+    )
+  )
   .property('provision', computeCommandSchema.clone()
-                                             .property('image', new Schema('string', {
-                                               _description: 'compute image name',
-                                               default: 'linux',
-                                               required: true
-                                             }))
-                                             .property('architecture', new Schema('string', {
-                                               _description: 'compute architecture',
-                                               default: 'arm64',
-                                               required: true
-                                             })));
+    .property('image', new Schema('string')
+      .meta('description', 'compute image name')
+      .default('linux')
+      .required()
+    )
+    .property('architecture', new Schema('string')
+      .meta('description', 'compute architecture')
+      .default('arm64')
+      .required()
+    )
+  );
 
 
 try {

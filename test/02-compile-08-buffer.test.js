@@ -192,22 +192,25 @@ describe('Schema Compilation - Buffer Type', function() {
       assert.deepStrictEqual(decoded, buffer);
     });
 
-    it('should return undefined for non-Buffer values', async function() {
+    it('should return undefined for non-Buffer values or throw in strict mode', async function() {
       const schema = new Schema('buffer');
       const compiled = await resolver.compile(schema);
 
+
+      assert.strictEqual(await compiled.serialize('not a buffer'), undefined);
+
       await assert.rejects(
-        async () => await compiled.serialize('not a buffer'),
+        async () => await compiled.serialize('not a buffer', {strict: true}),
         SerializeError
       );
 
       await assert.rejects(
-        async () => await compiled.serialize(123),
+        async () => await compiled.serialize(123, {strict: true}),
         SerializeError
       );
 
       await assert.rejects(
-        async () => await compiled.serialize(null),
+        async () => await compiled.serialize(null, {strict: true}),
         SerializeError
       );
     });

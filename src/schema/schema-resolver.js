@@ -269,7 +269,7 @@ export class SchemaResolver
     }
     const compiledSchema = await this._compile(inputSchema);
     await this._finalize(compiledSchema);
-    compiledSchema._freeze();
+    compiledSchema.freeze();
     return compiledSchema;
   }
 
@@ -306,26 +306,26 @@ export class SchemaResolver
           outputSchema.unionSchemas[discriminatorValue] = this._resolve(unionSchema, parent, name);
         }
       }
+      for (const [handlerName, handlerValues] of Object.entries(source.handlers ?? {})) {
+        // TODO - add an option that enables a schema to opt out of base handler inheritance
+        if (!outputSchema.handlers.hasOwnProperty(handlerName)) {
+          outputSchema.handlers[handlerName] = [];
+        }
+        outputSchema.handlers[handlerName].unshift(...handlerValues);
+      }
+
       for (const [optionName, optionValue] of Object.entries(source.options ?? {})) {
-        // values?
-        if (optionName in ['normalizers', 'transformers', 'validators', 'serializers']) {
-          // TODO - WIP
-          if (!outputSchema.options.hasOwnProperty(optionName)) {
-            outputSchema.options[optionName] = [];
+        if (['normalizer', 'transformer', 'validator', 'serializer'].includes(optionName)) {
+          // todo - legacy, remove!
+          let handlerName = `${optionName}s`;
+          if (!outputSchema.handlers.hasOwnProperty(handlerName)) {
+            outputSchema.handlers[handlerName] = [];
           }
-          outputSchema.options[optionName].unshift(...optionValue);
+          outputSchema.handlers[handlerName].unshift(optionValue);
+//          throw new Error('LEGACY');
         }
-        else if (optionName in ['normalizer', 'transformer', 'validator', 'serializer']) {
-          // todo - legacy: remove!
-          if (!outputSchema.options.hasOwnProperty(optionName)) {
-            outputSchema.options[optionName] = [];
-          }
-          outputSchema.options[optionName].unshift(optionValue);
-        }
-        else {
-          if (!outputSchema.options.hasOwnProperty(optionName)) {
-            outputSchema.options[optionName] = optionValue;
-          }
+        if (!outputSchema.options.hasOwnProperty(optionName)) {
+          outputSchema.options[optionName] = optionValue;
         }
       }
       if (source instanceof CompiledSchema) {
@@ -385,7 +385,7 @@ export class SchemaResolver
 // fixme?      inputSchema.base = 'any';
     }
 
-    const source = await this._resolve(inputSchema);
+    const source = this._resolve(inputSchema);
 
     for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
       outputSchema.properties[propName] = await this._compile(propSchema, outputSchema, propName);
@@ -820,6 +820,7 @@ export class SchemaResolver
       let base;
       let values = new Set();
 
+      /** @type {ProcessorSpec} */
       let normalizer;
       let normalizerCompatible = true;
 
@@ -868,7 +869,10 @@ export class SchemaResolver
         throw new ConfiguratorError(`No compatible normalizer for common ${property} in union`)
       }
       // noinspection JSUnusedAssignment
-      const hoisted = new Schema(base ?? 'any', useNormalizer ? { normalizer } : {});
+      const hoisted = new Schema(base ?? 'any');
+      if (useNormalizer) {
+        hoisted.normalizer(normalizer);
+      }
       if (values.size > 0) {
         hoisted.values(Array.from(values))
       }

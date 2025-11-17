@@ -7,6 +7,7 @@
  * @property {ISchemaProperties} properties - Schema properties
  * @property {ISchemaOptions} options - Schema options
  * @property {ISchemaMetadata} metadata - Schema metadata
+ * @property {ISchemaHandlers} handlers - Schema handlers
  * @property {ISchemaUnion} unionSchemas - Union schema definitions
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
@@ -86,8 +87,19 @@ import { CompiledSchema } from "./compiled-schema.js";
 
 /** @typedef {ISchemaOptionsCommon & {[key:string]: any}} ISchemaOptions */
 
+/**
+ * @typedef {Object} ISchemaHandlers
+ * @property {Array<ProcessorSpec>} [normalizers]
+ * @property {Array<ProcessorSpec>} [conditions]
+ * @property {Array<ProcessorSpec>} [transformers]
+ * @property {Array<ProcessorSpec>} [serializers]
+ * @property {ProcessorSpec} [unionDiscriminator]
+ */
+
+
+
 /** @typedef {Object} ISchemaMetadataAttributesCommon
-  * @property {string} [_description] - help text description of the property; used by CommandLineSource
+ * @property {string} [_description] - help text description of the property; used by CommandLineSource
  * @property {string} [_valueName] - help text type name of the property value; used by CommandLineSource
  * @property {string} [_valueDescription] - help text description of the property value; used by CommandLineSource
  * @property {string} [_flagHint] - request a specific flag character; used by CommandLineSource
@@ -96,9 +108,12 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @property {boolean} [_general] - mark this field for CommandLineSource to be used without a flag or option
  * @property {string} [_parserTypeHint] - set to base/primitive types to help source parsers interpret values
  * @property {boolean} [_omitFromSerialize] - set to true to omit this schema's value when serializing
+ * @deprecated
  */
 
-/** @typedef {ISchemaOptionsCommon & ISchemaMetadataAttributesCommon & {[key:string]: any}} ISchemaAttributes */
+/** @typedef {ISchemaOptionsCommon & ISchemaMetadataAttributesCommon & {[key:string]: any}} ISchemaAttributes
+ * @deprecated
+ */
 
 /**
  * @typedef {Object.<string, ISchema>} ISchemaProperties
@@ -112,6 +127,7 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @typedef {Object} SchemaData
  * @property {string} [base]
  * @property {Object.<string,SchemaData>} [properties]
+ * @property {Object.<string,any>} [handlers]
  * @property {Object.<string,any>} [metadata]
  * @property {Object.<string,any>} [options]
  * @property {Object.<any,SchemaData>} [unionSchemas]
@@ -143,7 +159,10 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @property {boolean} [strict]
  */
 
-/** @typedef {VisitOptions} SerializeOptions */
+/** @typedef {Object} SerializeOptions
+ * @extends VisitOptions
+ * @property {boolean} [strict]
+ */
 
 /** @typedef {Object} AssignmentOptions
  * @property {boolean} [strict]

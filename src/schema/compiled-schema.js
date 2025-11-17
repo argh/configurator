@@ -27,6 +27,14 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
  * }} CompiledSchemaOptions
  */
 
+/** @typedef {Object} CompiledSchemaHandlers
+ * @property {Array<SchemaValueProcessor<any>>} [normalizers]
+ * @property {Array<SchemaValueProcessor<any>>} [conditionals]
+ * @property {Array<SchemaValueProcessor<any>>} [transformers]
+ * @property {Array<SchemaValueProcessor<any>>} [validators]
+ * @property {Array<SchemaValueProcessor<any>>} [serializers]
+ * @property {SchemaValueProcessor<string|CompiledSchema|undefined>} [unionDiscriminator]
+ */
 
 /** @typedef {Object.<string, CompiledSchema>} CompiledSchemaProperties */
 /** @typedef {Object.<NonNullable<any>, CompiledSchema>} CompiledSchemaUnionSchemas */
@@ -34,11 +42,13 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
 /**
  * CompiledSchema - the resolved version of a schema usable for processing configuration assignments
  *
- * The SchemaResolver compiler takes an input Schema and returns a CompiledSchema where:
- * - Developers get alerted about inconsistencies and errors.
+ * The SchemaResolver compiler takes an input Schema and constructs a CompiledSchema:
  * - The base schema hierarchy is resolved and flattened.
- * - Core options are standardized.
+ * - Handlers have their input specifications converted into asynchronous processor functions.
  * - Unions may trigger property hoisting and discriminator synthesis.
+ * - Core options are converted to standardized forms.
+ * - Metadata is expanded by introspecting the resolved schema.
+ * - Errors are thrown if the input Schema is invalid, inconsistent, or missing required data.
  *
  * @class
  * @typedef {import("./types.js").ISchema} ISchema
@@ -52,12 +62,12 @@ export class CompiledSchema
 
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
+   *
    * @param {Symbol} token - magic to reduce shenanigans
    * @param {CompiledSchema|undefined} [parent] - parent schema when added as a child
    * @param {string|undefined} [name] - property name within parent when added as a child
    */
   constructor(token, parent, name) {
-//    this._id = crypto.randomUUID();
     if (token !== CompiledSchema.__TOKEN) {
       throw new SchemaError('CompiledSchema must be created via compilation');
     }
@@ -65,39 +75,45 @@ export class CompiledSchema
     this._name = name;
     /** @type {CompiledSchema|undefined} */
     this._parent = parent;
-
     /** @type {CompiledSchemaProperties} */
     this._properties = {};
-
+    /** @type {CompiledSchemaHandlers} */
+    this._handlers = {};
     /** @type {CompiledSchemaOptions} */
     this._options = {};
-
     /** @type {CompiledSchemaMetadata} */
     this._metadata = {};
-
     /** @type {CompiledSchemaUnionSchemas} */
     this._unionSchemas = {};
   }
 
   /**
-   * name of parent schema property that references this schema
-   * @returns {string|undefined}
+   * The name of the parent schema property that references this schema.  If there is no parent, returns undefined.
+   *
+   * @type {string|undefined}
    */
   get name() {
     return this._name;
   }
 
   /**
-   * parent schema
-   * @returns {CompiledSchema|undefined}
+   * The parent schema that has this schema as a property. If there is no parent, returns undefined.
+   *
+   * @type {CompiledSchema|undefined}
    */
   get parent() {
     return this._parent; // overridden just for type narrowing
   }
 
   /**
-   * computed path of this schema within the entire schema hierarchy
-   * @returns {string}
+   * The path to this schema within the entire schema hierarchy.
+   *
+   * - The root schema path is an empty string.
+   * - Due to wildcard properties, the schema path may not match match the traversal path of a resolved configuration.
+   * - Union schemas all return their path as if they were co-located with their union.
+   * TODO - add union key?
+   *
+   * @type {string}
    */
   get path() {
     if (!this.name) {
@@ -107,27 +123,75 @@ export class CompiledSchema
     return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
   }
 
-  /** @type {CompiledSchemaOptions} */
+  /**
+   * Options contains information that changes schema parsing and processing.
+   *
+   * @type {CompiledSchemaOptions}
+   */
   get options() {
     return this._options;
   }
 
-  /** @type {CompiledSchemaMetadata} */
+  /**
+   * Metadata contains information for describing the schema behavior to users and hints for configuration sources.
+   *
+   * @type {CompiledSchemaMetadata}
+   */
   get metadata() {
     return this._metadata;
   }
 
-  /** @type {CompiledSchemaProperties} */
+  /**
+   * Properties are named child schemas, defining a hierarchical schema structure.
+   * - Property schemas are always unique instances, copied during compilation, and not shared.
+   * - Each child schema has a "name" that will always equal the property name within this schema.
+   * - Each child schema has a "parent" that will always reference this schema.
+   *
+   * @type {CompiledSchemaProperties}
+   */
   get properties() {
     return this._properties;
   }
 
-  /** @type {CompiledSchemaUnionSchemas} */
+  /**
+   * Handlers are associated with asynchronous value processors.
+   *
+   * The "friendly" handler definitions from the source Schema are each compiled into asynchronous functions
+   * that run as a pipeline.
+   *
+   * All handlers have the same async signature, receiving:
+   *   1. a value to be processed by the current schema
+   *   2. a reference to the top-level aggregate being built or processed by the entire schema hierarchy
+   *   3. a reference to the active schema that is processing the value
+   *   4. the traversal path to the active schema (may not match schema path in event of wildcards!)
+   *   5. any (unmanaged / developer defined) options passed to whatever invoked the handler processing
+   *
+   * The compiled handlers may vary in their return types and exception handling behavior.
+   *
+   * @type {CompiledSchemaHandlers}
+   */
+  get handlers() {
+    return this._handlers;
+  }
+
+  /**
+   * If this schema defines a union, return the schema member elements of the union.
+   *
+   * Unions use a discriminator handler to attempt to resolve to one of the unionSchema member elements
+   * based on either the value being processed or the overall aggregated data.  The key of the
+   * unionSchema in this collection is sometimes used as part of this process.
+   *
+   * Once the discriminator succeeds, the active schema switches to the resolved unionSchema.
+   *
+   * @type {CompiledSchemaUnionSchemas}
+   */
   get unionSchemas() {
     return this._unionSchemas;
   }
 
   /**
+   * Extract this schema as a raw data object.
+   *
    * @returns {SchemaData|undefined}
    */
   toData() {
@@ -135,8 +199,9 @@ export class CompiledSchema
   }
 
   /**
-   * hasChildren - return true if this schema has any children
-   * @returns {boolean}
+   * Return true if this schema has any child schemas.
+   *
+   * @type {boolean}
    */
   get hasChildren() {
     // noinspection LoopStatementThatDoesntLoopJS
@@ -147,16 +212,34 @@ export class CompiledSchema
   }
 
   /**
-   * Arrays sometimes need special treatment; built-in 'array' base sets this option
-   * @returns {boolean}
+   * Return true if this schema defines an array.
+   *
+   * Arrays sometimes need special treatment; the built-in 'array' base schema sets this option.
+   *
+   * @type {boolean}
    */
   get isArray() {
     return this._options.type === 'array';
   }
 
   /**
-   * isUnion - return true if this schema defines any unionSchemas
+   * Return true if this schema defines a function value.
+   *
+   * Functions passed to most operations are interpreted as dynamic values (called to retrieve actual value).
+   * This setting overrides that behavior, and forces a passed function to be treated as a simple value.
+   *
    * @returns {boolean}
+   */
+  get isFunction() {
+    return this._options.type === 'function'
+  }
+
+
+  /**
+   * Return true if this schema defines a union.
+   * Unions adopt the behavior of one of their unionSchema member elements based on a discriminator handler function.
+   *
+   * @type {boolean}
    */
   get isUnion() {
     // noinspection LoopStatementThatDoesntLoopJS
@@ -168,24 +251,29 @@ export class CompiledSchema
 
 
   /**
-   * isSelector - return true if the schema acts as a selector
-   * @returns {boolean}
+   * Return true if the schema acts as a selector.
+   * Selectors control the activation or deactivation of peer selection schemas using a conditional handler
+   * synthesized during compilation.
+   *
+   * @type {boolean}
    */
   get isSelector() {
     return !!this._options.selector;
   }
 
   /**
-   * isSelection
-   * @returns {boolean}
+   * Return true if this schema is a selection conditionally activated by a peer selector.
+   *
+   * @type {boolean}
    */
   get isSelection() {
     return this._options.selection !== undefined;
   }
 
   /**
-   * selection - get the selector value that triggers this selection, if any
-   * @returns {string|undefined}
+   * Get the selector value that triggers this selection.  The default value for a selection is its own property name.
+   *
+   * @type {string|undefined}
    */
   get selection() {
     if (typeof this._options.selection === 'string') {
@@ -197,15 +285,18 @@ export class CompiledSchema
   }
 
   /**
-   * legal values for this schema, if known
-   * @returns {Array<NonNullable<any>>|undefined}
+   * Return the legal (normalized) values this schema accepts, if defined.
+   * (This acts as an "upstream" check before calling any processing handlers.)
+   *
+   * @type {Array<NonNullable<any>>|undefined}
    */
   get values() {
     return this._options.values;
   }
 
   /**
-   * return true if this schema seems to be able to handle a given input value
+   * Return true if this schema seems to be able to handle a given (normalized) input value.
+   *
    * @param {any} value
    * @returns {Promise<boolean>}
    */
@@ -223,52 +314,101 @@ export class CompiledSchema
   }
 
   /**
-   * returns true if the value defined by this schema is required to exist in the output
-   * @returns {boolean}
+   * Returns true if the value defined by this schema is required to exist in the output to be valid.
+   *
+   * Under the normal pathways, this is a shallow requirement:
+   * - Each schema validates its own input; if the required flag is set, the input must not be undefined.
+   * - If the input value is defined and the schema has children, all child property schemas will
+   *   recursively validate the corresponding child value inside the input.
+   * - If the input value is undefined, child property schemas are NOT validated.
+   *
+   * (There can be subtle interplay between the "required" flag and the "default" setting, as defaults
+   * can be deep or shallow, depending on library configuration!)
+   *
+   * @type {boolean}
    */
   get required() {
     return this._options.required ?? false;
   }
 
   /**
-   * returns true if the schema should have strict validation (undefined means use the validator call option)
-   * @returns {boolean|undefined}
+   * Returns whether this schema enforces strict/lax validation:
+   * - returns true if the schema should always use strict validation
+   * - returns false if the schema should always use lax validation
+   * - if undefined, it's up to validator
+   *
+   * This setting is useful for preventing validation errors when transforms return objects
+   * that contain extra properties with no matching schema definition.
+   *
+   * @type {boolean|undefined}
    */
   get strict() {
     return this._options.strict;
   }
 
   /**
-   * the default value this schema provides if the input is undefined
-   * @returns {any|undefined}
+   * Returns the default value this schema provides if the input is undefined.
+   *
+   * At the schema level, this is interpreted as a "shallow" default, and will only populate if
+   * processing the top-level value, or if the immediate parent is processing a defined
+   * container value.
+   *
+   * However, for the purpose of configuration, "deep" defaults are usually desired, and the
+   * SchemaDefaultsSource configuration source will synthesize assignments based on this default
+   * value.  (You may change the Configurator source list to disable this behavior!)
+   *
+   * @type {any|undefined}
    */
   get default() {
     return this._options.default;
   }
 
+  /**
+   * Return true if the schema always returns an inherited value.
+   *
+   * Inherited properties never accept a direct assignment, and will always return the value
+   * corresponding to the first matching property name found higher in the schema.
+   *
+   * @type {boolean}
+   */
   get inherit() {
     return this._options.inherit ?? false;
   }
 
   /**
-   * return true if is schema defines a value that is implicit in the post-transform version
-   * @returns {boolean}
+   * Returns true if this schema defines a value that can be assumed to always exist and be valid after transformation.
+   *
+   * The implicit setting implies that values passed to this schema should not be visited or validated.
+   *
+   * @type {boolean}
    */
   get implicit() {
     return this._options.implicit ?? false;
   }
 
   /**
-   * return true if the container allows incremental assignment to children
+   * Returns true if the container allows incremental assignment to children.
+   * TODO - deprecate, flip logic, rename to "opaque".
+   *
    * @returns {boolean}
+   * @deprecated
    */
-
   get allowIncremental() {
     return this._options.allowIncremental ?? this.hasChildren;
   }
 
   /**
-   * processAssignments - convert a map of assignments into a validated output based on the current schema
+   * Returns true if the schema defines a value whose internals are hidden after transformation.
+   *
+   * @returns {boolean}
+   */
+  get opaque() {
+    return this._options.allowIncremental === false;
+  }
+
+
+  /**
+   * Process a map of assignments into a validated output based on the current schema.
    *
    * Assignments are provided as a map of path-to-value pairs, where the path corresponds to the location in
    * the final output.
@@ -393,13 +533,25 @@ export class CompiledSchema
   }
 
   /**
-   * Handle a deep assignment, constructing intermediate containers as warranted.
+   * Process a single deep assignment and store the results in the output, building on the overall assignment progress.
+   *
+   * Each assignment runs the handlers corresponding to their schema:
+   *   1. normalize input
+   *   2. resolve union if possible
+   *   3. check if condition passes
+   *   4. transform to output
+   * Intermediate containers for deep paths are constructed (via normalizer) as needed.
+   *
+   * Once an assignment has been fully handled, progress.setCompleted is called with the assignment path.
+   * The output from assignments for unresolved unions and opaque objects that don't allow incremental assignment are
+   * "staged" until complete.  Uncompleted assignments (due to processors returning undefined) are left for the
+   * processAssignments call to retry until the configuration stabilizes.
    *
    * @param {AssignmentProgress} progress - assignment state
    * @param {any} result                  - root object being built
    * @param {string} assignmentPath       - entire path to the assignment
    * @param {any} assignmentValue         - value to assign
-   * @param {string} currentPath      - path to current schema in the assignment (starts at top === '')
+   * @param {string} currentPath          - path to current schema in the assignment (starts at top === '')
    * @param {any} currentValue            - value corresponding to the current path, if any
    * @param {string} remainingPath        - the rest of the path below the current path
    * @returns {Promise<any|symbol>}
@@ -526,9 +678,9 @@ export class CompiledSchema
 
     let returnValue = currentValue;
 
-    if (isAssignmentSchema && typeof assignmentValue === 'function' && !isConstructor(assignmentValue)) {
-      // if value is a function, it must act like an AsyncSchemaValueProcessor that returns the actual value
-      // todo - add option to allow setting the value to a function without calling it
+    if (isAssignmentSchema && typeof assignmentValue === 'function' && !isConstructor(assignmentValue) && !currentSchema.isFunction) {
+      // Unless the schema is explicitly typed as expecting function values, functions are interpreted as dynamically
+      // resolved values with the same signature as a AsyncSchemaValueProcessor, invoked to retrieve the actual value.
       assignmentValue = await assignmentValue(currentValue, result, currentSchema, currentPath);
 
       if (assignmentValue === undefined) {
@@ -537,7 +689,7 @@ export class CompiledSchema
     }
 
     if (isAssignmentSchema || returnValue === undefined || returnValue === null) {
-      // container schema normalizers should produce an appropriate type when passed "true"
+      // By contract, container schema normalizers should construct an appropriate container type when passed "true"
       returnValue = await currentSchema.normalize(isAssignmentSchema? assignmentValue : true, result, currentPath);
 
       if (returnValue === undefined || returnValue === null) {
@@ -622,7 +774,11 @@ export class CompiledSchema
   }
 
   /**
-   * Check if the provided value passes the schema conditional check
+   * Check if the provided value passes the schema conditional check.
+   *
+   * Failed conditions will be repeatedly re-checked during assignment processing until the final pass.
+   * Errors encountered while checking conditions are caught and simply result in a failed condition.
+   *
    * @param {any} value
    * @param {any} configuration
    * @param {CompiledSchema} schema
@@ -633,13 +789,34 @@ export class CompiledSchema
     if (typeof this._options.condition !== 'function') {
       throw new SchemaError('Unresolved schema condition');
     }
-    const result = await this._options.condition(value, configuration, schema, path);
-    return Boolean(result);
+    try {
+      const result = await this._options.condition(value, configuration, schema, path);
+      return Boolean(result);
+    }
+    catch (_) {
+      return false;
+    }
   }
 
 
   /**
-   * normalize - ensure the input is of an expected shape that can be handled by this schema
+   * Ensure the input is of an expected shape that can be handled by this schema.
+   *
+   * Runs all normalizer value processors in a pipeline until one returns undefined or throws an error.
+   * As most external configuration will originate in the form of strings or JSON
+   * structures, the main task of a normalizer is to "canonicalize" these inputs:
+   * - The normalized output should be accepted by the transformer handler.
+   * - Normalizers should pass through valid transformed values unchanged.
+   * - By contract, when passed "true", a container schema should construct an "empty"
+   *   container (e.g. {} or []).  (Even a schema that defines transformation to a
+   *   complex class should have a normalized empty container format to use for construction).
+   *
+   * The normalize process will throw an exception if the input is incompatible.
+   *
+   * Unlike other handlers, normalizers should generally not depend on the overall
+   * configuration state, as they are sometimes invoked in isolation (even during compilation!)
+   * and thus shouldn't depend on the "undefined means retry later" behavior of other handlers.
+   *
    * @param {any} value
    * @param {any} [configuration]
    * @param {string} [path]
@@ -671,7 +848,17 @@ export class CompiledSchema
   }
 
   /**
-   * transform - transform an input value based on this schema and provided context
+   * Transform an input value for the final configuration based on this schema and provided context.
+   *
+   * Runs all transformer value processors in a pipeline until one returns undefined or throws an error.
+   * - The input to the pipeline is be assumed to be normalized.
+   * - An error may be thrown if the input cannot be transformed.
+   * - If a transformer depends upon the overall configuration, it may return undefined to signal
+   *   that the transform should be retried when the configuration is updated.
+   *
+   * A schema's transform is allowed to enforce validation internally, or it can delegate this to
+   * the validation handler.  In any case, the output from the transform is not guaranteed to be valid.
+   *
    * @param {any} value - input value to transform
    * @param {any} configuration - global configuration in case the transformer depends on it
    * @param {string} path - the path to this value in the global configuration (caller will set)
@@ -702,10 +889,16 @@ export class CompiledSchema
   }
 
   /**
-   * Populate defaults - by design, shallow only at this point.
-   * (The option to create deep defaults is implemented by SchemaDefaultsSource).
-   * @param {any} input
-   * @param {VisitOptions} [options]
+   * Return output that corresponds to the input after being populated with defaults found in the schema.
+   *
+   * The normal behavior of this call is to mutate the input data, and to only "shallowly" populate defaults.
+   * You can override this behavior by passing in advanced visit() options, notably:
+   * - visitUndefined (false) - if true, populate defaults everywhere in the entire schema hierarchy
+   * - visitUndefinedShallow (true) - implies visitUndefined, but with a depth limit (self and immediate children)
+   * - visitDefaults (true) - do not run validation if an input matches the default value
+   *
+   * @param {any} input - the input data
+   * @param {VisitOptions} [options] - options to override how the data is visited
    * @returns {Promise<any>}
    */
   async populateDefaults(input, options) {
@@ -723,7 +916,26 @@ export class CompiledSchema
   }
 
   /**
-   * validate - ensure that an object matches the schema
+   * Return a validated output if and only if the input fully matches the schema definition.
+   *
+   * Runs all validator processors in a pipeline until one returns undefined or throws an error:
+   * - The validation input is assumed to already have been transformed.
+   * - If the input data is invalid, the validate call will throw an error.
+   *
+   * The normal behavior of validate is to simply return the input data if it passes the checks,
+   * but by passing advanced options, you can change how validation functions:
+   * - enforceUnionResolution (true) if false, unresolved unions are not an error
+   * - enforceRequired (true) if false, missing requirements are not an error
+   * - disallowUnexpected (true) if false, extra properties in the data are not an error
+   * You can also pass any visit() options, notably:
+   * - visitUndefined (false) - if true, deep validate the data against the entire schema hierarchy
+   * - visitUndefinedShallow (true) - implies visitUndefined, but with a depth limit (self and immediate children)
+   * - visitDefaults (true) - do not run validation if an input matches the default value
+   * Only one of the following may be set:
+   * - update (false) - if true, return the input (possibly mutated by the validation processors)
+   * - copy (false) - if true, return a (potentially different) copy of the input (as output from validation processors)
+   * - extract (true) - if true, just return the original input
+   *
    * @param {any} input - input value to validate
    * @param {ValidateOptions} [options] - any tweaks to the validator behavior
    * @returns {Promise<any>} - validated value
@@ -737,7 +949,7 @@ export class CompiledSchema
     const enforceRequired = options.enforceRequired ?? strict;
 
     try {
-      return await this.visit(input, async (current, input, schema, path) => {
+      const validated = await this.visit(input, async (current, input, schema, path) => {
         if (!schema) {
           const parentSchema = this.findParent(path);
 
@@ -774,6 +986,7 @@ export class CompiledSchema
           throw new ValidationError(fpm('Validation error', path), {cause:error})
         }
       }, {resolveUnions: true, visitUndefinedShallow: true, visitUnexpected: !disallowUnexpected, visitDefaults: true, ...options})
+      return validated === EMPTY_VALUE ? undefined : validated;
     }
     catch (error) {
       if (error instanceof ValidationError) {
@@ -785,22 +998,23 @@ export class CompiledSchema
     }
   }
 
-
-
-
-
   /**
    * Serialize the config data as if it were a config file.
+   * Runs all serialization processors in a pipeline.  By default, if any processor returns undefined or throws an error,
+   * serialization of that value returns undefined and will be omitted from the output.  If you set the "strict"
+   * option, errors are re-thrown.
    *
-   * Attempts to convert resolved values back to an input-friendly value, first via the "serialize" schema option,
-   * or alternatively by trusting that each value is either already compatible, or implements toJSON().
+   * Serializers attempt to convert resolved values back to an input-friendly value, first via the "serialize"
+   * schema option, or alternatively by trusting that each value is either already compatible, or implements toJSON().
    *
    * @param {any} config
    * @param {SerializeOptions} [options]
    * @returns {Promise<NonNullable<any>>}
    */
   async serialize(config, options = {}) {
-    return this.visit(config, async (value, configuration, schema, path, options) => {
+    const strict = options.strict ?? false;
+
+    const serialized = await this.visit(config, async (value, configuration, schema, path, options) => {
       try {
         if (schema === undefined || schema.metadata.omitFromSerialize) {
           return EMPTY_VALUE;
@@ -811,18 +1025,29 @@ export class CompiledSchema
           if (!serializer || typeof serializer !== 'function') {
             throw new SchemaError('Invalid serializer');
           }
-
-          return await serializer(value, configuration, schema, path, options);
+          try {
+            return await serializer(value, configuration, schema, path, options);
+          }
+          catch (error) {
+            if (strict) {
+              throw error;
+            }
+            return EMPTY_VALUE;
+          }
         }
       }
       catch (error) {
         throw new SerializeError(`${fpm('Error serializing', path)}`);
       }
     }, {...options, extract: true});
+
+    return serialized === EMPTY_VALUE? undefined : serialized;
   }
 
   /**
-   * Use the registered discriminator to return a matching union schema
+   * Use the registered discriminator to return a matching union schema, or undefined if the union cannot be resolved.
+   * Discriminator functions must return either one of the unionSchema members, a unionSchema key, or undefined.
+   *
    * @param {any} value
    * @param {any} configuration
    * @param {string} path
@@ -857,25 +1082,26 @@ export class CompiledSchema
   }
 
   /**
+   * Given a reference to a union schema member, return the matching key, or undefined if it cannot be found.
+   *
    * @param {CompiledSchema} unionSchema
    * @returns {string|undefined}
    */
-
   findUnionKey(unionSchema) {
     return Object.keys(this.unionSchemas).find(key => this.unionSchemas[key] === unionSchema)
   }
 
   /**
-   * Find the schema at a given path (supports union keys in path components)
+   * Find the schema at a given path (supports wildcards and colon-delimited union keys in path components).
+   * The root schema may be found at '', the empty string.  Array members are referenced with dotted integer indexes.
+   *
    * @param {string} path
    * @returns {undefined|CompiledSchema}
    */
   find(path) {
-
     if (!path || path === '' || path === '.') {
       return this;
     }
-
     const pathComponents = path.split('.');
 
     /** @type {CompiledSchema|undefined} */
@@ -900,7 +1126,10 @@ export class CompiledSchema
   }
 
   /**
-   * Find the parent schema of a given path (which might be several levels deeper than the last known schema!)
+   * Find the parent schema for a given path, even if parts of the path do not exist in the schema hierarchy.
+   *
+   * Given unknown path components, the result might be several levels higher than the provided path would imply!
+   *
    * @param {string} path
    * @returns {CompiledSchema|undefined}
    */
@@ -923,7 +1152,8 @@ export class CompiledSchema
 
 
   /**
-   * toAssignments - attempt to convert an input to a map of assignments
+   * toAssignments - attempt to convert input data to a map of assignments.
+   *
    * @param {any} object - input
    * @param {string} prefix - prefix to add to any path generated
    * @returns {Map<string, any>} - output map of path-to-value associations
@@ -957,6 +1187,7 @@ export class CompiledSchema
     return assignments;
   }
 
+  // todo - did I decide not to go this way?  remove or use!
   async newToAssignments(object, prefix = '') {
     if (typeof object !== 'object') {
       return new Map([['', object]]);
@@ -979,19 +1210,16 @@ export class CompiledSchema
   }
 
   /**
-   * visitSchema - call visitor on every schema node; if visitor returns false (explicitly), abort early
+   * Invoke a provided visitor function on every schema node; if visitor returns false (explicitly), abort early.
    *
    * @param {(schema:CompiledSchema, path:string) => any} visitor - visitor function
    * @param {{addUnionKeys?:boolean, onlySerializable?:boolean}} [options]
    * @returns {boolean} - returns true if visitors all returned true, false if any exited early
-   *
-   * todo: option to call visitor with union key as part of the path?
    */
   visitSchema(visitor, options) {
     const addUnionKeys = options?.addUnionKeys ?? false;
     const onlySerializable = options?.onlySerializable ?? false;
     /**
-     *
      * @param {CompiledSchema} schema
      * @param {string} path
      * @returns {any|boolean}
@@ -1021,16 +1249,18 @@ export class CompiledSchema
     return walk(this, '') ?? true;
   }
 
+  // We will use this as a signal
+  // todo: consolidate with __IGNORE?
   static get EMPTY_VALUE() { return EMPTY_VALUE }
 
-
-
-
-
-
   /**
-   * visit - call an async visitor function on everything in an input object based on the schema definition;
-   *         if any visitors return a falsey value, return early
+   * Asynchronously call a provided visitor function on everything in an input object based on the schema definition.
+   *
+   * If a visitor returns a value, it is propagated; otherwise the original value is used.
+   * The EMPTY_VALUE symbol is used to signal that the result should be pruned from the output.
+   *
+   * TODO: consolidate update/copy/extract into a visitResult option
+   *       document options
    *
    * @param {any} input - input object
    * @param {AsyncSchemaValueVisitorFunction} visitor - async visitor
@@ -1053,7 +1283,6 @@ export class CompiledSchema
     }
 
     /**
-     *
      * @param {CompiledSchema|undefined} schema
      * @param {any|undefined} current
      * @param {string} path
@@ -1176,20 +1405,9 @@ export class CompiledSchema
     return (ret === EMPTY_VALUE) ? undefined : ret;
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
   /**
-   * Compute all possible schema paths (including union schema properties)
+   * Compute all possible schema paths (including union schema properties, optionally adding colon-delimited union keys)
+   *
    * @param {{addUnionKeys: boolean?}} [options]
    * @returns {Set<string>}
    */
@@ -1210,22 +1428,24 @@ export class CompiledSchema
   }
 
   /**
-   * getPropertySchema - return a property schema (possibly via wildcard)
+   * Return a named property schema (possibly via wildcard)
    *
    * @param {string} propertyName
    * @returns {CompiledSchema}
    */
   getPropertySchema(propertyName) {
-//    if (propertyName === '') {
-//      return this;
-//    }
+    if (propertyName === undefined || propertyName === '') {
+      throw new SchemaError('Unable to retrieve an unnamed property');
+    }
     return this.properties[propertyName] ?? this.properties['*'];
   }
 
   /**
-   * getTagged - return all child schemas that have a particular option tag
+   * Return all child schemas that have a particular option tag
+   *
    * @param {string} tag
    * @returns {CompiledSchema[]}
+   * @deprecated
    */
   getTagged(tag) {
     const schemas = [];
@@ -1239,9 +1459,11 @@ export class CompiledSchema
   }
 
   /**
-   * getFirstTagged - get the first child schema that has a particular option tag
+   * Get the first child schema that has a particular option tag
+   *
    * @param {string} tag
    * @returns {CompiledSchema|undefined}
+   * @deprecated
    */
   getFirstTagged(tag) {
     for (let propName in this.properties) {
@@ -1254,7 +1476,10 @@ export class CompiledSchema
   }
 
   /**
-   * isValidPath - return true if the path is legal within the schema (may not match a union, but does it exist at all)
+   * Return true if the path is legal within the schema (including all union schemas)
+   *
+   * TODO - add support for explicit union keys?
+   *
    * @param {string} path
    * @returns {boolean}
    */
@@ -1284,15 +1509,21 @@ export class CompiledSchema
     }
     return check(this);
   }
-  _freeze() {
+
+  /**
+   * Write-protect this schema at the end of compilation.
+   *
+   * @internal
+   */
+  freeze() {
     for (let childSchema of Object.values(this._properties)) {
-      childSchema._freeze();
+      childSchema.freeze();
     }
     Object.freeze(this._properties);
     Object.freeze(this._options);
     Object.freeze(this._metadata);
     for (let unionSchema of Object.values(this._unionSchemas)) {
-      unionSchema._freeze();
+      unionSchema.freeze();
     }
     Object.freeze(this._unionSchemas);
     Object.freeze(this);
@@ -1334,7 +1565,6 @@ class AssignmentProgress {
 
     this.counter = 0;
   }
-
 
   addAssignment(path, value) {
     if (!this.assignments.has(path)) {
@@ -1527,12 +1757,14 @@ class AssignmentProgress {
 const EMPTY_VALUE = Symbol('EMPTY')
 
 /**
- * format a path (possibly with property)
+ * Format a path (possibly with property), typically for error messages.
+ *
  * @param {string} message
  * @param {string} path
  * @param {string} [property]
  * @param {string} [prep]
  * @returns {string}
+ * @private
  */
 function fpm(message, path, property, prep = 'at') {
 

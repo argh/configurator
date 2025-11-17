@@ -53,9 +53,9 @@ describe('Assignments - Basic Processing', function() {
 
     it('should normalize values during assignment', async function() {
       const schema = new Schema('object')
-        .property('email', new Schema('string', {
-          normalizer: (v) => v.toLowerCase()
-        }));
+        .property('email', new Schema('string')
+          .normalizer((v) => v.toLowerCase())
+        );
 
       const compiled = await resolver.compile(schema);
 
@@ -72,9 +72,9 @@ describe('Assignments - Basic Processing', function() {
       // Schema type describes output, not input
       // Since transformer produces a Date object, use 'any' or 'object' as base
       const schema = new Schema('object')
-        .property('timestamp', new Schema('any', {
-          transformer: (v) => new Date(Number(v))
-        }));
+        .property('timestamp', new Schema('any')
+          .transformer((v) => new Date(Number(v)))
+        );
 
       const compiled = await resolver.compile(schema);
 

@@ -244,19 +244,26 @@ describe('Schema Compilation - Date Type', function() {
       assert.strictEqual(serialized, '1970-01-01T00:00:00.000Z');
     });
 
-    it('should throw SerializeError for non-Date values', async function() {
+    it('should throw SerializeError for non-Date values in strict mode', async function() {
       const schema = new Schema('date');
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.serialize('2024-01-01'),
+        () => compiled.serialize('2024-01-01', {strict: true}),
         SerializeError
       );
 
       await assert.rejects(
-        () => compiled.serialize(1704067200000),
+        () => compiled.serialize(1704067200000, {strict: true}),
         SerializeError
       );
+    });
+    it('should suppress SerializeError for non-Date values in non-strict mode', async function() {
+      const schema = new Schema('date');
+      const compiled = await resolver.compile(schema);
+
+      assert.strictEqual(await compiled.serialize('2024-01-01'), undefined);
+      assert.strictEqual(await compiled.serialize(1704067200000), undefined);
     });
   });
 
