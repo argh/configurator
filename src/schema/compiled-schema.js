@@ -23,7 +23,7 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
  *              validator?: AsyncSchemaValueProcessor<any>,
  *              serializer?: AsyncSchemaValueProcessor<any>,
  *              condition?: AsyncSchemaValueProcessor<boolean>,
- *              discriminator?: AsyncSchemaValueProcessor<CompiledSchema>
+ *              discriminator?: AsyncSchemaValueProcessor<string|CompiledSchema|undefined>
  * }} CompiledSchemaOptions
  */
 
@@ -36,8 +36,8 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
  * @property {SchemaValueProcessor<string|CompiledSchema|undefined>} [unionDiscriminator]
  */
 
-/** @typedef {Object.<string, CompiledSchema>} CompiledSchemaProperties */
-/** @typedef {Object.<NonNullable<any>, CompiledSchema>} CompiledSchemaUnionSchemas */
+/** @typedef {Object.<string, import('./compiled-schema.js').CompiledSchema>} CompiledSchemaProperties */
+/** @typedef {Object.<string, import('./compiled-schema.js').CompiledSchema>} CompiledSchemaUnionSchemas */
 
 /**
  * CompiledSchema - the resolved version of a schema usable for processing configuration assignments

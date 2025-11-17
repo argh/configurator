@@ -8,7 +8,11 @@ import {
   ResolverError
 } from '../errors.js';
 import { deepValue, toKebabCase } from '../utils.js';
-import { findDiscriminatorProperties, generateDiscriminatorFunction } from './helpers/union-helpers.js';
+import {
+  findDiscriminatorProperties,
+  generateAutomaticDiscriminatorFunction,
+  generatePropertyValueDiscriminatorFunction
+} from './helpers/union-helpers.js';
 
 import { ANY_SCHEMA } from './builtin-schemas/any-schema.js';
 import { STRING_SCHEMA } from './builtin-schemas/string-schema.js';
@@ -148,6 +152,7 @@ export class SchemaResolver
    * Wrap or convert a user-provided processor specification into a processor function
    * @param {ProcessorSpec} spec - The processor specification
    * @returns {CompiledValueProcessorDefinition}
+   * @private
    */
   _compileProcessorSpec(spec) {
     if (!spec) {
@@ -159,8 +164,23 @@ export class SchemaResolver
 
     if (typeof spec === 'function') {
       return {
+        // todo - shouldn't we just call this._asyncifySVF?
         processor: async (v, c, s, p, o) => spec(v, c, s, p, o), // Already a function - wrap to ensure it's async
         description: undefined
+      }
+    }
+
+    if (typeof spec === 'string' && spec.startsWith('/') && spec.lastIndexOf('/') > 0) {
+      // String regex pattern "/pattern/flags" - parse and fall through to the regex rule
+      const lastSlash = spec.lastIndexOf('/');
+      const pattern = spec.slice(1, lastSlash);
+      const flags = spec.slice(lastSlash + 1);
+
+      try {
+        spec = new RegExp(pattern, flags);
+      }
+      catch (error) {
+        throw new ResolverError(`Invalid regex pattern: ${spec}`);
       }
     }
 
@@ -179,29 +199,6 @@ export class SchemaResolver
 
     // String handling
     if (typeof spec === 'string') {
-
-      if (spec.startsWith('/') && spec.lastIndexOf('/') > 0) {
-        // String regex pattern "/pattern/flags"
-        const lastSlash = spec.lastIndexOf('/');
-        const pattern = spec.slice(1, lastSlash);
-        const flags = spec.slice(lastSlash + 1);
-
-        try {
-          const regex = new RegExp(pattern, flags);
-          return {
-            processor: async (value) => {
-              if (!regex.test(String(value))) {
-                throw new ConstraintError(`Value does not match pattern ${spec}`);
-              }
-              return value;
-            },
-            description: spec
-          }
-        } catch (error) {
-          throw new ResolverError(`Invalid regex pattern: ${spec}`);
-        }
-      }
-
       if (spec.startsWith('$')) {
         const keyword = spec.slice(1);
         const registered = this.processorMap.get(keyword);
@@ -211,12 +208,16 @@ export class SchemaResolver
         }
 
        return {
+          // todo - call asyncifySVF?
           processor: async (v,c,s,p,o) => registered.process?.(v,c,s,p,o),
           description: registered.describe?.()
         }
       }
 
       // Plain string - treat as exact match
+      // todo - consider making any other spec a literal that emits its own value?
+      //        could support {$or: ['$might-fail', 'fallback-value']}
+      //        need to add {$exact: value} to do this
       return {
         processor: async (value) => {
           if (String(value) !== spec) {
@@ -274,6 +275,7 @@ export class SchemaResolver
   }
 
   /**
+   * Create a new Schema that contains the flattened hierarchy of all resolved base schemas
    * @param {Schema|CompiledSchema|SchemaData} inputSchema
    * @param {Schema} [parent]
    * @param {string} [name]
@@ -735,7 +737,7 @@ export class SchemaResolver
       exec: async (option, value, dst) => {
         if (!value) {
           if (dst.isUnion && !dst.options.discriminator) {
-            dst.options.discriminator = generateDiscriminatorFunction(dst);
+            dst.options.discriminator = generateAutomaticDiscriminatorFunction(dst);
             await this._hoistDiscriminatorProperties(dst);
           }
           return;  // there is no default discriminator
@@ -747,41 +749,7 @@ export class SchemaResolver
           dst.options.discriminator = this._asyncifySVF(value);
         }
         else if (typeof value === 'string') {
-          const propertyName = value;
-          const ref = dst.properties[propertyName];
-          if (!ref) {
-            throw new SchemaError(`Discriminator property ${propertyName} not found`);
-          }
-          dst.options.discriminator = async input => {
-            const rawDiscriminatorValue = input?.[propertyName];
-
-            if (rawDiscriminatorValue === undefined) {
-              return undefined;
-            }
-            let unionSchema = dst.unionSchemas[rawDiscriminatorValue];
-            if (unionSchema !== undefined) {
-              return unionSchema;
-            }
-
-            const discriminatorValue = await ref.normalize(rawDiscriminatorValue);
-            unionSchema = dst.unionSchemas[discriminatorValue];
-
-            if (unionSchema !== undefined) {
-              return unionSchema;
-            }
-            for (const [unionSchemaKey, unionSchema] of Object.entries(dst.unionSchemas)) {
-              if (await ref.normalize(unionSchemaKey) === discriminatorValue) {
-                return unionSchema;
-              }
-            }
-            return undefined;
-          }
-          if (!ref.options.values) {
-            ref.options.values = [];
-            for (const discriminatorKey in dst.unionSchemas) {
-              ref.options.values.push(await ref.normalize(discriminatorKey));
-            }
-          }
+          dst.options.discriminator = generatePropertyValueDiscriminatorFunction(dst, value);
         }
         else {
           throw new SchemaError('Invalid discriminator')

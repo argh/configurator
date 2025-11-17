@@ -1,4 +1,4 @@
-import { ConfiguratorError, ValidationError } from "../../errors.js";
+import { ConfiguratorError, SchemaError, ValidationError } from "../../errors.js";
 import { CompiledSchema } from "../compiled-schema.js";
 
 
@@ -110,7 +110,7 @@ export function findDiscriminatorProperties(schemas) {
  * @param {CompiledSchema} schema
  * @returns {import("../types.js").AsyncSchemaValueProcessor<any>}
  */
-export function generateDiscriminatorFunction(schema) {
+export function generateAutomaticDiscriminatorFunction(schema) {
   if (!schema.isUnion) {
     throw new ConfiguratorError('Can only generate a discriminator for a union')
   }
@@ -184,3 +184,53 @@ export function generateDiscriminatorFunction(schema) {
   return discriminator;
 }
 
+/**
+ * @package
+ * @param {CompiledSchema} schema
+ * @param {string} propertyName
+ * @returns {import("../types.js").AsyncSchemaValueProcessor<any>}
+ */
+export function generatePropertyValueDiscriminatorFunction(schema, propertyName) {
+
+  const ref = schema.properties[propertyName];
+  if (!ref) {
+    throw new SchemaError(`Discriminator property ${propertyName} not found`);
+  }
+
+  /**
+   * @param {any} input
+   * @returns {Promise<CompiledSchema|string|undefined>}
+   */
+  async function discriminator(input) {
+    const propertyValue = input?.[propertyName];
+
+    if (propertyValue === undefined) {
+      return undefined;
+    }
+    let unionSchema = schema.unionSchemas[propertyValue];
+    if (unionSchema !== undefined) {
+      return unionSchema;
+    }
+
+    const normalizedValue = await ref.normalize(propertyValue);
+    unionSchema = schema.unionSchemas[normalizedValue];
+
+    if (unionSchema !== undefined) {
+      return unionSchema;
+    }
+    for (const [unionSchemaKey, unionSchema] of Object.entries(schema.unionSchemas)) {
+      if (await ref.normalize(unionSchemaKey) === normalizedValue) {
+        return unionSchema;
+      }
+    }
+    return undefined;
+  }
+
+  if (!ref.options.values) {
+    ref.options.values = [];
+    for (const discriminatorKey in schema.unionSchemas) {
+      ref.options.values.push(discriminatorKey);
+    }
+  }
+  return discriminator;
+}

@@ -12,7 +12,7 @@
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
 
-import { CompiledSchema } from "./compiled-schema.js";
+/** @import { CompiledSchema } from "./compiled-schema.js" */
 
 /**
  * @template TReturn
@@ -178,18 +178,18 @@ import { CompiledSchema } from "./compiled-schema.js";
  * @property {AssignmentOptions} [assignmentOptions]
  */
 
+/** @typedef {Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
+
 
 /** @typedef {Object} CompiledSpec
- * @property {AsyncSchemaValueProcessor<any>} [processor]
+ * @property {AsyncSchemaValueProcessor<any>} processor
  * @property {string} [description]
- * @property {Function} [compile]
  */
 
 
-/** @typedef {Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
-
 /** @callback ProcessorSpecCompiler
  * @param {ProcessorSpec} spec
+ * @returns {CompiledSpec}
  */
 
 /** @callback ValueProcessorBuilder
