@@ -138,7 +138,6 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have inherited the normalizer from string base type
-      assert.strictEqual(typeof compiled.options.normalizer, 'function');
       assert.strictEqual(await compiled.normalize(123), '123');
     });
 

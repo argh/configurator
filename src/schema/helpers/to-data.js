@@ -20,7 +20,7 @@ export function toData(schema) {
     data.base = schema.base;
   }
   // sloppy copy so that we can also load dumb data
-  for (const group of ['properties', 'unionSchemas', 'metadata', 'options']) {
+  for (const group of ['properties', 'unionSchemas', 'metadata', 'options', 'handlers']) {
     if (!schema[group]) {
       continue;
     }

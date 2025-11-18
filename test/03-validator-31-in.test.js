@@ -37,7 +37,7 @@ describe('Validator: in', function() {
   });
 
   it('should work with mixed types', async function() {
-    const schema = new Schema('string').validator({in: ['yes', 'no', 1, 0]});
+    const schema = new Schema('any').validator({in: ['yes', 'no', 1, 0]});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate('yes', {}, '');

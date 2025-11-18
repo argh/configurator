@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { SerializeError, TransformError } from '../src/errors.js';
+import { NormalizeError, SerializeError, TransformError } from '../src/errors.js';
 
 describe('Schema Compilation - Buffer Type', function() {
   let resolver;
@@ -13,13 +13,21 @@ describe('Schema Compilation - Buffer Type', function() {
 
   describe('Buffer normalization', function() {
 
-    it('should not have a custom normalizer by default', async function() {
+    it('normalizer should pass buffers and strings', async function() {
       const schema = new Schema('buffer');
       const compiled = await resolver.compile(schema);
 
-      // Buffer type relies on transformer, not normalizer
-      // The base 'any' normalizer should be inherited
-      assert.ok(compiled.options.normalizer);
+      const n1 = await compiled.normalize(Buffer.alloc(10));
+      assert.ok(n1 instanceof Buffer);
+
+      const n2 = await compiled.normalize(Buffer.alloc(10).toString('base64'));
+      assert.ok(typeof n2 === 'string');
+
+
+      await assert.rejects(
+        async () => await compiled.normalize({}),
+        NormalizeError
+      )
     });
   });
 

@@ -395,12 +395,25 @@ export class SchemaResolver
     for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
       outputSchema.metadata[metaName] = metaValue;
     }
-    for (const [discriminatorValue, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
-      outputSchema.unionSchemas[discriminatorValue] = await this._compile(unionSchema, parent, name);
+    for (const [unionKey, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
+      outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, parent, name);
     }
 
-    // first pass over the defined options
-    await this._compileOptions({normalizer: undefined, ...source.options}, outputSchema);
+    const specialOptions = ['values'];
+
+    for (const [optionName, optionValue] of Object.entries(source.options ?? {})) {
+      if (specialOptions.includes(optionName)) {
+        continue;
+      }
+      outputSchema.options[optionName] = optionValue;
+    }
+    await this._compileNormalizers(source, outputSchema);
+    await this._compileValues(source, outputSchema);  // performs normalization!
+    await this._compileConditions(source, outputSchema);
+    await this._compileTransformers(source, outputSchema);
+    await this._compileValidators(source, outputSchema);
+    await this._compileSerializers(source, outputSchema);
+    await this._compileDiscriminator(source, outputSchema);
 
     if (outputSchema.options.compileHook && typeof outputSchema.options.compileHook === 'function') {
       outputSchema.options.compileHook('compile', outputSchema);
@@ -481,21 +494,8 @@ export class SchemaResolver
     for (const unionSchema of Object.values(schema.unionSchemas)) {
       await this._finalize(unionSchema);
     }
-    // second pass runs every compiler to ensure that any required options are set up
-    await this._compileOptions(undefined, schema);
-
-    if (!schema.metadata.valueDescription) {
-      const valueDescription = SchemaResolver._formatArgumentType(schema);
-      if (schema.parent?.isArray) {
-        schema.metadata.valueDescription = valueDescription;
-      }
-      else {
-        schema.metadata.valueDescription = schema.required ? `<${valueDescription}>` : `[${valueDescription}]`;
-      }
-    }
-    if (!schema.metadata.valueName) {
-      schema.metadata.valueName = schema.metadata.parserTypeHint ?? 'value';
-    }
+    await this._finalizeValues(schema);
+    await this._finalizeMetadata(schema);
 
     const p = schema.path ? ` at "${schema.path}"` : ``;
 
@@ -569,6 +569,161 @@ export class SchemaResolver
     }
   }
 
+  /**
+   *
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileOptions(src, dst) {
+    for (const [optionName, optionValue] of Object.entries(src.options)) {
+      if (optionValue !== undefined && dst.options[optionName] === undefined) {
+
+        // Special options:
+        if (optionName === 'values') {
+          if (dst.hasChildren) {
+            // child properties are assigned incrementally, so complex object values would never match
+            throw new SchemaError(`Cannot set values for an schema with child properties`);
+          }
+          const values = Array.isArray(optionValue)? optionValue : [optionValue];
+          dst.options.values = [];
+          for (const v of values) {
+            dst.options.values.push(await dst.normalize(v, {}, dst.path));
+          }
+        }
+        else {
+          dst.options[optionName] = optionValue;
+        }
+      }
+    }
+  }
+
+  /**
+   * @param {string} handlerName
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} [descriptionMetadata];
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileHandler(handlerName, src, dst, descriptionMetadata) {
+    if (dst.handlers[handlerName] !== undefined) {
+      return;
+    }
+
+    let specList = src.handlers[handlerName] ?? [];
+
+    if (!Array.isArray(specList)) {
+      throw new SchemaError(`Invalid ${handlerName} definition in ${src.path ? src.path : 'root'} schema`);
+    }
+    if (specList.length === 0) {
+      return;
+    }
+
+    let spec;
+    if (specList.length === 1) {
+      spec = specList[0];
+    }
+    else if (specList.length > 1) {
+      spec = {$pipeline: {processors: specList}};
+    }
+    const compiledDefinition = this._compileProcessorSpec(spec);
+
+    dst.handlers[handlerName] = [compiledDefinition.processor];
+
+    if (descriptionMetadata && !dst.metadata[descriptionMetadata] && compiledDefinition.description) {
+      dst.metadata[descriptionMetadata] = compiledDefinition.description;
+    }
+  }
+
+  async _compileNormalizers(src, dst) {
+    await this._compileHandler('normalizers', src, dst, 'normalizerDescription');
+  }
+
+  async _compileTransformers(src, dst) {
+    await this._compileHandler('transformers', src, dst, 'transformerDescription');
+  }
+
+  async _compileConditions(src, dst) {
+    await this._compileHandler('conditions', src, dst, 'conditionDescription');
+  }
+
+  async _compileValidators(src, dst) {
+    await this._compileHandler('validators', src, dst, 'validatorDescription');
+  }
+
+  async _compileSerializers(src, dst) {
+    await this._compileHandler('serializers', src, dst, 'serializerDescription');
+  }
+
+  async _compileDiscriminator(src, dst) {
+    if (dst.handlers.discriminator) {
+      return;
+    }
+    if (dst.isUnion && !src.handlers.discriminator) {
+      dst.handlers.discriminator = [generateAutomaticDiscriminatorFunction(dst)];
+      await this._hoistDiscriminatorProperties(dst);
+      return;  // there is no default discriminator
+    }
+      /* FIXME - need a solution for this.
+    else if (typeof value === 'string') {
+      dst.options.discriminator = generatePropertyValueDiscriminatorFunction(dst, value);
+    }
+    else {
+      throw new SchemaError('Invalid discriminator')
+    }
+
+       */
+    await this._compileHandler('discriminator', src, dst, 'discriminatorDescription');
+  }
+
+  async _compileValues(src, dst) {
+    if (dst.options.values !== undefined || src.options.values === undefined) {
+      return;
+    }
+    if (!Array.isArray(src.options.values)) {
+      throw new SchemaError('Schema values option is not an array');
+    }
+    dst.options.values = [];
+    for (const value of src.options.values) {
+      dst.options.values.push(await dst.normalize(value));
+    }
+  }
+  async _finalizeValues(dst) {
+    if (dst.options.values !== undefined) {
+      return;
+    }
+    if (dst.isSelector) {
+      if (dst.parent === undefined) {
+        throw new SchemaError(`Cannot synthesize values for an invalid selector`);
+      }
+      const v = new Set();
+
+      for (const propName in dst.parent.properties) {
+        const propSchema = dst.parent.properties[propName];
+        if (propSchema.isSelection) {
+          v.add(await dst.normalize(propSchema.selection));
+        }
+      }
+      dst.options.values = Array.from(v);
+    }
+  }
+  async _finalizeMetadata(schema) {
+    if (!schema.metadata.valueDescription) {
+      const valueDescription = SchemaResolver._formatArgumentType(schema);
+      if (schema.parent?.isArray) {
+        schema.metadata.valueDescription = valueDescription;
+      }
+      else {
+        schema.metadata.valueDescription = schema.required ? `<${valueDescription}>` : `[${valueDescription}]`;
+      }
+    }
+    if (!schema.metadata.valueName) {
+      schema.metadata.valueName = schema.metadata.parserTypeHint ?? 'value';
+    }
+  }
+
 
   /**
    *
@@ -576,7 +731,7 @@ export class SchemaResolver
    * @param {CompiledSchema} dst
    * @private
    */
-  async _compileOptions(options, dst) {
+  async _compileOptionsOld(options, dst) {
     if (options === undefined) {
       // if we aren't passed options, we run all compilers passing undefined as the value
       options = Object.fromEntries(Object.keys(this._compilers).map(c => [c, undefined]));
@@ -611,6 +766,7 @@ export class SchemaResolver
       phase: 0
     },
     'values': {
+// TODO - depends on selector
       exec: async (option, values, dst) => {
         if (values !== undefined && !Array.isArray(values)) {
           values = [values];
@@ -698,6 +854,7 @@ export class SchemaResolver
       phase: 1
     },
     'condition': {
+// TODO - depends on selector
       exec: async (option, value, dst) => {
         if (dst.options.condition) {
           return;

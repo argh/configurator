@@ -17,7 +17,7 @@ import { deepValue } from '../utils.js';
  * @property {Array<ProcessorSpec>} [validators]
  * @property {Array<ProcessorSpec>} [serializers]
  * @property {Array<ProcessorSpec>} [conditions]
- * @property {SchemaValueProcessor<string|CompiledSchema|undefined>} [unionDiscriminator]
+ * @property {Array<ProcessorSpec>} [discriminators]
  */
 
 /**
@@ -242,23 +242,13 @@ export class Schema
     else if (attributeName === 'unionSchemas') {
       return this.addUnionSchemas(attributeValue ?? {})
     }
-    else if (attributeName === 'value') {
-      return this.value(attributeValue);
-    }
-    else if (attributeName === 'transformer') {
-      return this.transformer(attributeValue);
-    }
-    else if (attributeName === 'normalizer') {
-      return this.normalizer(attributeValue);
-    }
-    else if (attributeName === 'validator') {
-      return this.validator(attributeValue)
-    }
-    else if (attributeName === 'condition') {
-      return this.condition(attributeValue);
-    }
-    else if (attributeName === 'unionDiscriminator' || attributeName === 'discriminator') {
-      return this.unionDiscriminator(attributeValue);
+    else if (this.hasOwnProperty(attributeName) && (typeof this[attributeName] === 'function')) {
+      try {
+        return this[attributeName].call(this, attributeValue);
+      }
+      catch (error) {
+        // ignore
+      }
     }
 
     const parts = attributeName.split('.').map(p => p.trim());
@@ -467,28 +457,6 @@ export class Schema
   }
 
   /**
-   *
-   * @param {Array<ProcessorSpec>} processorSpecs
-   * @returns {Schema}
-   */
-  normalizers(processorSpecs) {
-    return this.addHandlers({'normalizers': processorSpecs});
-  }
-  conditions(processorSpecs) {
-    return this.addHandlers({'conditions': processorSpecs});
-  }
-  transformers(processorSpecs) {
-    return this.addHandlers({'transformers': processorSpecs});
-  }
-  validators(processorSpecs) {
-    return this.addHandlers({'validators': processorSpecs});
-  }
-  serializers(processorSpecs) {
-    return this.addHandlers({'serializers': processorSpecs});
-  }
-
-
-  /**
    * define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
    *
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
@@ -538,17 +506,30 @@ export class Schema
   }
 
   /**
-   * define the property name (or function) this union will use as a discriminator
-   * @param {string|SchemaValueProcessor<CompiledSchema|string|undefined>} discriminator - property name
+   * The discriminator handler returns the key or schema of the union member that should be used
+   * This function adds a single value processor to the handler pipeline.
+   * @param {ProcessorSpec} spec
    * @returns {Schema} - returns self for fluent chaining
    */
-  unionDiscriminator(discriminator) {
-    if (typeof discriminator !== 'function' && typeof discriminator !== 'string') {
-      throw new SchemaError(`Unsupported union discriminator "${discriminator}"`)
+  unionDiscriminator(spec) {
+    if (typeof spec === 'string') {
+      throw new Error('FIXME');  // need to switch to a different way to flag key lookups
     }
-    this._options.discriminator = discriminator;
-    return this;
+    return this.unionDiscriminators(spec);
   }
+
+  /**
+   * The discriminator handler returns the key or schema of the union member that should be used
+   * This function appends multiple value processors to the handler pipeline.
+   * (Note that it would be highly unusual to want more than one!)
+   *
+   * @param {Array<ProcessorSpec>} specs
+   * @returns {Schema} - returns self for fluent chaining
+   */
+  unionDiscriminators(specs) {
+    return this._appendHandlerSpecs('discriminators', specs);
+  }
+
 
   /**
    * add a schema as a member of this schema's union
@@ -614,6 +595,7 @@ export class Schema
    */
   selector(value) {
     this.options.selector = Boolean(value ?? true);
+
     return this;
   }
 
@@ -624,6 +606,31 @@ export class Schema
    */
   selection(value) {
     this.options.selection = value ?? true;
+
+    if (!this.handlers.conditions) {
+      this.handlers.conditions = []
+    }
+    const condition = async (value, configuration, schema, path) => {
+      if (!schema.isSelection) {
+        return true;   // in case someone changed their mind?
+      }
+      const ldi = path.lastIndexOf('.');
+      const parentPath = (ldi === -1) ? '' : path.substring(0, ldi);
+
+      let parentSchema = schema.parent;
+
+      for (let propName in parentSchema?.properties) {
+        let s = parentSchema.properties[propName];
+
+        if (s.isSelector) {
+          const selectorPath = parentPath ? `${parentPath}.${propName}` : propName;
+          const selectorValue = deepValue(configuration, selectorPath);
+          return (await s.normalize(selectorValue)) === (await s.normalize(schema.selection));
+        }
+      }
+      return false;
+    }
+    this.handlers.conditions.push(condition);
     return this;
   }
 
@@ -739,13 +746,7 @@ export class Schema
    * @returns {Schema}
    */
   value(v) {
-    if (!Array.isArray(this.options.values)) {
-      this.options.values = [];
-    }
-    if (v !== undefined) {
-      this.options.values.push(v);
-    }
-    return this;
+    return this.values([v])
   }
 
   /**
@@ -753,109 +754,142 @@ export class Schema
    * @param {Array<NonNullable<any>>} va
    * @returns {Schema}
    */
-  values(va) {
+  values(va = []) {
     if (!Array.isArray(this.options.values)) {
       this.options.values = [];
     }
+    if (!Array.isArray(va)) {
+      va = [va];
+    }
     this.options.values.push(...va);
-
     return this;
+  }
+
+
+  /**
+   * Helper function for the fluent handler api calls
+   * @param {string} handlerName
+   * @param {Array<ProcessorSpec>} specs
+   * @private
+   */
+  _appendHandlerSpecs(handlerName, specs = []) {
+    if (!Array.isArray(specs)) {
+      specs = [specs];
+    }
+    if (!Array.isArray(this.handlers[handlerName])) {
+      this.handlers[handlerName] = [];
+    }
+    this.handlers[handlerName].push(...specs);
+    return this;
+  }
+  /**
+   * The condition handler determines if the schema should be processed at all.
+   * This function appends a single value processor to the handler pipeline.
+   *
+   * @param {ProcessorSpec} spec
+   * @returns {Schema}
+   */
+  condition(spec) {
+    return this.conditions(spec);
   }
 
   /**
-   * Set the condition handler that determines if the schema should be processed at all
-   * @param {SchemaValueProcessor<any>|boolean} c
+   * The condition handler determines if the schema should be processed at all.
+   * This call appends multiple value processors to the handler pipeline.
+   *
+   * @param {Array<ProcessorSpec>} specs
    * @returns {Schema}
    */
-  condition(c) {
-    this.options.condition = c;
-
-
-    if (!Array.isArray(this.handlers.conditions)) {
-      this.handlers.conditions = [];
-    }
-
-    this.handlers.conditions.push(c);
-
-    return this;
+  conditions(specs) {
+    return this._appendHandlerSpecs('conditions', specs);
   }
 
   /**
-   * Set the normalize handler that ensures input is in a format that the transformer can handle
-   * @param {SchemaValueProcessor<any>} fn
+   * The normalizer handler ensures input is in a format that the transformer can handle.
+   * This call appends a single value processor to the handler pipeline.
+   *
+   * @param {ProcessorSpec} spec
    * @returns {Schema}
    */
-  normalizer(fn) {
-    if (typeof fn !== 'function') {
-      throw new SchemaError('Normalizer must be a function');
-    }
-    this.options.normalizer = fn;
-
-    if (!Array.isArray(this.handlers.normalizers)) {
-      this.handlers.normalizers = [];
-    }
-
-    this.handlers.normalizers.push(fn);
-
-    return this;
+  normalizer(spec) {
+    return this.normalizers(spec);
   }
 
   /**
-   * Set the transform handler that converts an input value into the output value used in the final configuration
-   * @param {SchemaValueProcessor<any>|NonNullable<any>} fn
+   * The normalizer handler ensures input is in a format that the transformer can handle.
+   * This call appends multiple value processors to the handler pipeline.
+   *
+   * @param {Array<ProcessorSpec>} specs
    * @returns {Schema}
    */
-  transformer(fn) {
-    if (typeof fn !== 'function') {
-//      throw new SchemaError('Transformer must be a function');
-    }
-    this.options.transformer = fn;
-
-    if (!Array.isArray(this.handlers.transformers)) {
-      this.handlers.transformers = [];
-    }
-
-    this.handlers.transformers.push(fn);
-
-
-    return this;
+  normalizers(specs) {
+    return this._appendHandlerSpecs('normalizers', specs);
   }
 
   /**
-   * Set the validate handler that ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value
-   * @param {ProcessorSpec} v
+   * The transformer handler converts an input value into the output value used in the final configuration.
+   * This call appends a single value processor to the handler pipeline.
+   *
+   * @param {ProcessorSpec} spec
    * @returns {Schema}
    */
-  validator(v) {
-    this.options.validator = v;
-
-
-    if (!Array.isArray(this.handlers.validators)) {
-      this.handlers.validators = [];
-    }
-    this.handlers.validators.push(v);
-
-    return this;
+  transformer(spec) {
+    return this.transformers(spec);
   }
 
   /**
-   * Set the serialize handler that will restore a configuration value to its pre-transform normalized form
-   * @param {SchemaValueProcessor<any>|NonNullable<any>} fn
+   * The transformer handler converts an input value into the output value used in the final configuration.
+   * This call appends multiple value processors to the handler pipeline.
+   *
+   * @param {Array<ProcessorSpec>} specs
    * @returns {Schema}
    */
-  serializer(fn) {
-    if (typeof fn !== 'function') {
-//      throw new SchemaError('Serializer must be a function');
-    }
-    this.options.serializer = fn;
-
-    if (!Array.isArray(this.handlers.serializers)) {
-      this.handlers.serializers = [];
-    }
-    this.handlers.serializers.push(fn);
-
-    return this;
+  transformers(specs) {
+    return this._appendHandlerSpecs('transformers', specs);
   }
+
+  /**
+   * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
+   * This call appends a single value processor to the handler pipeline.
+   * @param {ProcessorSpec} spec
+   * @returns {Schema}
+   */
+  validator(spec) {
+    return this.validators(spec);
+  }
+
+  /**
+   * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
+   * This call appends multiple value processors to the handler pipeline.
+   *
+   * @param {Array<ProcessorSpec>} specs
+   * @returns {Schema}
+   */
+  validators(specs) {
+    return this._appendHandlerSpecs('validators', specs);
+  }
+
+  /**
+   * The serialize handler restores a configuration value to its pre-transform normalized form.
+   * This call appends a single value processor to the handler pipeline.
+   * @param {ProcessorSpec} spec
+   * @returns {Schema}
+   */
+  serializer(spec) {
+    return this.serializers(spec);
+  }
+
+  /**
+   * The serialize handler restores a configuration value to its pre-transform normalized form.
+   * This call appends multiple value processors to the handler pipeline.
+   *
+   * @param {Array<ProcessorSpec>} specs
+   * @returns {Schema}
+   */
+  serializers(specs) {
+    return this._appendHandlerSpecs('serializers', specs);
+  }
+
 
   /**
    * extend - use another schema to extend the current one without overwriting.
@@ -881,7 +915,7 @@ export class Schema
 
     this.addOptions(otherSchema.options ?? {}, false);
     this.addMetadata(otherSchema.metadata ?? {}, false);
-    this.addHandlers(otherSchema.handlers ?? {}, false);
+    this.addHandlers(otherSchema.handlers ?? {}, false);  // todo - this behaves differently than compilation!?
 
     return this;
   }

@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, TransformError, SerializeError } from '../src/errors.js';
+import { ValidationError, TransformError, SerializeError, NormalizeError } from '../src/errors.js';
 
 describe('Schema Compilation - Date Type', function() {
   let resolver;
@@ -13,13 +13,30 @@ describe('Schema Compilation - Date Type', function() {
 
   describe('Date normalization', function() {
 
-    it('should not have a normalizer by default', async function() {
+    it('should only pass Dates, strings, and numbers', async function() {
       const schema = new Schema('date');
       const compiled = await resolver.compile(schema);
 
-      // Date type relies on transformer, not normalizer
-      // The base 'any' normalizer should be inherited
-      assert.ok(compiled.options.normalizer);
+      const date = new Date('2024-01-01T00:00:00Z');
+
+      const n1 = await compiled.normalize(date, {}, '');
+      assert.ok(n1 === date);
+
+      const n2 = await compiled.normalize(date.toString());
+      assert.ok(typeof n2 === 'string');
+
+      const n3 = await compiled.normalize(date.getTime());
+      assert.ok(typeof n3 === 'number');
+
+      await assert.rejects(
+        () => compiled.normalize({}),
+        NormalizeError
+      );
+      await assert.rejects(
+        () => compiled.normalize(true),
+        NormalizeError
+      );
+
     });
   });
 

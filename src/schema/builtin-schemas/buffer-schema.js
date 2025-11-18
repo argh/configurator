@@ -8,9 +8,6 @@ export const BUFFER_SCHEMA = new Schema()
     if (typeof value === 'string' || Buffer.isBuffer(value)) {
       return value;
     }
-    if (typeof value === 'number') {
-      return Buffer.alloc(value);
-    }
     if (typeof value === 'object') {
       if (!value.size) {
         throw new ConstraintError(`Invalid input for buffer: ${value}`);

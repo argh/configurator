@@ -48,6 +48,7 @@ import { ROUND_OPERATOR } from './build-round-operator.js';
 import { CEIL_OPERATOR } from './build-ceil-operator.js';
 import { FLOOR_OPERATOR } from './build-floor-operator.js';
 import { FILTER_OPERATOR } from './build-filter-operator.js';
+import { PIPELINE_OPERATOR } from './build-pipeline-operator.js';
 
 
 /** @import { ValueProcessorDefinition } from '../types.js'; */
@@ -99,6 +100,7 @@ export const SIMPLE_PROCESSORS = /** @type {Map<string, ValueProcessorDefinition
  * Map of keyword -> processor definition
  */
 export const PARAMETERIZED_PROCESSORS = /** @type {Map<string, ValueProcessorDefinition>} */ new Map([
+  ['pipeline', PIPELINE_OPERATOR],
   ['filesize', FILESIZE_CONSTRAINT],
   ['and', AND_OPERATOR],
   ['or', OR_OPERATOR],
@@ -110,5 +112,5 @@ export const PARAMETERIZED_PROCESSORS = /** @type {Map<string, ValueProcessorDef
   ['round', ROUND_OPERATOR],
   ['ceil', CEIL_OPERATOR],
   ['floor', FLOOR_OPERATOR],
-  ['pipeline', FILTER_OPERATOR]
+  ['filter', FILTER_OPERATOR]
 ]);

@@ -11,7 +11,7 @@ export const FILTER_OPERATOR = {
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (...params) => {
         try {
-          await compiled.processor(...params);
+          return await compiled.processor(...params);
         }
         catch (error) {
           return undefined;

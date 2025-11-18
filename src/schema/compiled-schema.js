@@ -29,11 +29,11 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
 
 /** @typedef {Object} CompiledSchemaHandlers
  * @property {Array<SchemaValueProcessor<any>>} [normalizers]
- * @property {Array<SchemaValueProcessor<any>>} [conditionals]
+ * @property {Array<SchemaValueProcessor<any>>} [conditions]
  * @property {Array<SchemaValueProcessor<any>>} [transformers]
  * @property {Array<SchemaValueProcessor<any>>} [validators]
  * @property {Array<SchemaValueProcessor<any>>} [serializers]
- * @property {SchemaValueProcessor<string|CompiledSchema|undefined>} [unionDiscriminator]
+ * @property {Array<SchemaValueProcessor<any>>} [discriminators]
  */
 
 /** @typedef {Object.<string, import('./compiled-schema.js').CompiledSchema>} CompiledSchemaProperties */
@@ -774,6 +774,34 @@ export class CompiledSchema
   }
 
   /**
+   * Return output that corresponds to the input after being populated with defaults found in the schema.
+   *
+   * The normal behavior of this call is to mutate the input data, and to only "shallowly" populate defaults.
+   * You can override this behavior by passing in advanced visit() options, notably:
+   * - visitUndefined (false) - if true, populate defaults everywhere in the entire schema hierarchy
+   * - visitUndefinedShallow (true) - implies visitUndefined, but with a depth limit (self and immediate children)
+   * - visitDefaults (true) - do not run validation if an input matches the default value
+   *
+   * @param {any} input - the input data
+   * @param {VisitOptions} [options] - options to override how the data is visited
+   * @returns {Promise<any>}
+   */
+  async populateDefaults(input, options) {
+    return await this.visit(input, async (current, input, schema, path) => {
+      if (schema !== undefined && current === undefined) {
+        if (schema.default !== undefined) {
+          current = await schema.normalize(schema.default, input, path);
+          if (current !== undefined) {
+            current = await schema.transform(current, input, path);
+          }
+        }
+      }
+      return current;
+    }, {visitUndefinedShallow: true, update: true, ...options});
+  }
+
+
+  /**
    * Check if the provided value passes the schema conditional check.
    *
    * Failed conditions will be repeatedly re-checked during assignment processing until the final pass.
@@ -783,19 +811,27 @@ export class CompiledSchema
    * @param {any} configuration
    * @param {CompiledSchema} schema
    * @param {string} path
+   * @param {Object} [options]
    * @returns {Promise<boolean>}
    */
-  async checkCondition(value, configuration, schema, path) {
-    if (typeof this._options.condition !== 'function') {
-      throw new SchemaError('Unresolved schema condition');
+  async checkCondition(value, configuration, schema, path, options) {
+    const conditions = Array.isArray(this._handlers.conditions)? this._handlers.conditions : [];
+
+    // no conditions = pass!
+    if (conditions.length === 0) {
+      return true;
     }
-    try {
-      const result = await this._options.condition(value, configuration, schema, path);
-      return Boolean(result);
+
+    let checked = value;
+    for (const condition of conditions) {
+      try {
+        checked = await condition(checked, configuration, this, path, options);
+      }
+      catch (error) {
+        return false;  // exception = failed condition check
+      }
     }
-    catch (_) {
-      return false;
-    }
+    return Boolean(checked);
   }
 
 
@@ -824,10 +860,8 @@ export class CompiledSchema
    * @returns {Promise<any>}
    */
   async normalize(value, configuration = {}, path = this.path, options) {
-    const normalizer = this._options.normalizer;
-    if (typeof normalizer !== 'function') {
-      throw new SchemaError('Unresolved schema normalizer')
-    }
+    const normalizers = Array.isArray(this._handlers.normalizers)? this._handlers.normalizers : [];
+
     if (typeof value === 'function' && !isConstructor(value) && this.options.type !== 'function') {
       try {
         value = await value(true, configuration, this, path, options);
@@ -837,14 +871,16 @@ export class CompiledSchema
       }
     }
 
-    try {
-      const normalized = await normalizer(value, configuration, this, path, options);
-
-      return normalized;
+    let normalized = value;
+    for (const normalizer of normalizers) {
+      try {
+        normalized = await normalizer(normalized, configuration, this, path, options);
+      }
+      catch (error) {
+        throw new NormalizeError(fpm('Could not normalize', path), {cause: error});
+      }
     }
-    catch (error) {
-      throw new NormalizeError(fpm('Could not normalize', path), {cause: error});
-    }
+    return normalized;
   }
 
   /**
@@ -866,7 +902,10 @@ export class CompiledSchema
    * @returns {Promise<any>} - transformed value
    */
   async transform(value, configuration = {}, path = this.path, options) {
+    const transformers = Array.isArray(this._handlers.transformers)? this._handlers.transformers : [];
+
     try {
+      // todo - can we move value checking to a constraint processor?
       if (value !== null && this.values && this.values.length > 0) {
         // if we have children, we can't compare the value yet, we'll have to wait for validation.
         if (!this.hasChildren && !this.values.includes(value)) {
@@ -877,42 +916,21 @@ export class CompiledSchema
           }
         }
       }
-      const transformer = this._options.transformer;
-      if (typeof transformer !== 'function') {
-        throw new SchemaError('Unresolved schema transformer')
-      }
-      return await transformer(value, configuration, this, path, {...options});
     }
     catch (error) {
       throw new TransformError(fpm('Unable to transform', path), {cause: error})
     }
-  }
 
-  /**
-   * Return output that corresponds to the input after being populated with defaults found in the schema.
-   *
-   * The normal behavior of this call is to mutate the input data, and to only "shallowly" populate defaults.
-   * You can override this behavior by passing in advanced visit() options, notably:
-   * - visitUndefined (false) - if true, populate defaults everywhere in the entire schema hierarchy
-   * - visitUndefinedShallow (true) - implies visitUndefined, but with a depth limit (self and immediate children)
-   * - visitDefaults (true) - do not run validation if an input matches the default value
-   *
-   * @param {any} input - the input data
-   * @param {VisitOptions} [options] - options to override how the data is visited
-   * @returns {Promise<any>}
-   */
-  async populateDefaults(input, options) {
-    return await this.visit(input, async (current, input, schema, path) => {
-      if (schema !== undefined && current === undefined) {
-        if (schema.default !== undefined) {
-          current = await schema.normalize(schema.default, input, path);
-          if (current !== undefined) {
-            current = await schema.transform(current, input, path);
-          }
-        }
+    let transformed = value;
+    for (const transformer of transformers) {
+      try {
+        transformed = await transformer(transformed, configuration, this, path, options);
       }
-      return current;
-    }, {visitUndefinedShallow: true, update: true, ...options});
+      catch (error) {
+        throw new TransformError(fpm('Unable to transform', path), {cause: error})
+      }
+    }
+    return transformed;
   }
 
   /**
@@ -974,17 +992,19 @@ export class CompiledSchema
           return EMPTY_VALUE;
         }
 
-        /** @type {AsyncSchemaValueProcessor<any>} */
-        const validator = schema.options.validator;
-        if (typeof validator !== 'function') {
-          throw new ValidationError(fpm('Invalid validator', path));
+        const validators = Array.isArray(schema._handlers.validators)? schema._handlers.validators : [];
+
+        let v = current;
+
+        for (const validator of validators) {
+          try {
+            v = await validator(v, input, schema, path, options);
+          }
+          catch (error) {
+            throw new ValidationError(fpm('Validation error', path), {cause:error})
+          }
         }
-        try {
-          return await validator(current, input, schema, path, options) ?? current;
-        }
-        catch (error) {
-          throw new ValidationError(fpm('Validation error', path), {cause:error})
-        }
+        return v;
       }, {resolveUnions: true, visitUndefinedShallow: true, visitUnexpected: !disallowUnexpected, visitDefaults: true, ...options})
       return validated === EMPTY_VALUE ? undefined : validated;
     }
@@ -999,7 +1019,8 @@ export class CompiledSchema
   }
 
   /**
-   * Serialize the config data as if it were a config file.
+   * Serialize the config data as if you were going to use the result for a config file.
+   *
    * Runs all serialization processors in a pipeline.  By default, if any processor returns undefined or throws an error,
    * serialization of that value returns undefined and will be omitted from the output.  If you set the "strict"
    * option, errors are re-thrown.
@@ -1019,14 +1040,12 @@ export class CompiledSchema
         if (schema === undefined || schema.metadata.omitFromSerialize) {
           return EMPTY_VALUE;
         }
-        else {
-          const serializer = schema.options.serializer;
+        const serializers = Array.isArray(schema._handlers.serializers)? schema._handlers.serializers : [];
 
-          if (!serializer || typeof serializer !== 'function') {
-            throw new SchemaError('Invalid serializer');
-          }
+        let s = value;
+        for (const serializer of serializers) {
           try {
-            return await serializer(value, configuration, schema, path, options);
+            s = await serializer(s, configuration, schema, path, options);
           }
           catch (error) {
             if (strict) {
@@ -1035,6 +1054,7 @@ export class CompiledSchema
             return EMPTY_VALUE;
           }
         }
+        return s;
       }
       catch (error) {
         throw new SerializeError(`${fpm('Error serializing', path)}`);
@@ -1059,26 +1079,33 @@ export class CompiledSchema
 // FIXME ?      return undefined;
     }
 
-    const discriminator = this._options.discriminator;
-
-    if (!this.isUnion || !discriminator) {
+    if (!this.isUnion || this._handlers.discriminators === undefined) {
       return undefined;
     }
-    if (typeof discriminator !== 'function') {
-      throw new SchemaError(fpm('Unresolved discriminator', path));
-    }
-    let unionSchema = await discriminator(value, configuration, this, path, options);
 
-    if (!unionSchema) {
+    const discriminators = Array.isArray(this._handlers.discriminators)? this._handlers.discriminators : [];
+
+    // we'll run multiple discriminators if necessary, but it's a bizarre use case...
+
+    let discriminatorResult = value;
+    for (const discriminator of discriminators) {
+      try {
+        discriminatorResult = await discriminator(discriminatorResult, configuration, this, path, options);
+      }
+      catch (error) {
+        return undefined;
+      }
+    }
+    if (!discriminatorResult) {
       return undefined;
     }
-    if (typeof unionSchema === 'string' && this.unionSchemas[unionSchema]) {
-      unionSchema = this.unionSchemas[unionSchema];
+    if (typeof discriminatorResult === 'string' && this.unionSchemas[discriminatorResult]) {
+      return this.unionSchemas[discriminatorResult];
     }
-    if (!(unionSchema instanceof CompiledSchema)) {
-      throw new SchemaError(fpm('Union discriminator returned unexpected value', path))
+    if (discriminatorResult instanceof CompiledSchema && this.findUnionKey(discriminatorResult)) {
+      return discriminatorResult;
     }
-    return unionSchema;
+    throw new SchemaError(fpm('Union discriminator returned unexpected value', path))
   }
 
   /**
