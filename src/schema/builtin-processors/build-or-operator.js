@@ -5,7 +5,8 @@ import { ResolverError, ConstraintError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const OR_OPERATOR = {
-  build: (args, compileSpec) => {
+  keyword: 'or',
+  builder: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$or requires an array of validators');
     }

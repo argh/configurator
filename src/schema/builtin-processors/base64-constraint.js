@@ -4,7 +4,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate base64 format
  */
 export const BASE64_CONSTRAINT = {
-  process: (value) => {
+  keyword: 'base64',
+  processor: (value) => {
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
     if (!base64Regex.test(value)) {
       throw new ConstraintError('Invalid base64 format');

@@ -5,7 +5,8 @@ import { ResolverError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const AND_OPERATOR = {
-  build: (args, compileSpec) => {
+  keyword: 'and',
+  builder: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$and requires an array of processors');
     }

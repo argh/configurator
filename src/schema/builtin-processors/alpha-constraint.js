@@ -4,7 +4,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate alphabetic characters only
  */
 export const ALPHA_CONSTRAINT = {
-  process: (value) => {
+  keyword: 'alpha',
+  processor: (value) => {
     const alphaRegex = /^[a-zA-Z]+$/;
     if (!alphaRegex.test(value)) {
       throw new ConstraintError('Must contain only letters');

@@ -3,7 +3,8 @@
  * @type {import("../types.js").ValueProcessorDefinition}
  */
 export const CEIL_OPERATOR = {
-  build: (precision = 0) => {
+  keyword: 'ceil',
+  builder: (precision = 0) => {
     const multiplier = Math.pow(10, precision);
 
     return {

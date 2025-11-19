@@ -5,7 +5,8 @@ import { ResolverError, ConstraintError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const LENGTH_CONSTRAINT = {
-  build: (args, compileSpec) => {
+  keyword: 'length',
+  builder: (args, compileSpec) => {
     if (typeof args !== 'object' || args === null) {
       throw new ResolverError('$length requires an object with min/max/exact properties');
     }

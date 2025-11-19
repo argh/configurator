@@ -4,7 +4,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate numeric digits only
  */
 export const NUMERIC_CONSTRAINT = {
-  process: (value) => {
+  keyword: 'numeric',
+  processor: (value) => {
     const v = `${value}`;
     const numericRegex = /^[0-9]+$/;
     if (!numericRegex.test(v)) {

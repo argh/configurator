@@ -6,7 +6,8 @@ import { ConstraintError, ResolverError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const FILESIZE_CONSTRAINT = {
-  build: (args, compileSpec) => {
+  keyword: 'filesize',
+  builder: (args, compileSpec) => {
     if (typeof args !== 'object' || args === null) {
       throw new ResolverError('$filesize requires an object with min/max properties');
     }

@@ -6,7 +6,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate that path is readable
  */
 export const READABLE_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'readable',
+  processor: async (value) => {
     try {
       await fs.access(value, constants.R_OK);
       return value;
@@ -14,5 +15,5 @@ export const READABLE_CONSTRAINT = {
       throw new ConstraintError('File is not readable');
     }
   },
-  describe: () => 'path'
+  description: 'path'
 };

@@ -5,7 +5,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate that path exists and is a file
  */
 export const FILE_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'file',
+  processor: async (value) => {
     try {
       const stat = await fs.stat(value);
       if (!stat.isFile()) {

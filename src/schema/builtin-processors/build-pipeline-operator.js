@@ -9,12 +9,13 @@ import { ResolverError } from '../../errors.js';
  * @type {ValueProcessorDefinition}
  */
 export const PIPELINE_OPERATOR = {
+  keyword: 'pipeline',
   /**
    * @param {Array<ProcessorSpec>} args
    * @param {ProcessorSpecCompiler} compileSpec
    * @returns {CompiledValueProcessorDefinition}
    */
-  build: (args, compileSpec) => {
+  builder: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$pipeline requires an array of processors');
     }

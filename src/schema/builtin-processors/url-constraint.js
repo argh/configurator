@@ -4,7 +4,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate and normalize URL
  */
 export const URL_CONSTRAINT = {
-  process: (value) => {
+  keyword: 'url',
+  processor: (value) => {
     try {
       return new URL(value).toString();
     } catch {

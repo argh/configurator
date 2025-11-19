@@ -5,7 +5,8 @@ import { ResolverError, SchemaError } from '../../errors.js';
  * @type {import("../types.js").ValueProcessorDefinition}
  */
 export const PROPERTY_OPERATOR = {
-  build: (propertyName) => {
+  keyword: 'property',
+  builder: (propertyName) => {
 
     if (propertyName === undefined) {
       // todo - expand contract with spec compilation to pass a schema so we can verify property values earlier

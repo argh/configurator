@@ -5,7 +5,8 @@ import { ConstraintError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const NOT_OPERATOR = {
-  build: (args, compileSpec) => {
+  keyword: 'not',
+  builder: (args, compileSpec) => {
     const compiled = compileSpec(args);
     const needParens = /[|& ]/.test(compiled.description);
 

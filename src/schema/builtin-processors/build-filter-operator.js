@@ -4,7 +4,8 @@ import { ConstraintError, ResolverError } from '../../errors.js';
  * Build the $filter operator - returns undefined on exceptions, otherwise passes
  */
 export const FILTER_OPERATOR = {
-  build: (args, compileSpec) => {
+  keyword: 'filter',
+  builder: (args, compileSpec) => {
     const compiled = compileSpec(args);
 
     return {

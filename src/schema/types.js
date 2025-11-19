@@ -201,9 +201,10 @@
 
 /**
  * @typedef {Object} ValueProcessorDefinition
- * @property {SchemaValueProcessor<any>|null} [process]
- * @property {(() => string)|null} [describe]
- * @property {ValueProcessorBuilder} [build]
+ * @property {string} [keyword]
+ * @property {SchemaValueProcessor<any>} [processor]
+ * @property {string} [description]
+ * @property {ValueProcessorBuilder} [builder]
  */
 
 /**

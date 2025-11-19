@@ -5,7 +5,8 @@ import { ConstraintError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const EACH_OPERATOR = {
-  build: (args, compileSpec) => {
+  keyword: 'each',
+  builder: (args, compileSpec) => {
     const compiled = compileSpec(args);
 
     return {

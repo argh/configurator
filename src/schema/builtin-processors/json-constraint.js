@@ -4,7 +4,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate JSON format
  */
 export const JSON_CONSTRAINT = {
-  process: (value) => {
+  keyword: 'json',
+  processor: (value) => {
     try {
       JSON.parse(value);
       return value;

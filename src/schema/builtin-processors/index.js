@@ -54,65 +54,63 @@ import { PROPERTY_OPERATOR } from './build-property-operator.js';
 
 /** @import { ValueProcessorDefinition } from '../types.js'; */
 
-
 /**
- * Built-in value processors with simple process functions
- * Map of keyword -> processor definition
+ * Get all built-in value processor definitions
+ * @returns {ValueProcessorDefinition[]}
  */
-export const SIMPLE_PROCESSORS = /** @type {Map<string, ValueProcessorDefinition>} */ new Map([
-  ['hostname', HOSTNAME_CONSTRAINT],
-  ['url', URL_CONSTRAINT],
-  ['email', EMAIL_CONSTRAINT],
-  ['port', PORT_CONSTRAINT],
-  ['ipv4', IPV4_CONSTRAINT],
-  ['ipv6', IPV6_CONSTRAINT],
-  ['uuid', UUID_CONSTRAINT],
-  ['alphanum', ALPHANUM_CONSTRAINT],
-  ['alpha', ALPHA_CONSTRAINT],
-  ['number', NUMBER_CONSTRAINT],
-  ['numeric', NUMERIC_CONSTRAINT],
-  ['nonempty', NONEMPTY_CONSTRAINT],
-  ['positive', POSITIVE_CONSTRAINT],
-  ['negative', NEGATIVE_CONSTRAINT],
-  ['integer', INTEGER_CONSTRAINT],
-  ['json', JSON_CONSTRAINT],
-  ['base64', BASE64_CONSTRAINT],
-  ['hex', HEX_CONSTRAINT],
-  ['file', FILE_CONSTRAINT],
-  ['directory', DIRECTORY_CONSTRAINT],
-  ['readable', READABLE_CONSTRAINT],
-  ['writable', WRITABLE_CONSTRAINT],
-  ['executable', EXECUTABLE_CONSTRAINT],
-  ['reachable', REACHABLE_CONSTRAINT],
-  ['httpurl', HTTPURL_CONSTRAINT],
-  ['trim', TRIM_OPERATOR],
-  ['lowercase', LOWERCASE_OPERATOR],
-  ['uppercase', UPPERCASE_OPERATOR],
-  ['camelcase', CAMELCASE_OPERATOR],
-  ['pascalcase', PASCALCASE_OPERATOR],
-  ['kebabcase', KEBABCASE_OPERATOR],
-  ['constantcase', CONSTANTCASE_OPERATOR],
-  ['headline', HEADLINE_OPERATOR]
-]);
+export function getBuiltinProcessors() {
+  return [
+    // Simple constraints
+    HOSTNAME_CONSTRAINT,
+    URL_CONSTRAINT,
+    EMAIL_CONSTRAINT,
+    PORT_CONSTRAINT,
+    IPV4_CONSTRAINT,
+    IPV6_CONSTRAINT,
+    UUID_CONSTRAINT,
+    ALPHANUM_CONSTRAINT,
+    ALPHA_CONSTRAINT,
+    NUMBER_CONSTRAINT,
+    NUMERIC_CONSTRAINT,
+    NONEMPTY_CONSTRAINT,
+    POSITIVE_CONSTRAINT,
+    NEGATIVE_CONSTRAINT,
+    INTEGER_CONSTRAINT,
+    JSON_CONSTRAINT,
+    BASE64_CONSTRAINT,
+    HEX_CONSTRAINT,
+    FILE_CONSTRAINT,
+    DIRECTORY_CONSTRAINT,
+    READABLE_CONSTRAINT,
+    WRITABLE_CONSTRAINT,
+    EXECUTABLE_CONSTRAINT,
+    REACHABLE_CONSTRAINT,
+    HTTPURL_CONSTRAINT,
 
+    // Simple operators
+    TRIM_OPERATOR,
+    LOWERCASE_OPERATOR,
+    UPPERCASE_OPERATOR,
+    CAMELCASE_OPERATOR,
+    PASCALCASE_OPERATOR,
+    KEBABCASE_OPERATOR,
+    CONSTANTCASE_OPERATOR,
+    HEADLINE_OPERATOR,
 
-/**
- * Built-in parameterized processors (require compilation)
- * Map of keyword -> processor definition
- */
-export const PARAMETERIZED_PROCESSORS = /** @type {Map<string, ValueProcessorDefinition>} */ new Map([
-  ['pipeline', PIPELINE_OPERATOR],
-  ['filesize', FILESIZE_CONSTRAINT],
-  ['and', AND_OPERATOR],
-  ['or', OR_OPERATOR],
-  ['not', NOT_OPERATOR],
-  ['range', RANGE_CONSTRAINT],
-  ['length', LENGTH_CONSTRAINT],
-  ['in', IN_CONSTRAINT],
-  ['each', EACH_OPERATOR],
-  ['round', ROUND_OPERATOR],
-  ['ceil', CEIL_OPERATOR],
-  ['floor', FLOOR_OPERATOR],
-  ['filter', FILTER_OPERATOR],
-  ['property', PROPERTY_OPERATOR]
-]);
+    // Parameterized processors
+    PIPELINE_OPERATOR,
+    FILESIZE_CONSTRAINT,
+    AND_OPERATOR,
+    OR_OPERATOR,
+    NOT_OPERATOR,
+    RANGE_CONSTRAINT,
+    LENGTH_CONSTRAINT,
+    IN_CONSTRAINT,
+    EACH_OPERATOR,
+    ROUND_OPERATOR,
+    CEIL_OPERATOR,
+    FLOOR_OPERATOR,
+    FILTER_OPERATOR,
+    PROPERTY_OPERATOR
+  ];
+}

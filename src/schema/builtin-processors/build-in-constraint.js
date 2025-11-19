@@ -5,7 +5,8 @@ import { ResolverError, ConstraintError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const IN_CONSTRAINT = {
-  build: (args, compileSpec) => {
+  keyword: 'in',
+  builder: (args, compileSpec) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$in requires an array of allowed values');
     }

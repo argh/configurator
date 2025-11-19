@@ -4,7 +4,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate HTTP/HTTPS URL format
  */
 export const HTTPURL_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'httpurl',
+  processor: async (value) => {
     try {
       const url = new URL(value);
       if (!['http:', 'https:'].includes(url.protocol)) {

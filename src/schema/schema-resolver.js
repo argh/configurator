@@ -23,7 +23,7 @@ import { ARRAY_SCHEMA } from './builtin-schemas/array-schema.js';
 import { DATE_SCHEMA } from './builtin-schemas/date-schema.js';
 import { BUFFER_SCHEMA } from './builtin-schemas/buffer-schema.js';
 import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
-import { SIMPLE_PROCESSORS, PARAMETERIZED_PROCESSORS } from './builtin-processors/index.js';
+import { getBuiltinProcessors } from './builtin-processors/index.js';
 import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
 /** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
@@ -80,37 +80,61 @@ export class SchemaResolver
   }
 
   /**
-   * register a named "simple" ValueProcessor
-   * @param {string} keyword
-   * @param {SchemaValueProcessor<any>} processorFn
-   * @param {() => string} [describeFn]
+   * Register a value processor definition
+   * @param {ValueProcessorDefinition} definition
    * @returns {SchemaResolver}
    */
-  registerValueProcessor(keyword, processorFn, describeFn) {
-    if (typeof processorFn !== 'function') {
+  registerValueProcessorDefinition(definition) {
+    const { keyword, processor, description, builder } = definition;
+
+    if (!keyword) {
+      throw new ResolverError('Processor definition must have a keyword');
+    }
+
+    if (processor && builder) {
+      throw new ResolverError(`Processor '${keyword}' cannot have both processor and builder`);
+    }
+
+    if (!processor && !builder) {
+      throw new ResolverError(`Processor '${keyword}' must have processor or builder`);
+    }
+
+    this.processorMap.set(keyword, definition);
+    return this;
+  }
+
+  /**
+   * register a named "simple" ValueProcessor
+   * @param {string} keyword
+   * @param {SchemaValueProcessor<any>} processor
+   * @param {string} [description]
+   * @returns {SchemaResolver}
+   */
+  registerValueProcessor(keyword, processor, description) {
+    if (typeof processor !== 'function') {
       throw new ResolverError(`Processor for keyword '${keyword}' must be a function`);
     }
-    this.processorMap.set(keyword, {
-      process: processorFn,
-      describe: describeFn ?? (() => keyword)
+    return this.registerValueProcessorDefinition({
+      keyword,
+      processor,
+      description: description ?? keyword
     });
-    return this;
   }
 
   /**
    * register a complex ValueProcessor that needs to be built based on schema processor spec
    * @param {string} keyword
-   * @param {ValueProcessorBuilder} buildFn
+   * @param {ValueProcessorBuilder} builder
    * @returns {SchemaResolver}
    */
-  registerParameterizedValueProcessor(keyword, buildFn) {
-    if (typeof buildFn !== 'function') {
+  registerParameterizedValueProcessor(keyword, builder) {
+    if (typeof builder !== 'function') {
       throw new ResolverError(`Processor builder for keyword '${keyword}' must be a function`);
     }
-    this.processorMap.set(keyword, {
-      build: buildFn
-    })
-    return this;
+    return this.registerValueProcessorDefinition({
+      keyword,
+      builder
+    });
   }
 
   /**
@@ -133,19 +157,8 @@ export class SchemaResolver
    * @private
    */
   _registerBuiltInValueProcessors() {
-    // Register all simple processors
-    for (const [keyword, processor] of SIMPLE_PROCESSORS) {
-      this.registerValueProcessor(keyword, processor.process, processor.describe);
-    }
-
-    // Register all parameterized processors
-    for (const [keyword, processor] of PARAMETERIZED_PROCESSORS) {
-      if (processor.build !== undefined) {
-        this.registerParameterizedValueProcessor(keyword, processor.build);
-      }
-      else {
-        throw new ResolverError(`Parameterized processor for keyword '${keyword}' has no builder` );
-      }
+    for (const definition of getBuiltinProcessors()) {
+      this.registerValueProcessorDefinition(definition);
     }
   }
 
@@ -214,11 +227,13 @@ export class SchemaResolver
       if (!registered) {
         throw new ResolverError(`Unknown processor keyword: ${spec}`);
       }
+      if (registered.processor === undefined) {
+        throw new ResolverError(`No processor function defined for keyword: ${spec}`);
+      }
 
       return {
-        // todo - call asyncifySVF?
-        processor: async (v, c, s, p, o) => registered.process?.(v, c, s, p, o),
-        description: registered.describe?.()
+        processor: this._asyncifySVF(registered.processor),
+        description: registered.description
       }
     }
 
@@ -240,9 +255,9 @@ export class SchemaResolver
         throw new ResolverError(`Unknown processor keyword: ${keyword}`);
       }
 
-      if (registered.build) {
+      if (registered.builder) {
         // Parameterized validator - pass args and recursive compiler
-        return registered.build(args, (spec) => this._compileProcessorSpec(spec));
+        return registered.builder(args, (spec) => this._compileProcessorSpec(spec));
       }
       else {
         throw new ResolverError(`Processor ${keyword} does not accept arguments`);
@@ -393,9 +408,6 @@ export class SchemaResolver
   async _compile(inputSchema, parent, name) {
 
     const outputSchema = new CompiledSchema(CompiledSchema.__TOKEN, parent, name);
-    if (!inputSchema.base) {
-// fixme?      inputSchema.base = 'any';
-    }
 
     const source = this._resolve(inputSchema);
 

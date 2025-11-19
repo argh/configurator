@@ -6,7 +6,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate that path is executable
  */
 export const EXECUTABLE_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'executable',
+  processor: async (value) => {
     try {
       await fs.access(value, constants.X_OK);
       return value;
@@ -14,5 +15,5 @@ export const EXECUTABLE_CONSTRAINT = {
       throw new ConstraintError('File is not executable');
     }
   },
-  describe: () => 'path'
+  description: 'path'
 };

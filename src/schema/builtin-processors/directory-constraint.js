@@ -5,7 +5,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate that path exists and is a directory
  */
 export const DIRECTORY_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'directory',
+  processor: async (value) => {
     try {
       const stat = await fs.stat(value);
       if (!stat.isDirectory()) {

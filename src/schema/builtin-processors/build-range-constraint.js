@@ -5,7 +5,8 @@ import { ResolverError, ConstraintError } from '../../errors.js';
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const RANGE_CONSTRAINT = {
-  build: (args, compileSpec) => {
+  keyword: 'range',
+  builder: (args, compileSpec) => {
     if (typeof args !== 'object' || args === null) {
       throw new ResolverError('$range requires an object with min/max properties');
     }

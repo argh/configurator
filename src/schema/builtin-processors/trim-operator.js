@@ -2,7 +2,8 @@
  * Trim whitespace from both ends of string
  */
 export const TRIM_OPERATOR = {
-  process: (value) => {
+  keyword: 'trim',
+  processor: (value) => {
     return String(value).trim();
   }
 };

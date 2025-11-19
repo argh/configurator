@@ -4,7 +4,8 @@ import { toPascalCase } from '../../utils.js';
  * Convert string to PascalCase
  */
 export const PASCALCASE_OPERATOR = {
-  process: (value) => {
+  keyword: 'pascalcase',
+  processor: (value) => {
     return toPascalCase(String(value));
   }
 };

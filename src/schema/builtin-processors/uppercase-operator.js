@@ -2,7 +2,8 @@
  * Convert string to uppercase
  */
 export const UPPERCASE_OPERATOR = {
-  process: (value) => {
+  keyword: 'uppercase',
+  processor: (value) => {
     return String(value).toUpperCase();
   }
 };

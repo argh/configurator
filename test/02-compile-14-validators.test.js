@@ -76,10 +76,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       assert.strictEqual(invokedWith, 'test-value');
     });
 
-    it('should use describe function for valueDescription', async function() {
+    it('should use description string for valueDescription', async function() {
       resolver.registerValueProcessor('described',
         (value) => value,
-        () => 'custom description text'
+        'custom description text'
       );
 
       const schema = new Schema('string')
@@ -416,7 +416,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should append new validator description when adding a validator', async function() {
       resolver.registerValueProcessor('custom',
         (value) => value,
-        () => 'custom description'
+        'custom description'
       );
 
       // Boolean base has {$in: [true, false]} validator generating 'true|false'
@@ -433,7 +433,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should prefer explicit value description over that of validators', async function() {
       resolver.registerValueProcessor('custom',
         (value) => value,
-        () => 'custom description'
+        'custom description'
       );
 
       // Boolean base has {$in: [true, false]} validator generating 'true|false'
@@ -450,7 +450,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should set valueDescription when base has none', async function() {
       resolver.registerValueProcessor('withDesc',
         (value) => value,
-        () => 'validator description'
+        'validator description'
       );
 
       // String type has no valueDescription in base

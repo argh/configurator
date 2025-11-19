@@ -5,7 +5,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate that hostname is reachable via DNS lookup
  */
 export const REACHABLE_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'reachable',
+  processor: async (value) => {
     try {
       await lookup(value);
       return value;

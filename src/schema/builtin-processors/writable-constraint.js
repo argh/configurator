@@ -6,7 +6,8 @@ import { ConstraintError } from '../../errors.js';
  * Validate that path is writable (or parent directory is writable if path doesn't exist)
  */
 export const WRITABLE_CONSTRAINT = {
-  process: async (value) => {
+  keyword: 'writable',
+  processor: async (value) => {
     try {
       // Try to access the file
       await fs.access(value, constants.W_OK);
@@ -38,5 +39,5 @@ export const WRITABLE_CONSTRAINT = {
       throw new ConstraintError('File is not writable');
     }
   },
-  describe: () => 'path'
+  description: 'path'
 };
