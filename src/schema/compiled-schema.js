@@ -11,6 +11,7 @@ import { isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
 import { existingAssignment } from './helpers/assignment-helpers.js';
+import { fpm } from './helpers/fpm.js';
 
 
 /** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions } from './types.js' */
@@ -249,6 +250,14 @@ export class CompiledSchema
     return false;
   }
 
+  /**
+   * Return true if this schema is used to select union keys.
+   * (This doesn't guarantee that there is a matching discriminator that uses it!)
+   * @type {boolean}
+   */
+  get isUnionKey() {
+    return !!this._options.unionKey;
+  }
 
   /**
    * Return true if the schema acts as a selector.
@@ -595,7 +604,7 @@ export class CompiledSchema
 
       if (!resolved) {
         const discriminateValue = isAssignmentSchema ? assignmentValue : currentValue;
-        const unionSchema = await currentSchema.discriminateUnion(discriminateValue, result, currentPath,{resolveUnions: progress.final});
+        const unionSchema = await currentSchema.discriminateUnion(discriminateValue, result, currentPath,{strict: progress.final});
 
         if (unionSchema) {
           const key = currentSchema.findUnionKey(unionSchema);
@@ -944,6 +953,7 @@ export class CompiledSchema
    * but by passing advanced options, you can change how validation functions:
    * - enforceUnionResolution (true) if false, unresolved unions are not an error
    * - enforceRequired (true) if false, missing requirements are not an error
+   * - enforceValues (true) if false, the output will not be normalized to check against allowed values
    * - disallowUnexpected (true) if false, extra properties in the data are not an error
    * You can also pass any visit() options, notably:
    * - visitUndefined (false) - if true, deep validate the data against the entire schema hierarchy
@@ -965,6 +975,7 @@ export class CompiledSchema
     const enforceUnionResolution = options.enforceUnionResolution ?? strict;
     const disallowUnexpected = options.disallowUnexpected ?? strict;
     const enforceRequired = options.enforceRequired ?? strict;
+    const enforceValues = options.enforceValues ?? strict;
 
     try {
       const validated = await this.visit(input, async (current, input, schema, path) => {
@@ -990,6 +1001,21 @@ export class CompiledSchema
             }
           }
           return EMPTY_VALUE;
+        }
+
+        if (enforceValues && Array.isArray(schema.values)) {
+          // Invariant: if values are defined, they should contain the normalized form of the transformed value.
+          let normalized;
+          try {
+            normalized = await schema.normalize(current, input, path);
+          }
+          catch (error) {
+            throw new ValidationError(fpm('Unable to check value', path))
+          }
+
+          if (!schema.values?.includes(normalized)) {
+            throw new ValidationError(fpm(`Invalid normalized value "${normalized}", expected one of {${schema.values.join('|')}}`, path));
+          }
         }
 
         const validators = Array.isArray(schema._handlers.validators)? schema._handlers.validators : [];
@@ -1079,6 +1105,8 @@ export class CompiledSchema
 // FIXME ?      return undefined;
     }
 
+    const strict = options?.strict ?? false;
+
     if (!this.isUnion || this._handlers.discriminators === undefined) {
       return undefined;
     }
@@ -1093,18 +1121,26 @@ export class CompiledSchema
         discriminatorResult = await discriminator(discriminatorResult, configuration, this, path, options);
       }
       catch (error) {
+        if (strict) {
+          throw error;
+        }
         return undefined;
       }
     }
     if (!discriminatorResult) {
+      if (strict) {
+        throw new SchemaError(fpm('Unable to resolve union', path));
+      }
       return undefined;
     }
-    if (typeof discriminatorResult === 'string' && this.unionSchemas[discriminatorResult]) {
+    if (typeof discriminatorResult === 'string') {
+      // String lookups (e.g., from property extraction) - return undefined if no match
       return this.unionSchemas[discriminatorResult];
     }
     if (discriminatorResult instanceof CompiledSchema && this.findUnionKey(discriminatorResult)) {
       return discriminatorResult;
     }
+    // Schema returned but not valid - this is a developer error
     throw new SchemaError(fpm('Union discriminator returned unexpected value', path))
   }
 
@@ -1332,7 +1368,7 @@ export class CompiledSchema
 
         if (schema.isUnion && resolveUnions && current !== undefined) {
           /** @type {CompiledSchema|undefined} */
-          const unionSchema = await schema.discriminateUnion(current, input, path)
+          const unionSchema = await schema.discriminateUnion(current, input, path, {strict: resolveUnions})
 
           if (unionSchema) {
             schema = unionSchema;
@@ -1782,28 +1818,4 @@ class AssignmentProgress {
 }
 
 const EMPTY_VALUE = Symbol('EMPTY')
-
-/**
- * Format a path (possibly with property), typically for error messages.
- *
- * @param {string} message
- * @param {string} path
- * @param {string} [property]
- * @param {string} [prep]
- * @returns {string}
- * @private
- */
-function fpm(message, path, property, prep = 'at') {
-
-  let m = message;
-
-  if (property) {
-    m += ` property ${property}`
-  }
-  if (path) {
-    m += ` ${prep} ${path}`;
-  }
-
-  return m;
-}
 

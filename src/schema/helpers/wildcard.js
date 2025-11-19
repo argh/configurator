@@ -8,6 +8,8 @@
 export function expandWildcards(assignments) {
   const result = new Map();
   const wildcardEntries = [];
+
+  /** @type {Array<[string,any]>} */
   const concreteEntries = [];
 
   // Separate wildcard and concrete entries

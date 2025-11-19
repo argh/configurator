@@ -146,7 +146,8 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have inherited the validator from number base type
-      assert.strictEqual(typeof compiled.options.validator, 'function');
+      const result = await compiled.validate(42, {}, compiled, '');
+      assert.strictEqual(result, 42);
     });
 
     it('should resolve base type and inherit transformer', async function() {
@@ -154,7 +155,8 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have inherited transformer
-      assert.strictEqual(typeof compiled.options.transformer, 'function');
+      const result = await compiled.transform(true, {}, '');
+      assert.strictEqual(result, true);
     });
 
     it('should handle schema without base type', async function() {
@@ -240,8 +242,6 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Nested schemas should have resolved their base types
-      assert.strictEqual(typeof compiled.properties.name.options.normalizer, 'function');
-      assert.strictEqual(typeof compiled.properties.age.options.normalizer, 'function');
       assert.strictEqual(await compiled.properties.name.normalize(123), '123');
       assert.strictEqual(await compiled.properties.age.normalize('456'), 456);
     });
@@ -258,8 +258,8 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const nameSchema = compiled.properties.user.properties.name;
       const activeSchema = compiled.properties.user.properties.active;
 
-      assert.strictEqual(typeof nameSchema.options.normalizer, 'function');
-      assert.strictEqual(typeof activeSchema.options.normalizer, 'function');
+      assert.strictEqual(await nameSchema.normalize(123), '123');
+      assert.strictEqual(await activeSchema.normalize('true'), true);
     });
   });
 
@@ -288,7 +288,6 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(level3);
 
       // Should resolve through all layers to number base type
-      assert.strictEqual(typeof compiled.options.normalizer, 'function');
       assert.strictEqual(await compiled.normalize('42'), 42);
       // Local metadata should win
       assert.strictEqual(compiled.metadata.level, 3);

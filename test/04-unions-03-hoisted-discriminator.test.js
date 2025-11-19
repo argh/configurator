@@ -152,10 +152,13 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
 
     const compiled = await resolver.compile(schema);
 
-    // When no union member accepts the value, should throw ValidationError
+    // discrimination should quietly fail...
+    assert.strictEqual(await compiled.discriminateUnion({type: 'invalid'}), undefined);
+
+    // ...but failure to discriminate should throw an error.
     await assert.rejects(
-      () => compiled.discriminateUnion({type: 'invalid'}, {}, ''),
-      ValidationError
+      () => compiled.validate({type: 'invalid'}),
+      /Union resolution conflict/
     );
   });
 });

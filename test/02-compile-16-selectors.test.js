@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { SchemaError } from '../src/errors.js';
+import { SchemaError, ValidationError } from '../src/errors.js';
 
 describe('Schema Compilation - Selectors and Selections', function() {
   let resolver;
@@ -75,14 +75,13 @@ describe('Schema Compilation - Selectors and Selections', function() {
       assert.strictEqual(compiled.isSelection, true);
     });
 
-    it.skip('should mark schema as selection even when selection is false', async function() {
+    it('should not mark schema as selection if selection is false', async function() {
       // isSelection checks for !== undefined, so false is truthy for this purpose - todo - this seems weird, think about it
       const schema = new Schema('object').selection(false);
 
       const compiled = await resolver.compile(schema);
 
-      // false is not undefined, so it's still considered a selection marker
-      assert.strictEqual(compiled.isSelection, true);
+      assert.strictEqual(compiled.isSelection, false);
     });
 
     it('should not mark schema as selection when selection is undefined', async function() {
@@ -220,27 +219,19 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should auto-generate condition for selection properties', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('option1', new Schema('object', {
-          selection: true
-        }));
+        .property('command', new Schema('string').selector())
+        .property('option1', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
-      // Selection should have a condition function
-      assert.strictEqual(typeof compiled.properties.option1.options.condition, 'function');
+      const result = await compiled.properties.option1.checkCondition({}, {}, compiled.properties.option1, 'option1');
+      assert.strictEqual(typeof result, 'boolean');
     });
 
     it('should condition return true when selector matches implicit selection', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('storage', new Schema('object', {
-          selection: true
-        }));
+        .property('command', new Schema('string').selector())
+        .property('storage', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -257,15 +248,9 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should condition return false when selector does not match implicit selection', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('storage', new Schema('object', {
-          selection: true
-        }))
-        .property('compute', new Schema('object', {
-          selection: true
-        }));
+        .property('command', new Schema('string').selector())
+        .property('storage', new Schema('object').selection())
+        .property('compute', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -282,12 +267,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should condition return true when selector matches explicit selection', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', {
-          selector: true
-        }))
-        .property('debug', new Schema('object', {
-          selection: 'debug-mode'
-        }));
+        .property('mode', new Schema('string').selector())
+        .property('debug', new Schema('object').selection('debug-mode'));
 
       const compiled = await resolver.compile(schema);
 
@@ -304,12 +285,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should condition return false when selector does not match explicit selection', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', {
-          selector: true
-        }))
-        .property('debug', new Schema('object', {
-          selection: 'debug-mode'
-        }));
+        .property('mode', new Schema('string').selector())
+        .property('debug', new Schema('object').selection('debug-mode'));
 
       const compiled = await resolver.compile(schema);
 
@@ -326,12 +303,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should condition return false when selector is not set', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('option', new Schema('object', {
-          selection: true
-        }));
+        .property('command', new Schema('string').selector())
+        .property('option', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -350,13 +323,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
       const normalizer = (v) => v.toLowerCase();
 
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true,
-          normalizer
-        }))
-        .property('Storage', new Schema('object', {
-          selection: 'STORAGE'
-        }));
+        .property('command', new Schema('string').selector().normalizer(normalizer))
+        .property('Storage', new Schema('object').selection('STORAGE'));
 
       const compiled = await resolver.compile(schema);
 
@@ -374,13 +342,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should not override explicit condition with selection condition', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('option', new Schema('object', {
-          selection: true,
-          condition: () => false  // Explicit condition
-        }));
+        .property('command', new Schema('string').selector())
+        .property('option', new Schema('object').selection().condition(() => false));
 
       const compiled = await resolver.compile(schema);
 
@@ -401,21 +364,11 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should support selector within selection', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('storage', new Schema('object', {
-          selection: true
-        })
-          .property('storageCommand', new Schema('string', {
-            selector: true
-          }))
-          .property('list', new Schema('object', {
-            selection: true
-          }))
-          .property('get', new Schema('object', {
-            selection: true
-          }))
+        .property('command', new Schema('string').selector())
+        .property('storage', new Schema('object').selection()
+          .property('storageCommand', new Schema('string').selector())
+          .property('list', new Schema('object').selection())
+          .property('get', new Schema('object').selection())
         );
 
       const compiled = await resolver.compile(schema);
@@ -430,18 +383,10 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should check nested selection condition correctly', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
-        .property('storage', new Schema('object', {
-          selection: true
-        })
-          .property('action', new Schema('string', {
-            selector: true
-          }))
-          .property('upload', new Schema('object', {
-            selection: true
-          }))
+        .property('command', new Schema('string').selector())
+        .property('storage', new Schema('object').selection()
+          .property('action', new Schema('string').selector())
+          .property('upload', new Schema('object').selection())
         );
 
       const compiled = await resolver.compile(schema);
@@ -472,15 +417,9 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should allow multiple properties with same selection value', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', {
-          selector: true
-        }))
-        .property('config1', new Schema('object', {
-          selection: 'shared'
-        }))
-        .property('config2', new Schema('object', {
-          selection: 'shared'
-        }));
+        .property('mode', new Schema('string').selector())
+        .property('config1', new Schema('object').selection('shared'))
+        .property('config2', new Schema('object').selection('shared'));
 
       const compiled = await resolver.compile(schema);
 
@@ -495,18 +434,10 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should include shared selection value only once in selector values', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', {
-          selector: true
-        }))
-        .property('option1', new Schema('object', {
-          selection: 'shared'
-        }))
-        .property('option2', new Schema('object', {
-          selection: 'shared'
-        }))
-        .property('option3', new Schema('object', {
-          selection: 'other'
-        }));
+        .property('mode', new Schema('string').selector())
+        .property('option1', new Schema('object').selection('shared'))
+        .property('option2', new Schema('object').selection('shared'))
+        .property('option3', new Schema('object').selection('other'));
 
       const compiled = await resolver.compile(schema);
 
@@ -519,15 +450,9 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should enable all selections with same value when selector matches', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', {
-          selector: true
-        }))
-        .property('feature1', new Schema('object', {
-          selection: 'advanced'
-        }))
-        .property('feature2', new Schema('object', {
-          selection: 'advanced'
-        }));
+        .property('mode', new Schema('string').selector())
+        .property('feature1', new Schema('object').selection('advanced'))
+        .property('feature2', new Schema('object').selection('advanced'));
 
       const compiled = await resolver.compile(schema);
 
@@ -553,26 +478,20 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
   describe('Selector without selections', function() {
 
-    it('should synthesize empty array when no selections exist', async function() {
+    it('should not synthesize empty array when no selections exist', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true
-        }))
+        .property('command', new Schema('string').selector())
         .property('normalProperty', new Schema('string'));
 
       const compiled = await resolver.compile(schema);
 
-      // No selections, so empty array is synthesized
-      assert.ok(Array.isArray(compiled.properties.command.options.values));
-      assert.strictEqual(compiled.properties.command.options.values.length, 0);
+      // No selections
+      assert.ok(compiled.properties.command.options.values === undefined);
     });
 
     it('should allow selector with only explicit values', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true,
-          values: ['explicit1', 'explicit2']
-        }));
+        .property('command', new Schema('string').selector().values(['explicit1', 'explicit2']));
 
       const compiled = await resolver.compile(schema);
 
@@ -585,9 +504,7 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should mark property as selection even without selector', async function() {
       const schema = new Schema('object')
-        .property('option', new Schema('object', {
-          selection: true
-        }));
+        .property('option', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -596,9 +513,7 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should have condition that always returns false when no selector exists', async function() {
       const schema = new Schema('object')
-        .property('option', new Schema('object', {
-          selection: true
-        }));
+        .property('option', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -618,12 +533,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should allow property to be both selector and selection', async function() {
       const schema = new Schema('object')
-        .property('nested', new Schema('object', {
-          selection: true
-        })
-          .property('command', new Schema('string', {
-            selector: true
-          }))
+        .property('nested', new Schema('object').selection()
+          .property('command', new Schema('string').selector())
         );
 
       const compiled = await resolver.compile(schema);
@@ -640,15 +551,9 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should handle selector with boolean type', async function() {
       const schema = new Schema('object')
-        .property('enabled', new Schema('boolean', {
-          selector: true
-        }))
-        .property('trueOption', new Schema('object', {
-          selection: 'true'
-        }))
-        .property('falseOption', new Schema('object', {
-          selection: 'false'
-        }));
+        .property('enabled', new Schema('boolean').selector())
+        .property('trueOption', new Schema('object').selection('true'))
+        .property('falseOption', new Schema('object').selection('false'));
 
       const compiled = await resolver.compile(schema);
 
@@ -659,15 +564,9 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should handle selector with number type', async function() {
       const schema = new Schema('object')
-        .property('level', new Schema('number', {
-          selector: true
-        }))
-        .property('level1', new Schema('object', {
-          selection: '1'
-        }))
-        .property('level2', new Schema('object', {
-          selection: '2'
-        }));
+        .property('level', new Schema('number').selector())
+        .property('level1', new Schema('object').selection('1'))
+        .property('level2', new Schema('object').selection('2'));
 
       const compiled = await resolver.compile(schema);
 
@@ -678,12 +577,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should handle empty selection value string', async function() {
       const schema = new Schema('object')
-        .property('selector', new Schema('string', {
-          selector: true
-        }))
-        .property('empty', new Schema('object', {
-          selection: ''
-        }));
+        .property('selector', new Schema('string').selector())
+        .property('empty', new Schema('object').selection(''));
 
       const compiled = await resolver.compile(schema);
 
@@ -696,13 +591,8 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should work with required flag', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true,
-          required: true
-        }))
-        .property('option', new Schema('object', {
-          selection: true
-        }));
+        .property('command', new Schema('string').selector().required(true))
+        .property('option', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -712,16 +602,9 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should work with default values', async function() {
       const schema = new Schema('object')
-        .property('mode', new Schema('string', {
-          selector: true,
-          default: 'standard'
-        }))
-        .property('standard', new Schema('object', {
-          selection: true
-        }))
-        .property('advanced', new Schema('object', {
-          selection: true
-        }));
+        .property('mode', new Schema('string').selector().default('standard'))
+        .property('standard', new Schema('object').selection())
+        .property('advanced', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
@@ -731,30 +614,22 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should work with validators', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true,
-          validator: /^[a-z]+$/
-        }))
-        .property('option', new Schema('object', {
-          selection: true
-        }));
+        .property('command', new Schema('string').selector().validator(/^[a-z]+$/))
+        .property('option', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.command.options.validator, 'function');
+      await assert.rejects(
+        () => compiled.properties.command.validate('invalid123', {}, compiled.properties.command, 'command'),
+        ValidationError
+      );
       assert.strictEqual(compiled.properties.command.isSelector, true);
     });
 
     it('should work with metadata', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string', {
-          selector: true,
-          _description: 'Select a command'
-        }))
-        .property('option', new Schema('object', {
-          selection: true,
-          _description: 'Command option'
-        }));
+        .property('command', new Schema('string').selector().meta('description', 'Select a command'))
+        .property('option', new Schema('object').selection().meta('description', 'Command option'));
 
       const compiled = await resolver.compile(schema);
 

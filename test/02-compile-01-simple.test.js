@@ -75,7 +75,8 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.name.options.normalizer, 'function');
+      const result = await compiled.properties.name.normalize('test');
+      assert.strictEqual(result, 'test');
     });
 
     it('should have compiled transformer functions', async function() {
@@ -84,7 +85,8 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.count.options.transformer, 'function');
+      const result = await compiled.properties.count.transform(42, {}, 'count');
+      assert.strictEqual(result, 42);
     });
 
     it('should have compiled validator functions', async function() {
@@ -93,7 +95,8 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.active.options.validator, 'function');
+      const result = await compiled.properties.active.validate(true, {}, compiled.properties.active, 'active');
+      assert.strictEqual(result, true);
     });
 
     it('should compile custom normalizer functions', async function() {
@@ -104,7 +107,6 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.code.options.normalizer, 'function');
       assert.strictEqual(await compiled.properties.code.normalize('test'), 'TEST');
     });
 
@@ -116,7 +118,6 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.tag.options.transformer, 'function');
       const result = await compiled.properties.tag.transform('input', {}, 'tag');
       assert.strictEqual(result, 'transformed-input');
     });
@@ -135,14 +136,15 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.username.options.validator, 'function');
-
-        await assert.rejects(
-        () => compiled.properties.username.options.validator('ab', {}, compiled.properties.username, 'username'),
-        /Too short/
+      await assert.rejects(
+        async () => {
+          await compiled.properties.username.validate('ab', {}, compiled.properties.username, 'username');
+        },
+        (err) => {
+          return err.name === 'ValidationError' && err.cause && err.cause.message.includes('Too short');
+        }
       );
-      }
-    );
+    });
 
   });
 

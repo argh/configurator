@@ -66,7 +66,7 @@ const unionSchemaOne = new Schema('object')
     .normalizer(sanitize)
     .values(Object.values(cheeses).map(c => c.name))
   )
-  .unionDiscriminator((value, _, schema) => schema.unionSchemas[sanitize(value.name)]);
+  .unionDiscriminator((value) => sanitize(value.name));
 
 for (const cheese of cheeses) {
   unionSchemaOne
@@ -81,10 +81,10 @@ for (const cheese of cheeses) {
 schema.property('test1', unionSchemaOne);
 
 
-// Approach #2 - Basically the same as Approach #1, but uses a convenience capability of the unionDiscriminator
-// setting that when provided the string name of a property, it will synthesize a discriminator function that is
-// basically exactly like the one we wrote manually in Approach #1 (it normalizes the values of the unionSchema keys
-// using the discriminator property normalizer).
+// Approach #2 - Basically the same as Approach #1, but uses the unionKey convenience convenience option
+// to flag that a property will hold a union key; it will then synthesize a discriminator function
+// almost exactly like the one we wrote manually in Approach #1 (it normalizes the values of the
+// unionSchema keys using the discriminator property normalizer).
 //
 // - Observe the use of Schema.literal().  This is just syntactic sugar for constructing a schema
 //   with that always transforms to the original input and has a default that matches it.  We need to add
@@ -93,9 +93,8 @@ schema.property('test1', unionSchemaOne);
 const unionSchemaTwo = new Schema('object')
   .property('name', new Schema('string')
     .normalizer(sanitize)
-    .values(Object.values(cheeses).map(c => c.name))
+    .unionKey()
   )
-  .unionDiscriminator('name')
 
 for (const cheese of cheeses) {
   unionSchemaTwo

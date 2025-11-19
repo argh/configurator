@@ -10,10 +10,10 @@ describe('Unions: Property-Based Discriminator', function() {
     resolver = new SchemaResolver();
   });
 
-  it('should discriminate union using property name string', async function() {
+  it('should discriminate union using property name with $property', async function() {
     const schema = new Schema('object')
       .property('type', new Schema('string').values(['circle', 'square']))
-      .unionDiscriminator('type')
+      .unionDiscriminator({$property: 'type'})
       .unionSchema('circle', new Schema('object')
         .property('type', Schema.literal('circle'))
         .property('radius', new Schema('number'))
@@ -35,7 +35,7 @@ describe('Unions: Property-Based Discriminator', function() {
   });
 
   it('should normalize discriminator property value', async function() {
-    // This tests that the discriminator properly uses the property's normalizer
+    // This tests that the discriminator uses a pipeline to match the union key
     const normalizer = (v) => v.toLowerCase();
 
     const schema = new Schema('object')
@@ -43,7 +43,7 @@ describe('Unions: Property-Based Discriminator', function() {
         .normalizer(normalizer)
         .values(['CIRCLE', 'SQUARE'])
       )
-      .unionDiscriminator('type')
+      .unionDiscriminator({$pipeline: [{$property: 'type'}, '$uppercase']})
       .unionSchema('CIRCLE', new Schema('object')
         .property('type', Schema.literal('CIRCLE').normalizer(normalizer))
       )
@@ -62,7 +62,7 @@ describe('Unions: Property-Based Discriminator', function() {
   it('should handle raw discriminator value lookup', async function() {
     const schema = new Schema('object')
       .property('kind', new Schema('string').values(['a', 'b']))
-      .unionDiscriminator('kind')
+      .unionDiscriminator({$property: 'kind'})
       .unionSchema('a', new Schema('object')
         .property('kind', Schema.literal('a'))
       )
@@ -80,7 +80,7 @@ describe('Unions: Property-Based Discriminator', function() {
   it('should return undefined for non-matching discriminator value', async function() {
     const schema = new Schema('object')
       .property('type', new Schema('string'))
-      .unionDiscriminator('type')
+      .unionDiscriminator({$property: 'type'})
       .unionSchema('valid', new Schema('object')
         .property('type', Schema.literal('valid'))
       );
@@ -94,7 +94,7 @@ describe('Unions: Property-Based Discriminator', function() {
   it('should return undefined when discriminator property is missing', async function() {
     const schema = new Schema('object')
       .property('type', new Schema('string'))
-      .unionDiscriminator('type')
+      .unionDiscriminator({$property: 'type'})
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('a'))
       );
@@ -107,8 +107,8 @@ describe('Unions: Property-Based Discriminator', function() {
 
   it('should synthesize discriminator property values from union keys', async function() {
     const schema = new Schema('object')
-      .property('type', new Schema('string'))
-      .unionDiscriminator('type')
+      .property('type', new Schema('string').unionKey())
+      .unionDiscriminator({$property: 'type'})
       .unionSchema('option1', new Schema('object')
         .property('type', Schema.literal('option1'))
       )
@@ -131,7 +131,7 @@ describe('Unions: Property-Based Discriminator', function() {
   it('should handle numeric union keys with property discriminator', async function() {
     const schema = new Schema('object')
       .property('code', new Schema('number'))
-      .unionDiscriminator('code')
+      .unionDiscriminator({$pipeline: [{$property: 'code'}, '$lowercase']})
       .unionSchema('1', new Schema('object')
         .property('code', Schema.literal(1))
       )

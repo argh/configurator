@@ -293,10 +293,8 @@ describe('Configurator - Root Schema Edge Cases', function() {
     });
 
     it('should handle union with property-based discriminator at root', async function() {
-      // TODO: Property-based union discriminator at root - fails with "Unknown property 'path'"
       const schema = new Schema('object')
-        .property('type', new Schema('string'))
-        .unionDiscriminator('type')
+        .property('type', new Schema('string').unionKey())
         .unionSchema('config', new Schema('object')
           .property('type', Schema.literal('config'))
           .property('path', new Schema('string'))

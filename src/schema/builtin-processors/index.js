@@ -49,6 +49,7 @@ import { CEIL_OPERATOR } from './build-ceil-operator.js';
 import { FLOOR_OPERATOR } from './build-floor-operator.js';
 import { FILTER_OPERATOR } from './build-filter-operator.js';
 import { PIPELINE_OPERATOR } from './build-pipeline-operator.js';
+import { PROPERTY_OPERATOR } from './build-property-operator.js';
 
 
 /** @import { ValueProcessorDefinition } from '../types.js'; */
@@ -112,5 +113,6 @@ export const PARAMETERIZED_PROCESSORS = /** @type {Map<string, ValueProcessorDef
   ['round', ROUND_OPERATOR],
   ['ceil', CEIL_OPERATOR],
   ['floor', FLOOR_OPERATOR],
-  ['filter', FILTER_OPERATOR]
+  ['filter', FILTER_OPERATOR],
+  ['property', PROPERTY_OPERATOR]
 ]);

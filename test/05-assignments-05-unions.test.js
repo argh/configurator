@@ -90,13 +90,12 @@ describe('Assignments - Unions', function() {
     });
   });
 
-  describe('Union discriminator - property name shorthand', function() {
+  describe('Union discriminator - union key shorthand', function() {
 
     it('should resolve union using property name as discriminator', async function() {
       const schema = new Schema('object')
         .property('animal', new Schema('object')
-          .property('type', new Schema('string'))
-          .unionDiscriminator('type')
+          .property('type', new Schema('string').unionKey())
           .unionSchema('cat', new Schema('object')
             .property('type', Schema.literal('cat'))
             .property('meow', new Schema('boolean'))
@@ -333,7 +332,7 @@ describe('Assignments - Unions', function() {
         () => compiled.processAssignments(assignments),
         (err) => {
           assert.ok(err instanceof SchemaError);
-          assert.match(err.cause?.message, /Union resolution ambiguity for config/i);
+          assert.match(err.cause?.message, /Union resolution ambiguity/i);
           assert.match(err.cause?.message, /database\|cache/);
           return true;
         }

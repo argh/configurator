@@ -71,7 +71,7 @@
   * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>} [serializer] - convert a validated input to serialized form
   * @property {SchemaValueProcessor<boolean>|AsyncSchemaValueProcessor<any>|boolean} [condition] - conditional check whether to process this schema
   * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>|string} [discriminator] - function or property name that returns a union discriminator
-  * @property {function(string,CompiledSchema):void} [compileHook] - a function called during schema compilation
+  * @property {function(string,ISchema):void} [compileHook] - a function called during schema compilation
   * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
   * @property {boolean} [strict] - whether to do strict typechecking (defaults to true; must be explicitly false to be "lax")
   * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
@@ -149,6 +149,7 @@
  * @extends VisitOptions
  * @property {boolean} [enforceUnionResolution]
  * @property {boolean} [enforceRequired]
+ * @property {boolean} [enforceValues]
  * @property {boolean} [deepRequired]
  * @property {boolean} [disallowUnexpected]
  * @property {boolean} [strict]

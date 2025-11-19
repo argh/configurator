@@ -379,7 +379,8 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should have string validator from base
-      assert.strictEqual(typeof compiled.options.validator, 'function');
+      const result = await compiled.validate('test', {}, compiled, '');
+      assert.strictEqual(result, 'test');
     });
 
     it('should override base validator with local validator', async function() {
@@ -402,17 +403,17 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should use type fallback when replacing validator that had description', async function() {
       // Boolean base has {$in: [true, false]} validator generating 'true|false'
-      // Replacing with function validator (no description) loses that description
+      // Appending with function validator (no description) maintains that description
       const schema = new Schema('boolean')
         .validator((value) => value);
 
       const compiled = await resolver.compile(schema);
 
       // Falls back to type-based description since new validator has no description
-      assert.strictEqual(compiled.metadata.valueDescription, '[boolean]');
+      assert.strictEqual(compiled.metadata.valueDescription, '[true|false]');
     });
 
-    it('should use new validator description when replacing base validator', async function() {
+    it('should append new validator description when adding a validator', async function() {
       resolver.registerValueProcessor('custom',
         (value) => value,
         () => 'custom description'
@@ -426,7 +427,24 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Derived validator description takes precedence (derived overrides base)
-      assert.strictEqual(compiled.metadata.valueDescription, '[custom description]');
+      assert.strictEqual(compiled.metadata.valueDescription, '[(true|false) >> custom description]');
+    });
+
+    it('should prefer explicit value description over that of validators', async function() {
+      resolver.registerValueProcessor('custom',
+        (value) => value,
+        () => 'custom description'
+      );
+
+      // Boolean base has {$in: [true, false]} validator generating 'true|false'
+      // Derived schema replaces it with $custom validator
+      const schema = new Schema('boolean')
+        .validator('$custom')
+        .meta('valueDescription', 'override')
+
+      const compiled = await resolver.compile(schema);
+
+      assert.strictEqual(compiled.metadata.valueDescription, 'override');
     });
 
     it('should set valueDescription when base has none', async function() {
@@ -464,10 +482,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      assert.ok(compiled.properties.name.options.validator);
-      assert.ok(compiled.properties.age.options.validator);
-      assert.ok(compiled.properties.status.options.validator);
-      assert.ok(compiled.properties.email.options.validator);
+      await compiled.properties.name.validate('John', {}, compiled.properties.name, 'name');
+      await compiled.properties.age.validate(25, {}, compiled.properties.age, 'age');
+      await compiled.properties.status.validate('active', {}, compiled.properties.status, 'status');
+      await compiled.properties.email.validate('test@example.com', {}, compiled.properties.email, 'email');
     });
 
     it('should invoke validators independently for each property', async function() {
@@ -562,20 +580,29 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should throw error for invalid validator spec type', async function() {
       const schema = new Schema('string')
-        .validator(123);
+        .validator({});
 
       await assert.rejects(
       async () => await resolver.compile(schema)
       );
     });
 
-    it('should throw error for array validator spec', async function() {
+    it('should aggregate array of specs and individual specs', async function() {
       const schema = new Schema('string')
-        .validator([/test/, /other/]);
+        .validator([(v) => v.toUpperCase(), (v) => v.trim()])
+        .validator(v => { if (v === 'EVIL') { throw new Error('discovered EVIL')}});
+
+      const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-      async () => await resolver.compile(schema)
+        () => compiled.validate('   evil  '),
+        (/** @type{ValidationError} */ error) => {
+          assert.strictEqual(error?.cause?.message, 'discovered EVIL')
+          return true;
+        }
       );
+
+
     });
   });
 

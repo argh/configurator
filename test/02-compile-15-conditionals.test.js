@@ -17,7 +17,8 @@ describe('Schema Compilation - Conditionals', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      const result = await compiled.checkCondition('test', {}, compiled, 'path');
+      assert.strictEqual(typeof result, 'boolean');
     });
 
     it('should default to always true when no condition specified', async function() {
@@ -35,8 +36,10 @@ describe('Schema Compilation - Conditionals', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.properties.a.options.condition, 'function');
-      assert.strictEqual(typeof compiled.properties.b.options.condition, 'function');
+      const resultA = await compiled.properties.a.checkCondition('test', {}, compiled.properties.a, 'a');
+      const resultB = await compiled.properties.b.checkCondition(42, {}, compiled.properties.b, 'b');
+      assert.strictEqual(typeof resultA, 'boolean');
+      assert.strictEqual(typeof resultB, 'boolean');
     });
 
     it('should default to true for nested properties', async function() {
@@ -64,7 +67,8 @@ describe('Schema Compilation - Conditionals', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      const result = await compiled.checkCondition('test', {}, compiled, 'path');
+      assert.strictEqual(result, true);
     });
 
     it('should invoke custom condition function', async function() {
@@ -486,7 +490,8 @@ describe('Schema Compilation - Conditionals', function() {
       const compiled = await resolver.compile(schema);
 
       // Should not use base string's condition
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      const result = await compiled.checkCondition('test', {}, compiled, 'path');
+      assert.strictEqual(result, false);
     });
 
     it('should use local condition over base schema condition', async function() {
@@ -623,8 +628,9 @@ describe('Schema Compilation - Conditionals', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.validator, 'function');
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      await compiled.validate('123', {}, compiled, 'path');
+      const condResult = await compiled.checkCondition('123', {}, compiled, 'path');
+      assert.strictEqual(condResult, true);
     });
 
     it('should work with transformers', async function() {
@@ -634,8 +640,10 @@ describe('Schema Compilation - Conditionals', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.transformer, 'function');
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      const transformed = await compiled.transform('test', {}, 'path');
+      assert.strictEqual(transformed, 'TEST');
+      const condResult = await compiled.checkCondition('test', {}, compiled, 'path');
+      assert.strictEqual(condResult, true);
     });
 
     it('should work with values constraint', async function() {
@@ -660,7 +668,8 @@ describe('Schema Compilation - Conditionals', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.options.default, 'default-value');
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      const condResult = await compiled.checkCondition('test', {useDefault: true}, compiled, 'path');
+      assert.strictEqual(condResult, true);
     });
 
     it('should work with required flag', async function() {
@@ -671,7 +680,8 @@ describe('Schema Compilation - Conditionals', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.options.required, true);
-      assert.strictEqual(typeof compiled.options.condition, 'function');
+      const condResult = await compiled.checkCondition('test', {required: true}, compiled, 'path');
+      assert.strictEqual(condResult, true);
     });
   });
 });

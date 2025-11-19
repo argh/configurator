@@ -2,6 +2,7 @@ import { ConfiguratorError, SchemaError, ValidationError } from '../errors.js';
 import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
 import { deepValue } from '../utils.js';
+import { fpm } from './helpers/fpm.js';
 
 /** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec } from './types.js' */
 
@@ -242,7 +243,10 @@ export class Schema
     else if (attributeName === 'unionSchemas') {
       return this.addUnionSchemas(attributeValue ?? {})
     }
-    else if (this.hasOwnProperty(attributeName) && (typeof this[attributeName] === 'function')) {
+    else if (Object.getPrototypeOf(this)?.hasOwnProperty(attributeName)) {
+      if (!(typeof this[attributeName] === 'function')) {
+        throw new Error('Unknown attribute!')
+      }
       try {
         return this[attributeName].call(this, attributeValue);
       }
@@ -346,16 +350,16 @@ export class Schema
   /**
    * bulk-add properties
    * @param {SchemaProperties} properties - property name
-   * @param {boolean} [overwrite] - whether to overwrite existing properties
+   * @param {symbol} [policy] - specify whether to overwrite or only initialize
    * @returns {Schema} - returns self for fluent chaining
    * @internal
    */
-  addProperties(properties, overwrite = false) {
+  addProperties(properties, policy = SchemaPolicy.INITIALIZE) {
     if (typeof properties !== 'object') {
       throw new SchemaError('Invalid properties definition');
     }
     for (const [key, schema] of Object.entries(properties)) {
-      if (overwrite || this._properties[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this._properties[key] === undefined) {
         this.property(key, Schema.createFromModel(schema));
       }
     }
@@ -390,16 +394,20 @@ export class Schema
   /**
    * bulk add options
    * @param {Object} options
-   * @param {boolean} [overwrite]
+   * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
    */
-  addOptions(options, overwrite = false) {
+  addOptions(options, policy = SchemaPolicy.INITIALIZE) {
+    if (policy !== SchemaPolicy.INITIALIZE && policy !== SchemaPolicy.OVERWRITE) {
+      throw new SchemaError('Unsupported policy');
+    }
+
     if (typeof options !== 'object') {
       throw new SchemaError('Options definition must be an object');
     }
     for (const [key, value] of Object.entries(options)) {
-      if (overwrite || this._options[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this._options[key] === undefined) {
         this.option(key, value);
       }
     }
@@ -407,51 +415,60 @@ export class Schema
   }
 
   /**
-   *
+   * Helper function for the fluent handler api calls
    * @param {string} handlerName
-   * @param {Array<ProcessorSpec>} processorSpecs
-   * @returns {Schema}
+   * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
+   * @private
    */
-  handler(handlerName, processorSpecs) {
+  handler(handlerName, specs = [], policy = SchemaPolicy.APPEND) {
     if (typeof handlerName !== 'string') {
       throw new SchemaError('Handlers must be associated with a valid key');
     }
-    if (processorSpecs === null) {
-      delete this._handlers[handlerName];
+    if (!Object.values(SchemaPolicy).includes(policy)) {
+      throw new SchemaError('Unknown policy');
+    }
+    if (specs === null || specs === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE) {
+        delete this.handlers[handlerName];
+      }
       return this;
     }
-    else if (processorSpecs === undefined) {
+    if (!Array.isArray(specs)) {
+      specs = [specs];
+    }
+    if (policy === SchemaPolicy.INITIALIZE && Array.isArray(this.handlers[handlerName])) {
       return this;
     }
-    if (!Array.isArray(processorSpecs)) {
-      processorSpecs = [processorSpecs];
+    if (policy === SchemaPolicy.OVERWRITE || policy === SchemaPolicy.INITIALIZE) {
+      this.handlers[handlerName] = specs;
+      return this;
     }
-
-    if (!Array.isArray(this._handlers[handlerName])) {
-      this._handlers[handlerName] = [];
+    if (!Array.isArray(this.handlers[handlerName])) {
+      this.handlers[handlerName] = [];
     }
-
-    this._handlers[handlerName].push(...processorSpecs);
-
+    if (policy === SchemaPolicy.PREPEND) {
+      this.handlers[handlerName].unshift(...specs);
+    }
+    else {
+      this.handlers[handlerName].push(...specs);
+    }
     return this;
   }
 
   /**
    * bulk add handlers
    * @param {Object} handlers
-   * @param {boolean} [overwrite]
+   * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
    */
-  addHandlers(handlers, overwrite = false) {
+  addHandlers(handlers, policy = SchemaPolicy.INITIALIZE) {
     if (typeof handlers !== 'object') {
       throw new SchemaError('Handlers definition must be an object')
     }
-
     for (const [key, value] of Object.entries(handlers)) {
-      if (overwrite || this._handlers[key] === undefined) {
-        this.handler(key, value);
-      }
+      this.handler(key, value, policy);
     }
     return this;
   }
@@ -489,16 +506,16 @@ export class Schema
    * Bulk-add metadata
    *
    * @param {Object} metadata
-   * @param {boolean} [overwrite]
+   * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
    */
-  addMetadata(metadata, overwrite = false) {
+  addMetadata(metadata, policy = SchemaPolicy.INITIALIZE) {
     if (typeof metadata !== 'object') {
       throw new SchemaError('Invalid metadata definition');
     }
     for (const [key, value] of Object.entries(metadata)) {
-      if (overwrite || this._metadata[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this._metadata[key] === undefined) {
         this.meta(key, value);
       }
     }
@@ -507,27 +524,29 @@ export class Schema
 
   /**
    * The discriminator handler returns the key or schema of the union member that should be used
-   * This function adds a single value processor to the handler pipeline.
+   * This function appends a single value processor to the handler pipeline.
    * @param {ProcessorSpec} spec
    * @returns {Schema} - returns self for fluent chaining
    */
   unionDiscriminator(spec) {
     if (typeof spec === 'string') {
-      throw new Error('FIXME');  // need to switch to a different way to flag key lookups
+      // FIXME
+      throw new Error('FIXME');  // use unionKey or $property processor
     }
     return this.unionDiscriminators(spec);
   }
 
   /**
    * The discriminator handler returns the key or schema of the union member that should be used
-   * This function appends multiple value processors to the handler pipeline.
+   * This function applies multiple value processors to the handler pipeline.
    * (Note that it would be highly unusual to want more than one!)
    *
    * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
    * @returns {Schema} - returns self for fluent chaining
    */
-  unionDiscriminators(specs) {
-    return this._appendHandlerSpecs('discriminators', specs);
+  unionDiscriminators(specs, policy) {
+    return this.handler('discriminators', specs, policy);
   }
 
 
@@ -538,6 +557,7 @@ export class Schema
    * @returns {Schema}
    */
   unionSchema(key, unionSchema) {
+
     if (!(unionSchema instanceof Schema )) {
       throw new SchemaError(`Invalid schema for union member ${key}`);
     }
@@ -571,20 +591,34 @@ export class Schema
   /**
    * Bulk-add union schemas
    * @param {Object.<string,Schema>} unionSchemas
-   * @param {boolean} [overwrite]
+   * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
    */
-  addUnionSchemas(unionSchemas, overwrite = false) {
+  addUnionSchemas(unionSchemas, policy = SchemaPolicy.INITIALIZE) {
+    if (policy !== SchemaPolicy.INITIALIZE && policy !== SchemaPolicy.OVERWRITE) {
+      throw new SchemaError('Unsupported policy');
+    }
+
     if (typeof unionSchemas !== 'object') {
       throw new SchemaError('Invalid union schemas object');
     }
 
     for (const [key, unionSchema] of Object.entries(unionSchemas)) {
-      if (overwrite || this._unionSchemas[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this._unionSchemas[key] === undefined) {
         this.unionSchema(key, Schema.createFromModel(unionSchema));
       }
     }
+    return this;
+  }
+
+  /**
+   * mark this schema as only permitting union keys
+   * @param {boolean} [value]
+   * @returns {Schema}
+   */
+  unionKey(value) {
+    this.options.unionKey = Boolean(value ?? true);
     return this;
   }
 
@@ -605,32 +639,13 @@ export class Schema
    * @returns {Schema}
    */
   selection(value) {
-    this.options.selection = value ?? true;
-
-    if (!this.handlers.conditions) {
-      this.handlers.conditions = []
+    if (value === false) {
+      // if it was previously set to something, we may have a lingering condition, but it should ignore
+      delete this.options.selection;
     }
-    const condition = async (value, configuration, schema, path) => {
-      if (!schema.isSelection) {
-        return true;   // in case someone changed their mind?
-      }
-      const ldi = path.lastIndexOf('.');
-      const parentPath = (ldi === -1) ? '' : path.substring(0, ldi);
-
-      let parentSchema = schema.parent;
-
-      for (let propName in parentSchema?.properties) {
-        let s = parentSchema.properties[propName];
-
-        if (s.isSelector) {
-          const selectorPath = parentPath ? `${parentPath}.${propName}` : propName;
-          const selectorValue = deepValue(configuration, selectorPath);
-          return (await s.normalize(selectorValue)) === (await s.normalize(schema.selection));
-        }
-      }
-      return false;
+    else {
+      this.options.selection = value ?? true;
     }
-    this.handlers.conditions.push(condition);
     return this;
   }
 
@@ -752,39 +767,32 @@ export class Schema
   /**
    * Define legal values this schema can hold (simple === comparison only for now)
    * @param {Array<NonNullable<any>>} va
+   * @param {symbol} [policy]
    * @returns {Schema}
    */
-  values(va = []) {
-    if (!Array.isArray(this.options.values)) {
+  values(va = [], policy = SchemaPolicy.APPEND) {
+
+    if (policy === SchemaPolicy.INITIALIZE && Array.isArray(this.options.values)) {
+      return this;
+    }
+    if (policy === SchemaPolicy.OVERWRITE || !Array.isArray(this.options.values)) {
       this.options.values = [];
     }
     if (!Array.isArray(va)) {
       va = [va];
     }
-    this.options.values.push(...va);
+    if (policy === SchemaPolicy.PREPEND) {
+      this.options.values.unshift(...va);
+    }
+    else {
+      this.options.values.push(...va);
+    }
     return this;
   }
 
-
-  /**
-   * Helper function for the fluent handler api calls
-   * @param {string} handlerName
-   * @param {Array<ProcessorSpec>} specs
-   * @private
-   */
-  _appendHandlerSpecs(handlerName, specs = []) {
-    if (!Array.isArray(specs)) {
-      specs = [specs];
-    }
-    if (!Array.isArray(this.handlers[handlerName])) {
-      this.handlers[handlerName] = [];
-    }
-    this.handlers[handlerName].push(...specs);
-    return this;
-  }
   /**
    * The condition handler determines if the schema should be processed at all.
-   * This function appends a single value processor to the handler pipeline.
+   * This function appends a single value processor to the handler pipeline
    *
    * @param {ProcessorSpec} spec
    * @returns {Schema}
@@ -795,13 +803,14 @@ export class Schema
 
   /**
    * The condition handler determines if the schema should be processed at all.
-   * This call appends multiple value processors to the handler pipeline.
+   * This call applies one or more value processors to the handler pipeline (default policy = append)
    *
    * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
    * @returns {Schema}
    */
-  conditions(specs) {
-    return this._appendHandlerSpecs('conditions', specs);
+  conditions(specs, policy) {
+    return this.handler('conditions', specs, policy);
   }
 
   /**
@@ -817,13 +826,14 @@ export class Schema
 
   /**
    * The normalizer handler ensures input is in a format that the transformer can handle.
-   * This call appends multiple value processors to the handler pipeline.
+   * This call applies one or more value processors to the handler pipeline.
    *
    * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
    * @returns {Schema}
    */
-  normalizers(specs) {
-    return this._appendHandlerSpecs('normalizers', specs);
+  normalizers(specs, policy) {
+    return this.handler('normalizers', specs, policy);
   }
 
   /**
@@ -839,13 +849,14 @@ export class Schema
 
   /**
    * The transformer handler converts an input value into the output value used in the final configuration.
-   * This call appends multiple value processors to the handler pipeline.
+   * This call applies one or more value processors to the handler pipeline.
    *
    * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
    * @returns {Schema}
    */
-  transformers(specs) {
-    return this._appendHandlerSpecs('transformers', specs);
+  transformers(specs, policy) {
+    return this.handler('transformers', specs, policy);
   }
 
   /**
@@ -860,13 +871,14 @@ export class Schema
 
   /**
    * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
-   * This call appends multiple value processors to the handler pipeline.
+   * This call applies one or more value processors to the handler pipeline.
    *
    * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
    * @returns {Schema}
    */
-  validators(specs) {
-    return this._appendHandlerSpecs('validators', specs);
+  validators(specs, policy) {
+    return this.handler('validators', specs, policy);
   }
 
   /**
@@ -881,13 +893,14 @@ export class Schema
 
   /**
    * The serialize handler restores a configuration value to its pre-transform normalized form.
-   * This call appends multiple value processors to the handler pipeline.
+   * This call applies one or more value processors to the handler pipeline.
    *
    * @param {Array<ProcessorSpec>} specs
+   * @param {symbol} [policy]
    * @returns {Schema}
    */
-  serializers(specs) {
-    return this._appendHandlerSpecs('serializers', specs);
+  serializers(specs, policy) {
+    return this.handler('serializers', specs, policy);
   }
 
 
@@ -913,9 +926,9 @@ export class Schema
       Object.entries(otherSchema.unionSchemas ?? {})
             .map(([unionKey, unionSchema]) => [unionKey, Schema.createFromModel(unionSchema)])));
 
-    this.addOptions(otherSchema.options ?? {}, false);
-    this.addMetadata(otherSchema.metadata ?? {}, false);
-    this.addHandlers(otherSchema.handlers ?? {}, false);  // todo - this behaves differently than compilation!?
+    this.addOptions(otherSchema.options ?? {});
+    this.addMetadata(otherSchema.metadata ?? {});
+    this.addHandlers(otherSchema.handlers ?? {});  // todo - this behaves differently than compilation!?
 
     return this;
   }
@@ -993,21 +1006,22 @@ export class Schema
           }
         }
       })
-      .transformer((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
-        return literalValue;
-      })
-      .validator((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema) => {
-        if (value !== literalValue) {
-          throw new ValidationError(`Expected literal ${JSON.stringify(literalValue)}`)
-        }
-        return literalValue;
-      });
+      .transformer(() => literalValue)
+
+// I think we can trust the values check for validation...
+//      .validator((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema, /** @type {string} */ path) => {
+//        if (value !== literalValue) {
+//          throw new ValidationError(fpm(`Expected literal ${JSON.stringify(literalValue)}`, path));
+//        }
+//        return literalValue;
+//      });
+
 
     if (options) {
       schema._setAttributes(options);
     }
     if (metadata) {
-      schema.addMetadata(metadata, true);
+      schema.addMetadata(metadata);
     }
 
     return schema;
@@ -1082,3 +1096,14 @@ export class Schema
   }
 }
 
+/**
+ * Policies for fine-grained control of composite schema internals
+ * @readonly
+ * @enum {Symbol}
+ */
+export const SchemaPolicy = Object.freeze({
+  INITIALIZE: Symbol('INITIALIZE'),   // only set if not already set
+  OVERWRITE: Symbol('OVERWRITE'),     // overwrite
+  APPEND: Symbol('APPEND'),           // add values to the end
+  PREPEND: Symbol('PREPEND')          // add values to the beginning
+});

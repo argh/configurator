@@ -158,7 +158,8 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      assert.strictEqual(typeof compiled.options.discriminator, 'function');
+      const discriminated = await compiled.discriminateUnion({type: 'A'}, {}, compiled, '');
+      assert.ok(discriminated);
     });
 
     it('should have discriminator for auto-generated case', async function() {
@@ -170,21 +171,39 @@ describe('Schema Compilation - Union Structure', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.discriminator, 'function');
+      const discriminated = await compiled.discriminateUnion({kind: 'a'}, {}, compiled, '');
+      assert.ok(discriminated);
     });
 
-    it('should have discriminator when manually provided', async function() {
+    it('should have discriminator when manually provided (returning schema)', async function() {
       const schema = new Schema('object')
         .unionSchema('optionA', new Schema('object')
           .property('type', new Schema('string').values(['A'])))
-        .unionDiscriminator((value) => {
-          return value.type === 'A' ? schema.unionSchemas.optionA : undefined;
+        .unionDiscriminator((value, config, unionSchema) => {
+          return value.type === 'A' ? unionSchema.unionSchemas.optionA : undefined;
         });
 
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      assert.strictEqual(typeof compiled.options.discriminator, 'function');
+      const discriminated = await compiled.discriminateUnion({type: 'A'}, {}, compiled, '');
+      assert.ok(discriminated);
+    });
+
+    it('should have discriminator when manually provided (returning key)', async function() {
+      const schema = new Schema('object')
+        .unionSchema('optionB', new Schema('object')
+          .property('type', new Schema('string').values(['B'])))
+        .unionDiscriminator((value) => {
+          return value.type === 'B' ? 'optionB' : undefined;
+        });
+
+      const compiled = await resolver.compile(schema);
+
+      assert.strictEqual(compiled.isUnion, true);
+      const discriminated = await compiled.discriminateUnion({type: 'B'}, {}, compiled, '');
+      assert.ok(discriminated);
+      assert.strictEqual(compiled.findUnionKey(discriminated), 'optionB');
     });
 
     it('should not have discriminator when isUnion is false', async function() {
@@ -194,7 +213,6 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, false);
-      assert.strictEqual(compiled.options.discriminator, undefined);
     });
   });
 

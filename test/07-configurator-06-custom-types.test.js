@@ -2,7 +2,7 @@
 
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
-import { Schema } from '../src/schema/schema.js';
+import { Schema, SchemaPolicy } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
 describe('Configurator - Custom Types Integration', function() {
@@ -205,20 +205,29 @@ describe('Configurator - Custom Types Integration', function() {
     it('should use custom types with conditions', async function() {
       const resolver = new SchemaResolver();
 
-      resolver.registerSchema('percentage', new Schema('number', {
-        normalizer: (value) => {
-          if (typeof value === 'string' && value.endsWith('%')) {
-            return parseFloat(value) / 100;
+      resolver.registerSchema('percentage', new Schema('number')
+        .option('compileHook', (event, schema) => {
+          // This is a terrible hack, but it's actually kind of a weird case - we're saying it's a number, but
+          // the number normalizer doesn't presently want a % in the string (maybe it should allow it?)
+          // So, we'll hook to the "normalize" even, and prepend a normalizer IN FRONT of the number normalizer!
+
+          if (event === 'resolve' && schema instanceof Schema) {
+            schema.normalizers((value) => {
+              if (typeof value === 'string' && value.endsWith('%')) {
+                return parseFloat(value) / 100;
+              }
+              return typeof value === 'string' ? parseFloat(value) : value;
+            }, SchemaPolicy.PREPEND)
           }
-          return typeof value === 'string' ? parseFloat(value) : value;
-        },
-        validator: (value) => {
+        })
+        // we need to sneak this normalizer in front of the default number normalizer!
+        .validator((value) => {
           if (value < 0 || value > 1) {
             throw new Error('Percentage must be between 0 and 1');
           }
           return value;
-        }
-      }));
+        })
+      );
 
       const schema = new Schema('object')
         .property('enableSampling', new Schema('boolean'))

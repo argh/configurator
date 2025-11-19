@@ -150,14 +150,14 @@ describe('Configurator - Special Options', function() {
       const profileProp = configurator.schema._properties['profile'];
       assert.strictEqual(profileProp.metadata.configuratorSchema, 'config');
       assert.strictEqual(profileProp.metadata.description, 'profile configuration file');
-      assert.strictEqual(profileProp._options.context, 'profilePath');
+      assert.strictEqual(profileProp.options.context, 'profilePath');
     });
 
     it('should create config schema with correct default attributes', function() {
       const configSchema = Configurator.createConfigSchema();
 
       assert.strictEqual(configSchema.options.context, 'config');
-      assert.deepStrictEqual(configSchema.options.validator, {$or: ['-', '$file']});
+      assert.deepStrictEqual(configSchema.handlers.validators, [{$or: ['-', '$file']}]);
       assert.strictEqual(configSchema.metadata.flagHint, 'C');
       assert.strictEqual(configSchema.metadata.configuratorSchema, 'config');
       assert.strictEqual(configSchema.metadata.omitFromSerialize, true);
@@ -287,7 +287,7 @@ describe('Configurator - Special Options', function() {
       const dumpSchema = Configurator.createDumpSchema();
 
       assert.strictEqual(dumpSchema.options.context, 'dump');
-      assert.strictEqual(dumpSchema.options.validator, '$writable');
+      assert.deepStrictEqual(dumpSchema.handlers.validators, ['$writable']);
       assert.strictEqual(dumpSchema.metadata.configuratorSchema, 'dump');
       assert.strictEqual(dumpSchema.metadata.advanced, true);
       assert.strictEqual(dumpSchema.metadata.omitFromSerialize, true);
@@ -447,10 +447,10 @@ describe('Configurator - Special Options', function() {
       // Note: Testing stdin ("-") is tricky in unit tests
       // This test documents that "-" should be supported by validator
       const configSchema = Configurator.createConfigSchema();
-      const validator = configSchema._options.validator;
+      const validators = configSchema.handlers.validators;
 
       // Schema should allow "-" as a valid value
-      assert.ok(validator.$or.includes('-'), 'Config schema should support "-" for stdin');
+      assert.ok(validators?.[0].$or.includes('-'), 'Config schema should support "-" for stdin');
     });
 
     it('should handle deeply nested config file data', async function() {

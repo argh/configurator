@@ -16,9 +16,9 @@ describe('Assignments - Conditional Processing', function() {
     it('should suppress assignment when condition fails', async function() {
       const schema = new Schema('object')
         .property('enabled', new Schema('boolean'))
-        .property('value', new Schema('string', {
-          condition: (value, configuration) => configuration.enabled === true
-        }));
+        .property('value', new Schema('string')
+          .condition((value, configuration) => configuration.enabled === true)
+        );
 
       const compiled = await resolver.compile(schema);
 
@@ -38,9 +38,10 @@ describe('Assignments - Conditional Processing', function() {
     it('should process assignment when condition passes', async function() {
       const schema = new Schema('object')
         .property('enabled', new Schema('boolean'))
-        .property('value', new Schema('string', {
-          condition: (value, configuration) => configuration.enabled === true
-        }));
+        .property('value', new Schema('string')
+          .condition((value, configuration) => configuration.enabled === true)
+        );
+
 
       const compiled = await resolver.compile(schema);
 
@@ -60,12 +61,12 @@ describe('Assignments - Conditional Processing', function() {
     it('should handle multiple conditional properties', async function() {
       const schema = new Schema('object')
         .property('mode', new Schema('string'))
-        .property('devOption', new Schema('string', {
-          condition: (value, configuration) => configuration.mode === 'development'
-        }))
-        .property('prodOption', new Schema('string', {
-          condition: (value, configuration) => configuration.mode === 'production'
-        }));
+        .property('devOption', new Schema('string')
+          .condition((value, configuration) => configuration.mode === 'development')
+        )
+        .property('prodOption', new Schema('string')
+          .condition((value, configuration) => configuration.mode === 'production')
+        );
 
       const compiled = await resolver.compile(schema);
 
@@ -90,12 +91,12 @@ describe('Assignments - Conditional Processing', function() {
     it('should suppress nested properties based on parent condition', async function() {
       const schema = new Schema('object')
         .property('useRemote', new Schema('boolean'))
-        .property('remote', new Schema('object', {
-          condition: (value, configuration) => configuration.useRemote === true
-        })
+        .property('remote', new Schema('object')
+          .condition((value, configuration) => configuration.useRemote === true)
           .property('host', new Schema('string'))
           .property('port', new Schema('number'))
         );
+
 
       const compiled = await resolver.compile(schema);
 
@@ -116,9 +117,8 @@ describe('Assignments - Conditional Processing', function() {
     it('should process nested properties when parent condition passes', async function() {
       const schema = new Schema('object')
         .property('useRemote', new Schema('boolean'))
-        .property('remote', new Schema('object', {
-          condition: (value, configuration) => configuration.useRemote === true
-        })
+        .property('remote', new Schema('object')
+          .condition((value, configuration) => configuration.useRemote === true)
           .property('host', new Schema('string'))
           .property('port', new Schema('number'))
         );
@@ -146,14 +146,12 @@ describe('Assignments - Conditional Processing', function() {
       const schema = new Schema('object')
         .property('logger', new Schema('object')
           .property('type', new Schema('string'))
-          .property('remote', new Schema('object', {
-            condition: (value, configuration) => configuration.logger?.type === 'remote'
-          })
+          .property('remote', new Schema('object')
+            .condition((value, configuration) => configuration.logger?.type === 'remote')
             .property('url', new Schema('string'))
           )
-          .property('local', new Schema('object', {
-            condition: (value, configuration) => configuration.logger?.type === 'local'
-          })
+          .property('local', new Schema('object')
+            .condition((value, configuration) => configuration.logger?.type === 'local')
             .property('path', new Schema('string'))
           )
         );
@@ -187,12 +185,12 @@ describe('Assignments - Conditional Processing', function() {
       // being processed first
       const schema = new Schema('object')
         .property('step1', new Schema('string'))
-        .property('step2', new Schema('string', {
-          condition: (value, configuration) => configuration.step1 !== undefined
-        }))
-        .property('step3', new Schema('string', {
-          condition: (value, configuration) => configuration.step2 !== undefined
-        }));
+        .property('step2', new Schema('string')
+          .condition((value, configuration) => configuration.step1 !== undefined)
+        )
+        .property('step3', new Schema('string')
+          .condition((value, configuration) => configuration.step2 !== undefined)
+        );
 
       const compiled = await resolver.compile(schema);
 
@@ -214,12 +212,12 @@ describe('Assignments - Conditional Processing', function() {
     it('should handle circular condition dependencies gracefully', async function() {
       // Assignment A depends on B, B depends on A - both should fail
       const schema = new Schema('object')
-        .property('a', new Schema('string', {
-          condition: (value, configuration) => configuration.b !== undefined
-        }))
-        .property('b', new Schema('string', {
-          condition: (value, configuration) => configuration.a !== undefined
-        }));
+        .property('a', new Schema('string')
+          .condition((value, configuration) => configuration.b !== undefined)
+        )
+        .property('b', new Schema('string')
+          .condition((value, configuration) => configuration.a !== undefined)
+        );
 
       const compiled = await resolver.compile(schema);
 
@@ -243,9 +241,9 @@ describe('Assignments - Conditional Processing', function() {
         .property('items', new Schema('array')
           .property('*', new Schema('object')
             .property('name', new Schema('string'))
-            .property('optional', new Schema('string', {
-              condition: (value, configuration) => configuration.includeOptional === true
-            }))
+            .property('optional', new Schema('string')
+              .condition((value, configuration) => configuration.includeOptional === true)
+            )
           )
         );
 
@@ -275,14 +273,14 @@ describe('Assignments - Conditional Processing', function() {
         .property('items', new Schema('array')
           .property('*', new Schema('object')
             .property('enabled', new Schema('boolean'))
-            .property('value', new Schema('string', {
-              condition: (value, configuration, schema, path) => {
+            .property('value', new Schema('string')
+              .condition((value, configuration, schema, path) => {
                 // Get the parent object from the configuration using the path
                 const pathParts = path.split('.');
                 const index = pathParts[pathParts.length - 2]; // Get array index
                 return configuration.items?.[index]?.enabled === true;
-              }
-            }))
+              })
+            )
           )
         );
 
@@ -311,10 +309,10 @@ describe('Assignments - Conditional Processing', function() {
     it('should apply defaults when condition passes but assignment missing', async function() {
       const schema = new Schema('object')
         .property('enabled', new Schema('boolean'))
-        .property('value', new Schema('string', {
-          condition: (value, configuration) => configuration.enabled === true,
-          default: 'default-value'
-        }));
+        .property('value', new Schema('string')
+          .condition((value, configuration) => configuration.enabled === true)
+          .default('default-value')
+        )
 
       const compiled = await resolver.compile(schema);
 

@@ -1,5 +1,6 @@
 import { ConfiguratorError, SchemaError, ValidationError } from "../../errors.js";
 import { CompiledSchema } from "../compiled-schema.js";
+import { fpm } from './fpm.js';
 
 
 /** @typedef {Set<CompiledSchema>} SchemaSet */
@@ -159,7 +160,7 @@ export function generateAutomaticDiscriminatorFunction(schema) {
           candidates.delete(schema);
 
           if (candidates.size === 0) {
-            throw new ValidationError(`Union resolution conflict when setting ${property} to ${propertyValue}`);
+            throw new ValidationError(fpm(`Union resolution conflict when setting ${property} to ${propertyValue}`, path));
           }
         }
       }
@@ -169,13 +170,13 @@ export function generateAutomaticDiscriminatorFunction(schema) {
       return Array.from(candidates)[0];
     }
     else if (candidates.size === 0) {
-      throw new ConfiguratorError('Union resolution conflict');
+      throw new ConfiguratorError(fpm('Union resolution failure', path));
     }
     else {
-      if (options?.resolveUnions) {
+      if (options?.strict) {
         const keys = Array.from(candidates).map(s => schema.findUnionKey(s)).join('|')
 
-        throw new ValidationError(`Union resolution ambiguity for ${path} (could be ${keys})`);
+        throw new ValidationError(fpm(`Union resolution ambiguity (could be ${keys})`, path));
       }
       return undefined;
     }
@@ -202,35 +203,7 @@ export function generatePropertyValueDiscriminatorFunction(schema, propertyName)
    * @returns {Promise<CompiledSchema|string|undefined>}
    */
   async function discriminator(input) {
-    const propertyValue = input?.[propertyName];
-
-    if (propertyValue === undefined) {
-      return undefined;
-    }
-    let unionSchema = schema.unionSchemas[propertyValue];
-    if (unionSchema !== undefined) {
-      return unionSchema;
-    }
-
-    const normalizedValue = await ref.normalize(propertyValue);
-    unionSchema = schema.unionSchemas[normalizedValue];
-
-    if (unionSchema !== undefined) {
-      return unionSchema;
-    }
-    for (const [unionSchemaKey, unionSchema] of Object.entries(schema.unionSchemas)) {
-      if (await ref.normalize(unionSchemaKey) === normalizedValue) {
-        return unionSchema;
-      }
-    }
-    return undefined;
-  }
-
-  if (!ref.options.values) {
-    ref.options.values = [];
-    for (const discriminatorKey in schema.unionSchemas) {
-      ref.options.values.push(discriminatorKey);
-    }
+    return input?.[propertyName];
   }
   return discriminator;
 }

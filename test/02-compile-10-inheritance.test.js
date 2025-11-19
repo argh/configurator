@@ -2,6 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { ValidationError } from '../src/errors.js';
 
 describe('Schema Compilation - Inheritance', function() {
   let resolver;
@@ -16,7 +17,6 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.normalizer, 'function');
       assert.strictEqual(await compiled.normalize(42), '42');
       assert.strictEqual(await compiled.normalize(true), 'true');
     });
@@ -25,23 +25,28 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.validator, 'function');
+      const result = await compiled.validate(42, {}, compiled, '');
+      assert.strictEqual(result, 42);
     });
 
     it('should inherit transformer from boolean base', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.transformer, 'function');
+      const result = await compiled.transform(true, {}, '');
+      assert.strictEqual(result, true);
     });
 
     it('should inherit all handlers from object base', async function() {
       const schema = new Schema('object');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(typeof compiled.options.normalizer, 'function');
-      assert.strictEqual(typeof compiled.options.transformer, 'function');
-      assert.strictEqual(typeof compiled.options.validator, 'function');
+      const normalized = await compiled.normalize({});
+      const transformed = await compiled.transform({}, {}, '');
+      const validated = await compiled.validate({}, {}, compiled, '');
+      assert.deepStrictEqual(normalized, {});
+      assert.deepStrictEqual(transformed, {});
+      assert.deepStrictEqual(validated, {});
     });
   });
 
@@ -68,11 +73,11 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.options.validator('invalid', {}, compiled, ''),
-        /Not valid/
+        () => compiled.validate('invalid', {}, compiled, ''),
+        ValidationError
       );
 
-      const result = await compiled.options.validator('valid', {}, compiled, '');
+      const result = await compiled.validate('valid', {}, compiled, '');
       assert.strictEqual(result, 'valid');
     });
 
@@ -226,7 +231,6 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(level3);
 
       // Should resolve to number base type
-      assert.strictEqual(typeof compiled.options.normalizer, 'function');
       assert.strictEqual(await compiled.normalize('42'), 42);
 
       // Local metadata should win
@@ -430,7 +434,7 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(local);
 
       // Type base provides normalizer (not overridden)
-      assert.strictEqual(typeof compiled.options.normalizer, 'function');
+      assert.strictEqual(await compiled.normalize(42), '42');
 
       // Local metadata wins
       assert.strictEqual(compiled.metadata.layer, 'local');
