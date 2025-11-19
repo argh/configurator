@@ -202,39 +202,45 @@ describe('Configurator - Custom Types Integration', function() {
       assert.strictEqual(config.logLevel, 'info');
     });
 
-    it('should use custom types with conditions', async function() {
+    it('should use custom schemas built with conditions', async function() {
       const resolver = new SchemaResolver();
 
-      resolver.registerSchema('percentage', new Schema('number')
-        .option('compileHook', (event, schema) => {
-          // This is a terrible hack, but it's actually kind of a weird case - we're saying it's a number, but
-          // the number normalizer doesn't presently want a % in the string (maybe it should allow it?)
-          // So, we'll hook to the "normalize" even, and prepend a normalizer IN FRONT of the number normalizer!
+      // We need to sneak the percentage normalizer in front of the default number schema normalizer!
+      //
+      // To accomplish this, we need either need to build a mutant number, or gain access to the resolved schema.
+      // - get a registered schema, create a modified version:
+      //   schema = new Schema(resolver.getSchema('number')).normalizers(...)
+      // - tricky compiler hook:
+      //   schema.compilerHook((event, resolvedSchema) => { if (event === 'resolve') { resolvedSchema.normalizers(...) } }
+      // - pre-resolve (safest):
+      //   schema = resolver.resolve(new Schema('number')).normalizers(...)
 
-          if (event === 'resolve' && schema instanceof Schema) {
-            schema.normalizers((value) => {
-              if (typeof value === 'string' && value.endsWith('%')) {
-                return parseFloat(value) / 100;
-              }
-              return typeof value === 'string' ? parseFloat(value) : value;
-            }, SchemaPolicy.PREPEND)
+      const percentageSchema = resolver
+        .resolve(new Schema('number'))
+        .normalizers((value) => {
+          if (typeof value === 'string' && value.endsWith('%')) {
+            return parseFloat(value) / 100;
           }
-        })
-        // we need to sneak this normalizer in front of the default number normalizer!
+          return typeof value === 'string' ? parseFloat(value) : value;
+        }, SchemaPolicy.PREPEND)
         .validator((value) => {
           if (value < 0 || value > 1) {
             throw new Error('Percentage must be between 0 and 1');
           }
           return value;
         })
-      );
+      resolver.registerSchema('percentage', percentageSchema);
 
-      const schema = new Schema('object')
+      const testSchema = new Schema('object')
         .property('enableSampling', new Schema('boolean'))
         .property('sampleRate', new Schema('percentage', {
           condition: (value, config) => config.enableSampling === true,
           default: 0.1
         }));
+
+      const schema = resolver.resolve(testSchema);
+
+
 
       const configurator = new Configurator({ schema, resolver });
 

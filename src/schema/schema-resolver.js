@@ -297,14 +297,17 @@ export class SchemaResolver
   }
 
   /**
-   * Create a new Schema that contains the flattened hierarchy of all resolved base schemas
+   * Create a new Schema that contains the flattened hierarchy of all resolved base schemas.
+   *
+   * This can be useful if you need to make changes to the full schema, e.g. prepending processors
+   * before the base class handlers.
+   *
    * @param {Schema|CompiledSchema|SchemaData} inputSchema
    * @param {Schema} [parent]
    * @param {string} [name]
    * @returns {Schema}
-   * @private
    */
-  _resolve(inputSchema, parent, name) {
+  resolve(inputSchema, parent, name) {
     const outputSchema = new Schema();
 
     /** @type {Schema|CompiledSchema|SchemaData|undefined} */
@@ -317,7 +320,7 @@ export class SchemaResolver
     while (source !== undefined) {
       for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
         if (!outputSchema.properties.hasOwnProperty(propName)) {
-          outputSchema.properties[propName] = this._resolve(propSchema, outputSchema, propName);
+          outputSchema.properties[propName] = this.resolve(propSchema, outputSchema, propName);
         }
       }
       for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
@@ -327,7 +330,7 @@ export class SchemaResolver
       }
       for (const [discriminatorValue, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
         if (!outputSchema.unionSchemas.hasOwnProperty(discriminatorValue)) {
-          outputSchema.unionSchemas[discriminatorValue] = this._resolve(unionSchema, parent, name);
+          outputSchema.unionSchemas[discriminatorValue] = this.resolve(unionSchema, parent, name);
         }
       }
       for (const [handlerName, handlerValues] of Object.entries(source.handlers ?? {})) {
@@ -409,7 +412,7 @@ export class SchemaResolver
 
     const outputSchema = new CompiledSchema(CompiledSchema.__TOKEN, parent, name);
 
-    const source = this._resolve(inputSchema);
+    const source = this.resolve(inputSchema);
 
     if (source.options.compileHook && typeof source.options.compileHook === 'function') {
       source.options.compileHook('resolve', source);

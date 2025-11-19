@@ -304,22 +304,26 @@ export class CompiledSchema
   }
 
   /**
-   * Return true if this schema seems to be able to handle a given (normalized) input value.
+   * Return true if this schema seems to be able to handle a given input value.
    *
    * @param {any} value
    * @returns {Promise<boolean>}
    */
   async accepts(value) {
-    if (!Array.isArray(this.values)) {
-      return true;
-    }
+    let normalizedValue;
     try {
-      const normalizedValue = await this.normalize(value);
-      return this.values.includes(normalizedValue);
+      normalizedValue = await this.normalize(value);
+      if (normalizedValue === undefined) {
+        return false;
+      }
     }
     catch (_) {
       return false;
     }
+    if (!Array.isArray(this.values)) {
+      return true;
+    }
+    return this.values.includes(normalizedValue);
   }
 
   /**
