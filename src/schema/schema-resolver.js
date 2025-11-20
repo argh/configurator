@@ -171,6 +171,7 @@ export class SchemaResolver
   _compileProcessorSpec(spec) {
     if (spec === undefined || spec === null || (Array.isArray(spec) && spec.length === 0)) {
       return {
+        spec: [],
         processor: async (value) => value,
 //        description: 'any'
       }
@@ -180,14 +181,14 @@ export class SchemaResolver
         spec = spec[0];
       }
       else {
-        return this._compileProcessorSpec({$pipeline: spec});
+        spec = {$pipeline: spec};
       }
     }
 
     if (typeof spec === 'function') {
       return {
-        // todo - shouldn't we just call this._asyncifySVF?
-        processor: async (v, c, s, p, o) => spec(v, c, s, p, o), // Already a function - wrap to ensure it's async
+        spec,
+        processor: this._asyncifySVF(spec),  // wrap in async to ensure we can manage exceptions
         description: undefined
       }
     }
@@ -209,6 +210,7 @@ export class SchemaResolver
     // Regular expression object
     if (spec instanceof RegExp) {
       return {
+        spec,
         processor: async (value) => {
           if (!spec.test(String(value))) {
             throw new ConstraintError(`Value does not match pattern ${spec}`);
@@ -219,7 +221,7 @@ export class SchemaResolver
       };
     }
 
-    // Keyword handling
+    // Simple keyword handling
     if (typeof spec === 'string' && spec.startsWith('$')) {
       const keyword = spec.slice(1);
       const registered = this.processorMap.get(keyword);
@@ -227,41 +229,62 @@ export class SchemaResolver
       if (!registered) {
         throw new ResolverError(`Unknown processor keyword: ${spec}`);
       }
-      if (registered.processor === undefined) {
+      if (registered.builder) {
+        throw new ResolverError(`Processor keyword ${spec} requires arguments`);
+      }
+      if (typeof registered.processor !== 'function') {
         throw new ResolverError(`No processor function defined for keyword: ${spec}`);
       }
 
       return {
+        spec,
         processor: this._asyncifySVF(registered.processor),
         description: registered.description
       }
     }
 
+    // Might be a parameterized keyword, might be a processor definition
     if (typeof spec === 'object') {
-      //return this._compileObjectValidator(spec);
+      let def = spec;
 
       const keys = Object.keys(spec);
-      if (keys.length !== 1) {
-        throw new ResolverError('Processor object must have exactly one key');
+      if (keys.length === 1) {
+        const [keyword] = keys;
+        if (keyword.startsWith('$')) {
+          const keywordName = keyword.startsWith('$') ? keyword.slice(1) : keyword;
+          const args = spec[keyword];
+
+          const registered = this.processorMap.get(keywordName);
+
+          if (!registered) {
+            throw new ResolverError(`Unknown processor keyword: ${keyword}`);
+          }
+          if (registered.builder) {
+            // Parameterized validator - pass args and recursive compiler
+            def = registered.builder(args, (spec) => this._compileProcessorSpec(spec));
+            def.spec = spec;
+            // Fall through;
+          }
+          else {
+            throw new ResolverError(`Processor ${keyword} does not accept arguments`);
+          }
+        }
+        // not a keyword, fall through and interpret as a processor definition;
       }
 
-      const [keyword] = keys;
-      const keywordName = keyword.startsWith('$') ? keyword.slice(1) : keyword;
-      const args = spec[keyword];
-
-      const registered = this.processorMap.get(keywordName);
-
-      if (!registered) {
-        throw new ResolverError(`Unknown processor keyword: ${keyword}`);
+      if (!def.spec) {
+        throw new ResolverError('Invalid processor definition (no spec or keyword)');
       }
 
-      if (registered.builder) {
-        // Parameterized validator - pass args and recursive compiler
-        return registered.builder(args, (spec) => this._compileProcessorSpec(spec));
+      if (def.processor) {
+        return def;  // already compiled!
       }
-      else {
-        throw new ResolverError(`Processor ${keyword} does not accept arguments`);
+
+      const compiled = this._compileProcessorSpec(def.spec);
+      if (def.description) {
+        compiled.description = def.description;
       }
+      return compiled;
     }
 
 //    throw new ResolverError(`Invalid processor specification: ${spec}`);
@@ -269,6 +292,7 @@ export class SchemaResolver
     // anything else: it's essentially a constant
     const description = stringify(spec);
     return {
+      spec,
       processor: async (value) => {
         // if the value passed in is undefined, we'll synthesize the passed value
         if (value !== undefined && value !== spec) {
@@ -345,12 +369,6 @@ export class SchemaResolver
         if (['normalizer', 'transformer', 'validator', 'serializer'].includes(optionName)) {
           // todo - legacy, remove!
           throw new Error('FIXME');
-          let handlerName = `${optionName}s`;
-          if (!outputSchema.handlers.hasOwnProperty(handlerName)) {
-            outputSchema.handlers[handlerName] = [];
-          }
-          outputSchema.handlers[handlerName].unshift(optionValue);
-//          throw new Error('LEGACY');
         }
         if (!outputSchema.options.hasOwnProperty(optionName)) {
           outputSchema.options[optionName] = optionValue;
@@ -652,7 +670,7 @@ export class SchemaResolver
 
     const compiledDefinition = this._compileProcessorSpec(specList);
 
-    dst.handlers[handlerName] = [compiledDefinition.processor];
+    dst.handlers[handlerName] = [compiledDefinition];
 
     if (descriptionMetadata && !dst.metadata[descriptionMetadata] && compiledDefinition.description) {
       dst.metadata[descriptionMetadata] = compiledDefinition.description;
@@ -717,11 +735,15 @@ export class SchemaResolver
     if (unionKeyProperty) {
       // Note: it's ok to use a custom discriminator (above) even if there is a union key option,
       // as it also triggers population of allowed values for the property in _finalizeValues.
-      dst.handlers.discriminators = [generatePropertyValueDiscriminatorFunction(dst, unionKeyProperty[0])];
+      dst.handlers.discriminators = [
+        this._compileProcessorSpec(generatePropertyValueDiscriminatorFunction(dst, unionKeyProperty[0]))
+      ];
     }
     else {
       await this._hoistDiscriminatorProperties(dst);
-      dst.handlers.discriminators = [generateAutomaticDiscriminatorFunction(dst)];
+      dst.handlers.discriminators = [
+        this._compileProcessorSpec(generateAutomaticDiscriminatorFunction(dst))
+      ];
     }
   }
 
@@ -849,7 +871,6 @@ export class SchemaResolver
             }
           }
         }
-
 
       }
 

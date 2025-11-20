@@ -38,7 +38,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       // Compile a schema that uses it
       const schema = new Schema('string')
-        .validator({ recursive: { nested: true } });
+        .validator({ $recursive: { nested: true } });
 
       await resolver.compile(schema);
 
@@ -115,7 +115,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       });
 
       const schema = new Schema('number')
-        .validator({ min: 10 });
+        .validator({ $min: 10 });
 
       const compiled = await resolver.compile(schema);
 
@@ -131,7 +131,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should throw error for unknown parameterized keyword', async function() {
       const schema = new Schema('string')
-        .validator({ unknownValidator: 42 });
+        .validator({ $unknownValidator: 42 });
 
       await assert.rejects(
       async () => await resolver.compile(schema)
@@ -142,7 +142,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       resolver.registerValueProcessor('simple', (value) => value);
 
       const schema = new Schema('string')
-        .validator({ simple: { arg: 'value' } });
+        .validator({ $simple: { arg: 'value' } });
 
       await assert.rejects(
       async () => await resolver.compile(schema)
@@ -155,7 +155,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       }));
 
       const schema = new Schema('string')
-        .validator({ validator1: 1, validator2: 2 });
+        .validator({ $validator1: 1, $validator2: 2 });
 
       await assert.rejects(
       async () => await resolver.compile(schema)
@@ -171,7 +171,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       });
 
       const schema = new Schema('number')
-        .validator({ range: { min: 1, max: 10 } });
+        .validator({ $range: { min: 1, max: 10 } });
 
       const compiled = await resolver.compile(schema);
 
@@ -528,7 +528,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const schema = new Schema('string')
         .validator({
-          allOf: [
+          $allOf: [
             /^test/,
             (v) => {
               if (v.length < 5) throw new Error('Too short');

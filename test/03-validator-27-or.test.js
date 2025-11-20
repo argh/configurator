@@ -13,7 +13,7 @@ describe('Validator: or', function() {
 
   it('should accept value matching first condition', async function() {
     const schema = new Schema('string').validator({
-      or: [/^test/, /^other/]
+      $or: [/^test/, /^other/]
     });
     const compiled = await resolver.compile(schema);
 
@@ -22,7 +22,7 @@ describe('Validator: or', function() {
 
   it('should accept value matching second condition', async function() {
     const schema = new Schema('string').validator({
-      or: [/^test/, /^other/]
+      $or: [/^test/, /^other/]
     });
     const compiled = await resolver.compile(schema);
 
@@ -31,7 +31,7 @@ describe('Validator: or', function() {
 
   it('should accept value matching any condition', async function() {
     const schema = new Schema('string').validator({
-      or: ['$numeric', '$alpha']
+      $or: ['$numeric', '$alpha']
     });
     const compiled = await resolver.compile(schema);
 
@@ -41,7 +41,7 @@ describe('Validator: or', function() {
 
   it('should reject when no condition matches', async function() {
     const schema = new Schema('string').validator({
-      or: [/^test/, /^other/]
+      $or: [/^test/, /^other/]
     });
     const compiled = await resolver.compile(schema);
 
@@ -53,7 +53,7 @@ describe('Validator: or', function() {
 
   it('should return first successful result', async function() {
     const schema = new Schema('string').validator({
-      or: [
+      $or: [
         (v) => v.toUpperCase(),
         (v) => v.toLowerCase()
       ]
@@ -66,7 +66,7 @@ describe('Validator: or', function() {
 
   it('should generate combined description', async function() {
     const schema = new Schema('string').validator({
-      or: [/^test/, /^other/]
+      $or: [/^test/, /^other/]
     });
     const compiled = await resolver.compile(schema);
 

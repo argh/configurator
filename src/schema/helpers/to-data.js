@@ -24,13 +24,23 @@ export function toData(schema) {
     if (!schema[group]) {
       continue;
     }
+
     for (const [key, value] of Object.entries(schema[group])) {
       if (data[group] === undefined) {
         data[group] = {};
       }
       const isSchema = (value instanceof Schema) || (value instanceof CompiledSchema);
 
-      (data[group])[key] = isSchema? value.toData() : value;
+      let v = value;
+      if (isSchema) {
+        v = value.toData();
+      }
+      else if (group === 'handlers') {
+        if (Array.isArray(value)) {
+          v = value.map(p => ((p.spec !== undefined)? p.spec : p));
+        }
+      }
+      (data[group])[key] = v;
     }
   }
   return data;

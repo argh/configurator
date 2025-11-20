@@ -12,7 +12,7 @@ describe('Validator: in', function() {
   });
 
   it('should accept value in array', async function() {
-    const schema = new Schema('string').validator({in: ['red', 'green', 'blue']});
+    const schema = new Schema('string').validator({$in: ['red', 'green', 'blue']});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate('red', {}, '');
@@ -21,14 +21,14 @@ describe('Validator: in', function() {
   });
 
   it('should reject value not in array', async function() {
-    const schema = new Schema('string').validator({in: ['red', 'green', 'blue']});
+    const schema = new Schema('string').validator({$in: ['red', 'green', 'blue']});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('yellow', {}, ''), ValidationError);
   });
 
   it('should work with numbers', async function() {
-    const schema = new Schema('number').validator({in: [1, 2, 3, 5, 8, 13]});
+    const schema = new Schema('number').validator({$in: [1, 2, 3, 5, 8, 13]});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate(1, {}, '');
@@ -37,7 +37,7 @@ describe('Validator: in', function() {
   });
 
   it('should work with mixed types', async function() {
-    const schema = new Schema('any').validator({in: ['yes', 'no', 1, 0]});
+    const schema = new Schema('any').validator({$in: ['yes', 'no', 1, 0]});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate('yes', {}, '');
@@ -46,14 +46,14 @@ describe('Validator: in', function() {
   });
 
   it('should generate description', async function() {
-    const schema = new Schema('string').validator({in: ['a', 'b', 'c']});
+    const schema = new Schema('string').validator({$in: ['a', 'b', 'c']});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[a|b|c]');
   });
 
   it('should handle non-string values in description', async function() {
-    const schema = new Schema('number').validator({in: [1, 2, 3]});
+    const schema = new Schema('number').validator({$in: [1, 2, 3]});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[1|2|3]');

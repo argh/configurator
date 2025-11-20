@@ -13,7 +13,7 @@ describe('Validator: and', function() {
 
   it('should accept value matching all conditions', async function() {
     const schema = new Schema('string').validator({
-      and: [/^test/, /test$/]
+      $and: [/^test/, /test$/]
     });
     const compiled = await resolver.compile(schema);
 
@@ -23,7 +23,7 @@ describe('Validator: and', function() {
 
   it('should chain validators and pass value through', async function() {
     const schema = new Schema('string').validator({
-      and: [
+      $and: [
         (v) => v.toLowerCase(),
         /^hello$/
       ]
@@ -36,7 +36,7 @@ describe('Validator: and', function() {
 
   it('should reject when first condition fails', async function() {
     const schema = new Schema('string').validator({
-      and: [/^test/, /end$/]
+      $and: [/^test/, /end$/]
     });
     const compiled = await resolver.compile(schema);
 
@@ -48,7 +48,7 @@ describe('Validator: and', function() {
 
   it('should reject when second condition fails', async function() {
     const schema = new Schema('string').validator({
-      and: [/^test/, /end$/]
+      $and: [/^test/, /end$/]
     });
     const compiled = await resolver.compile(schema);
 
@@ -60,7 +60,7 @@ describe('Validator: and', function() {
 
   it('should combine multiple validators', async function() {
     const schema = new Schema('string').validator({
-      and: ['$alpha', /^[a-z]+$/, {length: {min: 3}}]
+      $and: ['$alpha', /^[a-z]+$/, {$length: {min: 3}}]
     });
     const compiled = await resolver.compile(schema);
 
@@ -71,7 +71,7 @@ describe('Validator: and', function() {
 
   it('should generate combined description', async function() {
     const schema = new Schema('string').validator({
-      and: [/^test/, /end$/]
+      $and: [/^test/, /end$/]
     });
     const compiled = await resolver.compile(schema);
 

@@ -14,27 +14,20 @@ import { existingAssignment } from './helpers/assignment-helpers.js';
 import { fpm } from './helpers/fpm.js';
 
 
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions } from './types.js' */
+/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions, CompiledValueProcessorDefinition } from './types.js' */
 
 /** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
 
-/** @typedef {ISchemaOptions & {
- *              normalizer?: AsyncSchemaValueProcessor<any>,
- *              transformer?: AsyncSchemaValueProcessor<any>,
- *              validator?: AsyncSchemaValueProcessor<any>,
- *              serializer?: AsyncSchemaValueProcessor<any>,
- *              condition?: AsyncSchemaValueProcessor<boolean>,
- *              discriminator?: AsyncSchemaValueProcessor<string|CompiledSchema|undefined>
- * }} CompiledSchemaOptions
+/** @typedef {ISchemaOptions} CompiledSchemaOptions
  */
 
 /** @typedef {Object} CompiledSchemaHandlers
- * @property {Array<SchemaValueProcessor<any>>} [normalizers]
- * @property {Array<SchemaValueProcessor<any>>} [conditions]
- * @property {Array<SchemaValueProcessor<any>>} [transformers]
- * @property {Array<SchemaValueProcessor<any>>} [validators]
- * @property {Array<SchemaValueProcessor<any>>} [serializers]
- * @property {Array<SchemaValueProcessor<any>>} [discriminators]
+ * @property {Array<CompiledValueProcessorDefinition>} [normalizers]
+ * @property {Array<CompiledValueProcessorDefinition>} [conditions]
+ * @property {Array<CompiledValueProcessorDefinition>} [transformers]
+ * @property {Array<CompiledValueProcessorDefinition>} [validators]
+ * @property {Array<CompiledValueProcessorDefinition>} [serializers]
+ * @property {Array<CompiledValueProcessorDefinition>} [discriminators]
  */
 
 /** @typedef {Object.<string, import('./compiled-schema.js').CompiledSchema>} CompiledSchemaProperties */
@@ -838,7 +831,7 @@ export class CompiledSchema
     let checked = value;
     for (const condition of conditions) {
       try {
-        checked = await condition(checked, configuration, this, path, options);
+        checked = await condition.processor(checked, configuration, this, path, options);
       }
       catch (error) {
         return false;  // exception = failed condition check
@@ -887,7 +880,7 @@ export class CompiledSchema
     let normalized = value;
     for (const normalizer of normalizers) {
       try {
-        normalized = await normalizer(normalized, configuration, this, path, options);
+        normalized = await normalizer.processor(normalized, configuration, this, path, options);
       }
       catch (error) {
         throw new NormalizeError(fpm('Could not normalize', path), {cause: error});
@@ -937,7 +930,7 @@ export class CompiledSchema
     let transformed = value;
     for (const transformer of transformers) {
       try {
-        transformed = await transformer(transformed, configuration, this, path, options);
+        transformed = await transformer.processor(transformed, configuration, this, path, options);
       }
       catch (error) {
         throw new TransformError(fpm('Unable to transform', path), {cause: error})
@@ -1028,7 +1021,7 @@ export class CompiledSchema
 
         for (const validator of validators) {
           try {
-            v = await validator(v, input, schema, path, options);
+            v = await validator.processor(v, input, schema, path, options);
           }
           catch (error) {
             throw new ValidationError(fpm('Validation error', path), {cause:error})
@@ -1075,7 +1068,7 @@ export class CompiledSchema
         let s = value;
         for (const serializer of serializers) {
           try {
-            s = await serializer(s, configuration, schema, path, options);
+            s = await serializer.processor(s, configuration, schema, path, options);
           }
           catch (error) {
             if (strict) {
@@ -1122,7 +1115,7 @@ export class CompiledSchema
     let discriminatorResult = value;
     for (const discriminator of discriminators) {
       try {
-        discriminatorResult = await discriminator(discriminatorResult, configuration, this, path, options);
+        discriminatorResult = await discriminator.processor(discriminatorResult, configuration, this, path, options);
       }
       catch (error) {
         if (strict) {

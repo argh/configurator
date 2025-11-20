@@ -12,14 +12,14 @@ describe('Validator: each', function() {
   });
 
   it('should validate each array element', async function() {
-    const schema = new Schema('array').validator({each: /^\d+$/});
+    const schema = new Schema('array').validator({$each: /^\d+$/});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate(['123', '456', '789'], {}, '');
   });
 
   it('should reject if any element fails', async function() {
-    const schema = new Schema('array').validator({each: /^\d+$/});
+    const schema = new Schema('array').validator({$each: /^\d+$/});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
@@ -29,7 +29,7 @@ describe('Validator: each', function() {
   });
 
   it('should work with validator keywords', async function() {
-    const schema = new Schema('array').validator({each: '$numeric'});
+    const schema = new Schema('array').validator({$each: '$numeric'});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate(['123', '456'], {}, '');
@@ -38,7 +38,7 @@ describe('Validator: each', function() {
 
   it('should work with nested validators', async function() {
     const schema = new Schema('array').validator({
-      each: {and: [/^test/, {length: {min: 5}}]}
+      $each: {$and: [/^test/, {$length: {min: 5}}]}
     });
     const compiled = await resolver.compile(schema);
 
@@ -48,7 +48,7 @@ describe('Validator: each', function() {
 
   it('should transform each element', async function() {
     const schema = new Schema('array').validator({
-      each: (v) => v.toUpperCase()
+      $each: (v) => v.toUpperCase()
     });
     const compiled = await resolver.compile(schema);
 
@@ -57,21 +57,21 @@ describe('Validator: each', function() {
   });
 
   it('should accept empty array', async function() {
-    const schema = new Schema('array').validator({each: '$numeric'});
+    const schema = new Schema('array').validator({$each: '$numeric'});
     const compiled = await resolver.compile(schema);
 
     await compiled.validate([], {}, '');
   });
 
   it('should reject non-array values', async function() {
-    const schema = new Schema('string').validator({each: '$numeric'});
+    const schema = new Schema('string').validator({$each: '$numeric'});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validate('not-array', {}, ''), ValidationError);
   });
 
   it('should generate description', async function() {
-    const schema = new Schema('array').validator({each: /^\d+$/});
+    const schema = new Schema('array').validator({$each: /^\d+$/});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[[/^\\d+$/]...]');

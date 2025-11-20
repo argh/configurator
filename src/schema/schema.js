@@ -440,18 +440,28 @@ export class Schema
     if (policy === SchemaPolicy.INITIALIZE && Array.isArray(this.handlers[handlerName])) {
       return this;
     }
+
+    const processorDefinitions = specs.map(spec => {
+      if (typeof spec === 'object' && spec.processor) {
+        return {...spec, spec};
+      }
+      else {
+        return {spec}
+      }
+    });
+
     if (policy === SchemaPolicy.OVERWRITE || policy === SchemaPolicy.INITIALIZE) {
-      this.handlers[handlerName] = specs;
+      this.handlers[handlerName] = processorDefinitions;
       return this;
     }
     if (!Array.isArray(this.handlers[handlerName])) {
       this.handlers[handlerName] = [];
     }
     if (policy === SchemaPolicy.PREPEND) {
-      this.handlers[handlerName].unshift(...specs);
+      this.handlers[handlerName].unshift(...processorDefinitions);
     }
     else {
-      this.handlers[handlerName].push(...specs);
+      this.handlers[handlerName].push(...processorDefinitions);
     }
     return this;
   }
@@ -1107,3 +1117,4 @@ export const SchemaPolicy = Object.freeze({
   APPEND: Symbol('APPEND'),           // add values to the end
   PREPEND: Symbol('PREPEND')          // add values to the beginning
 });
+

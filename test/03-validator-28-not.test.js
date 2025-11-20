@@ -13,7 +13,7 @@ describe('Validator: not', function() {
 
   it('should accept value that fails inner validator', async function() {
     const schema = new Schema('string').validator({
-      not: /^test/
+      $not: /^test/
     });
     const compiled = await resolver.compile(schema);
 
@@ -23,7 +23,7 @@ describe('Validator: not', function() {
 
   it('should reject value that passes inner validator', async function() {
     const schema = new Schema('string').validator({
-      not: /^test/
+      $not: /^test/
     });
     const compiled = await resolver.compile(schema);
 
@@ -35,7 +35,7 @@ describe('Validator: not', function() {
 
   it('should invert numeric validator', async function() {
     const schema = new Schema('string').validator({
-      not: '$numeric'
+      $not: '$numeric'
     });
     const compiled = await resolver.compile(schema);
 
@@ -45,7 +45,7 @@ describe('Validator: not', function() {
 
   it('should generate negated description', async function() {
     const schema = new Schema('string').validator({
-      not: /^test/
+      $not: /^test/
     });
     const compiled = await resolver.compile(schema);
 
@@ -54,7 +54,7 @@ describe('Validator: not', function() {
 
   it('should add parentheses for complex descriptions', async function() {
     const schema = new Schema('string').validator({
-      not: {and: [/^a/, /b$/]}
+      $not: {$and: [/^a/, /b$/]}
     });
     const compiled = await resolver.compile(schema);
 

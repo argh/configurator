@@ -179,10 +179,11 @@
  * @property {AssignmentOptions} [assignmentOptions]
  */
 
-/** @typedef {Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
+/** @typedef {ValueProcessorDefinition|Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
 
 
 /** @typedef {Object} CompiledSpec
+ * @property {ProcessorSpec} spec
  * @property {AsyncSchemaValueProcessor<any>} processor
  * @property {string} [description]
  */
@@ -209,6 +210,7 @@
 
 /**
  * @typedef {Object} CompiledValueProcessorDefinition
+ * @property {ProcessorSpec} spec
  * @property {SchemaValueProcessor<any>} processor
  * @property {string} [description]
  */

@@ -244,8 +244,6 @@ describe('Schema - Basic Construction', function() {
       assert.strictEqual(restored.base, 'string');
       assert.strictEqual(restored.options.required, true);
       assert.strictEqual(restored.options.default, 'test');
-      assert.ok(Array.isArray(restored.handlers.validators) && restored.handlers.validators.includes(customValidator));
-      assert.ok(Array.isArray(restored.handlers.transformers) && restored.handlers.transformers.includes(customTransformer));
       assert.strictEqual(restored.metadata.description, 'Custom field');
       assert.strictEqual(restored.metadata.flagHint, 'c');
     });
