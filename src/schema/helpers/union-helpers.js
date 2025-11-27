@@ -1,4 +1,4 @@
-import { ConfiguratorError, SchemaError, ValidationError } from "../../errors.js";
+import { ConfiguratorError, SchemaError, UnionResolutionError, ValidationError } from "../../errors.js";
 import { CompiledSchema } from "../compiled-schema.js";
 import { fpm } from './fpm.js';
 
@@ -160,7 +160,7 @@ export function generateAutomaticDiscriminatorFunction(schema) {
           candidates.delete(schema);
 
           if (candidates.size === 0) {
-            throw new ValidationError(fpm(`Union resolution conflict when setting ${property} to ${propertyValue}`, path));
+            throw new UnionResolutionError(fpm(`Union resolution conflict when setting ${property} to ${propertyValue}`, path));
           }
         }
       }
@@ -170,13 +170,13 @@ export function generateAutomaticDiscriminatorFunction(schema) {
       return Array.from(candidates)[0];
     }
     else if (candidates.size === 0) {
-      throw new ConfiguratorError(fpm('Union resolution failure', path));
+      throw new UnionResolutionError(fpm('Union resolution failure (no matches)', path));
     }
     else {
       if (options?.strict) {
         const keys = Array.from(candidates).map(s => schema.findUnionKey(s)).join('|')
 
-        throw new ValidationError(fpm(`Union resolution ambiguity (could be ${keys})`, path));
+        throw new UnionResolutionError(fpm(`Union resolution ambiguity (could be ${keys})`, path));
       }
       return undefined;
     }

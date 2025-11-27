@@ -222,7 +222,7 @@ describe('Configurator - Custom Sources', function() {
 
           // This value depends on another property being set first
           assignments.set('dependent', (currentValue, config) => {
-            if (typeof config.delay !== 'number') {
+            if (typeof config?.delay !== 'number') {
               // Return undefined to retry later
               return undefined;
             }
@@ -433,7 +433,7 @@ describe('Configurator - Custom Sources', function() {
 
             // Lazy function that depends on config.delay
             assignments.set(path, async (currentValue, config) => {
-              if (typeof config.delay !== 'number') {
+              if (typeof config?.delay !== 'number') {
                 // Can't resolve yet, retry later
                 return undefined;
               }

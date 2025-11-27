@@ -194,7 +194,7 @@ describe('Configurator - Transforms Integration', function() {
           const assignments = new Map();
           // Provide lazy function as assignment value
           assignments.set('url', (currentValue, config) => {
-            if (!config.host || !config.port) {
+            if (!config?.host || !config?.port) {
               return undefined; // Retry later
             }
             return `http://${config.host}:${config.port}`;
@@ -238,7 +238,7 @@ describe('Configurator - Transforms Integration', function() {
         async load() {
           const assignments = new Map();
           assignments.set('userProfile', async (currentValue, config) => {
-            if (!config.userId) {
+            if (!config?.userId) {
               return undefined; // Wait for userId
             }
 

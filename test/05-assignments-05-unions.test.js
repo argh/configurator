@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { SchemaError } from '../src/errors.js';
+import { SchemaError, UnionResolutionError } from '../src/errors.js';
 
 describe('Assignments - Unions', function() {
   let resolver;
@@ -253,7 +253,7 @@ describe('Assignments - Unions', function() {
         () => compiled.processAssignments(assignments),
         (err) => {
           assert.ok(err instanceof Error);
-          return err.name === 'SchemaError';
+          return err.name === 'UnionResolutionError';
         }
       );
     });
@@ -331,9 +331,9 @@ describe('Assignments - Unions', function() {
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
-          assert.ok(err instanceof SchemaError);
-          assert.match(err.cause?.message, /Union resolution ambiguity/i);
-          assert.match(err.cause?.message, /database\|cache/);
+          assert.ok(err instanceof UnionResolutionError);
+          assert.match(err.message, /Union resolution ambiguity/i);
+          assert.match(err.message, /database\|cache/);
           return true;
         }
       );

@@ -117,8 +117,20 @@ export function deepMerge(target, ...sources) {
   return deepMerge(target, ...sources);
 }
 
-/* no longer used - will remove, but just commenting out for now to focus code coverage tests
+
 export function deepAssign(target, path, value) {
+  if (path === '' && target) {
+    throw new Error('Top level path but target is already set');
+  }
+  if (path === '') {
+    if (Array.isArray(value)) {
+      return [...value];
+    }
+    else if (isPlainObject(value)) {
+      return {...value};
+    }
+    return value;
+  }
   // Handle edge cases
   if (!path || typeof path !== 'string') {
     throw new Error('Path must be a non-empty string');
@@ -207,7 +219,6 @@ export function deepAssign(target, path, value) {
   return target;
 }
 
- */
 export function deepValue(object, path) {
   // Handle null/undefined object
   if (!object || typeof object !== 'object') {

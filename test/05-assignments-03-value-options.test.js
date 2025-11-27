@@ -197,13 +197,13 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
     it('should throw when required property is missing', async function() {
       const schema = new Schema('object')
-        .property('name', new Schema('string', {
-          required: true
-        }));
+        .property('trigger', new Schema('boolean'))
+        .property('name', new Schema('string').required())
+
 
       const compiled = await resolver.compile(schema);
 
-      const assignments = new Map();
+      const assignments = new Map([['trigger', true]]);
 
       await assert.rejects(
         () => compiled.processAssignments(assignments, {}),  // Pass {} to ensure root exists
@@ -273,13 +273,12 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
     it('should require property even in non-strict mode', async function() {
       // required is orthogonal to strict - it always throws when missing
       const schema = new Schema('object')
-        .property('name', new Schema('string', {
-          required: true
-        }));
+        .property('trigger', new Schema('boolean'))
+        .property('name', new Schema('string').required())
 
       const compiled = await resolver.compile(schema);
 
-      const assignments = new Map();
+      const assignments = new Map([['trigger', true]]);
 
       await assert.rejects(
         () => compiled.processAssignments(assignments, {}, { strict: false }),
@@ -314,20 +313,22 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
     it('should satisfy required with default value when root exists', async function() {
       // When root exists, defaults are applied and satisfy required
       const schema = new Schema('object')
-        .property('status', new Schema('string', {
-          required: true,
-          default: 'active'
-        }));
+        .property('trigger', new Schema('boolean'))
+        .property('status', new Schema('string')
+          .required()
+          .default('active')
+        )
 
       const compiled = await resolver.compile(schema);
 
-      const assignments = new Map();
+      const assignments = new Map([['trigger', true]]);
 
-      const result = await compiled.processAssignments(assignments, {});  // Pass {} to ensure root exists
+      const result = await compiled.processAssignments(assignments);
 
       // Default satisfies required
       assert.deepStrictEqual(result, {
-        status: 'active'
+        status: 'active',
+        trigger: true
       });
     });
 

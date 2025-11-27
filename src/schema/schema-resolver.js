@@ -636,7 +636,7 @@ export class SchemaResolver
           const values = Array.isArray(optionValue)? optionValue : [optionValue];
           dst.options.values = [];
           for (const v of values) {
-            dst.options.values.push(await dst.normalize(v, {}, dst.path));
+            dst.options.values.push(await dst.normalizeValue(v, {}, dst.path));
           }
         }
         else {
@@ -860,7 +860,7 @@ export class SchemaResolver
           continue;
         }
         for (const v of propertySchema.values) {
-          const normalized = await propertySchema.normalize(v);
+          const normalized = await propertySchema.normalizeValue(v);
           if (normalizerCompatible && normalized !== v) {
             normalizerCompatible = false;
           }

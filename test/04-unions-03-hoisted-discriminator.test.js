@@ -144,7 +144,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     // if we defined it without values
   });
 
-  it('should throw ValidationError when property value does not match any union', async function() {
+  it('should throw error when property value does not match any union', async function() {
     const schema = new Schema('object')
       .unionSchema('valid', new Schema('object')
         .property('type', Schema.literal('valid'))
@@ -158,7 +158,11 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     // ...but failure to discriminate should throw an error.
     await assert.rejects(
       () => compiled.validate({type: 'invalid'}),
-      /Union resolution conflict/
+      (error) => {
+        assert.ok(error instanceof ValidationError);
+        assert.ok(error?.cause?.message.includes('Union resolution conflict'))
+        return true;
+      }
     );
   });
 });

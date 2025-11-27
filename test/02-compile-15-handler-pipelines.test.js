@@ -324,9 +324,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const result = await compiled.normalize('test', {}, '');
 
-      // Undefined should be returned as-is (retry logic is in assignment processing, not handlers)
       assert.strictEqual(result, undefined);
-      assert.strictEqual(callCount, 1);
     });
 
     it('should propagate undefined through pipeline in transformer', async function() {

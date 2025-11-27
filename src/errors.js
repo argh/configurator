@@ -70,9 +70,10 @@ export class ConfiguratorError extends Error {
 
 export class SchemaError extends ConfiguratorError {}
 export class ConstraintError extends SchemaError {}
+export class ProcessorError extends SchemaError {}
 export class ValidationError extends SchemaError {}
 export class NormalizeError extends SchemaError {}
 export class TransformError extends SchemaError {}
 export class SerializeError extends SchemaError {}
-
+export class UnionResolutionError extends SchemaError {}
 export class ResolverError extends ConfiguratorError {}

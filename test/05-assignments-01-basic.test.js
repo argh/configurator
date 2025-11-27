@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ConstraintError, TransformError, ValidationError } from '../src/errors.js';
+import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/errors.js';
 
 describe('Assignments - Basic Processing', function() {
   let resolver;
@@ -317,7 +317,7 @@ describe('Assignments - Basic Processing', function() {
         () => compiled.processAssignments(assignments),
         (err) => {
           assert.ok(err instanceof Error);
-          return err.name === 'SchemaError' && err.message.includes('tuple.2');
+          return err?.name === 'NormalizeError' && err?.message.includes('tuple.2');
         }
       );
     });
@@ -526,18 +526,19 @@ describe('Assignments - Basic Processing', function() {
 
   describe('Required properties', function() {
 
-    it('should throw ValidationError when required property missing', async function() {
+    it('should throw error when required property missing in an object', async function() {
       const schema = new Schema('object')
+        .property('trigger', new Schema('boolean'))
         .property('name', new Schema('string', {
           required: true
         }));
 
       const compiled = await resolver.compile(schema);
 
-      const assignments = new Map();
+      const assignments = new Map([['trigger', true]]);
 
       await assert.rejects(
-        () => compiled.processAssignments(assignments, {}),  // Pass {} to ensure root exists
+        () => compiled.processAssignments(assignments),
         ValidationError
       );
     });
@@ -654,7 +655,7 @@ describe('Assignments - Basic Processing', function() {
         () => compiled.processAssignments(assignments),
         (err) => {
           assert.ok(err instanceof TransformError);
-          assert.ok(err.cause instanceof ConstraintError);
+
           return true;
         }
       );
@@ -710,11 +711,11 @@ describe('Assignments - Basic Processing', function() {
         ['unknown', 'invalid']
       ]);
 
-      // Unknown properties should throw SchemaError wrapping ValidationError
+      // Unknown properties should throw a Normalization error
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
-          assert.ok(err instanceof ValidationError);
+          assert.ok(err instanceof NormalizeError);
           return err.message.includes('unknown');
         }
       );

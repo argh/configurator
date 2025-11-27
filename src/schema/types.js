@@ -12,7 +12,7 @@
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
 
-/** @import { CompiledSchema } from "./compiled-schema.js" */
+/** @import { CompiledSchema, VisitMode } from "./compiled-schema.js" */
 
 /**
  * @template TReturn
@@ -134,15 +134,14 @@
  */
 
 /** @typedef {Object} VisitOptions
- * @property {boolean} [update] - true = modify input if the visitor returns a different value
- * @property {boolean} [copy] - true = return copy of input
- * @property {boolean} [extract] - true = extract a simplified copy of the input
+ * @property {VisitMode} [mode]
  * @property {boolean} [resolveUnions] - true = attempt to resolve unions (otherwise just visit union itself)
  * @property {boolean} [visitUndefined] - true = visit entire schema hierarchy, even if the input object has undefined values
  * @property {boolean} [visitUndefinedShallow] - true = visit hierarchy, but don't continue into child properties if parent is undefined
  * @property {boolean} [visitUnexpected] - true = visit properties that were not expected
  * @property {boolean} [visitDefaults] -     true means visit even if value matches schema defaults
- * @property {boolean} [visitContainers] - true = call visitor on containers, not just leaf values
+ * @property {boolean} [visitContainers] - true = call visitor on containers (post-order), not just leaf values
+ * @property {boolean} [visitContainersPreOrder] - true = extra call to visitor on containers before iterating children
  */
 
 /** @typedef {Object} ValidateOptions

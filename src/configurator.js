@@ -15,6 +15,7 @@ import { SchemaResolver } from './schema/schema-resolver.js';
 import { stringify } from './schema/helpers/stringify.js';
 import { expandWildcards } from './schema/helpers/wildcard.js'
 import { existingAssignment } from './schema/helpers/assignment-helpers.js';
+import { deepAssign } from './utils.js';
 
 /** @import { SerializeOptions, ConfigureOptions } from './schema/types.js' */
 
@@ -206,11 +207,38 @@ export class Configurator {
 
     const schema = await this._resolver.compile(this._schema);
     const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
-    const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
+
+    // EXPERIMENT
+    // Original approach:
+    //const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
+
+    // Testing new approach:
+
+    // We can't handle magic paths in this approach:
+    for (let path of assignments.keys()) {
+      if (path.includes('*') || path.includes(':')) {
+        assignments.delete(path);
+      }
+    }
+    let input;
+    for (const [path, value] of assignments) {
+      input = deepAssign(input, path, value);
+    }
+
+    // Multi-phase
+    // TODO - investigate: share status of union resolution across phases?  (fewer loops)
+    //      - investigate: make defaults population part of normalization?
+    const normalized = await schema.normalize(input);
+    const configuration = await schema.transform(normalized);
+//    await schema.populateDefaults(configuration);
+    await schema.validate(configuration);
 
     if (this._dumpContextName && configurationContext[this._dumpContextName]) {
       await this.dump(schema, configuration, configurationContext[this._dumpContextName]);
     }
+    // END EXPERIMENT
+
+
     return configuration;
   }
 

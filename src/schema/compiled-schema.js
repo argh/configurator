@@ -1,13 +1,13 @@
 import { strict as assert } from 'assert';
 import {
   ConstraintError,
-  NormalizeError,
+  NormalizeError, ProcessorError,
   SchemaError,
   SerializeError,
   TransformError,
   ValidationError
 } from '../errors.js';
-import { isConstructor, isPlainObject } from '../utils.js';
+import { deepAssign, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
 import { existingAssignment } from './helpers/assignment-helpers.js';
@@ -305,7 +305,7 @@ export class CompiledSchema
   async accepts(value) {
     let normalizedValue;
     try {
-      normalizedValue = await this.normalize(value);
+      normalizedValue = await this.normalizeValue(value);
       if (normalizedValue === undefined) {
         return false;
       }
@@ -412,6 +412,29 @@ export class CompiledSchema
     return this._options.allowIncremental === false;
   }
 
+  async processAssignments(assignments, result, options) {
+
+    // We can't handle magic paths in this approach:
+    for (let path of assignments.keys()) {
+      if (path.includes('*') || path.includes(':')) {
+        assignments.delete(path);
+      }
+    }
+    let input;
+    for (const [path, value] of assignments) {
+      input = deepAssign(input, path, value);
+    }
+
+    // Multi-phase
+    // TODO - investigate: share status of union resolution across phases?  (fewer loops)
+    //      - investigate: make defaults population part of normalization?
+    const normalized = await this.normalize(input, options);
+    const configuration = await this.transform(normalized, options);
+//    await schema.populateDefaults(configuration);
+    await this.validate(configuration, options);
+
+    return configuration;
+  }
 
   /**
    * Process a map of assignments into a validated output based on the current schema.
@@ -446,7 +469,7 @@ export class CompiledSchema
    * @param {AssignmentOptions} [options] - optional assignment options
    * @returns {Promise<any>} - returns validated result
    */
-  async processAssignments(assignments, result, options) {
+  async oldprocessAssignments(assignments, result, options) {
 
     const doPopulateDefaults = (options?.populateDefaults !== false);
     const doValidate = (options?.validate !== false);
@@ -796,9 +819,9 @@ export class CompiledSchema
     return await this.visit(input, async (current, input, schema, path) => {
       if (schema !== undefined && current === undefined) {
         if (schema.default !== undefined) {
-          current = await schema.normalize(schema.default, input, path);
+          current = await schema.normalizeValue(schema.default, input, path);
           if (current !== undefined) {
-            current = await schema.transform(current, input, path);
+            current = await schema.transformValue(current, input, path);
           }
         }
       }
@@ -865,17 +888,25 @@ export class CompiledSchema
    * @param {Object} [options]
    * @returns {Promise<any>}
    */
-  async normalize(value, configuration = {}, path = this.path, options) {
-    const normalizers = Array.isArray(this._handlers.normalizers)? this._handlers.normalizers : [];
+  async normalizeValue(value, configuration = {}, path = this.path, options) {
 
-    if (typeof value === 'function' && !isConstructor(value) && this.options.type !== 'function') {
-      try {
-        value = await value(true, configuration, this, path, options);
-      }
-      catch (error) {
-        throw new NormalizeError(fpm('Exception calling value function', path), {cause: error});
+    if (typeof value === 'function' && !isConstructor(value)) {
+      if (this.options.type !== 'function') {
+        try {
+          value = await value(true, configuration, this, path, options);
+        }
+        catch (error) {
+          throw new NormalizeError(fpm('Exception calling value function', path), {cause: error});
+        }
       }
     }
+
+
+    if (value === undefined) {
+      return undefined;
+    }
+
+    const normalizers = Array.isArray(this._handlers.normalizers)? this._handlers.normalizers : [];
 
     let normalized = value;
     for (const normalizer of normalizers) {
@@ -888,6 +919,42 @@ export class CompiledSchema
     }
     return normalized;
   }
+
+
+
+
+
+  /**
+   * @param {any} value
+   * @param {Object} [normalizeOptions]
+   * @returns {Promise<any>}
+   */
+  async normalize(value, normalizeOptions) {
+
+    const strict = normalizeOptions?.strict ?? true;
+
+    return await this.newVisit(value, async (current, result, schema, path, progress) => {
+
+      if (progress.final) {
+        if (!schema && strict && !this.getPropertyPaths().has(path)) {
+          throw new NormalizeError(fpm('Unexpected property', path));
+        }
+        if (schema?.isUnion) {
+          throw new NormalizeError(fpm('Unable to resolve union', path));
+        }
+        if (current === undefined && schema?.default !== undefined) {
+          current = schema.default;
+        }
+      }
+      if (schema === undefined) {
+        return undefined;
+      }
+      return await schema.normalizeValue(current, result, path, normalizeOptions);
+
+    }, {visitUnexpected: true, visitUndefined: true, visitOpaque: true, visitUndefinedShallow: true, mode: VisitMode.COPY});
+  }
+
+
 
   /**
    * Transform an input value for the final configuration based on this schema and provided context.
@@ -907,25 +974,25 @@ export class CompiledSchema
    * @param {Object} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
    */
-  async transform(value, configuration = {}, path = this.path, options) {
-    const transformers = Array.isArray(this._handlers.transformers)? this._handlers.transformers : [];
+  async transformValue(value, configuration = {}, path = this.path, options) {
 
-    try {
-      // todo - can we move value checking to a constraint processor?
-      if (value !== null && this.values && this.values.length > 0) {
-        // if we have children, we can't compare the value yet, we'll have to wait for validation.
-        if (!this.hasChildren && !this.values.includes(value)) {
-          const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
-          const strict = this.strict ?? options?.strict ?? true;
-          if (!isContainerInit && strict) {
-            throw new ConstraintError(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`);
-          }
+    if (value === undefined) {
+      return undefined;
+    }
+
+    // todo - can we move value checking to a constraint processor?
+    if (value !== null && this.values && this.values.length > 0) {
+      // if we have children, we can't compare the value yet, we'll have to wait for validation.
+      if (!this.hasChildren && !this.values.includes(value)) {
+        const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
+        const strict = this.strict ?? options?.strict ?? true;
+        if (!isContainerInit && strict) {
+          throw new TransformError(fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
         }
       }
     }
-    catch (error) {
-      throw new TransformError(fpm('Unable to transform', path), {cause: error})
-    }
+
+    const transformers = Array.isArray(this._handlers.transformers)? this._handlers.transformers : [];
 
     let transformed = value;
     for (const transformer of transformers) {
@@ -937,6 +1004,53 @@ export class CompiledSchema
       }
     }
     return transformed;
+  }
+
+  /**
+   * @param {any} value - input value to transform
+   * @param {any} [configuration] - global configuration in case the transformer depends on it
+   * @param {string} [path] - the path to this value in the global configuration (caller will set)
+   * @param {Object} [options] - any tweaks to the transformer behavior
+   * @returns {Promise<any>} - transformed value
+   */
+  async transform(value, configuration, path = this.path, options) {
+
+    const strict = options?.strict ?? true;
+
+    return await this.newVisit(value, async (current, result, schema, path, progress) => {
+
+      if (progress.final) {
+        if (!schema && !this.getPropertyPaths().has(path) && strict) {
+          throw new TransformError(fpm('Unexpected property', path));
+        }
+        if (schema?.isUnion) {
+          throw new TransformError(fpm('Unable to resolve union', path));
+        }
+        if (current === undefined) {
+          if (progress.hasPending(path)) {
+            // fixme?
+            throw new TransformError(fpm('Inconsistent container value', path));
+          }
+          return undefined;
+        }
+      }
+
+      if (!schema) {
+        return undefined;
+      }
+
+      if (schema.hasChildren && current === true) {
+        // request to create a container!
+        const normalized = await schema.normalizeValue(true, result, schema, path, options);
+        if (!schema.allowIncremental) {
+          progress.savePending(path, normalized);
+          return normalized;
+        }
+        current = normalized;  // for incremental, we will pre-transform, so pass on what we just normalized
+      }
+
+      return await schema.transformValue(current, result, path, options);
+    }, {visitUnexpected: true, visitOpaque: true, mode: VisitMode.COPY, visitUndefined: true, visitUndefinedShallow: true, enforceRequired: false});
   }
 
   /**
@@ -969,13 +1083,13 @@ export class CompiledSchema
 
     const strict = options.strict ?? true;
 
-    const enforceUnionResolution = options.enforceUnionResolution ?? strict;
+    const enforceUnionResolution = options.enforceUnionResolution ?? true;
     const disallowUnexpected = options.disallowUnexpected ?? strict;
-    const enforceRequired = options.enforceRequired ?? strict;
-    const enforceValues = options.enforceValues ?? strict;
+    const enforceRequired = options.enforceRequired ?? true;
+    const enforceValues = options.enforceValues ?? true;
 
     try {
-      const validated = await this.visit(input, async (current, input, schema, path) => {
+      const validated = await this.newVisit(input, async (current, input, schema, path, progress) => {
         if (!schema) {
           const parentSchema = this.findParent(path);
 
@@ -1004,7 +1118,7 @@ export class CompiledSchema
           // Invariant: if values are defined, they should contain the normalized form of the transformed value.
           let normalized;
           try {
-            normalized = await schema.normalize(current, input, path);
+            normalized = await schema.normalizeValue(current, input, path);
           }
           catch (error) {
             throw new ValidationError(fpm('Unable to check value', path))
@@ -1028,7 +1142,7 @@ export class CompiledSchema
           }
         }
         return v;
-      }, {resolveUnions: true, visitUndefinedShallow: true, visitUnexpected: !disallowUnexpected, visitDefaults: true, ...options})
+      }, {visitOpaque: false, resolveUnions: true, enforceRequired: true, visitUndefinedShallow: true, visitUnexpected: !disallowUnexpected, visitDefaults: true, ...options})
       return validated === EMPTY_VALUE ? undefined : validated;
     }
     catch (error) {
@@ -1387,7 +1501,7 @@ export class CompiledSchema
                 ret = schema.isArray? [] : {};
               }
               else {
-                ret = await schema.normalize(true, input, path);
+                ret = await schema.normalizeValue(true, input, path);
 
                 if (ret && schema.allowIncremental) {
                   ret = await schema.transform(ret, input, path);
@@ -1410,6 +1524,7 @@ export class CompiledSchema
 
         // First, walk the actual object and validate that all members are known
         // (We only walk "regular" objects; we trust the validator of transformed values.)
+        // todo - skip if marked opaque even if plain object?
         if (Array.isArray(current) || isPlainObject(current)) {
           const keys = Object.keys(current).map(key => /^\d+$/.test(key) ? Number(key) : key);
           for (let key of keys) {
@@ -1464,6 +1579,235 @@ export class CompiledSchema
 
     return (ret === EMPTY_VALUE) ? undefined : ret;
   }
+
+
+  /**
+   *
+   *
+   * @param {any} input - input object
+   * @param {AsyncSchemaValueVisitorFunction} visitor - async visitor
+   * @param {VisitOptions} [visitOptions] - options to use while visiting (also passed to visitor)
+   * @returns {Promise<any>} - returns result of visitor call on outermost schema
+   */
+  async newVisit(input, visitor, visitOptions) {
+    const resolveUnions = visitOptions?.resolveUnions ?? true;
+    const visitDefaults = visitOptions?.visitDefaults ?? true;
+    const visitUnexpected = visitOptions?.visitUnexpected ?? false;
+    const visitUndefinedShallow = visitOptions?.visitUndefinedShallow ?? false;
+    const visitUndefined = visitUndefinedShallow || (visitOptions?.visitUndefined ?? false);
+    const visitOpaque = visitOptions?.visitOpaque ?? false;
+    const enforceRequired = visitOptions?.enforceRequired ?? false;
+
+    const mode = visitOptions?.mode ?? VisitMode.VISIT;
+
+    let done = false;
+
+    const progress = new VisitProgress();
+
+    let output = (mode === VisitMode.VISIT || mode === VisitMode.UPDATE)? input : undefined;
+
+    /**
+     * @param {CompiledSchema|undefined} schema
+     * @param {any} inputCurrent
+     * @param {string} path
+     * @returns {Promise<any|symbol>}
+     */
+    const walk = async (schema, inputCurrent, path) => {
+
+      if (schema === undefined) {
+        if (!this.isValidPath(path) && !visitUnexpected) {
+          throw new SchemaError(fpm('Unknown property', path));
+        }
+        progress.saveUncompleted(path);
+      }
+      if (schema !== undefined) {
+        if (schema.implicit) {
+          progress.saveCompleted(path, EMPTY_VALUE);
+          return EMPTY_VALUE;
+        }
+        if (progress.isCompleted(path)) {
+          if (!schema.hasChildren || progress.containerAssignmentsComplete(path)) {
+            return progress.getCompleted(path);
+          }
+        }
+        else {
+          progress.saveUncompleted(path);
+        }
+
+        if (!progress.hasPositiveCondition(path)) {
+          const condition = await schema.checkCondition(inputCurrent, output, schema, path);
+          if (condition === true) {
+            progress.savePositiveCondition(path);
+          }
+          else {
+            if (progress.final) {
+              progress.saveCompleted(path, undefined);
+            }
+            return EMPTY_VALUE;
+          }
+        }
+
+        if (schema.opaque && !visitOpaque) {
+          progress.saveCompleted(path, inputCurrent);
+          return inputCurrent;
+        }
+
+        if (schema.options.implicit) {
+          progress.saveCompleted(path, inputCurrent);
+          return inputCurrent;  // todo - think about this; move to transform?
+        }
+
+        if (progress.hasUnpackedContainer(path)) {
+          inputCurrent = progress.getUnpackedContainer(path);
+        }
+
+        if (schema.isUnion && resolveUnions) {
+          if (!progress.hasResolvedUnion(path)) {
+            const unionSchema = await schema.discriminateUnion(inputCurrent, output, path, {strict: resolveUnions});
+
+            if (unionSchema) {
+              progress.saveResolvedUnion(path, unionSchema);
+            }
+          }
+          if (progress.hasResolvedUnion(path)) {
+            return await walk(progress.getResolvedUnion(path), inputCurrent, path);
+          }
+        }
+      }
+
+      // ret is the return value from this pass through walk...
+      let current = (mode === VisitMode.VISIT || !(schema?.hasChildren))? inputCurrent : undefined;
+
+      // Traverse children?
+      if (schema !== undefined && schema.hasChildren && ((inputCurrent !== undefined) || !visitUndefinedShallow)) {
+
+        // helper function to delay container pre-visit until first child has a value
+
+        const updateProperty = async (propertyName) => {
+          const propertySchema = schema.getPropertySchema(propertyName);
+
+          const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
+
+          const key = /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName;
+          const inputPropertyValue = inputCurrent?.[key];
+          const processedPropertyValue = await walk(propertySchema, inputPropertyValue, propertyPath);
+
+          if (processedPropertyValue === undefined || processedPropertyValue === EMPTY_VALUE) {
+            return EMPTY_VALUE;
+          }
+
+          if (mode !== VisitMode.COPY) {
+            return;
+          }
+
+          let container = progress.getCompleted(path) ?? progress.getPending(path);
+
+          if (!container) {
+            container = await visitor(true, output, schema, path, progress);
+
+            if (container === undefined || !((typeof container === 'object') || Array.isArray(container))) {
+              throw new SchemaError(fpm('Unable to construct container', path, propertyName));
+            }
+            if (!progress.hasPending(path)) {
+              progress.saveCompleted(path, container);
+            }
+          }
+
+          if (processedPropertyValue !== container[key]) {
+            container[key] = processedPropertyValue;
+          }
+          current = container;
+        }
+
+        const visited = new Set();
+        // Iterate all visible properties that exist in the input object
+        if (Array.isArray(inputCurrent) || isPlainObject(inputCurrent)) {
+          for (const propertyName of Object.keys(inputCurrent)) {
+            visited.add(propertyName);
+            await updateProperty(propertyName);
+          }
+        }
+        // Iterate all properties defined in the schema to catch undefined properties
+        if (visitUndefined) {
+          for (const propertyName in schema.properties) {
+            if (visited.has(propertyName) || propertyName === '*') {
+              continue;
+            }
+            await updateProperty(propertyName);
+          }
+        }
+      }  // end child traversal
+
+
+      if (schema === undefined && !visitUnexpected) {
+        return undefined;
+      }
+
+      if (current === undefined && !visitUndefined) {
+        return undefined;
+      }
+
+      if (progress.isCompleted(path)) {
+        return progress.getCompleted(path);
+      }
+
+      // Call the visitor iff...
+      // - we're on the final pass (this is how errors will get reported)
+      // - we have a schema and are processing a simple value
+      // - we have a pending container, and all child assignments are complete
+
+      if (progress.final
+          || (schema && !schema.hasChildren)
+          || (!schema && visitUnexpected)
+          || progress.hasPending(path) && progress.containerAssignmentsComplete(path)) {
+
+        const result = await visitor(current, output, schema, path, progress);
+
+        if (result === undefined && current !== undefined && progress.final && schema?.required) {
+          throw new SchemaError(fpm(`Failed to process required value "${current}"`, path));
+        }
+        else if (result === EMPTY_VALUE) {
+          progress.saveCompleted(path, EMPTY_VALUE);
+        }
+        else if (result !== EMPTY_VALUE && result !== undefined) {
+
+          if (schema?.hasChildren && !(Array.isArray(inputCurrent) || typeof inputCurrent === 'object' || inputCurrent === true)) {
+            // If we unpacked an encoded container, treat it as if it were the input
+            progress.saveUnpackedContainer(path, result);
+            return await walk(schema, result, path);
+          }
+
+          progress.saveCompleted(path, result);
+        }
+        return mode === VisitMode.VISIT ? inputCurrent : result;
+      }
+      return undefined;
+    }
+
+
+    // We need to do multiple passes to resolve cross references between conditions, unions, and opaque containers
+
+    while (!done) {
+      let start = progress.counter;
+      const ret = await walk(this, input, '');
+      output = (ret === EMPTY_VALUE) ? undefined : ret;
+
+      if (start === progress.counter) {
+        if (progress.final) {
+          done = true;
+        }
+        else {
+          progress.final = true;
+        }
+      }
+      else {
+        progress.final = false;
+      }
+    }
+    return output;
+  }
+
+
 
   /**
    * Compute all possible schema paths (including union schema properties, optionally adding colon-delimited union keys)
@@ -1815,4 +2159,127 @@ class AssignmentProgress {
 }
 
 const EMPTY_VALUE = Symbol('EMPTY')
+
+class VisitProgress {
+  constructor() {
+    this.pending = new Map();
+    this.completed = new Map();
+    this.resolved = new Map();
+    this.conditions = new Set();
+    this.uncompleted = new Set();
+    this.unpacked = new Map();
+
+    this.final = false;
+
+    this.counter = 0;
+  }
+
+  savePositiveCondition(path) {
+    if (!this.conditions.has(path)) {
+      this.conditions.add(path);
+      this.counter++;
+      this.final = false;
+    }
+  }
+
+  hasPositiveCondition(path) {
+    return this.conditions.has(path);
+  }
+
+  saveResolvedUnion(path, unionSchema) {
+    if (this.resolved.get(path) !== unionSchema) {
+      this.resolved.set(path, unionSchema);
+      this.counter++;
+      this.final = false;
+    }
+  }
+
+  getResolvedUnion(path) {
+    return this.resolved.get(path);
+  }
+
+  hasResolvedUnion(path) {
+    return this.resolved.get(path) !== undefined;
+  }
+
+  saveUnpackedContainer(path, value) {
+    if (this.unpacked.get(path) !== value) {
+      this.unpacked.set(path, value);
+      this.counter++;
+      this.final = false;
+    }
+  }
+
+  getUnpackedContainer(path) {
+    return this.unpacked.get(path);
+  }
+
+  hasUnpackedContainer(path) {
+    return this.unpacked.has(path);
+  }
+
+  savePending(path, value) {
+    if (!this.pending.get(path) !== value) {
+      this.pending.set(path, value);
+      this.counter++;
+      this.final = false;
+    }
+  }
+
+  getPending(path) {
+    return this.pending.get(path);
+  }
+  hasPending(path) {
+    return this.pending.get(path) !== undefined;
+  }
+
+  saveCompleted(path, value) {
+    if (this.pending.has(path)) {
+      this.pending.delete(path);
+    }
+    if (this.uncompleted.has(path)) {
+      this.uncompleted.delete(path);
+    }
+    if (this.completed.get(path) !== value) {
+      this.completed.set(path, value);
+      this.counter++;
+      this.final = false;
+    }
+  }
+  getCompleted(path) {
+    return this.completed.get(path);
+  }
+  isCompleted(path) {
+    return this.completed.get(path) !== undefined;
+  }
+
+  saveUncompleted(path) {
+    this.uncompleted.add(path);
+  }
+
+  containerAssignmentsComplete(path) {
+    if (path === '' && this.uncompleted.size > 0) {
+      return false;
+    }
+    for (let p of this.uncompleted) {
+      if (p.startsWith(`${path}.`)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+}
+
+/**
+ * Policies for fine-grained control of composite schema internals
+ * @readonly
+ * @enum {Symbol}
+ */
+export const VisitMode = Object.freeze({
+  COPY: Symbol('COPY'),
+  UPDATE: Symbol('UPDATE'),
+  VISIT: Symbol('VISIT')
+});
 
