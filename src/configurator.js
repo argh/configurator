@@ -215,7 +215,7 @@ export class Configurator {
     // Testing new approach:
 
     // We can't handle magic paths in this approach:
-    for (let path of assignments.keys()) {
+    for (const path of assignments.keys()) {
       if (path.includes('*') || path.includes(':')) {
         assignments.delete(path);
       }
@@ -253,7 +253,7 @@ export class Configurator {
   async loadSourceAssignments(schema, context, strict = true) {
 
     // sort sources by sequence (processing priority)
-    let sources = this.sources
+    const sources = this.sources
                       .map((source, index) => ({ source, index }))
                       .sort((a, b) => {
                         const seqA = a.source.sequence ?? 1000;
@@ -262,9 +262,9 @@ export class Configurator {
                       })
                       .map(item => item.source)
 
-    let sourceAssignmentsList = [];
+    const sourceAssignmentsList = [];
 
-    for (let source of sources) {
+    for (const source of sources) {
       let sourceAssignments = await source.load(schema, context, {strict});
       if (!sourceAssignments) {
         sourceAssignments = new Map();  // useful to keep in the list for debugging purposes
@@ -280,12 +280,12 @@ export class Configurator {
     /**
      * @type {Map<string, NonNullable<any>>}
      */
-    let assignments = new Map();
+    const assignments = new Map();
 
     // We iterate these in reverse to simplify computing "last (highest priority) definition wins".
 
-    for (let propertyPathAssignments of sourceAssignmentsList.reverse()) {
-      for (let [path, value] of Array.from(propertyPathAssignments).reverse()) {
+    for (const propertyPathAssignments of sourceAssignmentsList.reverse()) {
+      for (const [path, value] of Array.from(propertyPathAssignments).reverse()) {
         if (existingAssignment(assignments, path)) {
           continue;
         }
@@ -305,7 +305,7 @@ export class Configurator {
    */
   async _handleContextAssignments(schema, sourceAssignments, configurationContext) {
     // Some properties are set up to pass their value downstream to later sources via the context.
-    for (let [path, assignedValue] of sourceAssignments) {
+    for (const [path, assignedValue] of sourceAssignments) {
       const s = schema.find(path)
       if (s?.options.context) {
         const contextName = (typeof s.options.context === 'string') ? s.options.context : s.name;

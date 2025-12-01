@@ -482,7 +482,7 @@ export class SchemaResolver
 
       let argumentTypeString;
       if (schema.isArray && schema.hasChildren) {
-        let props = Object.keys(schema.properties)
+        const props = Object.keys(schema.properties)
                           .sort((a, b) => {
                             if (a === '*') return 1;
                             if (b === '*') return -1;
@@ -659,7 +659,7 @@ export class SchemaResolver
       return;
     }
 
-    let specList = src.handlers[handlerName] ?? [];
+    const specList = src.handlers[handlerName] ?? [];
 
     if (!Array.isArray(specList)) {
       throw new SchemaError(`Invalid ${handlerName} definition in ${src.path ? src.path : 'root'} schema`);
@@ -695,10 +695,10 @@ export class SchemaResolver
         const ldi = path.lastIndexOf('.');
         const parentPath = (ldi === -1) ? '' : path.substring(0, ldi);
 
-        let parentSchema = schema.parent;
+        const parentSchema = schema.parent;
 
-        for (let propName in parentSchema?.properties) {
-          let s = parentSchema.properties[propName];
+        for (const propName in parentSchema?.properties) {
+          const s = parentSchema.properties[propName];
 
           if (s.isSelector) {
             const selectorPath = parentPath ? `${parentPath}.${propName}` : propName;
@@ -834,7 +834,7 @@ export class SchemaResolver
       }
 
       let base;
-      let values = new Set();
+      const values = new Set();
 
       let normalizerCompatible = true;
       let firstNormalizers;

@@ -64,7 +64,7 @@ resolver.registerSchema('timestamp', new Schema('any')
       return Date.now();
     }
     else if (typeof value === 'string') {
-      let t = new Date(value).getTime();
+      const t = new Date(value).getTime();
       if (isNaN(t)) {
         throw new Error(`Invalid timestamp value: ${value}`);
       }
@@ -75,7 +75,7 @@ resolver.registerSchema('timestamp', new Schema('any')
     }
   })
   .validator((value) => {
-    let t = new Date(value).getTime();
+    const t = new Date(value).getTime();
     if (isNaN(t)) {
       throw new Error(`Invalid timestamp value: ${value}`);
     }
@@ -515,7 +515,7 @@ try {
     argv: ['--work-repo=./src', '-VD', '--profile=./example-profile.json', '--printer=bar', '--work-cheese=cheddar', /*'--dump=./example-config.json'*/],
     overrides: { app: { printer: new FooPrinter() }}
   })
-  let printer = config.app?.printer;
+  const printer = config.app?.printer;
 
   const cheeseAccepted = config.work.cheese && config.user.cheeses.find(cheese => {
     return (cheese.name === config.work.cheese.name);

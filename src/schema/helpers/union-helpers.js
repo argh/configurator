@@ -14,7 +14,7 @@ import { fpm } from './fpm.js';
 export function findDiscriminatorProperties(schemas) {
 
   const discriminatorPropertyMap = new Map();
-  for (let schema of schemas) {
+  for (const schema of schemas) {
     let found = false;
     for (const [property, propertySchema] of Object.entries(schema.properties)) {
       if (Array.isArray(propertySchema.options.values) && (propertySchema.options.values.length > 0)) {
@@ -60,7 +60,7 @@ export function findDiscriminatorProperties(schemas) {
       }
     }
   }
-  for (let p of discriminatorPropertyMap.keys()) {
+  for (const p of discriminatorPropertyMap.keys()) {
     if (eliminated.has(p)) {
       discriminatorPropertyMap.delete(p);
     }

@@ -52,7 +52,7 @@ export class SchemaDefaultsSource
         if (schema.hasChildren) {
           const defaultAssignments = schema.toAssignments(schema.default, path);
           if (defaultAssignments.size) {
-            for (let [p, v] of defaultAssignments) {
+            for (const [p, v] of defaultAssignments) {
               assignments.set(p, v);
             }
           } else {
@@ -64,11 +64,11 @@ export class SchemaDefaultsSource
         }
       }
       if (schema.inherit) {
-        let propName = path.substring(path.lastIndexOf('.') + 1)
+        const propName = path.substring(path.lastIndexOf('.') + 1)
         assignments.set(path, (_, config, schema, path) => {
 
           while (path) {
-            let lastDot = path.lastIndexOf('.');
+            const lastDot = path.lastIndexOf('.');
             if (lastDot === -1) {
               path = '';
             }
@@ -76,7 +76,7 @@ export class SchemaDefaultsSource
               path = path.substring(0, lastDot);
             }
 
-            let value = deepValue(config, path? `${path}.${propName}` : `${propName}`);
+            const value = deepValue(config, path? `${path}.${propName}` : `${propName}`);
             if (value) {
               return value;
             }

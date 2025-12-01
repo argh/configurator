@@ -1,7 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { Schema } from '../src/schema/schema.js';
-import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { Schema, SchemaResolver } from '../src/index.js';
 
 describe('Assignments - Existing Results (current parameter)', function() {
   let resolver;

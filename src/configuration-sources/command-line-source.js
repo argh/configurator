@@ -75,7 +75,7 @@ export class CommandLineSource extends ConfigurationSource
       // command hierarchy explicit.
 
       if (schema.hasChildren && !schema.isArray) {
-        for (let propertyName in schema.properties) {
+        for (const propertyName in schema.properties) {
           const childSchema = schema.properties[propertyName];
           if (propertyName === '*') {
             continue;  // shouldn't happen; array elements are handled as an aggregated parsed value
@@ -84,7 +84,7 @@ export class CommandLineSource extends ConfigurationSource
             continue;
           }
 
-          let childPath = path ? `${path}.${propertyName}` : `${propertyName}`;
+          const childPath = path ? `${path}.${propertyName}` : `${propertyName}`;
 
           if (childSchema.isSelection) {
             const selection = childSchema.selection;
@@ -154,7 +154,7 @@ export class CommandLineSource extends ConfigurationSource
     }
     const peekArgumentValue = (incrementIfFound = false) => {
       try {
-        let ret = (i < args.length && (args[i] === '-' || `${args[i]}`.charAt(0) !== '-')) ? args[i] : null;
+        const ret = (i < args.length && (args[i] === '-' || `${args[i]}`.charAt(0) !== '-')) ? args[i] : null;
         if (ret && incrementIfFound) {
           i++;
         }
@@ -431,7 +431,7 @@ export class CommandLineSource extends ConfigurationSource
     const ctx = this._generateOptions(schema, prefix);
 
     function formatContext(ctx, command = null, indent = 0, entries = []) {
-      let cl = [];
+      const cl = [];
 
       if (entries.length) {
         cl.push([]);
@@ -448,7 +448,7 @@ export class CommandLineSource extends ConfigurationSource
 
         usageLine += (ctx.selector.schema.required) ? ` <${selections}` : ` [${selections}`;
 
-        for (let [, selectionContext] of ctx.selectionContextMap) {
+        for (const [, selectionContext] of ctx.selectionContextMap) {
           if (selectionContext.clOptions.size) {
             usageLine += ' [options]';
             break;
@@ -464,7 +464,7 @@ export class CommandLineSource extends ConfigurationSource
 
       if (ctx.clOptions.size) {
 
-        let sortedOptions = Array.from(ctx.clOptions.values()).sort((a, b) => {
+        const sortedOptions = Array.from(ctx.clOptions.values()).sort((a, b) => {
           if (a.flag && !b.flag) { return -1 }
           if (b.flag && !a.flag) { return 1 }
           return a.longOption.localeCompare(b.longOption, undefined, {numeric: true});
@@ -496,7 +496,7 @@ export class CommandLineSource extends ConfigurationSource
           // Add the option description
           const description = (clOptionData.description || '').trim();
 
-          let markers = [];
+          const markers = [];
           if (clOptionData.schema.metadata.advanced) {
             markers.push('advanced');
           }
@@ -511,7 +511,7 @@ export class CommandLineSource extends ConfigurationSource
           // Add advanced marker if needed
           const markersText = markers.length ? `(${markers.join(', ')})` : ''
 
-          let columns = [optionSyntax]
+          const columns = [optionSyntax]
           const d = [description, markersText].filter(item => !!item).join(' ').trim();
 
           if (d.length) {
@@ -520,7 +520,7 @@ export class CommandLineSource extends ConfigurationSource
           cl.push(columns);
         }
       }
-      let margin = indent? ' '.repeat(indent) : '';
+      const margin = indent? ' '.repeat(indent) : '';
 
 
       if (ctx.selector) {
@@ -548,12 +548,12 @@ export class CommandLineSource extends ConfigurationSource
       // It's pretty ugly either way.  :-(
       // (Tried falling back to splitting on spaces, but the leading indentation makes this
       // annoying to implement, and it doesn't really look better anyway.)
-      let c1parts = (c2 || c1.length >= terminalWidth)? c1.split('|') : [c1];
+      const c1parts = (c2 || c1.length >= terminalWidth)? c1.split('|') : [c1];
       let commandOffset = 10;
 
       if (c1parts.length > 0) {
         for (commandOffset = c1parts[0].length; commandOffset > 0; commandOffset--) {
-          let c = c1parts[0].charAt(commandOffset - 1);
+          const c = c1parts[0].charAt(commandOffset - 1);
           if (!c.match(/[a-z-]/i)) {
             break;
           }
@@ -564,8 +564,8 @@ export class CommandLineSource extends ConfigurationSource
 
       let current = '';
 
-      for (let part of c1parts) {
-        let check = current? `${current}|${part}` : part;
+      for (const part of c1parts) {
+        const check = current? `${current}|${part}` : part;
         if (check.length < columnWidth) {
           current = check;
         }
@@ -588,12 +588,12 @@ export class CommandLineSource extends ConfigurationSource
         c2 = `- ${c2}`;
       }
 
-      let c2parts = c2.split(' ');
+      const c2parts = c2.split(' ');
       const c2lines = [];
       current = '';
 
-      for (let part of c2parts) {
-        let check = current? `${current} ${part}` : part;
+      for (const part of c2parts) {
+        const check = current? `${current} ${part}` : part;
         if (check.length < columnWidth) {
           current = check;
         }
@@ -645,9 +645,9 @@ export class CommandLineSource extends ConfigurationSource
     }, 0);
 
     const helpText = lines.map(line => {
-      let parts = [];
+      const parts = [];
       if (line) {
-        let c1 = line[0] || '';
+        const c1 = line[0] || '';
         parts.push(c1.padEnd(firstColumnLength));
         if (line[1] && line[1].length) {
           parts.push(line[1]);
@@ -739,14 +739,14 @@ class ParsingContext {
   }
 
   updateShortOptions() {
-    for (let clOptionData of this.clOptions.values()) {
+    for (const clOptionData of this.clOptions.values()) {
       const flagHint = clOptionData.schema.metadata.flagHint;
       if (flagHint && !this.clFlags.has(flagHint)) {
         clOptionData.flag = flagHint;
         this.clFlags.set(clOptionData.flag, clOptionData);
       }
     }
-    for (let [longOption, clOptionData] of this.clOptions) {
+    for (const [longOption, clOptionData] of this.clOptions) {
       const m = clOptionData.schema.metadata;
       if (clOptionData.flag || m.internal || m.system || m.advanced || m.hidden) {
         continue;
@@ -770,7 +770,7 @@ class ParsingContext {
       else {
 //        let alias = longOption.split('-').map(part => part.charAt(0).toLowerCase()).join('');
 //        let alias = longOption.replace(/^-+/, '').split(/(-?\d+)/).filter(Boolean).map(part => /^\d+$/.test(part) ? part : part.replace(/-/g, '').charAt(0).toLowerCase()).join('');
-        let alias = longOption.replace(/^-+/, '').split(/(-?\d+|-)/g).filter(s => s && s !== '-').map(part => /^\d+$/.test(part) ? part : part.charAt(0).toLowerCase()).join('');
+        const alias = longOption.replace(/^-+/, '').split(/(-?\d+|-)/g).filter(s => s && s !== '-').map(part => /^\d+$/.test(part) ? part : part.charAt(0).toLowerCase()).join('');
 
 
         if (!this.clAliases.has(alias)) {

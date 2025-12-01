@@ -33,11 +33,13 @@
     "test:coverage": "c8 mocha --timeout 0 --ui bdd --recursive --exit"
   },
   "devDependencies": {
+    "@stylistic/eslint-plugin": "^5.6.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.7.2",
     "c8": "^8.0.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
     "mocha": "^10.2.0",
-    "typescript": "^5.9.3",
-    "eslint": "^9.39.1"    
+    "typescript": "^5.9.3"
   }
 }

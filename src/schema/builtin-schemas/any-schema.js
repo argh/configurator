@@ -7,11 +7,11 @@ export const ANY_SCHEMA = new Schema()
       const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
 
       if (hasChildren) {
-        let check = s => {
+        const check = s => {
           return Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
         }
 
-        let hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
+        const hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
 
         return hasStringProps ? {} : [];
       }
@@ -23,9 +23,9 @@ export const ANY_SCHEMA = new Schema()
       const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
 
       if (hasChildren) {
-        let check = s => Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
+        const check = s => Object.keys(s.properties).some(k => !/^[\d*]/.test(k));
 
-        let hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
+        const hasStringProps = [schema, ...Object.values(schema.unionSchemas)].some(check);
 
         return hasStringProps ? {} : [];
       }

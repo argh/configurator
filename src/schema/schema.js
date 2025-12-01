@@ -162,7 +162,7 @@ export class Schema
     if (!this.name) {
       return '';  // this is an unattached schema, no path.
     }
-    let parent = this.parent;
+    const parent = this.parent;
     return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
   }
 
@@ -1053,7 +1053,7 @@ export class Schema
       .transformer((propName, config, schema, path) => {
         while (path && schema.parent) {
           schema = schema.parent;
-          let lastDot = path.lastIndexOf('.');
+          const lastDot = path.lastIndexOf('.');
           if (lastDot === -1) {
             path = '';
           }

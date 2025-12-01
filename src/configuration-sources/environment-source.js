@@ -56,14 +56,14 @@ export class EnvironmentSource extends ConfigurationSource {
     const propertyPaths = schema.getPropertyPaths();
     const propertyPatterns = new Map();
 
-    for (let path of propertyPaths) {
+    for (const path of propertyPaths) {
       propertyPatterns.set(path, compilePattern(appPrefix, path));
     }
 
     const env = context[this.contextName] ?? process.env;
     const assignments = new Map();
 
-    for (let [envVarName, envValue] of Object.entries(env)) {
+    for (const [envVarName, envValue] of Object.entries(env)) {
       if (appPrefix && envVarName.indexOf(`${appPrefix}_`) !== 0) {
         continue;
       }

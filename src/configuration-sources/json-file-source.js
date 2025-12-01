@@ -33,7 +33,7 @@ export class JsonFileSource extends ObjectSource {
    * @returns {Promise<Map<string,any>>}
    */
   async load(schema, context, options) {
-    let filename = context[this.contextName];
+    const filename = context[this.contextName];
 
     if (!filename || typeof filename !== 'string') {
       return new Map();

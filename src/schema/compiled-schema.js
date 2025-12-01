@@ -113,7 +113,7 @@ export class CompiledSchema
     if (!this.name) {
       return '';  // this is an unattached schema, no path.
     }
-    let parent = this.parent;
+    const parent = this.parent;
     return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
   }
 
@@ -199,7 +199,7 @@ export class CompiledSchema
    */
   get hasChildren() {
     // noinspection LoopStatementThatDoesntLoopJS
-    for (let _ in this._properties) {
+    for (const _ in this._properties) {
       return true;
     }
     return false;
@@ -237,7 +237,7 @@ export class CompiledSchema
    */
   get isUnion() {
     // noinspection LoopStatementThatDoesntLoopJS
-    for (let _ in this._unionSchemas) {
+    for (const _ in this._unionSchemas) {
       return true;
     }
     return false;
@@ -415,7 +415,7 @@ export class CompiledSchema
   async processAssignments(assignments, result, options) {
 
     // We can't handle magic paths in this approach:
-    for (let path of assignments.keys()) {
+    for (const path of assignments.keys()) {
       if (path.includes('*') || path.includes(':')) {
         assignments.delete(path);
       }
@@ -477,9 +477,9 @@ export class CompiledSchema
     // TODO - consider keeping wildcard defaults separate, and only expand relevant
     //        assignments when we actually use the wildcard schema!
 
-    let wildcards = expandWildcards(assignments);
+    const wildcards = expandWildcards(assignments);
 
-    for (let [path, value] of Array.from(wildcards)) {
+    for (const [path, value] of Array.from(wildcards)) {
       if (existingAssignment(assignments, path)) {
         continue;
       }
@@ -487,7 +487,7 @@ export class CompiledSchema
     }
 
     // ensure no actual wildcard path segments leak through
-    for (let path of assignments.keys()) {
+    for (const path of assignments.keys()) {
       if (path.includes('*')) {
         assignments.delete(path);
       }
@@ -509,14 +509,14 @@ export class CompiledSchema
     // we clear the final flag and resume looping.
 
     while (!done) {
-      let beforeCounter = progress.counter;
+      const beforeCounter = progress.counter;
 
-      for (let [path, value] of progress.remainingAssignments) {
+      for (const [path, value] of progress.remainingAssignments) {
         if (progress.isCompleted(path)) {
           continue;
         }
         try {
-          let previous = result;
+          const previous = result;
           result = await this._processAssignment(progress, result, path, value, '', result, path);
 
           if (result === CompiledSchema.__IGNORE) {
@@ -539,7 +539,7 @@ export class CompiledSchema
         }
       }
 
-      let afterCounter = progress.counter;
+      const afterCounter = progress.counter;
 
       if (afterCounter === beforeCounter) {
         if (progress.final) {
@@ -593,7 +593,7 @@ export class CompiledSchema
     let currentSchema = this;
     let staged = false;
 
-    let dot = remainingPath.indexOf('.');
+    const dot = remainingPath.indexOf('.');
 
     const segment = (dot === -1) ? remainingPath : remainingPath.slice(0, dot);
     const [propertyName] = segment.split(/[.:]/, 1)
@@ -1093,7 +1093,7 @@ export class CompiledSchema
         if (!schema) {
           const parentSchema = this.findParent(path);
 
-          let strictParent = parentSchema?.options.strict ?? strict;
+          const strictParent = parentSchema?.options.strict ?? strict;
 
           if (strictParent && disallowUnexpected) {
             throw new ValidationError(fpm('Unexpected value', path));
@@ -1282,7 +1282,7 @@ export class CompiledSchema
     let s = this;
 
     for (let pathComponent of pathComponents) {
-      let parts = pathComponent.split(':');
+      const parts = pathComponent.split(':');
       if (parts.length > 1) {
         pathComponent = parts[0];
       }
@@ -1311,7 +1311,7 @@ export class CompiledSchema
     if (!path || path === '' || path === '.') {
       return undefined;
     }
-    let dot = path.lastIndexOf('.');
+    const dot = path.lastIndexOf('.');
 
     if (dot === -1) {
       return this;
@@ -1404,7 +1404,7 @@ export class CompiledSchema
       }
       if (schema.hasChildren) {
         for (const propName in schema.properties) {
-          let childPath = path ? `${path}.${propName}` : `${propName}`;
+          const childPath = path ? `${path}.${propName}` : `${propName}`;
           if (walk(schema.properties[propName], childPath) === false) {
             return false;
           }
@@ -1527,7 +1527,7 @@ export class CompiledSchema
         // todo - skip if marked opaque even if plain object?
         if (Array.isArray(current) || isPlainObject(current)) {
           const keys = Object.keys(current).map(key => /^\d+$/.test(key) ? Number(key) : key);
-          for (let key of keys) {
+          for (const key of keys) {
             const propertyName = `${key}`;
             const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
             const propertySchema = schema.getPropertySchema(propertyName);
@@ -1788,7 +1788,7 @@ export class CompiledSchema
     // We need to do multiple passes to resolve cross references between conditions, unions, and opaque containers
 
     while (!done) {
-      let start = progress.counter;
+      const start = progress.counter;
       const ret = await walk(this, input, '');
       output = (ret === EMPTY_VALUE) ? undefined : ret;
 
@@ -1853,7 +1853,7 @@ export class CompiledSchema
    */
   getTagged(tag) {
     const schemas = [];
-    for (let propName in this.properties) {
+    for (const propName in this.properties) {
       const schema = this.getPropertySchema(propName);
       if (schema.options[tag]) {
         schemas.push(schema);
@@ -1870,7 +1870,7 @@ export class CompiledSchema
    * @deprecated
    */
   getFirstTagged(tag) {
-    for (let propName in this.properties) {
+    for (const propName in this.properties) {
       const schema = this.getPropertySchema(propName);
       if (schema.options[tag]) {
         return schema;
@@ -1897,13 +1897,13 @@ export class CompiledSchema
       if (index >= parts.length) {
         return schema !== undefined;
       }
-      let propertyName = parts[index];
+      const propertyName = parts[index];
 
       if (schema.hasChildren && schema.getPropertySchema(propertyName)) {
         return check(schema.getPropertySchema(propertyName), index + 1);
       }
       else if (schema.isUnion) {
-        for (let unionSchema of schema.unionSchemas) {
+        for (const unionSchema of schema.unionSchemas) {
           if (check(unionSchema, index)) {
             return true;
           }
@@ -1920,13 +1920,13 @@ export class CompiledSchema
    * @internal
    */
   freeze() {
-    for (let childSchema of Object.values(this._properties)) {
+    for (const childSchema of Object.values(this._properties)) {
       childSchema.freeze();
     }
     Object.freeze(this._properties);
     Object.freeze(this._options);
     Object.freeze(this._metadata);
-    for (let unionSchema of Object.values(this._unionSchemas)) {
+    for (const unionSchema of Object.values(this._unionSchemas)) {
       unionSchema.freeze();
     }
     Object.freeze(this._unionSchemas);
@@ -1980,7 +1980,7 @@ class AssignmentProgress {
   }
 
   addAssignments(assignments) {
-    for (let [path, value] of assignments) {
+    for (const [path, value] of assignments) {
       this.addAssignment(path, value);
     }
   }
@@ -2050,7 +2050,7 @@ class AssignmentProgress {
 
   findUnresolvedUnion(path) {
     while (true) {
-      let schema = this.schema.find(path);
+      const schema = this.schema.find(path);
 
       if (!schema) {
         return null;
@@ -2058,7 +2058,7 @@ class AssignmentProgress {
       if (schema.isUnion && !this.resolvedSchemas.get(path)) {
         return path;
       }
-      let dot = path.lastIndexOf('.');
+      const dot = path.lastIndexOf('.');
 
       if (dot === -1) {
         return null;
@@ -2131,7 +2131,7 @@ class AssignmentProgress {
   }
 
   saveStagedData(path, value) {
-    let currentValue = this.staged.get(path);
+    const currentValue = this.staged.get(path);
 
     if (value !== currentValue) {
       this.counter++;
@@ -2152,7 +2152,7 @@ class AssignmentProgress {
     return value;
   }
   clearStagedData(path) {
-    let currentValue = this.getStagedData(path);
+    const currentValue = this.getStagedData(path);
     this.saveStagedData(path, undefined);
     return currentValue;
   }
@@ -2261,7 +2261,7 @@ class VisitProgress {
     if (path === '' && this.uncompleted.size > 0) {
       return false;
     }
-    for (let p of this.uncompleted) {
+    for (const p of this.uncompleted) {
       if (p.startsWith(`${path}.`)) {
         return false;
       }
