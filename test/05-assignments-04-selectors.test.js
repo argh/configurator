@@ -438,7 +438,10 @@ describe('Assignments - Selectors', function() {
 
       await assert.rejects(
         () => compiled.processAssignments(assignments),
-        /required/i
+        (err) => {
+          assert.strictEqual(err instanceof Error && err.message.includes('required'), true);
+          return true;
+        }
       );
     });
 

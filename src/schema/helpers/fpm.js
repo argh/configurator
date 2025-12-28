@@ -3,7 +3,7 @@
  *
  * @param {string} message
  * @param {string} path
- * @param {string} [property]
+ * @param {string|number} [property]
  * @param {string} [prep]
  * @returns {string}
  * @package

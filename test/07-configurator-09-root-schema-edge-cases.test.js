@@ -387,7 +387,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
 
       const schema = new Schema('string')
         .normalizer((value) => {
-          calls.push(['normalize', value]);
+          calls.push(['normalizeValue', value]);
           return String(value);
         })
         .transformer((value) => {
@@ -410,7 +410,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
 
       assert.strictEqual(config, '123');
       // Normalizer should be called before transformer
-      assert.strictEqual(calls[0][0], 'normalize');
+      assert.strictEqual(calls[0][0], 'normalizeValue');
       assert.strictEqual(calls[1][0], 'transform');
     });
 

@@ -16,50 +16,50 @@ describe('Validator: length', function() {
       const schema = new Schema('string').validator({$length: {min: 3, max: 10}});
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('hello', {}, '');
-      await compiled.validate('abc', {}, ''); // min boundary
-      await compiled.validate('1234567890', {}, ''); // max boundary
+      await compiled.validateValue('hello');
+      await compiled.validateValue('abc'); // min boundary
+      await compiled.validateValue('1234567890'); // max boundary
     });
 
     it('should reject string too short', async function() {
       const schema = new Schema('string').validator({$length: {min: 3, max: 10}});
       const compiled = await resolver.compile(schema);
 
-      await assert.rejects(() => compiled.validate('ab', {}, ''), ValidationError);
+      await assert.rejects(() => compiled.validateValue('ab'), ValidationError);
     });
 
     it('should reject string too long', async function() {
       const schema = new Schema('string').validator({$length: {min: 3, max: 10}});
       const compiled = await resolver.compile(schema);
 
-      await assert.rejects(() => compiled.validate('12345678901', {}, ''), ValidationError);
+      await assert.rejects(() => compiled.validateValue('12345678901'), ValidationError);
     });
 
     it('should validate exact length', async function() {
       const schema = new Schema('string').validator({$length: {exact: 5}});
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('hello', {}, '');
-      await assert.rejects(() => compiled.validate('hi', {}, ''), ValidationError);
-      await assert.rejects(() => compiled.validate('toolong', {}, ''), ValidationError);
+      await compiled.validateValue('hello');
+      await assert.rejects(() => compiled.validateValue('hi'), ValidationError);
+      await assert.rejects(() => compiled.validateValue('toolong'), ValidationError);
     });
 
     it('should validate min length only', async function() {
       const schema = new Schema('string').validator({$length: {min: 3}});
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('abc', {}, '');
-      await compiled.validate('verylongstring', {}, '');
-      await assert.rejects(() => compiled.validate('ab', {}, ''), ValidationError);
+      await compiled.validateValue('abc');
+      await compiled.validateValue('verylongstring');
+      await assert.rejects(() => compiled.validateValue('ab'), ValidationError);
     });
 
     it('should validate max length only', async function() {
       const schema = new Schema('string').validator({$length: {max: 5}});
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('', {}, '');
-      await compiled.validate('hello', {}, '');
-      await assert.rejects(() => compiled.validate('toolong', {}, ''), ValidationError);
+      await compiled.validateValue('');
+      await compiled.validateValue('hello');
+      await assert.rejects(() => compiled.validateValue('toolong'), ValidationError);
     });
   });
 
@@ -68,31 +68,31 @@ describe('Validator: length', function() {
       const schema = new Schema('array').validator({$length: {min: 2, max: 5}});
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate([1, 2, 3], {}, '');
-      await compiled.validate([1, 2], {}, ''); // min boundary
-      await compiled.validate([1, 2, 3, 4, 5], {}, ''); // max boundary
+      await compiled.validateValue([1, 2, 3]);
+      await compiled.validateValue([1, 2]); // min boundary
+      await compiled.validateValue([1, 2, 3, 4, 5]); // max boundary
     });
 
     it('should reject array too short', async function() {
       const schema = new Schema('array').validator({$length: {min: 2, max: 5}});
       const compiled = await resolver.compile(schema);
 
-      await assert.rejects(() => compiled.validate([1], {}, ''), ValidationError);
+      await assert.rejects(() => compiled.validateValue([1]), ValidationError);
     });
 
     it('should reject array too long', async function() {
       const schema = new Schema('array').validator({$length: {min: 2, max: 5}});
       const compiled = await resolver.compile(schema);
 
-      await assert.rejects(() => compiled.validate([1, 2, 3, 4, 5, 6], {}, ''), ValidationError);
+      await assert.rejects(() => compiled.validateValue([1, 2, 3, 4, 5, 6]), ValidationError);
     });
 
     it('should validate exact array length', async function() {
       const schema = new Schema('array').validator({$length: {exact: 3}});
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate([1, 2, 3], {}, '');
-      await assert.rejects(() => compiled.validate([1, 2], {}, ''), ValidationError);
+      await compiled.validateValue([1, 2, 3]);
+      await assert.rejects(() => compiled.validateValue([1, 2]), ValidationError);
     });
   });
 

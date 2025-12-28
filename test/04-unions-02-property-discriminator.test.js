@@ -25,11 +25,11 @@ describe('Unions: Property-Based Discriminator', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const resultCircle = await compiled.discriminateUnion({type: 'circle', radius: 5}, {}, '');
+    const resultCircle = await compiled.discriminateUnion({type: 'circle', radius: 5});
     assert.ok(resultCircle);
     assert.strictEqual(compiled.findUnionKey(resultCircle), 'circle');
 
-    const resultSquare = await compiled.discriminateUnion({type: 'square', side: 10}, {}, '');
+    const resultSquare = await compiled.discriminateUnion({type: 'square', side: 10});
     assert.ok(resultSquare);
     assert.strictEqual(compiled.findUnionKey(resultSquare), 'square');
   });
@@ -54,7 +54,7 @@ describe('Unions: Property-Based Discriminator', function() {
     const compiled = await resolver.compile(schema);
 
     // Input with different casing should still match due to normalization
-    const result = await compiled.discriminateUnion({type: 'Circle'}, {}, '');
+    const result = await compiled.discriminateUnion({type: 'Circle'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'CIRCLE');
   });
@@ -72,7 +72,7 @@ describe('Unions: Property-Based Discriminator', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({kind: 'a'}, {}, '');
+    const result = await compiled.discriminateUnion({kind: 'a'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'a');
   });
@@ -87,7 +87,7 @@ describe('Unions: Property-Based Discriminator', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({type: 'invalid'}, {}, '');
+    const result = await compiled.discriminateUnion({type: 'invalid'});
     assert.strictEqual(result, undefined);
   });
 
@@ -101,7 +101,7 @@ describe('Unions: Property-Based Discriminator', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({}, {}, '');
+    const result = await compiled.discriminateUnion({});
     assert.strictEqual(result, undefined);
   });
 
@@ -141,7 +141,7 @@ describe('Unions: Property-Based Discriminator', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({code: 1}, {}, '');
+    const result = await compiled.discriminateUnion({code: 1});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), '1');
   });

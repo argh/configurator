@@ -33,49 +33,49 @@ describe('Validator: filesize', function() {
     const schema = new Schema('string').validator({$filesize: {min: 50, max: 150}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate(testFile, {}, '');
+    await compiled.validateValue(testFile);
   });
 
   it('should accept file at min boundary', async function() {
     const schema = new Schema('string').validator({$filesize: {min: 100, max: 150}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate(testFile, {}, '');
+    await compiled.validateValue(testFile);
   });
 
   it('should accept file at max boundary', async function() {
     const schema = new Schema('string').validator({$filesize: {min: 50, max: 100}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate(testFile, {}, '');
+    await compiled.validateValue(testFile);
   });
 
   it('should reject file too small', async function() {
     const schema = new Schema('string').validator({$filesize: {min: 200}});
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate(testFile, {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue(testFile), ValidationError);
   });
 
   it('should reject file too large', async function() {
     const schema = new Schema('string').validator({$filesize: {max: 50}});
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate(testFile, {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue(testFile), ValidationError);
   });
 
   it('should accept file with min only', async function() {
     const schema = new Schema('string').validator({$filesize: {min: 50}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate(testFile, {}, '');
+    await compiled.validateValue(testFile);
   });
 
   it('should accept file with max only', async function() {
     const schema = new Schema('string').validator({$filesize: {max: 150}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate(testFile, {}, '');
+    await compiled.validateValue(testFile);
   });
 
   it('should reject non-existent file', async function() {
@@ -83,7 +83,7 @@ describe('Validator: filesize', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validate('/nonexistent/file.txt', {}, ''),
+      () => compiled.validateValue('/nonexistent/file.txt'),
       ValidationError
     );
   });

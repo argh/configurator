@@ -15,7 +15,7 @@ describe('Validator: integer', function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('42', {}, '');
+    const result = await compiled.validateValue('42');
     assert.strictEqual(result, 42);
     assert.strictEqual(typeof result, 'number');
   });
@@ -24,7 +24,7 @@ describe('Validator: integer', function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('-42', {}, '');
+    const result = await compiled.validateValue('-42');
     assert.strictEqual(result, -42);
   });
 
@@ -32,7 +32,7 @@ describe('Validator: integer', function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('0', {}, '');
+    const result = await compiled.validateValue('0');
     assert.strictEqual(result, 0);
   });
 
@@ -40,7 +40,7 @@ describe('Validator: integer', function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('9007199254740991', {}, ''); // MAX_SAFE_INTEGER
+    const result = await compiled.validateValue('9007199254740991'); // MAX_SAFE_INTEGER
     assert.strictEqual(result, 9007199254740991);
   });
 
@@ -48,9 +48,9 @@ describe('Validator: integer', function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('3.14', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('3.14'), ValidationError);
     // Note: '42.0' parses to 42 which IS an integer, so it passes
-    const result = await compiled.validate('42.0', {}, '');
+    const result = await compiled.validateValue('42.0');
     assert.strictEqual(result, 42);
   });
 
@@ -58,13 +58,13 @@ describe('Validator: integer', function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('abc', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('abc'), ValidationError);
   });
 
   it('should reject Infinity', async function() {
     const schema = new Schema('string').validator('$integer');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('Infinity', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('Infinity'), ValidationError);
   });
 });

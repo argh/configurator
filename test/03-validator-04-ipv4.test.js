@@ -16,7 +16,7 @@ describe('Validator: ipv4', function() {
       const schema = new Schema('string').validator('$ipv4');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('192.168.1.1', {}, '');
+      const result = await compiled.validateValue('192.168.1.1');
       assert.strictEqual(result, '192.168.1.1');
     });
 
@@ -24,7 +24,7 @@ describe('Validator: ipv4', function() {
       const schema = new Schema('string').validator('$ipv4');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('0.0.0.0', {}, '');
+      const result = await compiled.validateValue('0.0.0.0');
       assert.strictEqual(result, '0.0.0.0');
     });
 
@@ -32,7 +32,7 @@ describe('Validator: ipv4', function() {
       const schema = new Schema('string').validator('$ipv4');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('255.255.255.255', {}, '');
+      const result = await compiled.validateValue('255.255.255.255');
       assert.strictEqual(result, '255.255.255.255');
     });
 
@@ -40,7 +40,7 @@ describe('Validator: ipv4', function() {
       const schema = new Schema('string').validator('$ipv4');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('127.0.0.1', {}, '');
+      const result = await compiled.validateValue('127.0.0.1');
       assert.strictEqual(result, '127.0.0.1');
     });
 
@@ -48,9 +48,9 @@ describe('Validator: ipv4', function() {
       const schema = new Schema('string').validator('$ipv4');
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('10.0.0.1', {}, '');
-      await compiled.validate('172.16.0.1', {}, '');
-      await compiled.validate('192.168.0.1', {}, '');
+      await compiled.validateValue('10.0.0.1');
+      await compiled.validateValue('172.16.0.1');
+      await compiled.validateValue('192.168.0.1');
     });
   });
 
@@ -60,7 +60,7 @@ describe('Validator: ipv4', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('256.1.1.1', {}, ''),
+        () => compiled.validateValue('256.1.1.1'),
         ValidationError
       );
     });
@@ -70,7 +70,7 @@ describe('Validator: ipv4', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('-1.1.1.1', {}, ''),
+        () => compiled.validateValue('-1.1.1.1'),
         ValidationError
       );
     });
@@ -80,7 +80,7 @@ describe('Validator: ipv4', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('192.168.1', {}, ''),
+        () => compiled.validateValue('192.168.1'),
         ValidationError
       );
     });
@@ -90,7 +90,7 @@ describe('Validator: ipv4', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('192.168.1.1.1', {}, ''),
+        () => compiled.validateValue('192.168.1.1.1'),
         ValidationError
       );
     });
@@ -100,7 +100,7 @@ describe('Validator: ipv4', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('192.168.a.1', {}, ''),
+        () => compiled.validateValue('192.168.a.1'),
         ValidationError
       );
     });
@@ -110,7 +110,7 @@ describe('Validator: ipv4', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('', {}, ''),
+        () => compiled.validateValue(''),
         ValidationError
       );
     });

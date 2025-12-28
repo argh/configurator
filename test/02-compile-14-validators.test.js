@@ -71,7 +71,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('test-value', {}, '');
+      await compiled.validateValue('test-value');
 
       assert.strictEqual(invokedWith, 'test-value');
     });
@@ -120,11 +120,11 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should pass
-      await compiled.validate(15, {}, '');
+      await compiled.validateValue(15);
 
       // Should fail
       await assert.rejects(
-        () => compiled.validate(5, {}, ''),
+        () => compiled.validateValue(5),
         ValidationError
       );
     });
@@ -190,10 +190,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('correct', {}, '');
+      await compiled.validateValue('correct');
 
       await assert.rejects(
-        () => compiled.validate('wrong', {}, ''),
+        () => compiled.validateValue('wrong'),
         ValidationError
       );
     });
@@ -204,7 +204,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('test', {}, '');
+      const result = await compiled.validateValue('test');
       assert.strictEqual(result, 'TEST');
     });
 
@@ -228,11 +228,11 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should pass
-      await compiled.validate('123-4567', {}, '');
+      await compiled.validateValue('123-4567');
 
       // Should fail
       await assert.rejects(
-        () => compiled.validate('invalid', {}, ''),
+        () => compiled.validateValue('invalid'),
         ValidationError
       );
     });
@@ -253,7 +253,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Number should be converted to string
-      await compiled.validate('123', {}, '');
+      await compiled.validateValue('123');
     });
   });
 
@@ -265,10 +265,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('12345', {}, '');
+      await compiled.validateValue('12345');
 
       await assert.rejects(
-        () => compiled.validate('abc', {}, ''),
+        () => compiled.validateValue('abc'),
         ValidationError
       );
     });
@@ -279,9 +279,9 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('HELLO', {}, '');
-      await compiled.validate('hello', {}, '');
-      await compiled.validate('HeLLo', {}, '');
+      await compiled.validateValue('HELLO');
+      await compiled.validateValue('hello');
+      await compiled.validateValue('HeLLo');
     });
 
     it('should throw error for invalid regex pattern', async function() {
@@ -311,10 +311,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('required-value', {}, '');
+      await compiled.validateValue('required-value');
 
       await assert.rejects(
-        () => compiled.validate('other-value', {}, ''),
+        () => compiled.validateValue('other-value'),
         ValidationError
       );
     });
@@ -326,11 +326,11 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // String value should match
-      await compiled.validate('123', {}, '');
+      await compiled.validateValue('123');
 
       // Should fail
       await assert.rejects(
-        () => compiled.validate('124', {}, ''),
+        () => compiled.validateValue('124'),
         ValidationError
       );
     });
@@ -351,7 +351,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.validate('$price', {}, '');
+      await compiled.validateValue('$price');
     });
 
     it('should not treat string without leading $ as keyword', async function() {
@@ -361,10 +361,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should validate exact match
-      await compiled.validate('notAKeyword', {}, '');
+      await compiled.validateValue('notAKeyword');
 
       await assert.rejects(
-        () => compiled.validate('something-else', {}, ''),
+        () => compiled.validateValue('something-else'),
         ValidationError
       );
     });
@@ -379,7 +379,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should have string validator from base
-      const result = await compiled.validate('test', {}, compiled, '');
+      const result = await compiled.validateValue('test');
       assert.strictEqual(result, 'test');
     });
 
@@ -393,10 +393,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Custom validator should be used, not base string validator
-      await compiled.validate('custom', {}, '');
+      await compiled.validateValue('custom');
 
       await assert.rejects(
-        () => compiled.validate('other', {}, ''),
+        () => compiled.validateValue('other'),
         ValidationError
       );
     });
@@ -482,10 +482,10 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      await compiled.properties.name.validate('John', {}, compiled.properties.name, 'name');
-      await compiled.properties.age.validate(25, {}, compiled.properties.age, 'age');
-      await compiled.properties.status.validate('active', {}, compiled.properties.status, 'status');
-      await compiled.properties.email.validate('test@example.com', {}, compiled.properties.email, 'email');
+      await compiled.properties.name.validateValue('John');
+      await compiled.properties.age.validateValue(25);
+      await compiled.properties.status.validateValue('active');
+      await compiled.properties.email.validateValue('test@example.com');
     });
 
     it('should invoke validators independently for each property', async function() {
@@ -496,16 +496,16 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Each property's validator should work independently
-      await compiled.properties.a.validate('apple', {}, 'a');
-      await compiled.properties.b.validate('banana', {}, 'b');
+      await compiled.properties.a.validateValue('apple');
+      await compiled.properties.b.validateValue('banana');
 
       await assert.rejects(
-        () => compiled.properties.a.validate('banana', {}, 'a'),
+        () => compiled.properties.a.validateValue('banana'),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled.properties.b.validate('apple', {}, 'b'),
+        () => compiled.properties.b.validateValue('apple'),
         ValidationError
       );
     });
@@ -540,17 +540,17 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should pass both validators
-      await compiled.validate('testing', {}, '');
+      await compiled.validateValue('testing');
 
       // Should fail first validator
       await assert.rejects(
-        () => compiled.validate('hello', {}, ''),
+        () => compiled.validateValue('hello'),
         ValidationError
       );
 
       // Should fail second validator
       await assert.rejects(
-        () => compiled.validate('test', {}, ''),
+        () => compiled.validateValue('test'),
         ValidationError
       );
     });
@@ -564,7 +564,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('anything', {}, '');
+      const result = await compiled.validateValue('anything');
       assert.strictEqual(result, 'anything');
     });
 
@@ -574,7 +574,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('anything', {}, '');
+      const result = await compiled.validateValue('anything');
       assert.strictEqual(result, 'anything');
     });
 
@@ -595,7 +595,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('   evil  '),
+        () => compiled.validateValue('   evil  '),
         (/** @type{ValidationError} */ error) => {
           assert.strictEqual(error?.cause?.message, 'discovered EVIL')
           return true;
@@ -623,7 +623,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const compiled = await resolver.compile(schema);
 
       // Should pass both values check and validator
-      await compiled.validate('RED', {}, '');
+      await compiled.validateValue('RED');
     });
 
     it('should validate after values transformation', async function() {
@@ -641,7 +641,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
       // Transform should reject before validator runs
       await assert.rejects(
-        () => compiled.transform('invalid', {}, ''),
+        () => compiled.transformValue('invalid'),
         TransformError
       );
     });

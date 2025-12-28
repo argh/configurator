@@ -14,7 +14,7 @@ import { ConfiguratorError } from './errors.js';
 import { SchemaResolver } from './schema/schema-resolver.js';
 import { stringify } from './schema/helpers/stringify.js';
 import { expandWildcards } from './schema/helpers/wildcard.js'
-import { existingAssignment } from './schema/helpers/assignment-helpers.js';
+import { existingAssignment } from './schema/helpers/assignments.js';
 import { deepAssign } from './utils.js';
 
 /** @import { SerializeOptions, ConfigureOptions } from './schema/types.js' */
@@ -144,7 +144,7 @@ export class Configurator {
     const configContextName = options.configContextName ?? 'config';
 
     return [
-      new SchemaDefaultsSource(),                                                              // 100
+//      new SchemaDefaultsSource(),                                                              // 100
       new ObjectSource({contextName: 'defaults'}),                                             // 300
       new EnvironmentSource(),                                                                 // 400
       new CommandLineSource(),                                                                 // 600
@@ -210,8 +210,9 @@ export class Configurator {
 
     // EXPERIMENT
     // Original approach:
-    //const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
+    const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
 
+    /*
     // Testing new approach:
 
     // We can't handle magic paths in this approach:
@@ -228,11 +229,11 @@ export class Configurator {
     // Multi-phase
     // TODO - investigate: share status of union resolution across phases?  (fewer loops)
     //      - investigate: make defaults population part of normalization?
-    const normalized = await schema.normalize(input);
+    const normalized = await schema.normalizeValue(input);
     const configuration = await schema.transform(normalized);
 //    await schema.populateDefaults(configuration);
     await schema.validate(configuration);
-
+*/
     if (this._dumpContextName && configurationContext[this._dumpContextName]) {
       await this.dump(schema, configuration, configurationContext[this._dumpContextName]);
     }

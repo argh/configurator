@@ -7,11 +7,37 @@ import {
   TransformError,
   ValidationError
 } from '../errors.js';
-import { deepAssign, isConstructor, isPlainObject } from '../utils.js';
+import { deepAssign, deepPrune, deepValue, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
-import { existingAssignment } from './helpers/assignment-helpers.js';
+import { existingAssignment } from './helpers/assignments.js';
 import { fpm } from './helpers/fpm.js';
+import { checkConsistency } from './helpers/check-consistency.js';
+import {
+  deferContainer,
+  checkRequiredHook,
+  normalizeHook,
+  transformHook,
+  validateHook,
+  resolveUnionHook,
+  startPropertyHook,
+  endPropertyHook,
+  TraversalContext,
+  TraversalControl,
+  pendingToValueHook,
+  checkConditionHook,
+  existingPropertyHook,
+  inputToPendingHook,
+  checkPropertySchema,
+  defaultsHook,
+  serializeHook,
+  checkUnresolvedHook,
+  filterPropertyHook,
+  TraversalHooks,
+  inputToValueHook,
+  normalizeInputHook, copyPropertyValueHook
+} from './helpers/traversal.js';
+import { stringify } from './helpers/stringify.js';
 
 
 /** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions, CompiledValueProcessorDefinition } from './types.js' */
@@ -370,6 +396,19 @@ export class CompiledSchema
   }
 
   /**
+   * Returns whether this schema should be deeply traversed even when the input is empty.
+   *
+   * This is useful for triggering required/defaults settings.  (Note that a schema with
+   * child properties that is marked required is deep by default, because that's almost
+   * always what is wanted/expected.)
+   *
+   * @type {boolean}
+   */
+  get deep() {
+    return this._options.deep ?? (this.hasChildren && this.required);
+  }
+
+  /**
    * Return true if the schema always returns an inherited value.
    *
    * Inherited properties never accept a direct assignment, and will always return the value
@@ -409,14 +448,18 @@ export class CompiledSchema
    * @returns {boolean}
    */
   get opaque() {
-    return this._options.allowIncremental === false;
+    return !this.hasChildren || this._options.allowIncremental === false;
   }
 
-  async processAssignments(assignments, result, options) {
+  async oldProcessAssignments(assignments, configuration, options) {
+
+    if (this.parent) {
+      throw new SchemaError('Can only process assignments using the root schema');
+    }
 
     // We can't handle magic paths in this approach:
     for (const path of assignments.keys()) {
-      if (path.includes('*') || path.includes(':')) {
+      if (path.includes('*') /*|| path.includes(':')*/) {
         assignments.delete(path);
       }
     }
@@ -425,409 +468,28 @@ export class CompiledSchema
       input = deepAssign(input, path, value);
     }
 
-    // Multi-phase
-    // TODO - investigate: share status of union resolution across phases?  (fewer loops)
-    //      - investigate: make defaults population part of normalization?
-    const normalized = await this.normalize(input, options);
-    const configuration = await this.transform(normalized, options);
-//    await schema.populateDefaults(configuration);
-    await this.validate(configuration, options);
-
-    return configuration;
+    return await this.process(input, {strict: options?.strict ?? true, value: configuration, assignments});
   }
 
-  /**
-   * Process a map of assignments into a validated output based on the current schema.
-   *
-   * Assignments are provided as a map of path-to-value pairs, where the path corresponds to the location in
-   * the final output.
-   *
-   * Paths may be simple ("server.address") or include wildcards ("operations.*.debug") or be keyed to a
-   * particular union member ("storage:redis.maxMemory") or even both ("commands.*:list.recursive").  The
-   * path to this schema (the top level) is an empty string.
-   *
-   * It is possible for processAssignments to have no effect; either there were no assignments, or they were
-   * filtered by conditionals.  In this case, the return value will reflect that nothing was done; typically
-   * it will return undefined in this case, but it depends on the result parameter you provide:
-   *
-   * Normally, you will want to leave the result parameter undefined, so that the schema will build
-   * the result for you based on this schema.
-   *
-   * However, if you pass an (appropriately typed) existing value in, the schema will attempt to use it to build
-   * the final validated result.  For a schema with child schemas that supports incremental assignment, this means
-   * that you would need to pass in a simple object or class instance or array.  It is assumed that this
-   * "result" you pass in is pre-transformed; existing values in it are ignored.  This existing object will then
-   * be incrementally populated by any successful assignments.
-   *
-   * (If this top-level schema schema defines a primitive type, or any schema without child properties, any
-   * successful top-level assignment will return a new result value.  If the assignment has no effect, the original
-   * result is returned.  Given the main purpose of this library is configuration, it would be silly to define a
-   * value-type schema as the top level, but it's supported and tested for algorithmic consistency!)
-   *
-   * @param {Map<string,NonNullable<any>>} assignments - path-to-value pairs
-   * @param {any} [result] - optional current value to use as the starting point for the result
-   * @param {AssignmentOptions} [options] - optional assignment options
-   * @returns {Promise<any>} - returns validated result
-   */
-  async oldprocessAssignments(assignments, result, options) {
+  async processAssignments(assignments, configuration, options) {
 
-    const doPopulateDefaults = (options?.populateDefaults !== false);
-    const doValidate = (options?.validate !== false);
+    const context = (options?.context ?? new TraversalContext(options));
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
+      .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
+      .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
 
-    // TODO - consider keeping wildcard defaults separate, and only expand relevant
-    //        assignments when we actually use the wildcard schema!
-
-    const wildcards = expandWildcards(assignments);
-
-    for (const [path, value] of Array.from(wildcards)) {
-      if (existingAssignment(assignments, path)) {
-        continue;
-      }
-      assignments.set(path, value);
+    if (configuration !== undefined) {
+      await this.preload(configuration, context);
     }
-
-    // ensure no actual wildcard path segments leak through
-    for (const path of assignments.keys()) {
-      if (path.includes('*')) {
-        assignments.delete(path);
-      }
+    for (let [path, value] of assignments) {
+      await this.traverse(value, {inputPath: path, context, hooks});
     }
-
-    const strict = options?.strict ?? true;
-    const progress = new AssignmentProgress(this, assignments, strict);
-
-    let done = false;
-
-    progress.final = false;
-
-    // Main assignment loop
-    //
-    // Process assignments until nothing changes, then attempt a final pass.
-    // If anything is still unresolved during a final pass, it's an error.
-    //
-    // If a "final" pass triggers a change (e.g. unstaging staged data)
-    // we clear the final flag and resume looping.
-
-    while (!done) {
-      const beforeCounter = progress.counter;
-
-      for (const [path, value] of progress.remainingAssignments) {
-        if (progress.isCompleted(path)) {
-          continue;
-        }
-        try {
-          const previous = result;
-          result = await this._processAssignment(progress, result, path, value, '', result, path);
-
-          if (result === CompiledSchema.__IGNORE) {
-            progress.setCompleted(path);
-            result = previous;
-          }
-
-          // Only enforce reference preservation for schemas with children (containers)
-          // Value types (primitives) can be replaced since they're immutable
-          if (this.hasChildren && previous !== undefined && previous !== null && result !== previous) {
-            throw new SchemaError('Original input container replaced');
-          }
-        }
-        catch (error) {
-          if (error instanceof SchemaError && error?.message.includes(path)) {
-            throw error;
-          }
-          const message = fpm('Assignment error', path);
-          throw new SchemaError(message, {cause: error});
-        }
-      }
-
-      const afterCounter = progress.counter;
-
-      if (afterCounter === beforeCounter) {
-        if (progress.final) {
-          done = true;
-        }
-        else {
-          progress.final = true;  // do one final cleanup pass
-        }
-      }
-    }
-
-    if (strict && progress.remainingAssignmentCount > 0) {
-      throw new ValidationError(
-        `Failed to assign ${progress.remainingAssignmentCount > 1 ? 'properties' : 'property'}: ${Array.from(
-          progress.assignments.keys()).join(', ')}`);
-    }
-
-    const populated = doPopulateDefaults? await this.populateDefaults(result, options?.populateOptions) : result;
-    return doValidate? await this.validate(populated, options?.validateOptions) : populated;
+//    context.final = true;
+    return await this.traverseMultipass(undefined, {context, hooks});
   }
 
-  /**
-   * Process a single deep assignment and store the results in the output, building on the overall assignment progress.
-   *
-   * Each assignment runs the handlers corresponding to their schema:
-   *   1. normalize input
-   *   2. resolve union if possible
-   *   3. check if condition passes
-   *   4. transform to output
-   * Intermediate containers for deep paths are constructed (via normalizer) as needed.
-   *
-   * Once an assignment has been fully handled, progress.setCompleted is called with the assignment path.
-   * The output from assignments for unresolved unions and opaque objects that don't allow incremental assignment are
-   * "staged" until complete.  Uncompleted assignments (due to processors returning undefined) are left for the
-   * processAssignments call to retry until the configuration stabilizes.
-   *
-   * @param {AssignmentProgress} progress - assignment state
-   * @param {any} result                  - root object being built
-   * @param {string} assignmentPath       - entire path to the assignment
-   * @param {any} assignmentValue         - value to assign
-   * @param {string} currentPath          - path to current schema in the assignment (starts at top === '')
-   * @param {any} currentValue            - value corresponding to the current path, if any
-   * @param {string} remainingPath        - the rest of the path below the current path
-   * @returns {Promise<any|symbol>}
-   * @private
-   * @internal
-   */
-  async _processAssignment(progress, result, assignmentPath, assignmentValue, currentPath, currentValue, remainingPath) {
-
-    /** @type {CompiledSchema} */
-    let currentSchema = this;
-    let staged = false;
-
-    const dot = remainingPath.indexOf('.');
-
-    const segment = (dot === -1) ? remainingPath : remainingPath.slice(0, dot);
-    const [propertyName] = segment.split(/[.:]/, 1)
-    const nextRemainingPath = (dot === -1) ? '' : remainingPath.slice(dot + 1);
-    let unionKey;
-    [currentPath, unionKey] = currentPath.split(':');
-
-    const isAssignmentSchema = (propertyName === '');
-
-    const originalCurrentValue = currentValue;
-    if (currentValue === undefined || currentValue === null) {
-      currentValue = progress.getStagedData(currentPath);
-      if (currentValue !== undefined) {
-        staged = true;
-      }
-    }
-    if (isAssignmentSchema && assignmentValue === CompiledSchema.__STAGED) {
-      assignmentValue = currentValue;
-    }
-
-    if (assignmentValue === undefined) {
-      progress.setCompleted(assignmentPath);
-      return staged ? originalCurrentValue : currentValue;
-    }
-
-    if (currentSchema.isUnion) {
-      let resolved = progress.getResolvedSchema(currentPath);
-
-      if (!resolved) {
-        const discriminateValue = isAssignmentSchema ? assignmentValue : currentValue;
-        const unionSchema = await currentSchema.discriminateUnion(discriminateValue, result, currentPath,{strict: progress.final});
-
-        if (unionSchema) {
-          const key = currentSchema.findUnionKey(unionSchema);
-          if (!key) {
-            throw new SchemaError('Union discriminator resolved to unknown schema');
-          }
-          resolved = progress.setResolvedSchema(currentPath, key, unionSchema);
-        }
-      }
-
-      if (resolved) {
-        if (unionKey && unionKey !== resolved.key) {
-          progress.setCompleted(assignmentPath);
-          return CompiledSchema.__IGNORE;  // does not match, so we will ignore this assignment
-        }
-        currentSchema = resolved.schema;
-      }
-      else {
-        // not resolved, so we can't handle any assignments specific to a particular union key
-        if (unionKey) {
-          return originalCurrentValue;
-        }
-      }
-    }
-    const conditionValue = isAssignmentSchema ? assignmentValue : currentValue;
-
-    if (!await currentSchema.checkCondition(conditionValue, result, currentSchema, currentPath)) {
-      if (progress.final) {
-        progress.setCompleted(assignmentPath);
-      }
-      return progress.final ? CompiledSchema.__IGNORE : undefined;
-    }
-
-    let propertyValue = undefined;
-    let propertySchema = undefined;
-    let propertyCurrentValue = undefined;
-
-    if (!isAssignmentSchema) {
-      assert(propertyName);
-
-      // !isAssignmentSchema, but we're referencing propertyName, so being safe here...
-      propertySchema = currentSchema.getPropertySchema(propertyName);
-
-      if (!propertySchema) {
-        if (currentSchema.isUnion) {
-
-          if (progress.final) {
-            throw new ValidationError(`Failed to process "${propertyName}" (unable to uniquely resolve "${currentPath}")`);
-          }
-
-          // we're still unresolved, so we'll just skip this assignment for now
-          return originalCurrentValue;
-        }
-        if (progress.final && progress.strict) {
-          throw new ValidationError(fpm('Unknown', currentPath, propertyName));
-        }
-        return staged? originalCurrentValue : currentValue;
-      }
-
-      if (propertySchema.implicit) {
-        return CompiledSchema.__IGNORE;
-      }
-
-      const propertyPath = currentPath ? `${currentPath}.${segment}` : segment;
-      propertyCurrentValue = currentValue?.[propertyName];
-      propertyValue = await propertySchema?._processAssignment(progress, result, assignmentPath, assignmentValue, propertyPath, propertyCurrentValue, nextRemainingPath);
-
-      if (propertyValue === CompiledSchema.__IGNORE) {
-        // propagate the ignore state
-        return CompiledSchema.__IGNORE;
-      }
-
-      if (propertyValue === undefined && !currentValue) {
-        return originalCurrentValue;
-      }
-    }
-
-    // If we are here, we need to have something instantiated for the current path
-    // (either because this schema is the target, or because we have a child property to assign)
-
-    let returnValue = currentValue;
-
-    if (isAssignmentSchema && typeof assignmentValue === 'function' && !isConstructor(assignmentValue) && !currentSchema.isFunction) {
-      // Unless the schema is explicitly typed as expecting function values, functions are interpreted as dynamically
-      // resolved values with the same signature as a AsyncSchemaValueProcessor, invoked to retrieve the actual value.
-      assignmentValue = await assignmentValue(currentValue, result, currentSchema, currentPath);
-
-      if (assignmentValue === undefined) {
-        return originalCurrentValue;
-      }
-    }
-
-    if (isAssignmentSchema || returnValue === undefined || returnValue === null) {
-      // By contract, container schema normalizers should construct an appropriate container type when passed "true"
-      returnValue = await currentSchema.normalize(isAssignmentSchema? assignmentValue : true, result, currentPath);
-
-      if (returnValue === undefined || returnValue === null) {
-        // unusual case...
-        progress.setCompleted(assignmentPath);
-        return isAssignmentSchema? CompiledSchema.__IGNORE : undefined;  // todo - think about this
-      }
-
-      if (isAssignmentSchema && currentSchema.hasChildren && currentSchema.allowIncremental) {
-        if (typeof returnValue === 'object' && Object.keys(returnValue).length > 0) {
-          // When we're on the final part of the path but still pointing at a container,
-          // we attempt to convert the (presumably parsed) value to individual child assignments.
-          const assignments = currentSchema.toAssignments(returnValue, currentPath);
-          progress.addAssignments(assignments);
-
-          // The individual assignments we just created will drive container creation
-          // on a subsequent pass through the assignment loop, so we're done with this path now.
-          progress.setCompleted(assignmentPath);
-          return originalCurrentValue;
-        }
-      }
-
-      // See if we need to treat this as a container (even if it isn't, and we got here due to a bad assignment)
-      const isContainer = !isAssignmentSchema
-                          || currentSchema.hasChildren
-                          || currentSchema.isArray
-                          || currentValue && typeof currentValue === 'object';
-
-      let orphanedPropertyValue = false;
-
-      if ((currentSchema.allowIncremental || !isContainer) && !currentSchema.isUnion) {
-        const transformedValue = await currentSchema.transform(returnValue, result, currentPath);
-
-        if (propertyValue !== undefined && (!transformedValue || typeof transformedValue !== 'object')) {
-          orphanedPropertyValue = true;  // we have a processed property that needs to be staged
-        }
-        else {
-          returnValue = transformedValue;
-        }
-      }
-
-      if (returnValue !== undefined && returnValue !== null
-          && (orphanedPropertyValue || currentSchema.isUnion || (isContainer && !currentSchema.allowIncremental))) {
-        // stage this data and add a magic assignment so we remember to try to resolve it
-        progress.saveStagedData(currentPath, returnValue);
-        progress.addAssignment(currentPath, CompiledSchema.__STAGED);
-        staged = true;
-      }
-    }
-
-    if (!isAssignmentSchema && propertyValue !== undefined && (propertyValue !== propertyCurrentValue)) {
-      if (!returnValue || typeof returnValue !== 'object') {
-        const schemaName = currentSchema.path || 'root'
-        throw new SchemaError(`Current ${typeof returnValue} value at ${schemaName} cannot accept assignment to "${propertyName}"`)
-      }
-      if (/^\d+$/.test(propertyName)) {
-        returnValue[Number(propertyName)] = propertyValue;
-      }
-      else {
-        returnValue[propertyName] = propertyValue;
-      }
-    }
-
-    if (staged) {
-      if (!currentSchema.isUnion && (currentSchema.allowIncremental || progress.containerAssignmentsComplete(currentPath))) {
-        // unstage!  todo - check if it's not a container (allowIncremental is false for value schemas!)
-        returnValue = await currentSchema.transform(returnValue, result, currentPath);
-        progress.clearStagedData(currentPath);
-        staged = false;
-      }
-    }
-
-    if (returnValue !== undefined) {
-      if (isAssignmentSchema) {
-        progress.setCompleted(assignmentPath);
-      }
-      return staged? originalCurrentValue : returnValue;
-    }
-    else {
-      return undefined;
-    }
-  }
-
-  /**
-   * Return output that corresponds to the input after being populated with defaults found in the schema.
-   *
-   * The normal behavior of this call is to mutate the input data, and to only "shallowly" populate defaults.
-   * You can override this behavior by passing in advanced visit() options, notably:
-   * - visitUndefined (false) - if true, populate defaults everywhere in the entire schema hierarchy
-   * - visitUndefinedShallow (true) - implies visitUndefined, but with a depth limit (self and immediate children)
-   * - visitDefaults (true) - do not run validation if an input matches the default value
-   *
-   * @param {any} input - the input data
-   * @param {VisitOptions} [options] - options to override how the data is visited
-   * @returns {Promise<any>}
-   */
-  async populateDefaults(input, options) {
-    return await this.visit(input, async (current, input, schema, path) => {
-      if (schema !== undefined && current === undefined) {
-        if (schema.default !== undefined) {
-          current = await schema.normalizeValue(schema.default, input, path);
-          if (current !== undefined) {
-            current = await schema.transformValue(current, input, path);
-          }
-        }
-      }
-      return current;
-    }, {visitUndefinedShallow: true, update: true, ...options});
-  }
 
 
   /**
@@ -838,12 +500,11 @@ export class CompiledSchema
    *
    * @param {any} value
    * @param {any} configuration
-   * @param {CompiledSchema} schema
    * @param {string} path
    * @param {Object} [options]
    * @returns {Promise<boolean>}
    */
-  async checkCondition(value, configuration, schema, path, options) {
+  async checkCondition(value, configuration, path, options) {
     const conditions = Array.isArray(this._handlers.conditions)? this._handlers.conditions : [];
 
     // no conditions = pass!
@@ -882,14 +543,15 @@ export class CompiledSchema
    * configuration state, as they are sometimes invoked in isolation (even during compilation!)
    * and thus shouldn't depend on the "undefined means retry later" behavior of other handlers.
    *
+   * Also note that normalizeValue does not recursively examine child properties.
+   *
    * @param {any} value
    * @param {any} [configuration]
    * @param {string} [path]
    * @param {Object} [options]
    * @returns {Promise<any>}
    */
-  async normalizeValue(value, configuration = {}, path = this.path, options) {
-
+  async normalizeValue(value, configuration, path = this.path, options) {
     if (typeof value === 'function' && !isConstructor(value)) {
       if (this.options.type !== 'function') {
         try {
@@ -901,9 +563,8 @@ export class CompiledSchema
       }
     }
 
-
-    if (value === undefined) {
-      return undefined;
+    if (value === undefined || value === null) {
+      return value;
     }
 
     const normalizers = Array.isArray(this._handlers.normalizers)? this._handlers.normalizers : [];
@@ -920,42 +581,6 @@ export class CompiledSchema
     return normalized;
   }
 
-
-
-
-
-  /**
-   * @param {any} value
-   * @param {Object} [normalizeOptions]
-   * @returns {Promise<any>}
-   */
-  async normalize(value, normalizeOptions) {
-
-    const strict = normalizeOptions?.strict ?? true;
-
-    return await this.newVisit(value, async (current, result, schema, path, progress) => {
-
-      if (progress.final) {
-        if (!schema && strict && !this.getPropertyPaths().has(path)) {
-          throw new NormalizeError(fpm('Unexpected property', path));
-        }
-        if (schema?.isUnion) {
-          throw new NormalizeError(fpm('Unable to resolve union', path));
-        }
-        if (current === undefined && schema?.default !== undefined) {
-          current = schema.default;
-        }
-      }
-      if (schema === undefined) {
-        return undefined;
-      }
-      return await schema.normalizeValue(current, result, path, normalizeOptions);
-
-    }, {visitUnexpected: true, visitUndefined: true, visitOpaque: true, visitUndefinedShallow: true, mode: VisitMode.COPY});
-  }
-
-
-
   /**
    * Transform an input value for the final configuration based on this schema and provided context.
    *
@@ -967,6 +592,7 @@ export class CompiledSchema
    *
    * A schema's transform is allowed to enforce validation internally, or it can delegate this to
    * the validation handler.  In any case, the output from the transform is not guaranteed to be valid.
+   * (Note that conditions and unions are not checked if you call this directly.)
    *
    * @param {any} value - input value to transform
    * @param {any} configuration - global configuration in case the transformer depends on it
@@ -974,10 +600,9 @@ export class CompiledSchema
    * @param {Object} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
    */
-  async transformValue(value, configuration = {}, path = this.path, options) {
-
-    if (value === undefined) {
-      return undefined;
+  async transformValue(value, configuration, path = this.path, options) {
+    if (value === null || value === undefined) {
+      return value;
     }
 
     // todo - can we move value checking to a constraint processor?
@@ -1006,51 +631,117 @@ export class CompiledSchema
     return transformed;
   }
 
-  /**
-   * @param {any} value - input value to transform
-   * @param {any} [configuration] - global configuration in case the transformer depends on it
-   * @param {string} [path] - the path to this value in the global configuration (caller will set)
-   * @param {Object} [options] - any tweaks to the transformer behavior
-   * @returns {Promise<any>} - transformed value
-   */
-  async transform(value, configuration, path = this.path, options) {
-
-    const strict = options?.strict ?? true;
-
-    return await this.newVisit(value, async (current, result, schema, path, progress) => {
-
-      if (progress.final) {
-        if (!schema && !this.getPropertyPaths().has(path) && strict) {
-          throw new TransformError(fpm('Unexpected property', path));
+  async validateValue(value, configuration, path = this.path, options) {
+    if (this.required === true && value === undefined) {
+      throw new ValidationError(fpm('Missing required value', path));
+    }
+    if (value === null || value === undefined) {
+      return value;
+    }
+    if (this.values?.length) {
+      // todo - is this a transform prerequisite, or a post-transform validation check?  both?
+      if (!this.values.includes(value)) {
+        // complex object values are stored as strings!
+        if (!this.values.includes(stringify(value))) {
+          throw new ValidationError(fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
         }
-        if (schema?.isUnion) {
-          throw new TransformError(fpm('Unable to resolve union', path));
+      }
+    }
+    const validators = Array.isArray(this._handlers.validators)? this._handlers.validators : [];
+
+    let validated = value;
+    for (const validator of validators) {
+      try {
+        validated = await validator.processor(validated, configuration, this, path, options);
+      }
+      catch (error) {
+        throw new ValidationError(fpm(`Unable to validate "${value}"`, path), {cause: error});
+      }
+    }
+    return validated ?? value;  // validators cannot clear the value, they can only throw
+  }
+
+  async serializeValue(value, configuration, path = this.path, options) {
+    let serialized = value;
+    const serializers = Array.isArray(this._handlers.serializers)? this._handlers.serializers : [];
+
+    if (serializers.length === 0) {
+      // fallback (?)
+      if (this.hasChildren) {
+        return this.isArray? [] : {}
+      }
+    }
+    for (const serializer of serializers) {
+      try {
+        serialized = await serializer.processor(serialized, configuration, this, path, options);
+      }
+      catch (error) {
+        if (options?.strict) {
+          throw new SerializeError(fpm('Unable to serialize', path), {cause: error})
         }
-        if (current === undefined) {
-          if (progress.hasPending(path)) {
-            // fixme?
-            throw new TransformError(fpm('Inconsistent container value', path));
-          }
+        else {
           return undefined;
         }
       }
+    }
+    return serialized;
+  }
 
-      if (!schema) {
-        return undefined;
-      }
 
-      if (schema.hasChildren && current === true) {
-        // request to create a container!
-        const normalized = await schema.normalizeValue(true, result, schema, path, options);
-        if (!schema.allowIncremental) {
-          progress.savePending(path, normalized);
-          return normalized;
-        }
-        current = normalized;  // for incremental, we will pre-transform, so pass on what we just normalized
-      }
+  async preload(target, context) {
+    if (!context) {
+      context = new TraversalContext();
+    }
 
-      return await schema.transformValue(current, result, path, options);
-    }, {visitUnexpected: true, visitOpaque: true, mode: VisitMode.COPY, visitUndefined: true, visitUndefinedShallow: true, enforceRequired: false});
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', inputToValueHook)
+      .hook('startProperty', copyPropertyValueHook)
+
+    return await this.traverse(target, {hooks, context});
+  }
+
+
+  /**
+   * @param {any} input - input value to normalize
+   * @param {any} configuration - optional existing configuration
+   * @returns {Promise<any>} - normalized value
+   */
+  async normalize(input, configuration) {
+    const context = new TraversalContext({strict: false});
+
+    if (configuration !== undefined) {
+      await this.preload(configuration, context);
+    }
+
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [normalizeHook, resolveUnionHook])
+      .hook('endCurrent', [pendingToValueHook, resolveUnionHook])
+      .hook('startProperty', [startPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
+
+    const result = await this.traverseMultipass(input, {hooks, context});
+
+    return result;
+  }
+
+  /**
+   * @param {any} input - input value to transform
+   * @param {import('./helpers/traversal.js').TraversalOptions} [options] - any tweaks to the transformer behavior
+   * @returns {Promise<any>} - transformed value
+   */
+  async transform(input, options) {
+
+    const context = new TraversalContext(options);
+
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [normalizeHook, resolveUnionHook, checkConditionHook, transformHook])
+      .hook('endCurrent', [transformHook, resolveUnionHook])
+      .hook('startProperty', [startPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
+
+    const result = await this.traverseMultipass(input, {hooks, context});
+
+    return result;
   }
 
   /**
@@ -1060,100 +751,43 @@ export class CompiledSchema
    * - The validation input is assumed to already have been transformed.
    * - If the input data is invalid, the validate call will throw an error.
    *
-   * The normal behavior of validate is to simply return the input data if it passes the checks,
-   * but by passing advanced options, you can change how validation functions:
-   * - enforceUnionResolution (true) if false, unresolved unions are not an error
-   * - enforceRequired (true) if false, missing requirements are not an error
-   * - enforceValues (true) if false, the output will not be normalized to check against allowed values
-   * - disallowUnexpected (true) if false, extra properties in the data are not an error
-   * You can also pass any visit() options, notably:
-   * - visitUndefined (false) - if true, deep validate the data against the entire schema hierarchy
-   * - visitUndefinedShallow (true) - implies visitUndefined, but with a depth limit (self and immediate children)
-   * - visitDefaults (true) - do not run validation if an input matches the default value
-   * Only one of the following may be set:
-   * - update (false) - if true, return the input (possibly mutated by the validation processors)
-   * - copy (false) - if true, return a (potentially different) copy of the input (as output from validation processors)
-   * - extract (true) - if true, just return the original input
-   *
-   * @param {any} input - input value to validate
-   * @param {ValidateOptions} [options] - any tweaks to the validator behavior
+   * @param {any} value - input value to validate
+   * @param {import('./helpers/traversal.js').TraversalOptions} [options] - any tweaks to the validator behavior
    * @returns {Promise<any>} - validated value
    */
-  async validate(input, options = {}) {
+  async validate(value, options) {
+    let traversalOptions = {value, ...options};
+    const context = new TraversalContext(traversalOptions);
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [resolveUnionHook, checkConditionHook, inputToPendingHook])
+      .hook('endCurrent', [resolveUnionHook, checkRequiredHook, checkUnresolvedHook, pendingToValueHook, validateHook])
+      .hook('startProperty', [startPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
 
-    const strict = options.strict ?? true;
-
-    const enforceUnionResolution = options.enforceUnionResolution ?? true;
-    const disallowUnexpected = options.disallowUnexpected ?? strict;
-    const enforceRequired = options.enforceRequired ?? true;
-    const enforceValues = options.enforceValues ?? true;
-
-    try {
-      const validated = await this.newVisit(input, async (current, input, schema, path, progress) => {
-        if (!schema) {
-          const parentSchema = this.findParent(path);
-
-          const strictParent = parentSchema?.options.strict ?? strict;
-
-          if (strictParent && disallowUnexpected) {
-            throw new ValidationError(fpm('Unexpected value', path));
-          }
-          return EMPTY_VALUE;
-        }
-
-        if (schema.isUnion && enforceUnionResolution) {
-          throw new ValidationError(fpm('Unable to discriminate union', path))
-        }
-
-        if (current === undefined) {
-          if (enforceRequired) {
-            if (schema.required && enforceRequired) {
-              throw new ValidationError(fpm('Missing required value', path));
-            }
-          }
-          return EMPTY_VALUE;
-        }
-
-        if (enforceValues && Array.isArray(schema.values)) {
-          // Invariant: if values are defined, they should contain the normalized form of the transformed value.
-          let normalized;
-          try {
-            normalized = await schema.normalizeValue(current, input, path);
-          }
-          catch (error) {
-            throw new ValidationError(fpm('Unable to check value', path))
-          }
-
-          if (!schema.values?.includes(normalized)) {
-            throw new ValidationError(fpm(`Invalid normalized value "${normalized}", expected one of {${schema.values.join('|')}}`, path));
-          }
-        }
-
-        const validators = Array.isArray(schema._handlers.validators)? schema._handlers.validators : [];
-
-        let v = current;
-
-        for (const validator of validators) {
-          try {
-            v = await validator.processor(v, input, schema, path, options);
-          }
-          catch (error) {
-            throw new ValidationError(fpm('Validation error', path), {cause:error})
-          }
-        }
-        return v;
-      }, {visitOpaque: false, resolveUnions: true, enforceRequired: true, visitUndefinedShallow: true, visitUnexpected: !disallowUnexpected, visitDefaults: true, ...options})
-      return validated === EMPTY_VALUE ? undefined : validated;
-    }
-    catch (error) {
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      else {
-        throw new ValidationError('Validation failed', {cause:error});
-      }
-    }
+    return await this.traverseMultipass(value, {hooks, context})
   }
+
+  /**
+   * Process an input value to an output value based on this schema
+   * @param {any} input
+   * @param {Object} [options]
+   * @returns {Promise<any>}
+   */
+  async process(input, options) {
+    const context = (options?.context ?? new TraversalContext(options));
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
+      .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
+      .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
+
+    const result = await this.traverseMultipass(input, {context, hooks});
+
+    return result;
+  }
+
+
+
 
   /**
    * Serialize the config data as if you were going to use the result for a config file.
@@ -1165,41 +799,27 @@ export class CompiledSchema
    * Serializers attempt to convert resolved values back to an input-friendly value, first via the "serialize"
    * schema option, or alternatively by trusting that each value is either already compatible, or implements toJSON().
    *
-   * @param {any} config
+   * @param {any} configuration
    * @param {SerializeOptions} [options]
    * @returns {Promise<NonNullable<any>>}
    */
-  async serialize(config, options = {}) {
-    const strict = options.strict ?? false;
+  async serialize(configuration, options) {
+    const context = new TraversalContext({strict: options?.strict ?? false});
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [inputToPendingHook, resolveUnionHook, checkConditionHook, serializeHook])
+      .hook('endCurrent', [])
+      .hook('startProperty', [startPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
 
-    const serialized = await this.visit(config, async (value, configuration, schema, path, options) => {
-      try {
-        if (schema === undefined || schema.metadata.omitFromSerialize) {
-          return EMPTY_VALUE;
-        }
-        const serializers = Array.isArray(schema._handlers.serializers)? schema._handlers.serializers : [];
+    if (configuration !== undefined) {
+      context.setValue(configuration);  // serialization uses a fixed configuration
+    }
 
-        let s = value;
-        for (const serializer of serializers) {
-          try {
-            s = await serializer.processor(s, configuration, schema, path, options);
-          }
-          catch (error) {
-            if (strict) {
-              throw error;
-            }
-            return EMPTY_VALUE;
-          }
-        }
-        return s;
-      }
-      catch (error) {
-        throw new SerializeError(`${fpm('Error serializing', path)}`);
-      }
-    }, {...options, extract: true});
+    const result = await this.traverseMultipass(configuration, {hooks, context})
 
-    return serialized === EMPTY_VALUE? undefined : serialized;
-  }
+    // clean up any null markers or undefined keys
+    return deepPrune(result);
+    }
 
   /**
    * Use the registered discriminator to return a matching union schema, or undefined if the union cannot be resolved.
@@ -1324,6 +944,20 @@ export class CompiledSchema
     return this.findParent(path);
   }
 
+  /**
+   * Get the root schema that has this schema somewhere in its hierarchy (possibly itself)
+   *
+   * @returns {CompiledSchema}
+   */
+  getRoot() {
+    /** @type {CompiledSchema} */
+    let s = this;
+    while (s.parent) {
+      s = s.parent;
+    }
+    return s;
+  }
+
 
   /**
    * toAssignments - attempt to convert input data to a map of assignments.
@@ -1358,28 +992,6 @@ export class CompiledSchema
       }
     }
     walk(this, object, prefix);
-    return assignments;
-  }
-
-  // todo - did I decide not to go this way?  remove or use!
-  async newToAssignments(object, prefix = '') {
-    if (typeof object !== 'object') {
-      return new Map([['', object]]);
-    }
-    const assignments = new Map();
-
-    await this.visit(object, async (current, configuration, schema, path) => {
-
-      const isContainer = Array.isArray(current) || isPlainObject(current);
-      const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
-
-      if (!isContainer && !hasChildren) {
-        // We visit intermediate nodes
-        assignments.set(path, current);
-      }
-
-    }, {update: false, visitUnexpected: true, visitUndefined: false, resolveUnions: false});
-
     return assignments;
   }
 
@@ -1423,391 +1035,222 @@ export class CompiledSchema
     return walk(this, '') ?? true;
   }
 
-  // We will use this as a signal
-  // todo: consolidate with __IGNORE?
-  static get EMPTY_VALUE() { return EMPTY_VALUE }
+
 
   /**
-   * Asynchronously call a provided visitor function on everything in an input object based on the schema definition.
+   * Traverse the provided input data based on the current schema.
    *
-   * If a visitor returns a value, it is propagated; otherwise the original value is used.
-   * The EMPTY_VALUE symbol is used to signal that the result should be pruned from the output.
-   *
-   * TODO: consolidate update/copy/extract into a visitResult option
-   *       document options
-   *
-   * @param {any} input - input object
-   * @param {AsyncSchemaValueVisitorFunction} visitor - async visitor
-   * @param {VisitOptions} [options] - options to pass to visitor
-   * @returns {Promise<any>} - returns result of visitor call on outermost schema
+   * @param {any} input
+   * @param {Object} [options]
+   * @returns {Promise<any>}
    */
-  async visit(input, visitor, options) {
-    const resolveUnions = options?.resolveUnions ?? true;
-    const visitDefaults = options?.visitDefaults ?? true;
-    const visitContainers = options?.visitContainers ?? true;
-    const visitUnexpected = options?.visitUnexpected ?? false;
-    const visitUndefinedShallow = options?.visitUndefinedShallow ?? false;
-    const visitUndefined = visitUndefinedShallow || (options?.visitUndefined ?? false);
-    const update = options?.update ?? false;
-    const copy = options?.copy ?? false;
-    const extract = options?.extract ?? false;
+  async traverse(input, options) {
+    const path = options?.path ?? '';
+    const inputPath = options?.inputPath ?? '';
 
-    if (update && (copy || extract)) {
-      throw new SchemaError('Visit option conflict: specify only copy/extract or update, not both!');
+    const hooks = options?.hooks ?? new TraversalHooks();
+    const context = options?.context ?? new TraversalContext().finalize();
+
+    const target = options?.target;
+    if (path === '' && target !== undefined) {
+      await this.preload(target, context);
+    }
+    const strict = this.strict ?? options?.strict ?? true;
+
+    const state = context.getState(path);
+
+    const isInputPath = (inputPath === '');
+
+    const initialize = async() => {
+      if (state.schema === undefined) {
+        state.schema = this;
+      }
+
+      if (isInputPath) {
+        state.input = input;
+        if (state.input !== undefined) {
+          if (state.treatAsExplicit) {
+            state.isExplicit = true;
+          }
+        }
+      } else {
+        const fullInputPath = path? `${path}.${inputPath}` : inputPath;
+        const inputState = context.getState(fullInputPath);
+        if (input !== undefined && inputState.input !== input) {
+          inputState.input = input;
+        }
+        if (state.input === undefined) {
+          state.input = true;
+        }
+      }
+      return TraversalControl.OK;
+    }
+    const startCurrent = async () => {
+      return await hooks.startCurrent(state);
     }
 
-    /**
-     * @param {CompiledSchema|undefined} schema
-     * @param {any|undefined} current
-     * @param {string} path
-     * @returns {Promise<any|symbol>}
-     */
-    async function walk(schema, current, path) {
-      if (schema !== undefined) {
-        const condition = await schema.checkCondition(current, input, schema, path);
-        if (!condition) {
-          return EMPTY_VALUE;
-        }
+    // todo - merge deepProperty / handleProperties?
 
-        if (!visitDefaults && schema.default !== undefined && current === schema.default) {
-          return EMPTY_VALUE;
-        }
-
-        if (schema.options.implicit) {
-          return current;
-        }
-
-        if (schema.isUnion && resolveUnions && current !== undefined) {
-          /** @type {CompiledSchema|undefined} */
-          const unionSchema = await schema.discriminateUnion(current, input, path, {strict: resolveUnions})
-
-          if (unionSchema) {
-            schema = unionSchema;
-          }
-        }
+    const deepProperty = async() => {
+      if (!this.hasChildren || isInputPath) {
+        return TraversalControl.OK;
       }
 
-      let ret = (copy || extract) ? undefined : current;
-      if (!schema?.hasChildren) {
-        ret = current;
+      const inputPathComponents = inputPath.split('.');
+      const propertyKey = inputPathComponents.shift();
+      const propertyInputPath = inputPathComponents.join('.')
+      const property = state.context.getProperty(state, propertyKey);
+
+      const startResult = await hooks.startProperty(state, property);
+
+      if (startResult !== TraversalControl.OK) {
+        return TraversalControl.OK;
       }
 
-      // Traverse children?
-      if (schema !== undefined && schema.hasChildren && ((ret !== undefined) || !visitUndefinedShallow)) {
-        const updateProperty = async (key, val) => {
-          if ((copy || update || extract) && val !== EMPTY_VALUE && val !== undefined) {
-            if (ret === undefined) {
-              if (extract) {
-                ret = schema.isArray? [] : {};
-              }
-              else {
-                ret = await schema.normalizeValue(true, input, path);
-
-                if (ret && schema.allowIncremental) {
-                  ret = await schema.transform(ret, input, path);
-                }
-              }
-            }
-            if (ret) {
-              ret[key] = val;
-            }
-          }
-          else if (update && (val === EMPTY_VALUE || val === undefined)) {
-            if (ret) {
-              delete ret[key];
-            }
-          }
-        }
-
-        /** {type {Set<string>}} */
-        const visited = new Set();
-
-        // First, walk the actual object and validate that all members are known
-        // (We only walk "regular" objects; we trust the validator of transformed values.)
-        // todo - skip if marked opaque even if plain object?
-        if (Array.isArray(current) || isPlainObject(current)) {
-          const keys = Object.keys(current).map(key => /^\d+$/.test(key) ? Number(key) : key);
-          for (const key of keys) {
-            const propertyName = `${key}`;
-            const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
-            const propertySchema = schema.getPropertySchema(propertyName);
-            const propertyValue = current[key];
-
-            visited.add(propertyPath);
-            if (propertySchema === undefined && schema.options.strict && !visitUnexpected) {
-              throw new ValidationError(fpm('Unexpected', path, propertyName));
-            }
-
-            if (propertyValue === undefined && !visitUndefined) {
-              continue;
-            }
-
-            const r = await walk(propertySchema, propertyValue, propertyPath) ?? propertyValue;
-
-            await updateProperty(key, r);
-          }
-        }
-        if (visitUndefined && schema.allowIncremental && (current === undefined || Array.isArray(current) || isPlainObject(current))) {
-          // Next, walk the schema and visit everything that was undefined
-          for (const propertyName in schema.properties) {
-            const propertySchema = schema.properties[propertyName];
-            const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
-            if (visited.has(propertyPath) || propertyName === '*' || propertySchema.options.implicit) {
-              continue;
-            }
-            const key = /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName;
-
-            // By definition, we've already walked anything that has a defined value
-            const r = await walk(propertySchema, undefined, propertyPath);
-
-            await updateProperty(key, r);
-          }
-          if ((copy || update) && ret !== undefined && !schema.allowIncremental) {
-            ret = await schema.transform(ret, input, path);
-          }
-        }
-        if (!visitContainers) {
-          return current;
-        }
+      property.value = await property.state.schema?.traverse(input, {context, hooks, path: property.state.path, inputPath: propertyInputPath});
+      if (property.value !== undefined && state.pending === undefined && state.value === undefined) {
+        // lazy container creation - todo - move into endProperty by passing hooks in?
+        state.isExplicit = true;
+        await hooks.startCurrent(state);  // todo - check errors/result
       }
-      if (ret === undefined && !visitUndefined) {
-        return undefined;
-      }
-      return await visitor(ret, input, schema, path) ?? ret;
+      await hooks.endProperty(state, property);
     }
-    const ret = await walk(this, input, '');
 
-    return (ret === EMPTY_VALUE) ? undefined : ret;
+    const handleProperties = async() => {
+      if (!this.hasChildren || !isInputPath) {
+        return TraversalControl.OK;
+      }
+      const propertyKeys = new Set();
+      if (isPlainObject(state.input) || Array.isArray(state.input)) {
+        Object.keys(state.input).forEach(key => propertyKeys.add(key));
+      }
+      if (context.final) {
+        Object.keys(this.properties).forEach(key => { if (key !== '*') { propertyKeys.add(key) } } );
+
+        if (this.properties['*']) {
+          // wildcard, so let's look for any interesting children in the state map
+          state.listPendingChildren().forEach(path => propertyKeys.add(path));
+        }
+
+
+
+      }
+      const container = state.pending ?? state.value;
+
+      const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
+// todo - think about this; state.input==undefined is an unreliable indicator of "no work to do" as we might have lingering conditions/etc for final pass
+      if (!existingProperties && !state.isExplicit && state.input === undefined && !this.deep) {
+        return;
+      }
+
+      if (existingProperties && context.final) {
+        Object.keys(container).forEach(key => {
+          if (strict || this.getPropertySchema(key)) {
+            propertyKeys.add(key)
+          }
+        });
+      }
+
+      for (const propertyKey of propertyKeys.keys()) {
+        const property = context.getProperty(state, propertyKey);
+        if (!property) {
+          continue;
+        }
+        const startResult = await hooks.startProperty(state, property);
+
+        if (startResult === TraversalControl.SKIP) {
+          continue;
+        }
+        else if (startResult === TraversalControl.STOP) {
+          break;  // do we actually need this, or is it hypothetical?
+        }
+
+        const propertyOptions = {
+          context,
+          hooks,
+          path: property.state.path
+        }
+
+        if (property.state.schema !== undefined) {
+          property.value = await property.state.schema.traverse(property.input, propertyOptions);
+        }
+
+        if (property.value !== undefined && state.pending === undefined &&  state.value === undefined) {
+          state.isExplicit = true;
+          await hooks.startCurrent(state);  // todo - check errors?
+        }
+        const endResult = await hooks.endProperty(state, property);
+
+        if (endResult === TraversalControl.STOP) {
+          break;
+        }
+      }
+      return TraversalControl.OK;
+    }
+    const endCurrent = async () => {
+      return await hooks.endCurrent(state);
+    }
+
+    for (const phase of [initialize, startCurrent, isInputPath? handleProperties : deepProperty, endCurrent]) {
+      const result = await phase() ?? TraversalControl.OK;
+      if (state.schema !== this) {
+        return state.schema?.traverse(input, options);
+      }
+      if (result !== TraversalControl.OK || state.value === null) {
+        break;
+      }
+    }
+    return state.value;
   }
 
-
   /**
+   * Traverse the provided input data based on the current schema.
    *
-   *
-   * @param {any} input - input object
-   * @param {AsyncSchemaValueVisitorFunction} visitor - async visitor
-   * @param {VisitOptions} [visitOptions] - options to use while visiting (also passed to visitor)
-   * @returns {Promise<any>} - returns result of visitor call on outermost schema
+   * @param {any} input
+   * @param {Object} [options]
+   * @returns {Promise<any>}
    */
-  async newVisit(input, visitor, visitOptions) {
-    const resolveUnions = visitOptions?.resolveUnions ?? true;
-    const visitDefaults = visitOptions?.visitDefaults ?? true;
-    const visitUnexpected = visitOptions?.visitUnexpected ?? false;
-    const visitUndefinedShallow = visitOptions?.visitUndefinedShallow ?? false;
-    const visitUndefined = visitUndefinedShallow || (visitOptions?.visitUndefined ?? false);
-    const visitOpaque = visitOptions?.visitOpaque ?? false;
-    const enforceRequired = visitOptions?.enforceRequired ?? false;
-
-    const mode = visitOptions?.mode ?? VisitMode.VISIT;
-
+  async traverseMultipass(input, options) {
     let done = false;
+    let result = undefined;
 
-    const progress = new VisitProgress();
+    const hooks = options?.hooks ?? new TraversalHooks();
+    const context = options?.context ?? new TraversalContext();
+    const path = options?.path ?? '';
 
-    let output = (mode === VisitMode.VISIT || mode === VisitMode.UPDATE)? input : undefined;
+    // ensure the root state exists so that the context doesn't already appear to be completed on the first pass
+    const rootState = context.getState(path);
 
-    /**
-     * @param {CompiledSchema|undefined} schema
-     * @param {any} inputCurrent
-     * @param {string} path
-     * @returns {Promise<any|symbol>}
-     */
-    const walk = async (schema, inputCurrent, path) => {
-
-      if (schema === undefined) {
-        if (!this.isValidPath(path) && !visitUnexpected) {
-          throw new SchemaError(fpm('Unknown property', path));
-        }
-        progress.saveUncompleted(path);
-      }
-      if (schema !== undefined) {
-        if (schema.implicit) {
-          progress.saveCompleted(path, EMPTY_VALUE);
-          return EMPTY_VALUE;
-        }
-        if (progress.isCompleted(path)) {
-          if (!schema.hasChildren || progress.containerAssignmentsComplete(path)) {
-            return progress.getCompleted(path);
-          }
-        }
-        else {
-          progress.saveUncompleted(path);
-        }
-
-        if (!progress.hasPositiveCondition(path)) {
-          const condition = await schema.checkCondition(inputCurrent, output, schema, path);
-          if (condition === true) {
-            progress.savePositiveCondition(path);
-          }
-          else {
-            if (progress.final) {
-              progress.saveCompleted(path, undefined);
-            }
-            return EMPTY_VALUE;
-          }
-        }
-
-        if (schema.opaque && !visitOpaque) {
-          progress.saveCompleted(path, inputCurrent);
-          return inputCurrent;
-        }
-
-        if (schema.options.implicit) {
-          progress.saveCompleted(path, inputCurrent);
-          return inputCurrent;  // todo - think about this; move to transform?
-        }
-
-        if (progress.hasUnpackedContainer(path)) {
-          inputCurrent = progress.getUnpackedContainer(path);
-        }
-
-        if (schema.isUnion && resolveUnions) {
-          if (!progress.hasResolvedUnion(path)) {
-            const unionSchema = await schema.discriminateUnion(inputCurrent, output, path, {strict: resolveUnions});
-
-            if (unionSchema) {
-              progress.saveResolvedUnion(path, unionSchema);
-            }
-          }
-          if (progress.hasResolvedUnion(path)) {
-            return await walk(progress.getResolvedUnion(path), inputCurrent, path);
-          }
-        }
-      }
-
-      // ret is the return value from this pass through walk...
-      let current = (mode === VisitMode.VISIT || !(schema?.hasChildren))? inputCurrent : undefined;
-
-      // Traverse children?
-      if (schema !== undefined && schema.hasChildren && ((inputCurrent !== undefined) || !visitUndefinedShallow)) {
-
-        // helper function to delay container pre-visit until first child has a value
-
-        const updateProperty = async (propertyName) => {
-          const propertySchema = schema.getPropertySchema(propertyName);
-
-          const propertyPath = path ? `${path}.${propertyName}` : `${propertyName}`;
-
-          const key = /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName;
-          const inputPropertyValue = inputCurrent?.[key];
-          const processedPropertyValue = await walk(propertySchema, inputPropertyValue, propertyPath);
-
-          if (processedPropertyValue === undefined || processedPropertyValue === EMPTY_VALUE) {
-            return EMPTY_VALUE;
-          }
-
-          if (mode !== VisitMode.COPY) {
-            return;
-          }
-
-          let container = progress.getCompleted(path) ?? progress.getPending(path);
-
-          if (!container) {
-            container = await visitor(true, output, schema, path, progress);
-
-            if (container === undefined || !((typeof container === 'object') || Array.isArray(container))) {
-              throw new SchemaError(fpm('Unable to construct container', path, propertyName));
-            }
-            if (!progress.hasPending(path)) {
-              progress.saveCompleted(path, container);
-            }
-          }
-
-          if (processedPropertyValue !== container[key]) {
-            container[key] = processedPropertyValue;
-          }
-          current = container;
-        }
-
-        const visited = new Set();
-        // Iterate all visible properties that exist in the input object
-        if (Array.isArray(inputCurrent) || isPlainObject(inputCurrent)) {
-          for (const propertyName of Object.keys(inputCurrent)) {
-            visited.add(propertyName);
-            await updateProperty(propertyName);
-          }
-        }
-        // Iterate all properties defined in the schema to catch undefined properties
-        if (visitUndefined) {
-          for (const propertyName in schema.properties) {
-            if (visited.has(propertyName) || propertyName === '*') {
-              continue;
-            }
-            await updateProperty(propertyName);
-          }
-        }
-      }  // end child traversal
-
-
-      if (schema === undefined && !visitUnexpected) {
-        return undefined;
-      }
-
-      if (current === undefined && !visitUndefined) {
-        return undefined;
-      }
-
-      if (progress.isCompleted(path)) {
-        return progress.getCompleted(path);
-      }
-
-      // Call the visitor iff...
-      // - we're on the final pass (this is how errors will get reported)
-      // - we have a schema and are processing a simple value
-      // - we have a pending container, and all child assignments are complete
-
-      if (progress.final
-          || (schema && !schema.hasChildren)
-          || (!schema && visitUnexpected)
-          || progress.hasPending(path) && progress.containerAssignmentsComplete(path)) {
-
-        const result = await visitor(current, output, schema, path, progress);
-
-        if (result === undefined && current !== undefined && progress.final && schema?.required) {
-          throw new SchemaError(fpm(`Failed to process required value "${current}"`, path));
-        }
-        else if (result === EMPTY_VALUE) {
-          progress.saveCompleted(path, EMPTY_VALUE);
-        }
-        else if (result !== EMPTY_VALUE && result !== undefined) {
-
-          if (schema?.hasChildren && !(Array.isArray(inputCurrent) || typeof inputCurrent === 'object' || inputCurrent === true)) {
-            // If we unpacked an encoded container, treat it as if it were the input
-            progress.saveUnpackedContainer(path, result);
-            return await walk(schema, result, path);
-          }
-
-          progress.saveCompleted(path, result);
-        }
-        return mode === VisitMode.VISIT ? inputCurrent : result;
-      }
-      return undefined;
-    }
-
-
-    // We need to do multiple passes to resolve cross references between conditions, unions, and opaque containers
-
+//    result = await this.traverse(input, options);
+    // loop until context stabilizes
     while (!done) {
-      const start = progress.counter;
-      const ret = await walk(this, input, '');
-      output = (ret === EMPTY_VALUE) ? undefined : ret;
+      let counter = context.counter;
 
-      if (start === progress.counter) {
-        if (progress.final) {
+      result = await this.traverse(input, options);
+//      for (let p of context.incomplete) {
+//        await this.traverse(context.getState(p).input, {hooks, context, path, inputPath: p})
+//      }
+
+//      result = rootState.value;
+
+      if (context.counter === counter || context.isComplete) {
+        // nothing changed during this traversal pass, or we've handled all known assignments
+        if (context.final) {
           done = true;
         }
         else {
-          progress.final = true;
+          // attempt finalization pass (may discover defaults, newly resolved unions/conditions, etc.)
+          context.final = true;
         }
       }
       else {
-        progress.final = false;
+        // if we were finalizing and something changed, allow another pass
+        // (footgun warning: interdependent unions or conditions could result in nondeterministic resolution!)
+        context.final = false;
       }
     }
-    return output;
+    return result;
   }
-
-
 
   /**
    * Compute all possible schema paths (including union schema properties, optionally adding colon-delimited union keys)
@@ -1835,13 +1278,19 @@ export class CompiledSchema
    * Return a named property schema (possibly via wildcard)
    *
    * @param {string} propertyName
+   * @param {string} [propertyUnionKey] union key in the child (not current)
    * @returns {CompiledSchema}
    */
-  getPropertySchema(propertyName) {
+  getPropertySchema(propertyName, propertyUnionKey) {
     if (propertyName === undefined || propertyName === '') {
       throw new SchemaError('Unable to retrieve an unnamed property');
     }
-    return this.properties[propertyName] ?? this.properties['*'];
+    let schema = this.properties[propertyName] ?? this.properties['*'];
+
+    if (schema !== undefined && propertyUnionKey) {
+      schema = schema.unionSchemas?.[propertyUnionKey];
+    }
+    return schema;
   }
 
   /**
@@ -1897,15 +1346,25 @@ export class CompiledSchema
       if (index >= parts.length) {
         return schema !== undefined;
       }
-      const propertyName = parts[index];
+      const [propertyName, unionKey] = parts[index].split(':');
 
       if (schema.hasChildren && schema.getPropertySchema(propertyName)) {
         return check(schema.getPropertySchema(propertyName), index + 1);
       }
       else if (schema.isUnion) {
-        for (const unionSchema of schema.unionSchemas) {
-          if (check(unionSchema, index)) {
-            return true;
+        if (unionKey) {
+          if (!schema.unionSchemas[unionKey]) {
+            return false;
+          }
+          return check(schema.unionSchemas[unionKey], index);
+        }
+        else {
+          const unionSchemas = Object.values(schema.unionSchemas);
+
+          for (const unionSchema of unionSchemas) {
+            if (check(unionSchema, index)) {
+              return true;
+            }
           }
         }
       }
@@ -2157,129 +1616,4 @@ class AssignmentProgress {
     return currentValue;
   }
 }
-
-const EMPTY_VALUE = Symbol('EMPTY')
-
-class VisitProgress {
-  constructor() {
-    this.pending = new Map();
-    this.completed = new Map();
-    this.resolved = new Map();
-    this.conditions = new Set();
-    this.uncompleted = new Set();
-    this.unpacked = new Map();
-
-    this.final = false;
-
-    this.counter = 0;
-  }
-
-  savePositiveCondition(path) {
-    if (!this.conditions.has(path)) {
-      this.conditions.add(path);
-      this.counter++;
-      this.final = false;
-    }
-  }
-
-  hasPositiveCondition(path) {
-    return this.conditions.has(path);
-  }
-
-  saveResolvedUnion(path, unionSchema) {
-    if (this.resolved.get(path) !== unionSchema) {
-      this.resolved.set(path, unionSchema);
-      this.counter++;
-      this.final = false;
-    }
-  }
-
-  getResolvedUnion(path) {
-    return this.resolved.get(path);
-  }
-
-  hasResolvedUnion(path) {
-    return this.resolved.get(path) !== undefined;
-  }
-
-  saveUnpackedContainer(path, value) {
-    if (this.unpacked.get(path) !== value) {
-      this.unpacked.set(path, value);
-      this.counter++;
-      this.final = false;
-    }
-  }
-
-  getUnpackedContainer(path) {
-    return this.unpacked.get(path);
-  }
-
-  hasUnpackedContainer(path) {
-    return this.unpacked.has(path);
-  }
-
-  savePending(path, value) {
-    if (!this.pending.get(path) !== value) {
-      this.pending.set(path, value);
-      this.counter++;
-      this.final = false;
-    }
-  }
-
-  getPending(path) {
-    return this.pending.get(path);
-  }
-  hasPending(path) {
-    return this.pending.get(path) !== undefined;
-  }
-
-  saveCompleted(path, value) {
-    if (this.pending.has(path)) {
-      this.pending.delete(path);
-    }
-    if (this.uncompleted.has(path)) {
-      this.uncompleted.delete(path);
-    }
-    if (this.completed.get(path) !== value) {
-      this.completed.set(path, value);
-      this.counter++;
-      this.final = false;
-    }
-  }
-  getCompleted(path) {
-    return this.completed.get(path);
-  }
-  isCompleted(path) {
-    return this.completed.get(path) !== undefined;
-  }
-
-  saveUncompleted(path) {
-    this.uncompleted.add(path);
-  }
-
-  containerAssignmentsComplete(path) {
-    if (path === '' && this.uncompleted.size > 0) {
-      return false;
-    }
-    for (const p of this.uncompleted) {
-      if (p.startsWith(`${path}.`)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-
-}
-
-/**
- * Policies for fine-grained control of composite schema internals
- * @readonly
- * @enum {Symbol}
- */
-export const VisitMode = Object.freeze({
-  COPY: Symbol('COPY'),
-  UPDATE: Symbol('UPDATE'),
-  VISIT: Symbol('VISIT')
-});
 

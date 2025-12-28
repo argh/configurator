@@ -53,7 +53,7 @@ describe('Schema Compilation - Hierarchy', function() {
         .properties.level5;
 
       assert.ok(deep instanceof CompiledSchema);
-      assert.strictEqual(typeof deep.normalize, 'function');
+      assert.strictEqual(typeof deep.normalizeValue, 'function');
     });
   });
 
@@ -272,7 +272,7 @@ describe('Schema Compilation - Hierarchy', function() {
 
       // config.* should be string
       const configValue = compiled.properties.config.getPropertySchema('anything');
-      assert.strictEqual(typeof configValue.normalize, 'function');
+      assert.strictEqual(typeof configValue.normalizeValue, 'function');
 
       // other.* should be number
       const otherValue = compiled.getPropertySchema('other');
@@ -381,9 +381,9 @@ describe('Schema Compilation - Hierarchy', function() {
       const boolVal = compiled.properties.level1.properties.level2.properties.level3.properties.boolVal;
 
       // Each should have its base type's normalizer
-      assert.strictEqual(await stringVal.normalize(123), '123');
-      assert.strictEqual(await numberVal.normalize('456'), 456);
-      assert.strictEqual(await boolVal.normalize('yes'), true);
+      assert.strictEqual(await stringVal.normalizeValue(123), '123');
+      assert.strictEqual(await numberVal.normalizeValue('456'), 456);
+      assert.strictEqual(await boolVal.normalizeValue('yes'), true);
     });
   });
 

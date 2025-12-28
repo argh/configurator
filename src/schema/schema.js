@@ -679,6 +679,17 @@ export class Schema
   }
 
   /**
+   * Indicate that this schema should be deeply traversed even if the input is empty
+   * (e.g. to enable deep defaults and requirements)
+   * @param {boolean} [value]
+   * @returns {Schema}
+   */
+  deep(value) {
+    this.options.deep = value ?? true;
+    return this;
+  }
+
+  /**
    * Mark this array/string as allowing empty values
    * @param {boolean} [value]
    * @returns {Schema}

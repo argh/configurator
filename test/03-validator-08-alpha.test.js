@@ -15,7 +15,7 @@ describe('Validator: alpha', function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('abcdefghijklmnopqrstuvwxyz', {}, '');
+    const result = await compiled.validateValue('abcdefghijklmnopqrstuvwxyz');
     assert.strictEqual(result, 'abcdefghijklmnopqrstuvwxyz');
   });
 
@@ -23,41 +23,41 @@ describe('Validator: alpha', function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('ABCDEFGHIJKLMNOPQRSTUVWXYZ', {}, '');
+    await compiled.validateValue('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
   });
 
   it('should accept mixed case', async function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('AbCdEfGh', {}, '');
+    await compiled.validateValue('AbCdEfGh');
   });
 
   it('should reject numbers', async function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('abc123', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('abc123'), ValidationError);
   });
 
   it('should reject spaces', async function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('abc def', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('abc def'), ValidationError);
   });
 
   it('should reject special characters', async function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('abc-def', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('abc-def'), ValidationError);
   });
 
   it('should reject empty string', async function() {
     const schema = new Schema('string').validator('$alpha');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue(''), ValidationError);
   });
 });

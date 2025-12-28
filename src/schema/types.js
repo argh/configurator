@@ -56,7 +56,6 @@
 
 /** @typedef {ISchemaMetadataCommon & {[key:string]: any}} ISchemaMetadata */
 
-///** @typedef {string} BiteMe */
 
 ///** @typedef {ISchemaMetadataCommon & {[key:string]: any}} ISchemaMetadata1 */
 

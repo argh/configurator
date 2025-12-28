@@ -15,34 +15,34 @@ describe('Validator: json', function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('{"key":"value"}', {}, '');
-    await compiled.validate('{"a":1,"b":2}', {}, '');
+    await compiled.validateValue('{"key":"value"}');
+    await compiled.validateValue('{"a":1,"b":2}');
   });
 
   it('should accept valid JSON array', async function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('[1,2,3]', {}, '');
-    await compiled.validate('["a","b","c"]', {}, '');
+    await compiled.validateValue('[1,2,3]');
+    await compiled.validateValue('["a","b","c"]');
   });
 
   it('should accept JSON primitives', async function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('null', {}, '');
-    await compiled.validate('true', {}, '');
-    await compiled.validate('123', {}, '');
-    await compiled.validate('"string"', {}, '');
+    await compiled.validateValue('null');
+    await compiled.validateValue('true');
+    await compiled.validateValue('123');
+    await compiled.validateValue('"string"');
   });
 
   it('should reject invalid JSON', async function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('{invalid}', {}, ''), ValidationError);
-    await assert.rejects(() => compiled.validate("{'single':quotes}", {}, ''), ValidationError);
-    await assert.rejects(() => compiled.validate('{trailing:comma,}', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('{invalid}'), ValidationError);
+    await assert.rejects(() => compiled.validateValue("{'single':quotes}"), ValidationError);
+    await assert.rejects(() => compiled.validateValue('{trailing:comma,}'), ValidationError);
   });
 });

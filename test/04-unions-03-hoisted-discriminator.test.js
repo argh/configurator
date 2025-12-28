@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+import { UnionResolutionError, ValidationError } from '../src/errors.js';
 
 describe('Unions: Hoisted Discriminator (Single Property)', function() {
   let resolver;
@@ -31,11 +31,11 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.ok(compiled.properties.name);
 
     // Should discriminate based on name
-    const resultApple = await compiled.discriminateUnion({name: 'apple'}, {}, '');
+    const resultApple = await compiled.discriminateUnion({name: 'apple'});
     assert.ok(resultApple);
     assert.strictEqual(compiled.findUnionKey(resultApple), 'apple');
 
-    const resultBanana = await compiled.discriminateUnion({name: 'banana'}, {}, '');
+    const resultBanana = await compiled.discriminateUnion({name: 'banana'});
     assert.ok(resultBanana);
     assert.strictEqual(compiled.findUnionKey(resultBanana), 'banana');
   });
@@ -56,7 +56,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.ok(compiled.properties.animal);
 
     // Should match with different casing due to normalization
-    const result = await compiled.discriminateUnion({animal: 'dog'}, {}, '');
+    const result = await compiled.discriminateUnion({animal: 'dog'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'Dog');
   });
@@ -160,7 +160,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
       () => compiled.validate({type: 'invalid'}),
       (error) => {
         assert.ok(error instanceof ValidationError);
-        assert.ok(error?.cause?.message.includes('Union resolution conflict'))
+        assert.ok(error?.message.includes('Invalid value'))
         return true;
       }
     );

@@ -15,7 +15,7 @@ describe('Validator: port', function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('8080', {}, '');
+    const result = await compiled.validateValue('8080');
     assert.strictEqual(result, 8080);
     assert.strictEqual(typeof result, 'number');
   });
@@ -24,7 +24,7 @@ describe('Validator: port', function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('1', {}, '');
+    const result = await compiled.validateValue('1');
     assert.strictEqual(result, 1);
   });
 
@@ -32,7 +32,7 @@ describe('Validator: port', function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('65535', {}, '');
+    const result = await compiled.validateValue('65535');
     assert.strictEqual(result, 65535);
   });
 
@@ -40,44 +40,44 @@ describe('Validator: port', function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('80', {}, ''); // HTTP
-    await compiled.validate('443', {}, ''); // HTTPS
-    await compiled.validate('22', {}, ''); // SSH
-    await compiled.validate('3306', {}, ''); // MySQL
+    await compiled.validateValue('80'); // HTTP
+    await compiled.validateValue('443'); // HTTPS
+    await compiled.validateValue('22'); // SSH
+    await compiled.validateValue('3306'); // MySQL
   });
 
   it('should reject port 0', async function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('0', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('0'), ValidationError);
   });
 
   it('should reject port above 65535', async function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('65536', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('65536'), ValidationError);
   });
 
   it('should reject negative port', async function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('-1', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('-1'), ValidationError);
   });
 
   it('should reject decimal port', async function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('80.5', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('80.5'), ValidationError);
   });
 
   it('should reject non-numeric port', async function() {
     const schema = new Schema('string').validator('$port');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('http', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('http'), ValidationError);
   });
 });

@@ -15,7 +15,7 @@ describe('Validator: httpurl', function() {
     const schema = new Schema('string').validator('$httpurl');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('http://example.com', {}, '');
+    const result = await compiled.validateValue('http://example.com');
     assert.strictEqual(result, 'http://example.com');
   });
 
@@ -23,9 +23,9 @@ describe('Validator: httpurl', function() {
     const schema = new Schema('string').validator('$httpurl');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('https://example.com', {}, '');
-    await compiled.validate('https://example.com/path', {}, '');
-    await compiled.validate('https://example.com:8080/path?query=value', {}, '');
+    await compiled.validateValue('https://example.com');
+    await compiled.validateValue('https://example.com/path');
+    await compiled.validateValue('https://example.com:8080/path?query=value');
   });
 
   it('should reject FTP URL', async function() {
@@ -33,7 +33,7 @@ describe('Validator: httpurl', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validate('ftp://example.com', {}, ''),
+      () => compiled.validateValue('ftp://example.com'),
       ValidationError
     );
   });
@@ -43,7 +43,7 @@ describe('Validator: httpurl', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validate('file:///path/to/file', {}, ''),
+      () => compiled.validateValue('file:///path/to/file'),
       ValidationError
     );
   });
@@ -53,7 +53,7 @@ describe('Validator: httpurl', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validate('example.com', {}, ''),
+      () => compiled.validateValue('example.com'),
       ValidationError
     );
   });
@@ -63,7 +63,7 @@ describe('Validator: httpurl', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validate('http://', {}, ''),
+      () => compiled.validateValue('http://'),
       ValidationError
     );
   });

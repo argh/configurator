@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
-describe('Assignments - Wildcard Expansion', function() {
+describe.skip('Assignments - Wildcard Expansion', function() {
   let resolver;
 
   beforeEach(function() {

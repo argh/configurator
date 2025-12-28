@@ -16,7 +16,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('http://example.com', {}, '');
+      const result = await compiled.validateValue('http://example.com');
       assert.strictEqual(result, 'http://example.com/');
     });
 
@@ -24,7 +24,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('https://example.com', {}, '');
+      const result = await compiled.validateValue('https://example.com');
       assert.strictEqual(result, 'https://example.com/');
     });
 
@@ -32,7 +32,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('https://example.com/path/to/page', {}, '');
+      const result = await compiled.validateValue('https://example.com/path/to/page');
       assert.strictEqual(result, 'https://example.com/path/to/page');
     });
 
@@ -40,7 +40,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('https://example.com?foo=bar', {}, '');
+      const result = await compiled.validateValue('https://example.com?foo=bar');
       assert.strictEqual(result, 'https://example.com/?foo=bar');
     });
 
@@ -48,7 +48,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('https://example.com#section', {}, '');
+      const result = await compiled.validateValue('https://example.com#section');
       assert.strictEqual(result, 'https://example.com/#section');
     });
 
@@ -56,7 +56,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('https://example.com:8080/path', {}, '');
+      const result = await compiled.validateValue('https://example.com:8080/path');
       assert.strictEqual(result, 'https://example.com:8080/path');
     });
 
@@ -64,7 +64,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('file:///path/to/file', {}, '');
+      const result = await compiled.validateValue('file:///path/to/file');
       assert.strictEqual(result, 'file:///path/to/file');
     });
 
@@ -72,7 +72,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('ftp://ftp.example.com/file.txt', {}, '');
+      const result = await compiled.validateValue('ftp://ftp.example.com/file.txt');
       assert.strictEqual(result, 'ftp://ftp.example.com/file.txt');
     });
   });
@@ -83,7 +83,7 @@ describe('Validator: url', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('example.com', {}, ''),
+        () => compiled.validateValue('example.com'),
         ValidationError
       );
     });
@@ -93,7 +93,7 @@ describe('Validator: url', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('', {}, ''),
+        () => compiled.validateValue(''),
         ValidationError
       );
     });
@@ -103,7 +103,7 @@ describe('Validator: url', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validate('http://', {}, ''),
+        () => compiled.validateValue('http://'),
         ValidationError
       );
     });
@@ -113,7 +113,7 @@ describe('Validator: url', function() {
       const compiled = await resolver.compile(schema);
 
       // URL constructor accepts many characters, including query params
-      const result = await compiled.validate('http://example.com/path?query=value', {}, '');
+      const result = await compiled.validateValue('http://example.com/path?query=value');
       assert.strictEqual(result, 'http://example.com/path?query=value');
     });
   });
@@ -123,7 +123,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('http://example.com', {}, '');
+      const result = await compiled.validateValue('http://example.com');
       assert.strictEqual(result, 'http://example.com/');
     });
 
@@ -131,7 +131,7 @@ describe('Validator: url', function() {
       const schema = new Schema('string').validator('$url');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validate('http://example.com/page', {}, '');
+      const result = await compiled.validateValue('http://example.com/page');
       assert.strictEqual(result, 'http://example.com/page');
     });
   });

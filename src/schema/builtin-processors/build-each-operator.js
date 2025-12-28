@@ -17,10 +17,16 @@ export const EACH_OPERATOR = {
           throw new ConstraintError('Value must be an array');
         }
         const ret = [];
+        // try to return original if possible...
+        let same = true;
         for (const item of value) {
-          ret.push(await compiled.processor(item, ...params.slice(1)));
+          const processed = await compiled.processor(item, ...params.slice(1));
+          if (processed !== item) {
+            same = false;
+          }
+          ret.push(processed);
         }
-        return ret;
+        return same? value : ret;
       },
       description: compiled.description !== undefined ? `[${compiled.description}]...` : 'values...'
     };

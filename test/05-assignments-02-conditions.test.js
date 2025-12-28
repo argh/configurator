@@ -242,7 +242,11 @@ describe('Assignments - Conditional Processing', function() {
           .property('*', new Schema('object')
             .property('name', new Schema('string'))
             .property('optional', new Schema('string')
-              .condition((value, configuration) => configuration.includeOptional === true)
+              .condition((value, configuration) =>
+                {
+                  return configuration.includeOptional === true
+                }
+              )
             )
           )
         );

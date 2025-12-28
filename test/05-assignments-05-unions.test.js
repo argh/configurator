@@ -251,10 +251,7 @@ describe('Assignments - Unions', function() {
 
       await assert.rejects(
         () => compiled.processAssignments(assignments),
-        (err) => {
-          assert.ok(err instanceof Error);
-          return err.name === 'UnionResolutionError';
-        }
+        /Unexpected property/
       );
     });
 

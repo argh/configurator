@@ -15,7 +15,7 @@ describe('Validator: numeric', function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validate('12345', {}, '');
+    const result = await compiled.validateValue('12345');
     assert.strictEqual(result, '12345');
   });
 
@@ -23,41 +23,41 @@ describe('Validator: numeric', function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('0', {}, '');
+    await compiled.validateValue('0');
   });
 
   it('should accept number with leading zeros', async function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validate('00123', {}, '');
+    await compiled.validateValue('00123');
   });
 
   it('should reject negative numbers', async function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('-123', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('-123'), ValidationError);
   });
 
   it('should reject decimals', async function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('123.45', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('123.45'), ValidationError);
   });
 
   it('should reject letters', async function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('123abc', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue('123abc'), ValidationError);
   });
 
   it('should reject empty string', async function() {
     const schema = new Schema('string').validator('$numeric');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validate('', {}, ''), ValidationError);
+    await assert.rejects(() => compiled.validateValue(''), ValidationError);
   });
 });

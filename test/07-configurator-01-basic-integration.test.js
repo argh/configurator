@@ -10,6 +10,7 @@ describe('Configurator - Basic Integration', function() {
 
     it('should configure from defaults only', async function() {
       const schema = new Schema('object')
+        .deep()
         .property('name', new Schema('string', { default: 'myapp' }))
         .property('port', new Schema('number', { default: 3000 }));
 

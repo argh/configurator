@@ -117,6 +117,37 @@ export function deepMerge(target, ...sources) {
   return deepMerge(target, ...sources);
 }
 
+/**
+ * deep comparison
+ * @param {any} a
+ * @param {any} b
+ * @returns {boolean}
+ */
+export function deepEquals(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (typeof a !== typeof b) return false;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; ++i) {
+      if (!deepEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  if (typeof a === 'object' && typeof b === 'object') {
+    if (Array.isArray(a) || Array.isArray(b)) return false;
+    const keys = Object.keys(a);
+    if (keys.length !== Object.keys(b).length) return false;
+    for (const k of keys) {
+      if (!b.hasOwnProperty(k) || !deepEquals(a[k], b[k])) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
 
 export function deepAssign(target, path, value) {
   if (path === '' && target) {
@@ -220,14 +251,15 @@ export function deepAssign(target, path, value) {
 }
 
 export function deepValue(object, path) {
+  if (path === '') {
+    return object;
+  }
+
   // Handle null/undefined object
   if (!object || typeof object !== 'object') {
     return undefined;
   }
 
-  if (path === '') {
-    return object;
-  }
 
   // Handle empty or invalid path
   if (typeof path !== 'string') {
@@ -260,4 +292,39 @@ export function deepValue(object, path) {
   }
 
   return current;
+}
+
+
+export function deepPrune(value) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  if (isPlainObject(value)) {
+    for (const key of Object.keys(value)) {
+      if (deepPrune(value[key]) === undefined) {
+        delete value[key];
+      }
+    }
+    return Object.keys(value).length? value : undefined;
+  }
+  else if (Array.isArray(value)) {
+    for (let i = value.length - 1; i >= 0; i--) {
+      let v = deepPrune(value[i]);
+      if (v === undefined) {
+        if (i === value.length - 1) {
+          value.pop();
+        } else {
+          delete value[i];
+        }
+      }
+      else if (v !== value[i]) {
+        // avoid reassigning unless actually changed (e.g. proxy)
+        value[i] = v;
+      }
+    }
+    return value.length ? value : undefined;
+  }
+  else {
+    return value;
+  }
 }

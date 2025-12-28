@@ -75,7 +75,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.name.normalize('test');
+      const result = await compiled.properties.name.normalizeValue('test', {});
       assert.strictEqual(result, 'test');
     });
 
@@ -85,7 +85,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.count.transform(42, {}, 'count');
+      const result = await compiled.properties.count.transformValue(42);
       assert.strictEqual(result, 42);
     });
 
@@ -95,7 +95,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.active.validate(true, {}, compiled.properties.active, 'active');
+      const result = await compiled.properties.active.validateValue(true);
       assert.strictEqual(result, true);
     });
 
@@ -107,7 +107,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.properties.code.normalize('test'), 'TEST');
+      assert.strictEqual(await compiled.properties.code.normalizeValue('test', {}), 'TEST');
     });
 
     it('should compile custom transformer functions', async function() {
@@ -118,7 +118,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.tag.transform('input', {}, 'tag');
+      const result = await compiled.properties.tag.transformValue('input');
       assert.strictEqual(result, 'transformed-input');
     });
 
@@ -138,7 +138,7 @@ describe('Schema Compilation - Simple', function() {
 
       await assert.rejects(
         async () => {
-          await compiled.properties.username.validate('ab', {}, compiled.properties.username, 'username');
+          await compiled.properties.username.validateValue('ab');
         },
         (err) => {
           return err.name === 'ValidationError' && err.cause && err.cause.message.includes('Too short');

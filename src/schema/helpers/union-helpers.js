@@ -129,6 +129,7 @@ export function generateAutomaticDiscriminatorFunction(schema) {
   async function discriminator(inputObject, configuration, schema, path, options) {
 
     let candidates = new Set(Object.values(schema.unionSchemas))
+    let matched = false;
 
     for (const [property, schemaSet] of discriminatorProps) {
       const propertyValue = inputObject?.[property];
@@ -156,7 +157,10 @@ export function generateAutomaticDiscriminatorFunction(schema) {
 //          continue;
 //        }
 
-        if (!await propertySchema?.accepts(propertyValue)) {
+        if (await propertySchema?.accepts(propertyValue)) {
+          matched = true;
+        }
+        else {
           candidates.delete(schema);
 
           if (candidates.size === 0) {
@@ -167,6 +171,13 @@ export function generateAutomaticDiscriminatorFunction(schema) {
     }
 
     if (candidates.size === 1) {
+      if (!matched) {
+        // didn't actually match, just accidentally ended up here (only one option?)
+        if (options?.strict) {
+          throw new UnionResolutionError(fpm('Union resolution failure (no matches)', path));
+        }
+        return undefined;
+      }
       return Array.from(candidates)[0];
     }
     else if (candidates.size === 0) {
