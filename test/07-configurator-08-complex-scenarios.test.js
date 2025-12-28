@@ -72,23 +72,25 @@ describe('Configurator - Complex Scenarios', function() {
 
       const configurator = new Configurator({ schema, resolver });
 
-      const config = await configurator.configure({
-        appName: 'myapp',
-        argv: ['--environment', 'production', '--app-port', '8080', '--cache-enabled'],
-        env: {
-          'MYAPP_DATABASE_HOST': 'prod-db.example.com',
-          'MYAPP_DATABASE_NAME': 'production_db',
-          'MYAPP_LOGGING_LEVEL': 'warn'
-        },
-        defaults: {
-          app: {
-            name: 'MyApplication'
+      const config = await configurator.configure(
+        {
+          appName: 'myapp',
+          argv: ['--environment', 'production', '--app-port', '8080', '--cache-enabled'],
+          env: {
+            'MYAPP_DATABASE_HOST': 'prod-db.example.com',
+            'MYAPP_DATABASE_NAME': 'production_db',
+            'MYAPP_LOGGING_LEVEL': 'warn'
           },
-          logging: {
-            format: 'text'
+          defaults: {
+            app: {
+              name: 'MyApplication'
+            },
+            logging: {
+              format: 'text'
+            }
           }
-        }
-      });
+        },
+        {deep: true}); // instead of spamming .deep() everywhere, use it as the traversal policy
 
       // Environment from CLI
       assert.strictEqual(config.environment, 'production');
@@ -275,7 +277,7 @@ describe('Configurator - Complex Scenarios', function() {
         },
         env: {},
         argv: []
-      });
+      }, {deep: true});
 
       // CI config
       assert.strictEqual(config.ci.enabled, true);
@@ -410,7 +412,7 @@ describe('Configurator - Complex Scenarios', function() {
             { name: 'Jane Smith', email: 'Jane.Smith@Example.com', role: 'billing' }
           ]
         }
-      });
+      }, {deep: true});
 
       // Tenant info
       assert.strictEqual(config.tenant.id, 'tenant_12345');
@@ -541,7 +543,7 @@ describe('Configurator - Complex Scenarios', function() {
         },
         env: {},
         argv: []
-      });
+      }, {deep: true});
 
       // Fleet config
       assert.strictEqual(config.fleet.name, 'Production Fleet Alpha');
@@ -633,7 +635,7 @@ describe('Configurator - Complex Scenarios', function() {
         argv: ['--experimental-features', '--beta-program', '--user-tier', 'enterprise'],
         env: {},
         defaults: {}
-      });
+      }, {deep: true});
 
       assert.strictEqual(enterpriseConfigDefaults.experimentalFeatures, true);
       assert.strictEqual(enterpriseConfigDefaults.betaProgram, true);
@@ -662,7 +664,7 @@ describe('Configurator - Complex Scenarios', function() {
         ],
         env: {},
         defaults: {}
-      });
+      }, {deep: true});
 
       // Features enabled
       assert.strictEqual(enterpriseConfigEnabled.features.newUI, true);
@@ -685,7 +687,7 @@ describe('Configurator - Complex Scenarios', function() {
         argv: ['--user-tier', 'premium'],
         env: {},
         defaults: {}
-      });
+      }, {deep: true});
 
       assert.strictEqual(premiumConfig.userTier, 'premium');
       assert.strictEqual(premiumConfig.experimentalFeatures, false);

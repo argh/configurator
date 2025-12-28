@@ -385,7 +385,6 @@ describe('Assignments - Selectors', function() {
 
     it('should NOT enforce required in selected schema without container creation (shallow)', async function() {
       // Shallow defaults: just selecting doesn't create the container
-      // For deep defaults that auto-create selected containers, use SchemaDefaultsSource
       const schema = new Schema('object')
         .property('command', new Schema('string', {
           selector: true

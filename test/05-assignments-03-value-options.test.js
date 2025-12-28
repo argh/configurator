@@ -85,7 +85,6 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
     it('should NOT apply deep defaults when parent container does not exist', async function() {
       // Shallow defaults: populateDefaults() does NOT create parent containers
-      // Deep defaults require SchemaDefaultsSource (not used in this test)
       const schema = new Schema('object')
         .property('server', new Schema('object')
           .property('port', new Schema('number', {
@@ -115,7 +114,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
     it('should return undefined with zero assignments (no container to populate)', async function() {
       // Zero assignments → zero output (defaults only populate existing containers)
-      // To get deep defaults that create containers, use SchemaDefaultsSource
+
       const schema = new Schema('object')
         .property('timestamp', new Schema('number', {
           default: () => Date.now()
@@ -334,7 +333,7 @@ describe('Assignments - Value Options (default, inherit, required)', function() 
 
     it('should return undefined with zero assignments (even with default)', async function() {
       // Zero assignments → zero output (defaults only populate existing containers)
-      // To get deep defaults that create containers, use SchemaDefaultsSource
+
       const schema = new Schema('object')
         .property('status', new Schema('string', {
           required: true,

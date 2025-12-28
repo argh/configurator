@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { Configurator } from '../src/configurator.js';
-import { ObjectSource, SchemaDefaultsSource } from '../src/configuration-sources/index.js';
+import { ObjectSource } from '../src/configuration-sources/index.js';
 
 describe('Configurator - Root Schema Edge Cases', function() {
 
@@ -93,7 +93,6 @@ describe('Configurator - Root Schema Edge Cases', function() {
       const config = await new Configurator({
         schema,
         sources: [
-          new SchemaDefaultsSource(),
           new ObjectSource({ contextName: 'overrides', sequence: 1000 })
         ],
         configEnabled: false,
@@ -208,7 +207,6 @@ describe('Configurator - Root Schema Edge Cases', function() {
       const config = await new Configurator({
         schema,
         sources: [
-          new SchemaDefaultsSource(),
           new ObjectSource({ contextName: 'overrides', sequence: 1000 })
         ],
         configEnabled: false,

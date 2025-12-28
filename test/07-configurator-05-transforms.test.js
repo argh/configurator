@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
+import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
 
 describe('Configurator - Transforms Integration', function() {
 
@@ -209,7 +209,6 @@ describe('Configurator - Transforms Integration', function() {
         .property('url', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ComputedUrlSource(),
         new EnvironmentSource(),
         new CommandLineSource()
@@ -260,7 +259,6 @@ describe('Configurator - Transforms Integration', function() {
         .property('userProfile', new Schema('any'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new AsyncProfileSource(),
         new EnvironmentSource()
       ];
@@ -353,7 +351,6 @@ describe('Configurator - Transforms Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new RemoteConfigSource(),
         new EnvironmentSource(),
         new CommandLineSource()
@@ -541,7 +538,6 @@ describe('Configurator - Transforms Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ConnectionStringSource(),
         new EnvironmentSource(),
         new CommandLineSource()

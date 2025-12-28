@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
 import { Schema } from '../src/schema/schema.js';
-import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
+import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
 
 describe('Configurator - Conditions Integration', function() {
 
@@ -128,7 +128,6 @@ describe('Configurator - Conditions Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new EnvironmentSource(),
         new FeatureFlagSource(),
         new CommandLineSource(),
@@ -141,7 +140,7 @@ describe('Configurator - Conditions Integration', function() {
         appName: 'app',
         argv: [],
         env: {}
-      });
+      }, {deep: true});
 
       // New feature enabled, beta disabled
       assert.strictEqual(config.enableNewFeature, true);
@@ -175,7 +174,6 @@ describe('Configurator - Conditions Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new DefaultsSource(),
         new EnvironmentSource(),
         new CommandLineSource()
@@ -349,7 +347,6 @@ describe('Configurator - Conditions Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new AsyncConfigSource(),
         new EnvironmentSource(),
         new CommandLineSource()
@@ -374,27 +371,23 @@ describe('Configurator - Conditions Integration', function() {
   describe('Real-world scenario: Environment-based features', function() {
 
     it('should configure production vs development features', async function() {
-      const schema = new Schema('object')
-        .property('environment', new Schema('string', {
-          values: ['development', 'staging', 'production'],
-          default: 'development'
-        }))
-        .property('devTools', new Schema('object', {
-          condition: (value, configuration) => configuration.environment === 'development'
-        })
+      const schema = new Schema('object').deep()
+        .property('environment', new Schema('string')
+          .values(['development', 'staging', 'production'])
+          .default('development')
+        )
+        .property('devTools', new Schema('object').deep()
+          .condition( (value, configuration) => configuration.environment === 'development')
           .property('hotReload', new Schema('boolean', { default: true }))
           .property('debugPanel', new Schema('boolean', { default: true }))
         )
-        .property('monitoring', new Schema('object', {
-          condition: (value, configuration) =>
-            configuration.environment === 'staging' || configuration.environment === 'production'
-        })
+        .property('monitoring', new Schema('object').deep()
+          .condition((value, configuration) => configuration.environment === 'staging' || configuration.environment === 'production')
           .property('enabled', new Schema('boolean', { default: true }))
           .property('sampleRate', new Schema('number', { default: 1.0 }))
         )
-        .property('optimizations', new Schema('object', {
-          condition: (value, configuration) => configuration.environment === 'production'
-        })
+        .property('optimizations', new Schema('object').deep()
+          .condition( (value, configuration) => configuration.environment === 'production')
           .property('minify', new Schema('boolean', { default: true }))
           .property('cache', new Schema('boolean', { default: true }))
         );
@@ -469,7 +462,6 @@ describe('Configurator - Conditions Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new EnvironmentSource(),
         new FeatureFlagSource(),  // Higher priority than env
         new CommandLineSource(),

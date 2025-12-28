@@ -35,7 +35,7 @@ import {
   filterPropertyHook,
   TraversalHooks,
   inputToValueHook,
-  normalizeInputHook, copyPropertyValueHook
+  normalizeInputHook, copyPropertyValueHook, simplePendingHook
 } from './helpers/traversal.js';
 import { stringify } from './helpers/stringify.js';
 
@@ -383,11 +383,7 @@ export class CompiledSchema
    *
    * At the schema level, this is interpreted as a "shallow" default, and will only populate if
    * processing the top-level value, or if the immediate parent is processing a defined
-   * container value.
-   *
-   * However, for the purpose of configuration, "deep" defaults are usually desired, and the
-   * SchemaDefaultsSource configuration source will synthesize assignments based on this default
-   * value.  (You may change the Configurator source list to disable this behavior!)
+   * container value.  This can be overridden by changing the "deep" schema option.
    *
    * @type {any|undefined}
    */
@@ -402,10 +398,18 @@ export class CompiledSchema
    * child properties that is marked required is deep by default, because that's almost
    * always what is wanted/expected.)
    *
-   * @type {boolean}
+   * Returns undefined if unset, signaling that the traversal context will decide.
+   *
+   * @type {boolean|undefined}
    */
   get deep() {
-    return this._options.deep ?? (this.hasChildren && this.required);
+    if (this._options.deep !== undefined) {
+      return this._options.deep;
+    }
+    if (this.hasChildren && this.required) {
+      return true;
+    }
+    return undefined;
   }
 
   /**
@@ -734,7 +738,7 @@ export class CompiledSchema
     const context = new TraversalContext(options);
 
     const hooks = new TraversalHooks()
-      .hook('startCurrent', [normalizeHook, resolveUnionHook, checkConditionHook, transformHook])
+      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
       .hook('endCurrent', [transformHook, resolveUnionHook])
       .hook('startProperty', [startPropertyHook, checkPropertySchema])
       .hook('endProperty', [endPropertyHook])
@@ -806,7 +810,7 @@ export class CompiledSchema
   async serialize(configuration, options) {
     const context = new TraversalContext({strict: options?.strict ?? false});
     const hooks = new TraversalHooks()
-      .hook('startCurrent', [inputToPendingHook, resolveUnionHook, checkConditionHook, serializeHook])
+      .hook('startCurrent', [simplePendingHook, resolveUnionHook, checkConditionHook, serializeHook])
       .hook('endCurrent', [])
       .hook('startProperty', [startPropertyHook, checkPropertySchema])
       .hook('endProperty', [endPropertyHook])
@@ -1067,8 +1071,10 @@ export class CompiledSchema
       }
 
       if (isInputPath) {
-        state.input = input;
-        if (state.input !== undefined) {
+        if (input !== undefined) {
+          state.assignedInput = input;
+          }
+        if (state.assignedInput !== undefined) {
           if (state.treatAsExplicit) {
             state.isExplicit = true;
           }
@@ -1076,11 +1082,11 @@ export class CompiledSchema
       } else {
         const fullInputPath = path? `${path}.${inputPath}` : inputPath;
         const inputState = context.getState(fullInputPath);
-        if (input !== undefined && inputState.input !== input) {
-          inputState.input = input;
+        if (input !== undefined && inputState.assignedInput !== input) {
+          inputState.assignedInput = input;
         }
-        if (state.input === undefined) {
-          state.input = true;
+        if (state.assignedInput === undefined) {
+          state.assignedInput = true;
         }
       }
       return TraversalControl.OK;
@@ -1100,7 +1106,9 @@ export class CompiledSchema
       const propertyKey = inputPathComponents.shift();
       const propertyInputPath = inputPathComponents.join('.')
       const property = state.context.getProperty(state, propertyKey);
-
+      if (!property) {
+        return TraversalControl.OK;
+      }
       const startResult = await hooks.startProperty(state, property);
 
       if (startResult !== TraversalControl.OK) {
@@ -1139,7 +1147,7 @@ export class CompiledSchema
 
       const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
 // todo - think about this; state.input==undefined is an unreliable indicator of "no work to do" as we might have lingering conditions/etc for final pass
-      if (!existingProperties && !state.isExplicit && state.input === undefined && !this.deep) {
+      if (!existingProperties && !state.isExplicit && state.input === undefined && !state.isDeep) {
         return;
       }
 

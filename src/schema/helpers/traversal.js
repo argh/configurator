@@ -131,6 +131,7 @@ export const TraversalControl = {
 /**
  * @typedef {Object} TraversalOptions
  * @property {boolean} [strict]
+ * @property {boolean} [deep]
  * @property {any} [value]
  * @property {Map} [assignments]
  */
@@ -144,6 +145,7 @@ export class TraversalContext
 
     this._final = false;
     this.strict = options?.strict ?? true;
+    this.deep = options?.deep ?? false;
 
     this.counter = 0;
 
@@ -170,10 +172,15 @@ export class TraversalContext
      */
   }
 
+  update() {
+    this.counter++;
+    this.final = false;
+  }
+
   _finalizeCount = 0;
   set final(finalize) {
     // todo - make this configurable?  (it's really just a last resort to prevent hangs.)
-    if (!this._final && finalize && this._finalizeCount++ > 100) {
+    if (this._final && !finalize && this._finalizeCount++ > 100) {
       throw new SchemaError('Unable to finalize a stable output value');
     }
     this._final = finalize ?? true;
@@ -275,7 +282,7 @@ export class TraversalContext
     state = new TraversalState(context, unKeyedPath);
 
     if (context._value !== undefined) {
-      state.value = unKeyedPath === ''? context._value : deepValue(context._value, unKeyedPath);
+//      state.value = unKeyedPath === ''? context._value : deepValue(context._value, unKeyedPath);
     }
 
     this.stateMap.set(unKeyedPath, state);
@@ -306,6 +313,7 @@ export class TraversalContext
  * @property {Set} inputs
  * @property {import('../compiled-schema.js').CompiledSchema} [schema]
  * @property {string} [unionKey]
+ * @property {any} [assignedInput]
  * @property {any} [input]
  * @property {any} [pending]
  * @property {any} [value]
@@ -319,10 +327,12 @@ export class TraversalState {
     this._schema = undefined;
 
     // state values
+    this._assignedInput = undefined;
     this._input = undefined;     // most recent input
     this._inputs = new Set();    // full set of all inputs converted to values
     this._pending = undefined;   // intermediate value
     this._value = undefined;     // final value
+    this._condition = undefined;
     // explicit state flags
     this._processed = false;          // are we done with final value?
     this._explicit = false;      // was the input explicit or implicit?
@@ -337,12 +347,30 @@ export class TraversalState {
   }
   set schema(schema) {
     if (this._schema !== schema) {
-      this._context.counter++;
+      this._context.update();
     }
     this._schema = schema;  // todo - consider saving previous value?
   }
   get schema() {
     return this._schema;
+  }
+
+  set condition(condition) {
+    if (this._condition !== condition) {
+      this._context.update();
+    }
+    this._condition = condition;
+  }
+  get condition() {
+    return this._condition;
+  }
+
+  set assignedInput(input) {
+    this._assignedInput = input;
+  }
+
+  get assignedInput() {
+    return this._assignedInput;
   }
 
   set input(input) {
@@ -385,11 +413,12 @@ export class TraversalState {
       throw new Error(`Cannot set value at ${this._path} - node is pruned`);
     }
 
+
     this._value = value;
 
     if (value !== undefined) {
-      this._inputs.add(this._input);
-      this._context.counter++;
+      this._inputs.add(this._assignedInput);
+      this._context.update();
     }
     if (value === null && !this._processed) {
       this._processed = true;
@@ -446,7 +475,10 @@ export class TraversalState {
     if (this.isExplicit) {
       return false;
     }
-    if (this.input !== undefined && !this._inputs.has(this.input)) {
+    if (typeof this.assignedInput === 'function' && this.input === undefined) {
+      return false;
+    }
+    else if (this.assignedInput !== undefined && !this._inputs.has(this.assignedInput)) {
       return false;
     }
 
@@ -457,7 +489,7 @@ export class TraversalState {
 
 
   get hasProcessedInput() {
-    return this._value !== undefined && this._input !== undefined && this._inputs.has(this._input);
+    return this._value !== undefined && this._assignedInput !== undefined && this._inputs.has(this._assignedInput);
   }
 
   get isPlaceholder() {
@@ -473,6 +505,10 @@ export class TraversalState {
 
   get isPruned() {
     return this._value === null;
+  }
+
+  get isDeep() {
+    return this._schema?.deep ?? this.context.deep;
   }
 
   get isOpaque() {
@@ -552,7 +588,7 @@ export class TraversalState {
     const childPrefix = this._path ? `${this._path}.` : '';
 
     const pending = new Set([...this.context.stateMap]
-      .filter(([path, state]) => (path !== this._path && path.startsWith(childPrefix) && (state.isComplete || state.hasWorkInProgress)))
+      .filter(([path, state]) => (path !== this._path && path.startsWith(childPrefix) && (state.isComplete || state.hasWorkInProgress || state.needsInputProcessing)))
       .map(([path]) => { return path.slice(childPrefix.length).split('.')[0] }));
 
     return [...pending];
@@ -580,6 +616,13 @@ export class TraversalState {
     }
 
     return !this.hasChildrenToTraverse;
+  }
+
+  get needsInputProcessing() {
+    if (this._value !== undefined) {
+      return false;
+    }
+    return (typeof this.assignedInput !== undefined && this.input === undefined);
   }
 
   get hasWorkInProgress() {
@@ -612,10 +655,45 @@ export class TraversalState {
 }
 
 
-
+// fixme - will likely need to deal with assignedInput more intelligently at some point
 export async function inputToPendingHook(state) {
+  state.input = state.assignedInput;
   state.pending = state.input;
 }
+
+export async function simplePendingHook(state) {
+
+  if (state.assignedInput === null || state.assignedInput === undefined || typeof state.assignedInput === 'function') {
+    return TraversalControl.SKIP;
+  }
+  state.input = state.assignedInput;
+
+  if (state.value !== undefined || state.pending !== undefined) {
+    return;
+  }
+
+  if (state.schema === undefined) {
+    if (Array.isArray(state.input)) {
+      state.pending = [];
+    }
+    else if (typeof (state.input === 'object')) {
+      state.pending = {};
+    }
+    else {
+      state.pending = state.input;
+    }
+  }
+  else {
+    if (state.isContainer) {
+      state.pending = await state.schema.normalizeValue(true, state.context.getValue(), state.path);
+    }
+    else {
+      state.pending = state.input;
+    }
+  }
+}
+
+
 
 export async function deferContainer(state) {
   if (state.schema?.hasChildren && state.pending === undefined) {
@@ -640,7 +718,10 @@ export async function checkConditionHook(state) {
   return TraversalControl.OK;
 }
 
+// fixme - this needs to be improved
 export async function inputToValueHook(state) {
+  state.input = state.assignedInput;
+
   if (state.input === undefined || state.input === null) {
     return TraversalControl.SKIP;
   }
@@ -658,8 +739,8 @@ export async function normalizeInputHook(state) {
   }
   const configuration = state.context.getValue();
 
-  if (state.input !== undefined) {
-    const input = await state.schema?.normalizeValue(state.input, configuration, state.path);
+  if (state.assignedInput !== undefined) {
+    const input = await state.schema?.normalizeValue(state.assignedInput, configuration, state.path);
     if (input !== undefined) {
       state.input = input;
     }
@@ -699,13 +780,22 @@ export async function normalizeHook(state) {
 }
 
 export async function serializeHook(state) {
-  const configuration = state.context.getValue();
 
+  if (state.schema?.metadata.omitFromSerialize) {
+    // todo - this is hacky, figure out a better approach
+    state.pending = undefined;
+    state.value = null;
+    return TraversalControl.SKIP;
+  }
+
+  const configuration = state.context.getValue();
 
   const inputValue = state.schema.hasChildren? true : state.input;
 
-  state.value = await state.schema.serializeValue(inputValue, configuration, state.path);
-  state.pending = undefined;
+  if (state.value === undefined || !state.isContainer) {
+    state.value = await state.schema.serializeValue(inputValue, configuration, state.path);
+    state.pending = undefined;
+  }
 }
 
 /**
@@ -848,7 +938,8 @@ export async function checkPropertySchema(state, property) {
   if (property.state.schema === undefined) {
     if (!state.schema.isUnion || state.context.final) {
       // invalid property detected
-      if (state.context.strict) {
+      const strict = state.schema.strict ?? state.context.strict;
+      if (strict) {
         // current schema may not be a union because we resolved successfully; check the path from the root.
         const pathExists = (state.context.getState('').schema?.isValidPath(property.state.path));
         const message = pathExists? 'Unexpected property' : 'Unknown property';
@@ -920,7 +1011,7 @@ export async function resolveUnionHook(state) {
     return TraversalControl.OK;
   }
   const configuration = state.context.getValue();
-  const value = state.pending ?? state.value;
+  const value = state.pending ?? state.input ?? state.value;  // todo - think about this, it's pretty weird.
   const unionSchema = await state.schema.discriminateUnion(value, configuration, state.path, {strict: state.context.final});
 
   if (unionSchema !== undefined) {

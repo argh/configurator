@@ -174,6 +174,7 @@
 
 /** @typedef {Object} ConfigureOptions
  * @property {boolean} [strict]
+ * @property {boolean} [deep]
  * @property {AssignmentOptions} [assignmentOptions]
  */
 

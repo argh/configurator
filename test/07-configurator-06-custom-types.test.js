@@ -184,7 +184,7 @@ describe('Configurator - Custom Types Integration', function() {
         }
       }));
 
-      const schema = new Schema('object')
+      const schema = new Schema('object').deep()
         .property('environment', new Schema('string', { default: 'development' }))
         .property('logLevel', new Schema('logLevel', {
           default: 'info'

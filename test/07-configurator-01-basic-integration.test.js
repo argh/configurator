@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
 import { Schema } from '../src/schema/schema.js';
-import { SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
+import { ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
 
 describe('Configurator - Basic Integration', function() {
 
@@ -150,7 +150,6 @@ describe('Configurator - Basic Integration', function() {
 
       // Create sources with explicit sequences
       const sources = [
-        new SchemaDefaultsSource(),                                    // 100
         new ObjectSource({ contextName: 'data', sequence: 300 }),      // 300
         new EnvironmentSource({ sequence: 400 }),                      // 400
         new CommandLineSource({ sequence: 600 }),                      // 600
@@ -179,7 +178,6 @@ describe('Configurator - Basic Integration', function() {
         .property('d', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ObjectSource({ contextName: 'low', sequence: 200 }),
         new ObjectSource({ contextName: 'medium', sequence: 500 }),
         new ObjectSource({ contextName: 'high', sequence: 800 })
@@ -283,7 +281,6 @@ describe('Configurator - Basic Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ObjectSource({ contextName: 'data', sequence: 300 })
       ];
 
@@ -315,7 +312,6 @@ describe('Configurator - Basic Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ObjectSource({ contextName: 'data', sequence: 300 }),
         new EnvironmentSource({ sequence: 400 })
       ];
@@ -344,7 +340,6 @@ describe('Configurator - Basic Integration', function() {
         );
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ObjectSource({ contextName: 'defaults', sequence: 100 }),
         new CommandLineSource({ sequence: 600 })
       ];
@@ -465,7 +460,6 @@ describe('Configurator - Basic Integration', function() {
         .property('setting5', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),                                         // 100
         new ObjectSource({ contextName: 'defaults', sequence: 300 }),       // 300
         new EnvironmentSource({ sequence: 400 }),                           // 400
         new CommandLineSource({ sequence: 600 }),                           // 600

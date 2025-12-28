@@ -510,7 +510,7 @@ describe('Assignments - Unions', function() {
   describe('Union with defaults', function() {
 
     it('should apply defaults of resolved union member', async function() {
-      // TODO: Defaults handled by SchemaDefaultsSource with union keys
+
       const schema = new Schema('object')
         .property('server', new Schema('object')
           .unionSchema('http', new Schema('object')
@@ -562,7 +562,6 @@ describe('Assignments - Unions', function() {
 
       const compiled = await resolver.compile(schema);
 
-      // Simulate SchemaDefaultsSource synthesized assignment with union key
       const assignments = new Map([
         ['pet.type', 'cat'],
         ['pet:cat.name', 'Whiskers']  // Union key syntax

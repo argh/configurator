@@ -2,7 +2,7 @@ import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
 import { Configurator, SchemaResolver, Schema, CompiledSchema, ConfiguratorError } from '../src/index.js';
-import { ConfigurationSource, SchemaDefaultsSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
+import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { isConstructor, toConstantCase } from '../src/utils.js';
 
 
@@ -486,7 +486,6 @@ class FakeSecretsSource extends ConfigurationSource {
 // existing sources.  The built-in sources allow you to override their default sequence if necessary.
 
 const sources = [
-  new SchemaDefaultsSource(),     // you almost always want this one, it turns default values into low-priority assignments
   new FakeSecretsSource(),  // secrets will be loaded at a low priority level in case we want to override them
   new EnvironmentSource(),
   new CommandLineSource(),

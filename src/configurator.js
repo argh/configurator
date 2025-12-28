@@ -5,7 +5,6 @@ import { Schema } from './schema/schema.js';
 import {
   ConfigurationSource,
   CommandLineSource,
-  SchemaDefaultsSource,
   EnvironmentSource,
   ObjectSource,
   JsonFileSource
@@ -114,7 +113,6 @@ export class Configurator {
    * Get the default set of configuration sources in priority order.
    *
    * Default sources and their sequence numbers:
-   *   100 - SchemaDefaultsSource - schema-defined defaults
    *   300 - ObjectSource(defaults) - application defaults from context.defaults
    *   400 - EnvironmentSource - environment variables
    *   600 - CommandLineSource - command line arguments
@@ -144,7 +142,6 @@ export class Configurator {
     const configContextName = options.configContextName ?? 'config';
 
     return [
-//      new SchemaDefaultsSource(),                                                              // 100
       new ObjectSource({contextName: 'defaults'}),                                             // 300
       new EnvironmentSource(),                                                                 // 400
       new CommandLineSource(),                                                                 // 600
@@ -204,13 +201,14 @@ export class Configurator {
     const configurationContext = {...context};
 
     const strict = options?.strict ?? true;
+    const deep = options?.deep ?? false;
 
     const schema = await this._resolver.compile(this._schema);
     const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
 
     // EXPERIMENT
     // Original approach:
-    const configuration = await schema.processAssignments(assignments, undefined,{strict, ...options?.assignmentOptions})
+    const configuration = await schema.processAssignments(assignments, undefined,{strict, deep, ...options?.assignmentOptions})
 
     /*
     // Testing new approach:
@@ -313,7 +311,7 @@ export class Configurator {
         if (contextName) {
           let resolvedValue = assignedValue;
           try {
-            resolvedValue = await s.transform(assignedValue, configurationContext, contextName, {strict: false});
+            resolvedValue = await s.transformValue(assignedValue, configurationContext, contextName, {strict: false});
           }
           catch (_) {
             // ignore, just use original value

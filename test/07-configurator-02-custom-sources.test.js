@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { setTimeout } from 'node:timers/promises';
 import { Configurator } from '../src/configurator.js';
 import { Schema } from '../src/schema/schema.js';
-import { ConfigurationSource, SchemaDefaultsSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
+import { ConfigurationSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
 import { toConstantCase } from '../src/utils.js';
 
 describe('Configurator - Custom Sources', function() {
@@ -27,7 +27,6 @@ describe('Configurator - Custom Sources', function() {
         .property('custom', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new SimpleSource()
       ];
 
@@ -65,7 +64,6 @@ describe('Configurator - Custom Sources', function() {
         .property('value', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new LowPrioritySource(),
         new HighPrioritySource()
       ];
@@ -110,7 +108,6 @@ describe('Configurator - Custom Sources', function() {
         .property('alsoMarked', new Schema('string', { _customFlag: true }));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new MetadataSource()
       ];
 
@@ -154,7 +151,6 @@ describe('Configurator - Custom Sources', function() {
         .property('apiKey', new Schema('string', { _secret: true }));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new NestedMetadataSource()
       ];
 
@@ -196,7 +192,6 @@ describe('Configurator - Custom Sources', function() {
         .property('lazy', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new LazySource()
       ];
 
@@ -238,7 +233,6 @@ describe('Configurator - Custom Sources', function() {
         .property('dependent', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new DependentLazySource()
       ];
 
@@ -279,7 +273,6 @@ describe('Configurator - Custom Sources', function() {
         .property('combined', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ContextAwareLazySource(),
         new EnvironmentSource()
       ];
@@ -341,7 +334,6 @@ describe('Configurator - Custom Sources', function() {
         .property('apiKey', new Schema('string', { _secret: true }));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new FakeSecretsSource(),
         new EnvironmentSource()
       ];
@@ -394,7 +386,6 @@ describe('Configurator - Custom Sources', function() {
 
       const source = new ExpensiveSecretsSource();
       const sources = [
-        new SchemaDefaultsSource(),
         source,
         new EnvironmentSource()  // Env (400) will override secrets (350)
       ];
@@ -451,7 +442,6 @@ describe('Configurator - Custom Sources', function() {
         .property('token', new Schema('string', { _secret: true }));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new DependentSecretsSource()
       ];
 
@@ -491,7 +481,6 @@ describe('Configurator - Custom Sources', function() {
         .property('fromContext', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new ContextSource()
       ];
 
@@ -537,7 +526,6 @@ describe('Configurator - Custom Sources', function() {
         .property('token', new Schema('string', { _fromSecrets: true }));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new PrefixedSecretsSource()
       ];
 
@@ -602,7 +590,6 @@ describe('Configurator - Custom Sources', function() {
         .property('c', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),
         new Source1(),
         new Source2(),
         new Source3()
@@ -638,7 +625,6 @@ describe('Configurator - Custom Sources', function() {
         .property('fromCli', new Schema('string'));
 
       const sources = [
-        new SchemaDefaultsSource(),           // 100
         new EnvironmentSource(),              // 400
         new CustomMiddleSource(),             // 450 (between env and CLI)
         new CommandLineSource()               // 600
