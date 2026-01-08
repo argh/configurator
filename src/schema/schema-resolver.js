@@ -446,7 +446,7 @@ export class SchemaResolver
       outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, parent, name);
     }
 
-    const specialOptions = ['values'];
+    const specialOptions = ['values' /*, 'default'*/];
 
     for (const [optionName, optionValue] of Object.entries(source.options ?? {})) {
       if (specialOptions.includes(optionName)) {
@@ -456,6 +456,7 @@ export class SchemaResolver
     }
     await this._compileNormalizers(source, outputSchema);
     await this._compileValues(source, outputSchema);  // performs normalization!
+//    await this._compileDefault(source, outputSchema);  // performs normalization!
     await this._compileConditions(source, outputSchema);
     await this._compileTransformers(source, outputSchema);
     await this._compileValidators(source, outputSchema);
@@ -539,6 +540,19 @@ export class SchemaResolver
       await this._finalize(propSchema);
     }
     for (const unionSchema of Object.values(schema.unionSchemas)) {
+
+      const skipOptions = ['values', 'type', 'default'];
+
+      for (const [optionName, optionValue] of Object.entries(schema.options ?? {})) {
+        if (skipOptions.includes(optionName)) {
+          continue;
+        }
+        if (optionValue !== undefined && unionSchema.options[optionName] === undefined) {
+          // union schemas "inherit" options from their parent
+          unionSchema.options[optionName] = optionValue;
+        }
+      }
+
       await this._finalize(unionSchema);
     }
     await this._finalizeValues(schema);
@@ -746,6 +760,23 @@ export class SchemaResolver
       ];
     }
   }
+
+  /* todo - remove - no longer doing this!  defaults need to be evaluated lazily to ensure that default functions are called properly
+
+  async _compileDefault(src, dst) {
+    if (dst.options.default !== undefined || src.options.default === undefined) {
+      return;
+    }
+    if (typeof src.options.default === 'function') {
+      // lazy normalization!
+      dst.options.default = src.options.default;
+    }
+    else {
+      dst.options.default = await dst.normalizeValue(src.options.default);
+    }
+  }
+
+   */
 
   async _compileValues(src, dst) {
     if (dst.options.values !== undefined || src.options.values === undefined) {

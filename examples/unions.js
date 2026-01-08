@@ -38,12 +38,12 @@ function sanitize(s) {
 }
 
 // For comparison, let's make a property that only holds an object from the cheese database.
-const schemaZero = new Schema('object')
-  .meta('hidden', true)
-  .meta('flagHint', 'Z')
-  .values(Object.values(cheeses));
+  const schemaZero = new Schema('object')
+    .meta('hidden', true)
+    .meta('flagHint', 'Z')
+    .values(Object.values(cheeses));
 
-schema.property('test0', schemaZero.default(cheeses[4]));
+  schema.property('test0', schemaZero.default(cheeses[4]));
 
 
 // Approach #1 - Define a union discriminator function that checks a specified property for the unionSchema key.
@@ -61,24 +61,24 @@ schema.property('test0', schemaZero.default(cheeses[4]));
 //   successfully resolved the union to the matching schema.  This also allows us to ensure that the value of
 //   "name" in the output is the original from the data, not the "sanitized" version.
 
-const unionSchemaOne = new Schema('object')
-  .property('name', new Schema('string')
-    .normalizer(sanitize)
-    .values(Object.values(cheeses).map(c => c.name))
-  )
-  .unionDiscriminator((value) => sanitize(value.name));
+  const unionSchemaOne = new Schema('object')
+    .property('name', new Schema('string')
+      .normalizer(sanitize)
+      .values(Object.values(cheeses).map(c => c.name))
+    )
+    .unionDiscriminator((value) => sanitize(value.name));
 
-for (const cheese of cheeses) {
-  unionSchemaOne
-    .lax()
-    .unionSchema(sanitize(cheese.name),
-      new Schema('object')
-        .property('name', new Schema('string').transformer(cheese.name))
-        .transformer(cheese)
-        .serializer(cheese.name)
-    );
-}
-schema.property('test1', unionSchemaOne);
+  for (const cheese of cheeses) {
+    unionSchemaOne
+      .unionSchema(sanitize(cheese.name),
+        new Schema('object')
+          .lax()
+          .property('name', new Schema('string').transformer(() => cheese.name))
+          .transformer(() => cheese)
+          .serializer(() => cheese.name)
+      );
+  }
+  schema.property('test1', unionSchemaOne);
 
 
 // Approach #2 - Basically the same as Approach #1, but uses the unionKey convenience convenience option
@@ -90,42 +90,42 @@ schema.property('test1', unionSchemaOne);
 //   with that always transforms to the original input and has a default that matches it.  We need to add
 //   a normalizer in order to accept sanitized assignments.
 
-const unionSchemaTwo = new Schema('object')
-  .property('name', new Schema('string')
-    .normalizer(sanitize)
-    .unionKey()
-  )
-
-for (const cheese of cheeses) {
-  unionSchemaTwo
-    .lax()
-    .unionSchema(cheese.name,
-      new Schema('object')
-        .property('name', Schema.literal(cheese.name).normalizer(sanitize))
-        .transformer(cheese)
-        .serializer(cheese.name)
+  const unionSchemaTwo = new Schema('object')
+    .property('name', new Schema('string')
+      .normalizer(sanitize)
+      .unionKey()
     )
-}
-schema.property('test2', unionSchemaTwo);
+
+  for (const cheese of cheeses) {
+    unionSchemaTwo
+      .unionSchema(sanitize(cheese.name),
+        new Schema('object')
+          .lax()
+          .property('name', Schema.literal(cheese.name).normalizer(sanitize))
+          .transformer(() => cheese)
+          .serializer(() => cheese.name)
+      )
+  }
+  schema.property('test2', unionSchemaTwo);
 
 // Approach #3 - Even simpler!  The unionSchemas are inspected to see if they all 1) share a common property,
 // and 2) the allowed values for this property in each schema are unique.  If so, the common property is "hoisted"
 // to the union itself (and the union's property values are the union of all legal element values).
 // A discriminator is synthesized that matches assignments to the common property to the schema with the matching value.
 
-const unionSchemaThree = new Schema('object')
+  const unionSchemaThree = new Schema('object')
 
-for (const cheese of cheeses) {
-  unionSchemaThree
-    .lax()
-    .unionSchema(cheese.name,
-      new Schema('object')
-        .property('name', Schema.literal(cheese.name).normalizer(sanitize))
-        .transformer(cheese)
-        .serializer(cheese.name)
-    )
-}
-schema.property('test3', unionSchemaThree);
+  for (const cheese of cheeses) {
+    unionSchemaThree
+      .lax()
+      .unionSchema(cheese.name,
+        new Schema('object')
+          .property('name', Schema.literal(cheese.name).normalizer(sanitize))
+          .transformer(() => cheese)
+          .serializer(() => cheese.name)
+      )
+  }
+  schema.property('test3', unionSchemaThree);
 
 // Approach #4 - Full auto mode.  Automatic discovery actually can handle any number of common properties, as long
 // as there is some permutation of properties that uniquely identify it!
@@ -189,5 +189,6 @@ catch (error) {
     console.error(error);
   }
   console.error(`Specify --help to see all options.`)
+  process.exit(1);
 }
 

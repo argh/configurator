@@ -74,18 +74,6 @@ describe('Schema Compilation - Object Type', function() {
       await assert.rejects(
       async () => await compiled.normalizeValue(false), NormalizeError);
     });
-
-    it('should normalize object to string when values constraint exists', async function() {
-      const schema = new Schema('object')
-        .values([{ a: 1 }]);
-
-      const compiled = await resolver.compile(schema);
-
-      // When values exist, normalization should stringify for comparison
-      const normalized = await compiled.normalizeValue({ a: 1 });
-      assert.strictEqual(typeof normalized, 'string');
-      assert.strictEqual(normalized, '{"a":1}');
-    });
   });
 
   describe('Object transformation', function() {
@@ -251,20 +239,19 @@ describe('Schema Compilation - Object Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      // Values should be stringified for comparison
       assert.strictEqual(compiled.values.length, 2);
-      assert.strictEqual(compiled.values[0], '{"type":"A"}');
-      assert.strictEqual(compiled.values[1], '{"type":"B"}');
+      assert.deepStrictEqual(compiled.values[0], {type:'A'});
+      assert.deepStrictEqual(compiled.values[1], {type:'B'});
     });
 
-    it('should normalize and check matching values', async function() {
+    it('should allow mismatched value during normalization', async function() {
       const schema = new Schema('object')
         .values([{ x: 1 }]);
 
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled.normalizeValue({ x: 1 });
-      assert.strictEqual(normalized, '{"x":1}');
+      const normalized = await compiled.normalizeValue({ x: 2 });
+      assert.deepStrictEqual(normalized, {x: 2});
     });
 
     it('should reject non-matching values during transformation', async function() {
@@ -414,11 +401,10 @@ describe('Schema Compilation - Object Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize (should stringify for comparison)
-      const normalized = await compiled.normalizeValue({ type: 'test' });
-      assert.strictEqual(normalized, '{"type":"test"}');
+      const normalized = await compiled.normalizeValue('{ "type": "test" }');
 
       // Transform from string (normalized form) back to object
-      const transformed = await compiled.transformValue('{"type":"test"}');
+      const transformed = await compiled.transformValue(normalized);
       assert.deepStrictEqual(transformed, { type: 'test' });
 
       // Validate

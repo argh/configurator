@@ -7,7 +7,7 @@ import {
   TransformError,
   ValidationError
 } from '../errors.js';
-import { deepAssign, deepPrune, deepValue, isConstructor, isPlainObject } from '../utils.js';
+import { deepAssign, deepEquals, deepPrune, deepValue, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { expandWildcards } from './helpers/wildcard.js';
 import { existingAssignment } from './helpers/assignments.js';
@@ -472,27 +472,11 @@ export class CompiledSchema
       input = deepAssign(input, path, value);
     }
 
-    return await this.process(input, {strict: options?.strict ?? true, value: configuration, assignments});
+    return await this.process(input, configuration,{strict: options?.strict ?? true, value: configuration, assignments});
   }
 
-  async processAssignments(assignments, configuration, options) {
 
-    const context = (options?.context ?? new TraversalContext(options));
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
-      .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
-      .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
 
-    if (configuration !== undefined) {
-      await this.preload(configuration, context);
-    }
-    for (let [path, value] of assignments) {
-      await this.traverse(value, {inputPath: path, context, hooks});
-    }
-//    context.final = true;
-    return await this.traverseMultipass(undefined, {context, hooks});
-  }
 
 
 
@@ -609,14 +593,20 @@ export class CompiledSchema
       return value;
     }
 
-    // todo - can we move value checking to a constraint processor?
-    if (value !== null && this.values && this.values.length > 0) {
-      // if we have children, we can't compare the value yet, we'll have to wait for validation.
-      if (!this.hasChildren && !this.values.includes(value)) {
-        const isContainerInit = (value === true && (this.options.type === 'object' || this.options.type === 'array'))
-        const strict = this.strict ?? options?.strict ?? true;
-        if (!isContainerInit && strict) {
-          throw new TransformError(fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
+    const strict = this.strict ?? options?.strict ?? true;
+
+    // If we have define legal values, the input (or the normalized version of the input) must be found.
+    if (Array.isArray(this.values) && this.values.length > 0) {
+      if (!this.values.includes(value) && !this.values.some(v => deepEquals(v, value))) {
+        const normalized = await this.normalizeValue(value, configuration, path, options);
+        if (!this.values.includes(normalized) && !this.values.some(v => deepEquals(v, normalized))) {
+          if (strict) {
+            throw new TransformError(
+              fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
+          }
+          else {
+            return undefined;  // we cannot transform this, at least not right now.
+          }
         }
       }
     }
@@ -642,15 +632,25 @@ export class CompiledSchema
     if (value === null || value === undefined) {
       return value;
     }
+    /*
     if (this.values?.length) {
-      // todo - is this a transform prerequisite, or a post-transform validation check?  both?
+      // todo - this a transform prerequisite, not a post-transform validation check!  remove code
       if (!this.values.includes(value)) {
-        // complex object values are stored as strings!
-        if (!this.values.includes(stringify(value))) {
+
+        let found = this.values.some(v => deepEquals(v, value));
+        if (!found) {
           throw new ValidationError(fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
         }
+
+        // fixme - old approach
+        // complex object values are stored as strings!
+//        if (!this.values.includes(stringify(value))) {
+//          throw new ValidationError(fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
+//        }
       }
     }
+
+     */
     const validators = Array.isArray(this._handlers.validators)? this._handlers.validators : [];
 
     let validated = value;
@@ -710,7 +710,7 @@ export class CompiledSchema
    * @param {any} configuration - optional existing configuration
    * @returns {Promise<any>} - normalized value
    */
-  async normalize(input, configuration) {
+  async XXXXXnormalize(input, configuration) {
     const context = new TraversalContext({strict: false});
 
     if (configuration !== undefined) {
@@ -718,7 +718,7 @@ export class CompiledSchema
     }
 
     const hooks = new TraversalHooks()
-      .hook('startCurrent', [normalizeHook, resolveUnionHook])
+      .hook('startCurrent', [defaultsHook, normalizeHook, resolveUnionHook])
       .hook('endCurrent', [pendingToValueHook, resolveUnionHook])
       .hook('startProperty', [startPropertyHook, checkPropertySchema])
       .hook('endProperty', [endPropertyHook])
@@ -733,7 +733,7 @@ export class CompiledSchema
    * @param {import('./helpers/traversal.js').TraversalOptions} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
    */
-  async transform(input, options) {
+  async XXXXXtransform(input, options) {
 
     const context = new TraversalContext(options);
 
@@ -771,19 +771,65 @@ export class CompiledSchema
     return await this.traverseMultipass(value, {hooks, context})
   }
 
+
+
+  /** @typedef {import('./helpers/traversal.js').TraversalOptions} TraversalOptions */
+
+  /** @typedef {Object} ProcessOptions
+   * @property {TraversalContext|TraversalOptions} [context]
+   */
+
   /**
-   * Process an input value to an output value based on this schema
-   * @param {any} input
-   * @param {Object} [options]
+   * @param {Map<string,any>} assignments
+   * @param {any} [configuration]
+   * @param {ProcessOptions & TraversalOptions} [options]
    * @returns {Promise<any>}
    */
-  async process(input, options) {
-    const context = (options?.context ?? new TraversalContext(options));
+  async processAssignments(assignments, configuration, options = {}) {
+
+    const expanded = new Map([...expandWildcards(assignments), ...assignments]);
+    for (const key of expanded.keys()) {
+      if (key.includes('*')) {
+        expanded.delete(key);
+      }
+    }
+
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(options.context ?? options);
     const hooks = new TraversalHooks()
       .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
       .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
       .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
       .hook('endProperty', [endPropertyHook])
+
+    if (configuration !== undefined) {
+      await this.preload(configuration, context);
+    }
+    for (let [path, value] of expanded) {
+      await this.traverse(value, {inputPath: path, context, hooks});
+    }
+//    context.final = true;
+    return await this.traverseMultipass(undefined, {context, hooks});
+  }
+
+
+  /**
+   * Process an input value to an output value based on this schema
+   * @param {any} input
+   * @param {any} [configuration]
+   * @param {ProcessOptions & TraversalOptions} [options]
+   * @returns {Promise<any>}
+   */
+  async process(input, configuration, options = {}) {
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(options.context ?? options);
+    const hooks = new TraversalHooks()
+      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
+      .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
+      .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
+      .hook('endProperty', [endPropertyHook])
+
+    if (configuration !== undefined) {
+      await this.preload(configuration, context);
+    }
 
     const result = await this.traverseMultipass(input, {context, hooks});
 
@@ -1137,12 +1183,12 @@ export class CompiledSchema
 
         if (this.properties['*']) {
           // wildcard, so let's look for any interesting children in the state map
-          state.listPendingChildren().forEach(path => propertyKeys.add(path));
+//          state.listPendingChildren().forEach(path => propertyKeys.add(path));
         }
-
-
-
       }
+      // fixme
+      state.listPendingChildren().forEach(path => propertyKeys.add(path));
+      // fixme
       const container = state.pending ?? state.value;
 
       const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);

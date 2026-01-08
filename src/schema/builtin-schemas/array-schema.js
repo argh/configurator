@@ -27,7 +27,8 @@ export const ARRAY_SCHEMA = new Schema()
     }
     if (Array.isArray(value)) {
       // if we need to be able to compare this value, it needs to be normalized as a string
-      return (Array.isArray(schema.values)? stringify(value) : value);
+      // fixme - attempting to not do this anymore! return (Array.isArray(schema.values)? stringify(value) : value);
+      return value;
     }
     throw new ConstraintError(`Invalid input for array: ${value}`)
   })

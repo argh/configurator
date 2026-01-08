@@ -159,8 +159,8 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     await assert.rejects(
       () => compiled.validate({type: 'invalid'}),
       (error) => {
-        assert.ok(error instanceof ValidationError);
-        assert.ok(error?.message.includes('Invalid value'))
+        assert.ok(error instanceof UnionResolutionError);
+        assert.ok(error?.message.includes('conflict when setting type to invalid'))
         return true;
       }
     );

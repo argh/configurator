@@ -3,9 +3,31 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ConstraintError, NormalizeError, SchemaError, TransformError, ValidationError } from '../src/errors.js';
+import { deepAssign, deepValue } from '../src/utils.js';
+import { CompiledSchema } from '../src/index.js';
 
 describe('Assignments - Basic Processing', function() {
   let resolver;
+
+  /**
+   *
+   * @param {CompiledSchema} compiled
+   * @param {any} result
+   * @param {Map<string,any>} assignments
+   * @param {any} [configuration]
+   * @param {Object} [options]
+   * @returns {Promise<void>}
+   */
+  async function verify(compiled, result, assignments, configuration, options) {
+    let input;
+
+    for (const [path, value] of assignments) {
+      input = deepAssign(input, path, value);
+    }
+    const compareResult = await compiled.process(input, configuration, options);
+
+    assert.deepStrictEqual(compareResult, result);
+  }
 
   beforeEach(function() {
     resolver = new SchemaResolver();
@@ -26,6 +48,8 @@ describe('Assignments - Basic Processing', function() {
       const result = await compiled.processAssignments(assignments);
 
       assert.deepStrictEqual(result, { name: 'John' });
+
+      await verify(compiled, result, assignments);
     });
 
     it('should process multiple property assignments', async function() {
@@ -49,6 +73,8 @@ describe('Assignments - Basic Processing', function() {
         age: 25,
         active: true
       });
+
+      await verify(compiled, result, assignments);
     });
 
     it('should normalize values during assignment', async function() {
@@ -66,6 +92,8 @@ describe('Assignments - Basic Processing', function() {
       const result = await compiled.processAssignments(assignments);
 
       assert.strictEqual(result.email, 'user@example.com');
+
+      await verify(compiled, result, assignments);
     });
 
     it('should transform values during assignment', async function() {
@@ -86,6 +114,7 @@ describe('Assignments - Basic Processing', function() {
 
       assert.ok(result.timestamp instanceof Date);
       assert.strictEqual(result.timestamp.getTime(), 1609459200000);
+      await verify(compiled, result, assignments);
     });
   });
 
@@ -113,6 +142,7 @@ describe('Assignments - Basic Processing', function() {
           email: 'bob@example.com'
         }
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should process deeply nested assignments', async function() {
@@ -142,6 +172,7 @@ describe('Assignments - Basic Processing', function() {
           }
         }
       });
+      await verify(compiled, result, assignments);
     });
   });
 
@@ -166,6 +197,7 @@ describe('Assignments - Basic Processing', function() {
       assert.deepStrictEqual(result, {
         items: ['first', 'second', 'third']
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should handle sparse array assignments', async function() {
@@ -188,6 +220,8 @@ describe('Assignments - Basic Processing', function() {
       assert.strictEqual(result.values[0], 10);
       assert.strictEqual(result.values[1], undefined);
       assert.strictEqual(result.values[2], 30);
+
+      await verify(compiled, result, assignments);
     });
 
     it('should process nested array assignments', async function() {
@@ -215,6 +249,7 @@ describe('Assignments - Basic Processing', function() {
           [3, 4]
         ]
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should process array of objects', async function() {
@@ -243,10 +278,10 @@ describe('Assignments - Basic Processing', function() {
           { name: 'Bob', age: 25 }
         ]
       });
+      await verify(compiled, result, assignments);
     });
 
-    it.skip('should expand "*" to all wildcard values when wildcard has values defined', async function() {
-      // FIXME - I don't think we support this anymore
+    it('should expand "*" to all wildcard values when wildcard has values defined', async function() {
       // When array schema has a wildcard child with values defined,
       // assigning "*" should expand to all wildcard values
       const schema = new Schema('object')
@@ -268,6 +303,7 @@ describe('Assignments - Basic Processing', function() {
       assert.deepStrictEqual(result, {
         stuff: ['a', 'b', 'c']
       });
+      await verify(compiled, result, assignments);
     });
   });
 
@@ -295,6 +331,8 @@ describe('Assignments - Basic Processing', function() {
       assert.deepStrictEqual(result, {
         tuple: ['first', 42, true]
       });
+      await verify(compiled, result, assignments);
+
     });
 
     it('should fail when assigning to undefined tuple index without wildcard', async function() {
@@ -346,6 +384,7 @@ describe('Assignments - Basic Processing', function() {
       assert.deepStrictEqual(result, {
         tuple: ['first', 42, true, false]
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should apply different schemas to fixed vs wildcard indices', async function() {
@@ -372,6 +411,7 @@ describe('Assignments - Basic Processing', function() {
       assert.deepStrictEqual(result, {
         data: ['HEADER', 10, 20, 30]
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should handle tuple with different types for each index', async function() {
@@ -405,6 +445,7 @@ describe('Assignments - Basic Processing', function() {
           [1, 2]
         ]
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should allow partial tuple assignment with defaults', async function() {
@@ -431,6 +472,7 @@ describe('Assignments - Basic Processing', function() {
       assert.deepStrictEqual(result, {
         tuple: ['first', 100, false]
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should enforce required on specific tuple indices', async function() {
@@ -478,6 +520,7 @@ describe('Assignments - Basic Processing', function() {
         host: 'localhost',
         port: 8080
       });
+      await verify(compiled, result, assignments);
     });
 
     it('should use assigned value over default', async function() {
@@ -495,6 +538,7 @@ describe('Assignments - Basic Processing', function() {
       const result = await compiled.processAssignments(assignments);
 
       assert.strictEqual(result.port, 3000);
+      await verify(compiled, result, assignments);
     });
 
     it('should populate nested defaults', async function() {
@@ -522,6 +566,7 @@ describe('Assignments - Basic Processing', function() {
           retries: 3
         }
       });
+      await verify(compiled, result, assignments);
     });
   });
 
@@ -559,6 +604,7 @@ describe('Assignments - Basic Processing', function() {
 
       // No assignments means no object is created
       assert.strictEqual(result, undefined);
+      await verify(compiled, result, assignments);
     });
 
     it('should succeed when required property provided', async function() {
@@ -576,6 +622,8 @@ describe('Assignments - Basic Processing', function() {
       const result = await compiled.processAssignments(assignments);
 
       assert.strictEqual(result.name, 'Required Value');
+
+      await verify(compiled, result, assignments);
     });
 
     it('should validate all required properties', async function() {
@@ -637,6 +685,7 @@ describe('Assignments - Basic Processing', function() {
       const result = await compiled.processAssignments(assignments);
 
       assert.strictEqual(result.email, 'user@example.com');
+      await verify(compiled, result, assignments);
     });
 
     it('should validate with constrained values', async function() {
@@ -673,9 +722,10 @@ describe('Assignments - Basic Processing', function() {
 
       const assignments = new Map();
 
-      const result = await compiled.processAssignments(assignments) ?? {};
+      const result = await compiled.processAssignments(assignments);
 
-      assert.deepStrictEqual(result, {});
+      assert.deepStrictEqual(result, undefined);
+      await verify(compiled, result, assignments);
     });
 
     it('should not include properties with undefined values', async function() {
@@ -696,6 +746,7 @@ describe('Assignments - Basic Processing', function() {
 
       // Undefined values are not assigned
       assert.strictEqual(result.value, undefined);
+      await verify(compiled, result, assignments);
     });
   });
 
@@ -737,6 +788,7 @@ describe('Assignments - Basic Processing', function() {
 
       assert.strictEqual(result.known, 'value');
       // Unknown property is silently ignored
+      await verify(compiled, result, assignments, undefined, {strict: false});
     });
   });
 
@@ -781,6 +833,8 @@ describe('Assignments - Basic Processing', function() {
       assert.strictEqual(result.person.lastName, 'Doe');
       assert.strictEqual(result.person.fullName, 'John Doe');
       assert.ok(result.person instanceof PersonWithFullName);
+
+      await verify(compiled, result, assignments);
     });
 
     it('should access implicit property convenience getter on CompiledSchema', async function() {
@@ -839,6 +893,7 @@ describe('Assignments - Basic Processing', function() {
       assert.strictEqual(result.record.data, 'test123');
       assert.strictEqual(result.record.id, 'id-test123');
       assert.ok(result.record instanceof DataWithId);
+      await verify(compiled, result, assignments);
     });
 
     it('should work with nested implicit properties', async function() {
@@ -883,6 +938,7 @@ describe('Assignments - Basic Processing', function() {
       assert.strictEqual(result.user.street, '123 Main St');
       assert.strictEqual(result.user.formatted, '123 Main St, Springfield, IL 62701');
       assert.ok(result.user instanceof Address);
+      await verify(compiled, result, assignments);
     });
 
     it('should handle implicit properties in arrays', async function() {
@@ -928,6 +984,103 @@ describe('Assignments - Basic Processing', function() {
       assert.strictEqual(result.items[1].displayName, 'Gadget ($19.99)');
       assert.ok(result.items[0] instanceof Item);
       assert.ok(result.items[1] instanceof Item);
+      await verify(compiled, result, assignments);
+    });
+  });
+
+  describe('Complex-valued assignments', function() {
+    const schema = new Schema('object')
+      .property('command', new Schema('string'))
+      .property('options', new Schema('object')
+        .property('debug', new Schema('boolean').default(false))
+        .property('run', new Schema('boolean').default(false))
+      )
+      .property('coordinates', new Schema('array')
+        .property('*', new Schema('object')
+          .property('x', new Schema('number').default(0))
+          .property('y', new Schema('number').default(0))
+          .property('display', new Schema('string')
+            .condition((_, configuration, schema, path) => {
+              const dot = path.lastIndexOf('.');
+              const parentPath = path.slice(0, dot);
+              const coordinate = deepValue(configuration, parentPath);
+              return configuration.options?.debug === true
+                     && coordinate?.x !== undefined
+                     && coordinate?.y !== undefined
+            })
+            .default((_, configuration, schema, path) => {
+              const dot = path.lastIndexOf('.');
+              const parentPath = path.slice(0, dot);
+              const coordinate = deepValue(configuration, parentPath);
+              return `[${coordinate.x},${coordinate.y}]`
+            })
+          )
+        )
+      );
+
+
+    it('should handle complex functions for conditions and defaults', async function () {
+      const compiled = await resolver.compile(schema);
+
+      const sparseCoordinates = [];
+      sparseCoordinates[5] = {x:3, y:3}
+      const assignments = new Map([
+        ['command', () => { return 'draw' }],
+        ['options.run', true],
+        ['coordinates.0.x', 10],
+        ['coordinates.0.y', 20],
+        ['coordinates.1.y', 25],
+        ['options.debug', true],
+        ['coordinates.1.x', 15],
+        ['coordinates.2', {x:100,y:100}],
+        ['coordinates.3.x', 50],
+        ['coordinates.3', {y: 25}],
+        ['coordinates.4', '{"x": 2, "y":2}'],
+        ['coordinates.5.x', 12345],
+      //  ['coordinates', [undefined, undefined, undefined, undefined, undefined, {x:3, y:3}]],
+        ['coordinates', sparseCoordinates]
+
+
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      assert.deepStrictEqual(result, {command: 'draw', options: {run: true, debug: true},
+        coordinates:
+        [
+          {
+            "x": 10,
+            "y": 20,
+            "display": "[10,20]"
+          },
+          {
+            "y": 25,
+            "x": 15,
+            "display": "[15,25]"
+          },
+          {
+            "x": 100,
+            "y": 100,
+            "display": "[100,100]"
+          },
+          {
+            "x": 50,
+            "y": 25,
+            "display": "[50,25]"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "display": "[2,2]"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "display": "[3,3]"
+          }
+        ]});
+      // todo - I don't have a good merging deepAssign that handles sparse, so this can't work yet...
+      //await verify(compiled, result, assignments);
     });
   });
 });

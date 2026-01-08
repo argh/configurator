@@ -121,10 +121,8 @@ describe('Schema Compilation - Array Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      // When values exist, normalization should stringify for comparison
       const normalized = await compiled.normalizeValue([1, 2]);
-      assert.strictEqual(typeof normalized, 'string');
-      assert.strictEqual(normalized, '[1,2]');
+      assert.deepStrictEqual(normalized, [1,2]);
     });
   });
 
@@ -294,20 +292,9 @@ describe('Schema Compilation - Array Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      // Values should be stringified for comparison
       assert.strictEqual(compiled.values.length, 2);
-      assert.strictEqual(compiled.values[0], '[1,2]');
-      assert.strictEqual(compiled.values[1], '[3,4]');
-    });
-
-    it('should normalize and check matching values', async function() {
-      const schema = new Schema('array')
-        .values([[1, 2, 3]]);
-
-      const compiled = await resolver.compile(schema);
-
-      const normalized = await compiled.normalizeValue([1, 2, 3]);
-      assert.strictEqual(normalized, '[1,2,3]');
+      assert.deepStrictEqual(compiled.values[0], [1,2]);
+      assert.deepStrictEqual(compiled.values[1], [3,4]);
     });
 
     it('should reject non-matching values during transformation', async function() {
@@ -493,12 +480,11 @@ describe('Schema Compilation - Array Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      // Normalize (should stringify for comparison)
-      const normalized = await compiled.normalizeValue([10, 20]);
-      assert.strictEqual(normalized, '[10,20]');
+      const normalized = await compiled.normalizeValue('[10, 20]');
+      assert.deepStrictEqual(normalized, [10,20]);
 
       // Transform from string (normalized form) back to array
-      const transformed = await compiled.transformValue('[10,20]');
+      const transformed = await compiled.transformValue([10,20]);
       assert.deepStrictEqual(transformed, [10, 20]);
 
       // Validate

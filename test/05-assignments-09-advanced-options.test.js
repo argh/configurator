@@ -175,9 +175,7 @@ describe('Assignments - Advanced Options', function() {
       const schema = new Schema('object').deep()
         .property('app', new Schema('object').deep()
           .property('server', new Schema('object').deep()
-            .property('port', new Schema('number', {
-              required: true
-            }))
+            .property('port', new Schema('number').required())
           )
         );
 
@@ -195,15 +193,10 @@ describe('Assignments - Advanced Options', function() {
       // Deep populate + deep validate work together
       const schema = new Schema('object').deep()
         .property('server', new Schema('object').deep()
-          .property('host', new Schema('string', {
-            required: true,
-            default: 'localhost'
-          }))
+          .property('host', new Schema('string').required().default('localhost'))
         );
 
       const compiled = await resolver.compile(schema);
-
-
       const result = await compiled.process();
 
       assert.deepStrictEqual(result, {

@@ -132,6 +132,7 @@ export const TraversalControl = {
  * @typedef {Object} TraversalOptions
  * @property {boolean} [strict]
  * @property {boolean} [deep]
+ * @property {boolean} [populateDefaults]
  * @property {any} [value]
  * @property {Map} [assignments]
  */
@@ -142,7 +143,6 @@ export class TraversalContext
    * @param {TraversalOptions} [options]
    */
   constructor(options) {
-
     this._final = false;
     this.strict = options?.strict ?? true;
     this.deep = options?.deep ?? false;
@@ -325,6 +325,12 @@ export class TraversalState {
     this._context = context;
     this._path = path;
     this._schema = undefined;
+    this._parent = undefined;
+    if (this._path !== '') {
+      const dot = this._path.indexOf('.');
+      const parentPath = (dot === -1)? '' : this._path.slice(0, dot);
+      this._parent = this._context.getState(parentPath);
+    }
 
     // state values
     this._assignedInput = undefined;
@@ -342,6 +348,23 @@ export class TraversalState {
   get context() {
     return this._context;
   }
+  get parent() {
+    return this._parent;
+  }
+
+  /**
+   * @param {string} relativePath
+   * @returns {TraversalState}
+   */
+  getRelativeState(relativePath) {
+    if (relativePath === '') {
+      return this;
+    }
+    const propertyPath = this.path? `${this.path}.${relativePath}` : `${relativePath}`;
+    return this._context.getState(propertyPath);
+  }
+
+
   get path() {
     return this._path;
   }
@@ -352,6 +375,13 @@ export class TraversalState {
     this._schema = schema;  // todo - consider saving previous value?
   }
   get schema() {
+    if (this._schema?.parent?.isUnion && this.parent?.unionKey !== undefined) {
+      const schema = this.parent.schema.getPropertySchema(this._schema.name);
+      if (schema !== this._schema) {
+        this._schema = schema;
+        this._context.update();
+      }
+    }
     return this._schema;
   }
 
@@ -545,6 +575,17 @@ export class TraversalState {
     return !(this.isContainer && this.isIncremental);
   }
 
+  get childStates() {
+    if (!this.isContainer) {
+      return [];
+    }
+    // Check for child states in state map
+    const childPrefix = this._path ? `${this._path}.` : '';
+    return Array.from(this._context.stateMap.values())
+                .filter(s => s.path !== this._path && s.path.startsWith(childPrefix));
+  }
+
+
   /**
    * Are there child states or child properties to traverse?
    */
@@ -594,6 +635,19 @@ export class TraversalState {
     return [...pending];
   }
 
+  invalidateChildren() {
+    // this is called after union resolution!
+
+    for (const childState of this.childStates) {
+      if (childState.value !== null) {
+        childState.schema = undefined;
+        childState.value = undefined;
+        // todo - verify that this is unnecessary for sane schemas
+        // childState.pending = undefined;
+      }
+    }
+  }
+
   /**
    * Is this an empty placeholder (no children, no input)?
    */
@@ -622,7 +676,7 @@ export class TraversalState {
     if (this._value !== undefined) {
       return false;
     }
-    return (typeof this.assignedInput !== undefined && this.input === undefined);
+    return (typeof this._assignedInput !== undefined && (this._input === undefined || this._pending === undefined));
   }
 
   get hasWorkInProgress() {
@@ -804,8 +858,8 @@ export async function serializeHook(state) {
  */
 export async function defaultsHook(state) {
   if (true || state.context.final) {
-    if (state.input === undefined && state.pending === undefined && state.value === undefined && state.schema?.default !== undefined) {
-      state.input = state.schema.default;
+    if (state.assignedInput === undefined && state.pending === undefined && state.value === undefined && state.schema?.default !== undefined) {
+      state.assignedInput = state.schema.default;
       state.isExplicit = true; // does this need to be earlier?
     }
   }
@@ -1017,11 +1071,29 @@ export async function resolveUnionHook(state) {
   if (unionSchema !== undefined) {
     state.unionKey = state.schema.findUnionKey(unionSchema);
     state.schema = unionSchema;
+    state.invalidateChildren();
     return TraversalControl.RESTART;
 
     // FIXME - ugh!
     //         all child properties have state.schema values with this union's property rather than the resolved unionschema property's schema
-    //         (this primarily seems to affect the value of "default")
+    //         (this primarily seems to affect the value of "default") - also no transformer yeeesh
+    //
+    // the property might actually fully resolve, because it doesn't know it's buried in a unionSchema
+    // do we need to delete all child property states and ensure we restart with the proper schemas?
+    // immediate container is likely still pending, but sub-children might think they're fully baked
+    // this is gross, but:
+    // new Schema('object')
+    //    .property('name', new Schema('string').unionKey())
+    //    .property('other', new Schema('string').default('bad'))
+    //    .unionSchema('a', new Schema('object')
+    //                       .property('name', new Schema('string').value('a'))
+    //                       .property('other', new Schema('string').default('x')))
+    //    .unionSchema('b', new Schema('object')
+    //                       .property('name', new Schema('string').value('b'))
+    //                       .property('other', new Schema('string').default('y')))
+    // I would expect --name='a' to possibly result in {name: 'a', other: 'bad'}.
+
+
 
   }
 

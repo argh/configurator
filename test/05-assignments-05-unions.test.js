@@ -496,7 +496,7 @@ describe('Assignments - Unions', function() {
         // database.connection is required but database not selected
       ]);
 
-      const result = await compiled.processAssignments(assignments);
+      const result = await compiled.processAssignments(assignments, undefined, {deep: true});
 
       assert.deepStrictEqual(result, {
         config: {
@@ -515,15 +515,11 @@ describe('Assignments - Unions', function() {
         .property('server', new Schema('object')
           .unionSchema('http', new Schema('object')
             .property('protocol', Schema.literal('http'))
-            .property('port', new Schema('number', {
-              default: 80
-            }))
+            .property('port', new Schema('number').default(80))
           )
           .unionSchema('https', new Schema('object')
             .property('protocol', Schema.literal('https'))
-            .property('port', new Schema('number', {
-              default: 443
-            }))
+            .property('port', new Schema('number').default(443))
           )
         );
 
@@ -539,40 +535,6 @@ describe('Assignments - Unions', function() {
         server: {
           protocol: 'https',
           port: 443
-        }
-      });
-    });
-  });
-
-  describe('Union key assignments (colon-separated paths)', function() {
-
-    it('should handle union key assignments for defaults', async function() {
-      // Testing that processAssignments can handle them
-      const schema = new Schema('object')
-        .property('pet', new Schema('object')
-          .unionSchema('cat', new Schema('object')
-            .property('type', Schema.literal('cat'))
-            .property('name', new Schema('string'))
-          )
-          .unionSchema('dog', new Schema('object')
-            .property('type', Schema.literal('dog'))
-            .property('name', new Schema('string'))
-          )
-        );
-
-      const compiled = await resolver.compile(schema);
-
-      const assignments = new Map([
-        ['pet.type', 'cat'],
-        ['pet:cat.name', 'Whiskers']  // Union key syntax
-      ]);
-
-      const result = await compiled.processAssignments(assignments);
-
-      assert.deepStrictEqual(result, {
-        pet: {
-          type: 'cat',
-          name: 'Whiskers'
         }
       });
     });

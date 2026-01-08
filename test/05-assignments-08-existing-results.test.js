@@ -110,8 +110,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
       assert.strictEqual(result, 'unchanged');
     });
 
-    it.skip('should validate current even with empty assignments', async function() {
-      // fixme - not sure about this; the output is assumed to already have been checked
+    it('should detect bad values in current even with empty assignments', async function() {
       const schema = new Schema('object')
         .property('x', new Schema('number'))
         .property('y', new Schema('number'));
@@ -123,23 +122,28 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
       await assert.rejects(
         async () => await compiled.processAssignments(assignments, current, {strict: true}),
-        (err) => {
-          let current = err;
-          while (current) {
-            if (current.message && current.message.includes('Unexpected value')) {
-              return true;
-            }
-            current = current.cause;
-          }
-          return false;
-        }
+        /Unknown property/
       );
     });
+
+    it('should allow bad values in current even with empty assignments if strict is false', async function() {
+      const schema = new Schema('object')
+        .property('x', new Schema('number'))
+        .property('y', new Schema('number'));
+
+      const compiled = await resolver.compile(schema);
+
+      const current = { x: 5, y: 10, extraProp: 'not allowed' };
+      const assignments = new Map();
+
+      const result = await compiled.processAssignments(assignments, current, {strict: false});
+      assert.deepStrictEqual(result, { x: 5, y: 10, extraProp: 'not allowed' });
+    });
+
 
   });
 
   describe('Lax mode with current', function() {
-
     it('should preserve extra properties with lax mode', async function() {
       const schema = new Schema('object')
         .lax()
@@ -171,7 +175,7 @@ describe('Assignments - Existing Results (current parameter)', function() {
       assert.deepStrictEqual(result, { x: 5, extraProp: 'kept' });
     });
 
-    it('should reject extra properties without lax mode', async function() {
+    it('should reject extra current properties without lax mode', async function() {
       const schema = new Schema('object')
         .property('x', new Schema('number'));
 
@@ -179,6 +183,22 @@ describe('Assignments - Existing Results (current parameter)', function() {
 
       const current = { x: 5, extraProp: 'not allowed' };
       const assignments = new Map([['x', 10]]);
+
+      await assert.rejects(
+        async () => await compiled.processAssignments(assignments, current),
+        /Unknown property/
+      );
+    });
+
+    it('should reject extra assignment properties without lax mode', async function() {
+      const schema = new Schema('object')
+        .property('x', new Schema('number'));
+
+      const compiled = await resolver.compile(schema);
+
+      const current = { x: 5 };
+
+      const assignments = new Map([['x', 10], ['extraProp', 'not allowed']]);
 
       await assert.rejects(
         async () => await compiled.processAssignments(assignments, current),

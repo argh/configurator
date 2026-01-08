@@ -209,6 +209,35 @@ describe('Assignments - Conditional Processing', function() {
       });
     });
 
+    it('should resolve assignments in multiple passes when dependencies exist even when property sequence is backwards', async function() {
+      // This tests the scenario where assignment B depends on assignment A
+      // being processed first
+      const schema = new Schema('object')
+        .property('step1', new Schema('string'))
+        .property('step2', new Schema('string')
+          .condition((value, configuration) => configuration.step3 !== undefined)
+        )
+        .property('step3', new Schema('string')
+          .condition((value, configuration) => configuration.step1 !== undefined)
+        );
+
+      const compiled = await resolver.compile(schema);
+
+      const assignments = new Map([
+        ['step2', 'second'],
+        ['step3', 'third'],
+        ['step1', 'first'],
+      ]);
+
+      const result = await compiled.processAssignments(assignments);
+
+      assert.deepStrictEqual(result, {
+        step1: 'first',
+        step2: 'second',
+        step3: 'third'
+      });
+    });
+
     it('should handle circular condition dependencies gracefully', async function() {
       // Assignment A depends on B, B depends on A - both should fail
       const schema = new Schema('object')
