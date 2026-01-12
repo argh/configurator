@@ -15,7 +15,7 @@ describe('Validator: negative', function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('-42');
+    const result = await compiled._validateValue('-42');
     assert.strictEqual(result, -42);
     assert.strictEqual(typeof result, 'number');
   });
@@ -24,7 +24,7 @@ describe('Validator: negative', function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('-3.14');
+    const result = await compiled._validateValue('-3.14');
     assert.strictEqual(result, -3.14);
   });
 
@@ -32,7 +32,7 @@ describe('Validator: negative', function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('-0.0001');
+    const result = await compiled._validateValue('-0.0001');
     assert.strictEqual(result, -0.0001);
   });
 
@@ -40,27 +40,27 @@ describe('Validator: negative', function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('0'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('0'), ValidationError);
   });
 
   it('should reject positive numbers', async function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('42'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('42'), ValidationError);
   });
 
   it('should reject -Infinity', async function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('-Infinity'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('-Infinity'), ValidationError);
   });
 
   it('should reject non-numeric strings', async function() {
     const schema = new Schema('string').validator('$negative');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('abc'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('abc'), ValidationError);
   });
 });

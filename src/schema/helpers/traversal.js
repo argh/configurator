@@ -36,6 +36,7 @@ export class TraversalHooks {
    * @param {string} hookName
    * @param {TraversalHook|Array.<TraversalHook>} hooks
    * @returns {this}
+   * @package
    */
   hook(hookName, hooks = []) {
     if (!Array.isArray(hooks)) {
@@ -236,17 +237,9 @@ export class TraversalContext
    * @returns {TraversalProperty|undefined}
    */
   getProperty(state, propertyName) {
-
-    const [propertyKey, unionKey] = propertyName.split(':');
-
-    const propertyPath = state.path ? `${state.path}.${propertyKey}` : `${propertyKey}`;
+    const propertyPath = state.path ? `${state.path}.${propertyName}` : `${propertyName}`;
     const propertyState = this.getState(propertyPath);
-
-    if (unionKey && propertyState.unionKey !== unionKey) {
-      return undefined;
-    }
-
-    const propertySchema = state.schema?.getPropertySchema(propertyKey);
+    const propertySchema = state.schema?.getPropertySchema(propertyName);
 
     if (propertyState.schema === undefined) {
       propertyState.schema = propertySchema;
@@ -258,8 +251,7 @@ export class TraversalContext
 
     return {
       propertyName,
-      unionKey,
-      key: /^\d+$/.test(propertyKey) ? Number(propertyKey) : propertyKey,
+      key: /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName,
       state: propertyState
     }
   }
@@ -269,9 +261,7 @@ export class TraversalContext
    * @returns {TraversalState}
    */
   getState(path) {
-    const unKeyedPath = path.split('.').map(c => c.split(':')[0]).join('.');
-
-    let state = this.stateMap.get(unKeyedPath);
+    let state = this.stateMap.get(path);
     if (state !== undefined) {
       return state;
     }
@@ -279,13 +269,13 @@ export class TraversalContext
     const context = this;
 
     /** @type {TraversalState} */
-    state = new TraversalState(context, unKeyedPath);
+    state = new TraversalState(context, path);
 
     if (context._value !== undefined) {
-//      state.value = unKeyedPath === ''? context._value : deepValue(context._value, unKeyedPath);
+//      state.value = path === ''? context._value : deepValue(context._value, path);
     }
 
-    this.stateMap.set(unKeyedPath, state);
+    this.stateMap.set(path, state);
     return state;
   }
 
@@ -306,25 +296,20 @@ export class TraversalContext
 
 }
 
-/**
- * @typedef TraversalState1
- * @property {TraversalContext} context
- * @property {string} path
- * @property {Set} inputs
- * @property {import('../compiled-schema.js').CompiledSchema} [schema]
- * @property {string} [unionKey]
- * @property {any} [assignedInput]
- * @property {any} [input]
- * @property {any} [pending]
- * @property {any} [value]
- */
-
 export class TraversalState {
+  /**
+   * @param {TraversalContext} context
+   * @param {string} path
+   */
   constructor(context, path) {
     // core fields:
+    /** @type {TraversalContext} */
     this._context = context;
+    /** @type {string} */
     this._path = path;
+    /** @type {import('../compiled-schema.js').CompiledSchema | undefined} */
     this._schema = undefined;
+    /** @type {TraversalState | undefined } */
     this._parent = undefined;
     if (this._path !== '') {
       const dot = this._path.indexOf('.');
@@ -344,7 +329,10 @@ export class TraversalState {
     this._explicit = false;      // was the input explicit or implicit?
     // implicit state flags
 
+    /** @type {string|undefined} */
+    this.unionKey = undefined;
   }
+
   get context() {
     return this._context;
   }
@@ -604,7 +592,7 @@ export class TraversalState {
                                && this._input !== null
                                && Object.keys(this._input).length > 0;
 
-    const hasDefaults = Object.values(this._schema?.properties).some(childSchema => childSchema.default !== undefined);
+//    const hasDefaults = Object.values(this._schema?.properties).some(childSchema => childSchema.default !== undefined);
 
     return hasChildStates || hasInputProperties;
   }
@@ -739,7 +727,7 @@ export async function simplePendingHook(state) {
   }
   else {
     if (state.isContainer) {
-      state.pending = await state.schema.normalizeValue(true, state.context.getValue(), state.path);
+      state.pending = await state.schema._normalizeValue(true, state.context.getValue(), state.path);
     }
     else {
       state.pending = state.input;
@@ -758,7 +746,7 @@ export async function deferContainer(state) {
 
 export async function checkConditionHook(state) {
   const configuration = state.context.getValue();
-  state.condition = state.condition || await state.schema?.checkCondition(state.input, configuration, state.path);
+  state.condition = state.condition || await state.schema?._checkCondition(state.input, configuration, state.path);
 
   if (!state.condition) {
     state.pending = undefined;
@@ -784,7 +772,7 @@ export async function inputToValueHook(state) {
 
 /**
  * @param {TraversalState} state
- * @returns {Promise<symbol|undefined>}
+ * @returns {Promise<symbol|void>}
  */
 export async function normalizeInputHook(state) {
   if (state.hasProcessedInput) {
@@ -794,7 +782,7 @@ export async function normalizeInputHook(state) {
   const configuration = state.context.getValue();
 
   if (state.assignedInput !== undefined) {
-    const input = await state.schema?.normalizeValue(state.assignedInput, configuration, state.path);
+    const input = await state.schema?._normalizeValue(state.assignedInput, configuration, state.path);
     if (input !== undefined) {
       state.input = input;
     }
@@ -808,7 +796,7 @@ export async function normalizeInputHook(state) {
 
 /**
  * @param {TraversalState} state
- * @returns {Promise<symbol|undefined>}
+ * @returns {Promise<symbol|void>}
  */
 export async function normalizeHook(state) {
   if (state.isContainer) {
@@ -825,7 +813,7 @@ export async function normalizeHook(state) {
     }
     else {
       const configuration = state.context.getValue();
-      state.pending = await state.schema.normalizeValue(true, configuration, state.path);
+      state.pending = await state.schema._normalizeValue(true, configuration, state.path);
     }
   }
   else {
@@ -833,6 +821,10 @@ export async function normalizeHook(state) {
   }
 }
 
+/**
+ * @param {TraversalState} state
+ * @returns {Promise<symbol|void>}
+ */
 export async function serializeHook(state) {
 
   if (state.schema?.metadata.omitFromSerialize) {
@@ -847,7 +839,7 @@ export async function serializeHook(state) {
   const inputValue = state.schema.hasChildren? true : state.input;
 
   if (state.value === undefined || !state.isContainer) {
-    state.value = await state.schema.serializeValue(inputValue, configuration, state.path);
+    state.value = await state.schema._serializeValue(inputValue, configuration, state.path);
     state.pending = undefined;
   }
 }
@@ -857,11 +849,9 @@ export async function serializeHook(state) {
  * @returns {Promise<symbol|void>}
  */
 export async function defaultsHook(state) {
-  if (true || state.context.final) {
-    if (state.assignedInput === undefined && state.pending === undefined && state.value === undefined && state.schema?.default !== undefined) {
-      state.assignedInput = state.schema.default;
-      state.isExplicit = true; // does this need to be earlier?
-    }
+  if (state.assignedInput === undefined && state.pending === undefined && state.value === undefined && state.schema?.default !== undefined) {
+    state.assignedInput = state.schema.default;
+    state.isExplicit = true; // does this need to be earlier?
   }
 }
 
@@ -891,7 +881,7 @@ export async function transformHook(state, hookName) {
 
   if (shouldTransform) {
     const configuration = state.context.getValue();
-    const transformed = await state.schema.transformValue(state.pending, configuration, state.path);
+    const transformed = await state.schema._transformValue(state.pending, configuration, state.path);
 
     if (transformed !== undefined) {
       state.pending = undefined;
@@ -901,6 +891,10 @@ export async function transformHook(state, hookName) {
   return TraversalControl.OK;
 }
 
+/**
+ * @param {TraversalState} state
+ * @returns {Promise<symbol|void>}
+ */
 export async function pendingToValueHook(state) {
   // we only set the value if things seem ok
   if (state.isUnresolved) {
@@ -911,6 +905,11 @@ export async function pendingToValueHook(state) {
   return TraversalControl.OK;
 }
 
+/**
+ *
+ * @param {TraversalState} state
+ * @returns {Promise<symbol|void>}
+ */
 export async function validateHook(state) {
 
   if (state.context.final) {
@@ -932,7 +931,7 @@ export async function validateHook(state) {
   }
 
   const configuration = state.context.getValue();
-  const validated = await state.schema.validateValue(state.value, configuration, state.path);
+  const validated = await state.schema._validateValue(state.value, configuration, state.path);
 
   if (validated !== state.value) {
     state.value = validated;  // validation is allowed to tweak the value
@@ -949,15 +948,20 @@ export async function validateHook(state) {
 
 /**
  * @param {TraversalState} state
- * @returns {Promise<symbol>}
+ * @returns {Promise<symbol|void>}
  */
 export async function checkRequiredHook(state) {
   if (state.context.final && state.schema?.required && (state.value === undefined)) {
     throw new ValidationError(fpm('Undefined required value', state.path))
   }
-  return TraversalControl.OK;
 }
 
+/**
+ *
+ * @param {TraversalState} state
+ * @param {TraversalProperty} property
+ * @returns {Promise<symbol>}
+ */
 export async function startPropertyHook(state, property) {
   property.input = state.input?.[property.propertyName] ?? property.state.input;
   if (property.unionKey && property.state.unionKey !== property.unionKey) {
@@ -968,6 +972,11 @@ export async function startPropertyHook(state, property) {
   return TraversalControl.OK;
 }
 
+/**
+ * @param {TraversalState} state
+ * @param {TraversalProperty} property
+ * @returns {Promise<symbol>}
+ */
 export async function copyPropertyValueHook(state, property) {
   property.input = state.input?.[property.propertyName] ?? property.state.input;
   if (property.unionKey && property.state.unionKey !== property.unionKey) {
@@ -979,6 +988,11 @@ export async function copyPropertyValueHook(state, property) {
   return TraversalControl.OK;
 }
 
+/**
+ * @param {TraversalState} state
+ * @param {TraversalProperty }property
+ * @returns {Promise<symbol>}
+ */
 export async function filterPropertyHook(state, property) {
   // Skip empty placeholder containers in final pass
   if (state.context.final && state.isEmptyPlaceholder) {
@@ -987,6 +1001,12 @@ export async function filterPropertyHook(state, property) {
   return TraversalControl.OK;
 }
 
+/**
+ *
+ * @param {TraversalState} state
+ * @param {TraversalProperty} property
+ * @returns {Promise<symbol>}
+ */
 export async function checkPropertySchema(state, property) {
 
   if (property.state.schema === undefined) {
@@ -1035,6 +1055,12 @@ export async function endPropertyHook(state, property) {
   }
 }
 
+/**
+ *
+ * @param {TraversalState} state
+ * @param {TraversalProperty} property
+ * @returns {Promise<void>}
+ */
 export async function existingPropertyHook(state, property) {
   property.input = state.value?.[property.key];
 }
@@ -1071,30 +1097,8 @@ export async function resolveUnionHook(state) {
   if (unionSchema !== undefined) {
     state.unionKey = state.schema.findUnionKey(unionSchema);
     state.schema = unionSchema;
-    state.invalidateChildren();
+    state.invalidateChildren();  // yuck, but necessary...
     return TraversalControl.RESTART;
-
-    // FIXME - ugh!
-    //         all child properties have state.schema values with this union's property rather than the resolved unionschema property's schema
-    //         (this primarily seems to affect the value of "default") - also no transformer yeeesh
-    //
-    // the property might actually fully resolve, because it doesn't know it's buried in a unionSchema
-    // do we need to delete all child property states and ensure we restart with the proper schemas?
-    // immediate container is likely still pending, but sub-children might think they're fully baked
-    // this is gross, but:
-    // new Schema('object')
-    //    .property('name', new Schema('string').unionKey())
-    //    .property('other', new Schema('string').default('bad'))
-    //    .unionSchema('a', new Schema('object')
-    //                       .property('name', new Schema('string').value('a'))
-    //                       .property('other', new Schema('string').default('x')))
-    //    .unionSchema('b', new Schema('object')
-    //                       .property('name', new Schema('string').value('b'))
-    //                       .property('other', new Schema('string').default('y')))
-    // I would expect --name='a' to possibly result in {name: 'a', other: 'bad'}.
-
-
-
   }
 
   return TraversalControl.OK;

@@ -102,8 +102,8 @@ describe('Schema Compilation - Union Structure', function() {
 
       // Should have number base type normalizer
       const valueSchema = compiled.unionSchemas.typed.properties.value;
-      assert.strictEqual(typeof valueSchema.normalizeValue, 'function');
-      assert.strictEqual(await valueSchema.normalizeValue('42'), 42);
+      assert.strictEqual(typeof valueSchema._normalizeValue, 'function');
+      assert.strictEqual(await valueSchema._normalizeValue('42'), 42);
     });
   });
 
@@ -449,7 +449,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have number base type normalizer
-      assert.strictEqual(await compiled.unionSchemas.typed.properties.count.normalizeValue('42'), 42);
+      assert.strictEqual(await compiled.unionSchemas.typed.properties.count._normalizeValue('42'), 42);
     });
   });
 

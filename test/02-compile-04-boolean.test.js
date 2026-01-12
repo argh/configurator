@@ -17,82 +17,82 @@ describe('Schema Compilation - Boolean Type', function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue(true), true);
-      assert.strictEqual(await compiled.normalizeValue(false), false);
+      assert.strictEqual(await compiled._normalizeValue(true), true);
+      assert.strictEqual(await compiled._normalizeValue(false), false);
     });
 
     it('should normalize string "true" to boolean true', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('true'), true);
-      assert.strictEqual(await compiled.normalizeValue('True'), true);
-      assert.strictEqual(await compiled.normalizeValue('TRUE'), true);
+      assert.strictEqual(await compiled._normalizeValue('true'), true);
+      assert.strictEqual(await compiled._normalizeValue('True'), true);
+      assert.strictEqual(await compiled._normalizeValue('TRUE'), true);
     });
 
     it('should normalize string "false" to boolean false', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('false'), false);
-      assert.strictEqual(await compiled.normalizeValue('False'), false);
-      assert.strictEqual(await compiled.normalizeValue('FALSE'), false);
+      assert.strictEqual(await compiled._normalizeValue('false'), false);
+      assert.strictEqual(await compiled._normalizeValue('False'), false);
+      assert.strictEqual(await compiled._normalizeValue('FALSE'), false);
     });
 
     it('should normalize "1" to true', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('1'), true);
+      assert.strictEqual(await compiled._normalizeValue('1'), true);
     });
 
     it('should normalize "0" to false', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('0'), false);
+      assert.strictEqual(await compiled._normalizeValue('0'), false);
     });
 
     it('should normalize "yes" to true', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('yes'), true);
-      assert.strictEqual(await compiled.normalizeValue('Yes'), true);
-      assert.strictEqual(await compiled.normalizeValue('YES'), true);
+      assert.strictEqual(await compiled._normalizeValue('yes'), true);
+      assert.strictEqual(await compiled._normalizeValue('Yes'), true);
+      assert.strictEqual(await compiled._normalizeValue('YES'), true);
     });
 
     it('should normalize "no" to false', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('no'), false);
-      assert.strictEqual(await compiled.normalizeValue('No'), false);
-      assert.strictEqual(await compiled.normalizeValue('NO'), false);
+      assert.strictEqual(await compiled._normalizeValue('no'), false);
+      assert.strictEqual(await compiled._normalizeValue('No'), false);
+      assert.strictEqual(await compiled._normalizeValue('NO'), false);
     });
 
     it('should normalize number 1 to true', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue(1), true);
+      assert.strictEqual(await compiled._normalizeValue(1), true);
     });
 
     it('should normalize number 0 to false', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue(0), false);
+      assert.strictEqual(await compiled._normalizeValue(0), false);
     });
 
     it('should normalize truthy values to true using Boolean()', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue('any-string'), true);
-      assert.strictEqual(await compiled.normalizeValue(42), true);
-      assert.strictEqual(await compiled.normalizeValue([]), true);
-      assert.strictEqual(await compiled.normalizeValue({}), true);
+      assert.strictEqual(await compiled._normalizeValue('any-string'), true);
+      assert.strictEqual(await compiled._normalizeValue(42), true);
+      assert.strictEqual(await compiled._normalizeValue([]), true);
+      assert.strictEqual(await compiled._normalizeValue({}), true);
     });
 
     it('should normalize falsy values to false using Boolean()', async function() {
@@ -101,7 +101,7 @@ describe('Schema Compilation - Boolean Type', function() {
 
 //      assert.strictEqual(await compiled.normalizeValue(null), false);
 //      assert.strictEqual(await compiled.normalize(undefined), false);
-      assert.strictEqual(await compiled.normalizeValue(''), false);
+      assert.strictEqual(await compiled._normalizeValue(''), false);
     });
   });
 
@@ -111,8 +111,8 @@ describe('Schema Compilation - Boolean Type', function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.transformValue(true), true);
-      assert.strictEqual(await compiled.transformValue(false), false);
+      assert.strictEqual(await compiled._transformValue(true), true);
+      assert.strictEqual(await compiled._transformValue(false), false);
     });
   });
 
@@ -122,14 +122,14 @@ describe('Schema Compilation - Boolean Type', function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.validateValue(true), true);
+      assert.strictEqual(await compiled._validateValue(true), true);
     });
 
     it('should validate false', async function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.validateValue(false), false);
+      assert.strictEqual(await compiled._validateValue(false), false);
     });
 
     it('should reject non-boolean values during validation', async function() {
@@ -137,22 +137,22 @@ describe('Schema Compilation - Boolean Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('true'),
+        () => compiled._validateValue('true'),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled.validateValue(1),
+        () => compiled._validateValue(1),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled.validateValue(0),
+        () => compiled._validateValue(0),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled.validateValue({}),
+        () => compiled._validateValue({}),
         ValidationError
       );
     });
@@ -205,8 +205,8 @@ describe('Schema Compilation - Boolean Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.normalizeValue(true), true);
-      const validated = await compiled.validateValue(true);
+      assert.strictEqual(await compiled._normalizeValue(true), true);
+      const validated = await compiled._validateValue(true);
       assert.strictEqual(validated, true);
     });
 
@@ -217,7 +217,7 @@ describe('Schema Compilation - Boolean Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.transformValue(false),
+        () => compiled._transformValue(false),
         TransformError
       );
     });
@@ -249,7 +249,7 @@ describe('Schema Compilation - Boolean Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const validated = await compiled.validateValue(true);
+      const validated = await compiled._validateValue(true);
       assert.strictEqual(validated, true);
     });
   });
@@ -319,15 +319,15 @@ describe('Schema Compilation - Boolean Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled.normalizeValue('true');
+      const normalized = await compiled._normalizeValue('true');
       assert.strictEqual(normalized, true);
 
       // Transform
-      const transformed = await compiled.transformValue(normalized);
+      const transformed = await compiled._transformValue(normalized);
       assert.strictEqual(transformed, true);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.strictEqual(validated, true);
     });
 
@@ -336,15 +336,15 @@ describe('Schema Compilation - Boolean Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled.normalizeValue('yes');
+      const normalized = await compiled._normalizeValue('yes');
       assert.strictEqual(normalized, true);
 
       // Transform
-      const transformed = await compiled.transformValue(normalized);
+      const transformed = await compiled._transformValue(normalized);
       assert.strictEqual(transformed, true);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.strictEqual(validated, true);
     });
 
@@ -355,15 +355,15 @@ describe('Schema Compilation - Boolean Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled.normalizeValue('1');
+      const normalized = await compiled._normalizeValue('1');
       assert.strictEqual(normalized, true);
 
       // Transform (should check against values)
-      const transformed = await compiled.transformValue(normalized);
+      const transformed = await compiled._transformValue(normalized);
       assert.strictEqual(transformed, true);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.strictEqual(validated, true);
     });
 
@@ -374,12 +374,12 @@ describe('Schema Compilation - Boolean Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled.normalizeValue('no');
+      const normalized = await compiled._normalizeValue('no');
       assert.strictEqual(normalized, false);
 
       // Transform should fail due to values constraint
       await assert.rejects(
-        () => compiled.transformValue(normalized),
+        () => compiled._transformValue(normalized),
         TransformError
       );
     });

@@ -268,9 +268,9 @@ describe('Schema Compilation - Property Basics', function() {
       const compiled = await resolver.compile(schema);
 
       // Each property should have its own normalizer
-      assert.strictEqual(await compiled.properties.text.normalizeValue(42), '42');
-      assert.strictEqual(await compiled.properties.count.normalizeValue('42'), 42);
-      assert.deepStrictEqual(await compiled.properties.items.normalizeValue('a,b,c'), ['a', 'b', 'c']);
+      assert.strictEqual(await compiled.properties.text._normalizeValue(42), '42');
+      assert.strictEqual(await compiled.properties.count._normalizeValue('42'), 42);
+      assert.deepStrictEqual(await compiled.properties.items._normalizeValue('a,b,c'), ['a', 'b', 'c']);
     });
 
     it('should compile properties with independent options', async function() {

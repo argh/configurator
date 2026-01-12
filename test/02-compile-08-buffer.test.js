@@ -17,15 +17,15 @@ describe('Schema Compilation - Buffer Type', function() {
       const schema = new Schema('buffer');
       const compiled = await resolver.compile(schema);
 
-      const n1 = await compiled.normalizeValue(Buffer.alloc(10));
+      const n1 = await compiled._normalizeValue(Buffer.alloc(10));
       assert.ok(n1 instanceof Buffer);
 
-      const n2 = await compiled.normalizeValue(Buffer.alloc(10).toString('base64'));
+      const n2 = await compiled._normalizeValue(Buffer.alloc(10).toString('base64'));
       assert.ok(typeof n2 === 'string');
 
 
       await assert.rejects(
-        async () => await compiled.normalizeValue({}),
+        async () => await compiled._normalizeValue({}),
         NormalizeError
       )
     });
@@ -38,7 +38,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from('hello world', 'utf8');
-      const transformed = await compiled.transformValue(buffer);
+      const transformed = await compiled._transformValue(buffer);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'hello world');
@@ -49,7 +49,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const base64 = 'aGVsbG8gd29ybGQ='; // "hello world" in base64
-      const transformed = await compiled.transformValue(base64);
+      const transformed = await compiled._transformValue(base64);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'hello world');
@@ -59,7 +59,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const schema = new Schema('buffer');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled.transformValue('');
+      const transformed = await compiled._transformValue('');
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.length, 0);
@@ -70,7 +70,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const bytes = [72, 101, 108, 108, 111]; // "Hello" in ASCII
-      const transformed = await compiled.transformValue(bytes);
+      const transformed = await compiled._transformValue(bytes);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'Hello');
@@ -81,7 +81,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const uint8 = new Uint8Array([72, 105]); // "Hi"
-      const transformed = await compiled.transformValue(uint8);
+      const transformed = await compiled._transformValue(uint8);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'Hi');
@@ -92,7 +92,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const base64 = 'dGVzdA=='; // "test" with padding
-      const transformed = await compiled.transformValue(base64);
+      const transformed = await compiled._transformValue(base64);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'test');
@@ -103,7 +103,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const base64 = 'dGVzdA'; // "test" without padding
-      const transformed = await compiled.transformValue(base64);
+      const transformed = await compiled._transformValue(base64);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'test');
@@ -116,7 +116,7 @@ describe('Schema Compilation - Buffer Type', function() {
       // These might work or throw depending on Buffer.from implementation
       // If they throw, it should be wrapped in TransformError
       try {
-        await compiled.transformValue(null);
+        await compiled._transformValue(null);
         // If it doesn't throw, we pass
       } catch (error) {
         assert.ok(error instanceof TransformError);
@@ -131,7 +131,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from('test data');
-      const validated = await compiled.validateValue(buffer);
+      const validated = await compiled._validateValue(buffer);
 
       assert.ok(Buffer.isBuffer(validated));
       assert.strictEqual(validated.toString('utf8'), 'test data');
@@ -142,7 +142,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([]);
-      const validated = await compiled.validateValue(buffer);
+      const validated = await compiled._validateValue(buffer);
 
       assert.ok(Buffer.isBuffer(validated));
       assert.strictEqual(validated.length, 0);
@@ -153,7 +153,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([0x00, 0xFF, 0xAB, 0xCD]);
-      const validated = await compiled.validateValue(buffer);
+      const validated = await compiled._validateValue(buffer);
 
       assert.ok(Buffer.isBuffer(validated));
       assert.strictEqual(validated.length, 4);
@@ -171,7 +171,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from('hello world', 'utf8');
-      const serialized = await compiled.serializeValue(buffer);
+      const serialized = await compiled._serializeValue(buffer);
 
       assert.strictEqual(typeof serialized, 'string');
       assert.strictEqual(serialized, 'aGVsbG8gd29ybGQ=');
@@ -182,7 +182,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([]);
-      const serialized = await compiled.serializeValue(buffer);
+      const serialized = await compiled._serializeValue(buffer);
 
       assert.strictEqual(serialized, '');
     });
@@ -192,7 +192,7 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
       const buffer = Buffer.from([0xFF, 0x00, 0xAB, 0xCD]);
-      const serialized = await compiled.serializeValue(buffer);
+      const serialized = await compiled._serializeValue(buffer);
 
       assert.strictEqual(typeof serialized, 'string');
       // Verify we can decode it back
@@ -205,20 +205,20 @@ describe('Schema Compilation - Buffer Type', function() {
       const compiled = await resolver.compile(schema);
 
 
-      assert.strictEqual(await compiled.serializeValue('not a buffer'), undefined);
+      assert.strictEqual(await compiled._serializeValue('not a buffer'), undefined);
 
       await assert.rejects(
-        async () => await compiled.serializeValue('not a buffer', undefined, '', {strict: true}),
+        async () => await compiled._serializeValue('not a buffer', undefined, '', {strict: true}),
         SerializeError
       );
 
       await assert.rejects(
-        async () => await compiled.serializeValue(123, undefined, '', {strict: true}),
+        async () => await compiled._serializeValue(123, undefined, '', {strict: true}),
         SerializeError
       );
 
       await assert.rejects(
-        async () => await compiled.serializeValue(null, undefined, '', {strict: true}),
+        async () => await compiled._serializeValue(null, undefined, '', {strict: true}),
         SerializeError
       );
     });
@@ -289,16 +289,16 @@ describe('Schema Compilation - Buffer Type', function() {
       const base64Input = 'dGVzdCBkYXRh'; // "test data"
 
       // Transform
-      const transformed = await compiled.transformValue(base64Input);
+      const transformed = await compiled._transformValue(base64Input);
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'test data');
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.ok(Buffer.isBuffer(validated));
 
       // Serialize
-      const serialized = await compiled.serializeValue(validated);
+      const serialized = await compiled._serializeValue(validated);
       assert.strictEqual(serialized, 'dGVzdCBkYXRh');
     });
 
@@ -309,16 +309,16 @@ describe('Schema Compilation - Buffer Type', function() {
       const bytes = [65, 66, 67]; // "ABC"
 
       // Transform
-      const transformed = await compiled.transformValue(bytes);
+      const transformed = await compiled._transformValue(bytes);
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'ABC');
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.ok(Buffer.isBuffer(validated));
 
       // Serialize
-      const serialized = await compiled.serializeValue(validated);
+      const serialized = await compiled._serializeValue(validated);
       assert.strictEqual(serialized, 'QUJD'); // "ABC" in base64
     });
 
@@ -329,11 +329,11 @@ describe('Schema Compilation - Buffer Type', function() {
       const originalBuffer = Buffer.from('Hello, Buffer!', 'utf8');
 
       // Serialize
-      const serialized = await compiled.serializeValue(originalBuffer);
+      const serialized = await compiled._serializeValue(originalBuffer);
       assert.strictEqual(typeof serialized, 'string');
 
       // Transform back
-      const transformed = await compiled.transformValue(serialized);
+      const transformed = await compiled._transformValue(serialized);
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), 'Hello, Buffer!');
       assert.deepStrictEqual(transformed, originalBuffer);
@@ -346,11 +346,11 @@ describe('Schema Compilation - Buffer Type', function() {
       const emptyBuffer = Buffer.from([]);
 
       // Serialize
-      const serialized = await compiled.serializeValue(emptyBuffer);
+      const serialized = await compiled._serializeValue(emptyBuffer);
       assert.strictEqual(serialized, '');
 
       // Transform back
-      const transformed = await compiled.transformValue(serialized);
+      const transformed = await compiled._transformValue(serialized);
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.length, 0);
     });
@@ -362,11 +362,11 @@ describe('Schema Compilation - Buffer Type', function() {
       const binaryBuffer = Buffer.from([0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD]);
 
       // Serialize
-      const serialized = await compiled.serializeValue(binaryBuffer);
+      const serialized = await compiled._serializeValue(binaryBuffer);
       assert.strictEqual(typeof serialized, 'string');
 
       // Transform back
-      const transformed = await compiled.transformValue(serialized);
+      const transformed = await compiled._transformValue(serialized);
       assert.ok(Buffer.isBuffer(transformed));
       assert.deepStrictEqual(transformed, binaryBuffer);
     });
@@ -381,8 +381,8 @@ describe('Schema Compilation - Buffer Type', function() {
       const largeBuffer = Buffer.alloc(10000);
       largeBuffer.fill('x');
 
-      const serialized = await compiled.serializeValue(largeBuffer);
-      const transformed = await compiled.transformValue(serialized);
+      const serialized = await compiled._serializeValue(largeBuffer);
+      const transformed = await compiled._transformValue(serialized);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.length, 10000);
@@ -396,8 +396,8 @@ describe('Schema Compilation - Buffer Type', function() {
       const text = 'Hello 世界 🌍';
       const buffer = Buffer.from(text, 'utf8');
 
-      const serialized = await compiled.serializeValue(buffer);
-      const transformed = await compiled.transformValue(serialized);
+      const serialized = await compiled._serializeValue(buffer);
+      const transformed = await compiled._transformValue(serialized);
 
       assert.ok(Buffer.isBuffer(transformed));
       assert.strictEqual(transformed.toString('utf8'), text);

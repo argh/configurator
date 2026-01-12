@@ -15,50 +15,50 @@ describe('Validator: range', function() {
     const schema = new Schema('number').validator({$range: {min: 1, max: 10}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue(5);
-    await compiled.validateValue(1); // min boundary
-    await compiled.validateValue(10); // max boundary
+    await compiled._validateValue(5);
+    await compiled._validateValue(1); // min boundary
+    await compiled._validateValue(10); // max boundary
   });
 
   it('should reject value below min', async function() {
     const schema = new Schema('number').validator({$range: {min: 1, max: 10}});
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue(0), ValidationError);
-    await assert.rejects(() => compiled.validateValue(-5), ValidationError);
+    await assert.rejects(() => compiled._validateValue(0), ValidationError);
+    await assert.rejects(() => compiled._validateValue(-5), ValidationError);
   });
 
   it('should reject value above max', async function() {
     const schema = new Schema('number').validator({$range: {min: 1, max: 10}});
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue(11), ValidationError);
-    await assert.rejects(() => compiled.validateValue(100), ValidationError);
+    await assert.rejects(() => compiled._validateValue(11), ValidationError);
+    await assert.rejects(() => compiled._validateValue(100), ValidationError);
   });
 
   it('should accept value with min only', async function() {
     const schema = new Schema('number').validator({$range: {min: 5}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue(5);
-    await compiled.validateValue(100);
-    await assert.rejects(() => compiled.validateValue(4), ValidationError);
+    await compiled._validateValue(5);
+    await compiled._validateValue(100);
+    await assert.rejects(() => compiled._validateValue(4), ValidationError);
   });
 
   it('should accept value with max only', async function() {
     const schema = new Schema('number').validator({$range: {max: 10}});
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue(10);
-    await compiled.validateValue(-100);
-    await assert.rejects(() => compiled.validateValue(11), ValidationError);
+    await compiled._validateValue(10);
+    await compiled._validateValue(-100);
+    await assert.rejects(() => compiled._validateValue(11), ValidationError);
   });
 
   it('should reject non-numeric values', async function() {
     const schema = new Schema('string').validator({$range: {min: 1, max: 10}});
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('abc'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('abc'), ValidationError);
   });
 
   it('should generate description for both bounds', async function() {

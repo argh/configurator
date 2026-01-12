@@ -11,21 +11,14 @@ export function existingAssignment(assignments, path) {
     if (index >= parts.length) {
       return false;
     }
-    const part = parts[index];
-    const [property,key] = part.split(':');
+    const property = parts[index];
 
     const p = prefix ? `${prefix}.${property}` : property;
 
-    if (assignments.has(p) || (key && assignments.has(`${p}:${key}`))) {
+    if (assignments.has(p)) {
       return true;
     }
-    if (check(p, index + 1)) {
-      return true
-    }
-    if (key && check(`${p}:${key}`, index + 1)) {
-      return true;
-    }
-    return false;
+    return check(p, index + 1);
   }
   return check('', 0);
 }

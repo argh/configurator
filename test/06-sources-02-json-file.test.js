@@ -7,6 +7,7 @@ import { ConfiguratorError } from '../src/errors.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Readable } from 'stream';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -340,9 +341,81 @@ describe('Sources - JsonFileSource', function() {
 
   describe('Special file paths', function() {
 
-    it.skip('should handle stdin with "-" path', async function() {
-      // TODO: Difficult to test stdin without mocking
-      // This would require mocking process.stdin
+    it('should handle stdin with "-" path', async function() {
+      const schema = new Schema('object')
+        .property('name', new Schema('string'))
+        .property('port', new Schema('number'));
+
+      const compiled = await resolver.compile(schema);
+      const source = new JsonFileSource();
+
+      // Mock process.stdin with a readable stream
+      const originalStdin = process.stdin;
+      const mockStdin = new Readable();
+      mockStdin.push(JSON.stringify({ name: 'stdin-app', port: 8080 }));
+      mockStdin.push(null); // Signal end of stream
+
+      // Replace process.stdin temporarily
+      Object.defineProperty(process, 'stdin', {
+        value: mockStdin,
+        writable: true,
+        configurable: true
+      });
+
+      try {
+        const context = { config: '-' };
+        const assignments = await source.load(compiled, context);
+
+        assert.strictEqual(assignments.get('name'), 'stdin-app');
+        assert.strictEqual(assignments.get('port'), 8080);
+        assert.strictEqual(context.config, undefined);
+      } finally {
+        // Restore original stdin
+        Object.defineProperty(process, 'stdin', {
+          value: originalStdin,
+          writable: true,
+          configurable: true
+        });
+      }
+    });
+
+    it('should throw ConfiguratorError for invalid JSON from stdin', async function() {
+      const schema = new Schema('object')
+        .property('value', new Schema('string'));
+
+      const compiled = await resolver.compile(schema);
+      const source = new JsonFileSource();
+
+      // Mock process.stdin with invalid JSON
+      const originalStdin = process.stdin;
+      const mockStdin = new Readable();
+      mockStdin.push('{ invalid json }');
+      mockStdin.push(null);
+
+      Object.defineProperty(process, 'stdin', {
+        value: mockStdin,
+        writable: true,
+        configurable: true
+      });
+
+      try {
+        const context = { config: '-' };
+
+        await assert.rejects(
+          () => source.load(compiled, context),
+          {
+            name: 'ConfiguratorError',
+            message: /Error loading JSON configuration from stdin/
+          }
+        );
+      } finally {
+        // Restore original stdin
+        Object.defineProperty(process, 'stdin', {
+          value: originalStdin,
+          writable: true,
+          configurable: true
+        });
+      }
     });
 
     it('should handle empty string as no file', async function() {

@@ -17,8 +17,8 @@ describe('Validator: and', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('test');
-    await compiled.validateValue('testest');
+    await compiled._validateValue('test');
+    await compiled._validateValue('testest');
   });
 
   it('should chain validators and pass value through', async function() {
@@ -30,7 +30,7 @@ describe('Validator: and', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('HELLO');
+    const result = await compiled._validateValue('HELLO');
     assert.strictEqual(result, 'hello');
   });
 
@@ -41,7 +41,7 @@ describe('Validator: and', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('other'),
+      () => compiled._validateValue('other'),
       ValidationError
     );
   });
@@ -53,7 +53,7 @@ describe('Validator: and', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('test'),
+      () => compiled._validateValue('test'),
       ValidationError
     );
   });
@@ -64,9 +64,9 @@ describe('Validator: and', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('abc');
-    await assert.rejects(() => compiled.validateValue('ab'), ValidationError);
-    await assert.rejects(() => compiled.validateValue('ABC'), ValidationError);
+    await compiled._validateValue('abc');
+    await assert.rejects(() => compiled._validateValue('ab'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('ABC'), ValidationError);
   });
 
   it('should generate combined description', async function() {

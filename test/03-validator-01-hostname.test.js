@@ -16,7 +16,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('example');
+      const result = await compiled._validateValue('example');
       assert.strictEqual(result, 'example');
     });
 
@@ -24,7 +24,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('example.com');
+      const result = await compiled._validateValue('example.com');
       assert.strictEqual(result, 'example.com');
     });
 
@@ -32,7 +32,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('www.example.com');
+      const result = await compiled._validateValue('www.example.com');
       assert.strictEqual(result, 'www.example.com');
     });
 
@@ -40,7 +40,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('api.v2.example.com');
+      const result = await compiled._validateValue('api.v2.example.com');
       assert.strictEqual(result, 'api.v2.example.com');
     });
 
@@ -48,7 +48,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('my-server.example-site.com');
+      const result = await compiled._validateValue('my-server.example-site.com');
       assert.strictEqual(result, 'my-server.example-site.com');
     });
 
@@ -56,7 +56,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('server1.example2.com');
+      const result = await compiled._validateValue('server1.example2.com');
       assert.strictEqual(result, 'server1.example2.com');
     });
 
@@ -64,7 +64,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('a.b.c');
+      const result = await compiled._validateValue('a.b.c');
       assert.strictEqual(result, 'a.b.c');
     });
   });
@@ -75,7 +75,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('-invalid.com'),
+        () => compiled._validateValue('-invalid.com'),
         ValidationError
       );
     });
@@ -85,7 +85,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('invalid-.com'),
+        () => compiled._validateValue('invalid-.com'),
         ValidationError
       );
     });
@@ -95,7 +95,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('invalid_host.com'),
+        () => compiled._validateValue('invalid_host.com'),
         ValidationError
       );
     });
@@ -105,7 +105,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('invalid host.com'),
+        () => compiled._validateValue('invalid host.com'),
         ValidationError
       );
     });
@@ -115,7 +115,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('invalid@host.com'),
+        () => compiled._validateValue('invalid@host.com'),
         ValidationError
       );
     });
@@ -125,7 +125,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue(''),
+        () => compiled._validateValue(''),
         ValidationError
       );
     });
@@ -135,7 +135,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('invalid..com'),
+        () => compiled._validateValue('invalid..com'),
         ValidationError
       );
     });
@@ -146,7 +146,7 @@ describe('Validator: hostname', function() {
       const schema = new Schema('string').validator('$hostname');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('localhost');
+      const result = await compiled._validateValue('localhost');
       assert.strictEqual(result, 'localhost');
     });
 
@@ -155,7 +155,7 @@ describe('Validator: hostname', function() {
       const compiled = await resolver.compile(schema);
 
       const longLabel = 'a'.repeat(63);
-      const result = await compiled.validateValue(`${longLabel}.com`);
+      const result = await compiled._validateValue(`${longLabel}.com`);
       assert.strictEqual(result, `${longLabel}.com`);
     });
   });

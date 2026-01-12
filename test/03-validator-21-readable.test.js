@@ -32,7 +32,7 @@ describe('Validator: readable', function() {
     const schema = new Schema('string').validator('$readable');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue(testFile);
+    const result = await compiled._validateValue(testFile);
     assert.strictEqual(result, testFile);
   });
 
@@ -40,7 +40,7 @@ describe('Validator: readable', function() {
     const schema = new Schema('string').validator('$readable');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue(__filename);
+    await compiled._validateValue(__filename);
   });
 
   it('should reject non-existent file', async function() {
@@ -48,7 +48,7 @@ describe('Validator: readable', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('/nonexistent/file.txt'),
+      () => compiled._validateValue('/nonexistent/file.txt'),
       ValidationError
     );
   });

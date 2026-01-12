@@ -75,7 +75,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.name.normalizeValue('test', {});
+      const result = await compiled.properties.name._normalizeValue('test', {});
       assert.strictEqual(result, 'test');
     });
 
@@ -85,7 +85,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.count.transformValue(42);
+      const result = await compiled.properties.count._transformValue(42);
       assert.strictEqual(result, 42);
     });
 
@@ -95,7 +95,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.active.validateValue(true);
+      const result = await compiled.properties.active._validateValue(true);
       assert.strictEqual(result, true);
     });
 
@@ -107,7 +107,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.properties.code.normalizeValue('test', {}), 'TEST');
+      assert.strictEqual(await compiled.properties.code._normalizeValue('test', {}), 'TEST');
     });
 
     it('should compile custom transformer functions', async function() {
@@ -118,7 +118,7 @@ describe('Schema Compilation - Simple', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.properties.tag.transformValue('input');
+      const result = await compiled.properties.tag._transformValue('input');
       assert.strictEqual(result, 'transformed-input');
     });
 
@@ -138,7 +138,7 @@ describe('Schema Compilation - Simple', function() {
 
       await assert.rejects(
         async () => {
-          await compiled.properties.username.validateValue('ab');
+          await compiled.properties.username._validateValue('ab');
         },
         (err) => {
           return err.name === 'ValidationError' && err.cause && err.cause.message.includes('Too short');

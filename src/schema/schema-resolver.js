@@ -650,7 +650,7 @@ export class SchemaResolver
           const values = Array.isArray(optionValue)? optionValue : [optionValue];
           dst.options.values = [];
           for (const v of values) {
-            dst.options.values.push(await dst.normalizeValue(v, {}, dst.path));
+            dst.options.values.push(await dst._normalizeValue(v, {}, dst.path));
           }
         }
         else {
@@ -717,7 +717,7 @@ export class SchemaResolver
           if (s.isSelector) {
             const selectorPath = parentPath ? `${parentPath}.${propName}` : propName;
             const selectorValue = deepValue(configuration, selectorPath);
-            return (await s.normalizeValue(selectorValue)) === (await s.normalizeValue(schema.selection));
+            return (await s._normalizeValue(selectorValue)) === (await s._normalizeValue(schema.selection));
           }
         }
         return false;
@@ -787,7 +787,7 @@ export class SchemaResolver
     }
     dst.options.values = [];
     for (const value of src.options.values) {
-      dst.options.values.push(await dst.normalizeValue(value));
+      dst.options.values.push(await dst._normalizeValue(value));
     }
   }
   async _finalizeValues(dst) {
@@ -803,7 +803,7 @@ export class SchemaResolver
         throw new SchemaError('Cannot populate values for a union key property without a parent union')
       }
       for (const key in dst.parent.unionSchemas) {
-        v.add(await dst.normalizeValue(key));
+        v.add(await dst._normalizeValue(key));
       }
     }
     if (dst.isSelector) {
@@ -814,7 +814,7 @@ export class SchemaResolver
       for (const propName in dst.parent.properties) {
         const propSchema = dst.parent.properties[propName];
         if (propSchema.isSelection) {
-          v.add(await dst.normalizeValue(propSchema.selection));
+          v.add(await dst._normalizeValue(propSchema.selection));
         }
       }
     }
@@ -891,7 +891,7 @@ export class SchemaResolver
           continue;
         }
         for (const v of propertySchema.values) {
-          const normalized = await propertySchema.normalizeValue(v);
+          const normalized = await propertySchema._normalizeValue(v);
           if (normalizerCompatible && normalized !== v) {
             normalizerCompatible = false;
           }

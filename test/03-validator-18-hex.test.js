@@ -15,35 +15,35 @@ describe('Validator: hex', function() {
     const schema = new Schema('string').validator('$hex');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('abcdef0123456789');
+    await compiled._validateValue('abcdef0123456789');
   });
 
   it('should accept uppercase hex', async function() {
     const schema = new Schema('string').validator('$hex');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('ABCDEF0123456789');
+    await compiled._validateValue('ABCDEF0123456789');
   });
 
   it('should accept mixed case hex', async function() {
     const schema = new Schema('string').validator('$hex');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('AbCdEf0123');
+    await compiled._validateValue('AbCdEf0123');
   });
 
   it('should reject non-hex characters', async function() {
     const schema = new Schema('string').validator('$hex');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('12g4'), ValidationError);
-    await assert.rejects(() => compiled.validateValue('hello'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('12g4'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('hello'), ValidationError);
   });
 
   it('should reject empty string', async function() {
     const schema = new Schema('string').validator('$hex');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue(''), ValidationError);
+    await assert.rejects(() => compiled._validateValue(''), ValidationError);
   });
 });

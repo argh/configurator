@@ -19,21 +19,21 @@ describe('Schema Compilation - Date Type', function() {
 
       const date = new Date('2024-01-01T00:00:00Z');
 
-      const n1 = await compiled.normalizeValue(date);
+      const n1 = await compiled._normalizeValue(date);
       assert.ok(n1 === date);
 
-      const n2 = await compiled.normalizeValue(date.toString());
+      const n2 = await compiled._normalizeValue(date.toString());
       assert.ok(typeof n2 === 'string');
 
-      const n3 = await compiled.normalizeValue(date.getTime());
+      const n3 = await compiled._normalizeValue(date.getTime());
       assert.ok(typeof n3 === 'number');
 
       await assert.rejects(
-        () => compiled.normalizeValue({}),
+        () => compiled._normalizeValue({}),
         NormalizeError
       );
       await assert.rejects(
-        () => compiled.normalizeValue(true),
+        () => compiled._normalizeValue(true),
         NormalizeError
       );
 
@@ -47,7 +47,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const date = new Date('2024-01-01T00:00:00Z');
-      const transformed = await compiled.transformValue(date);
+      const transformed = await compiled._transformValue(date);
 
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.toISOString(), '2024-01-01T00:00:00.000Z');
@@ -57,7 +57,7 @@ describe('Schema Compilation - Date Type', function() {
       const schema = new Schema('date');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled.transformValue('2024-01-15T12:30:45Z');
+      const transformed = await compiled._transformValue('2024-01-15T12:30:45Z');
 
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.toISOString(), '2024-01-15T12:30:45.000Z');
@@ -68,7 +68,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const before = Date.now();
-      const transformed = await compiled.transformValue('now');
+      const transformed = await compiled._transformValue('now');
       const after = Date.now();
 
       assert.ok(transformed instanceof Date);
@@ -81,7 +81,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const timestamp = 1704067200000; // 2024-01-01 00:00:00 UTC
-      const transformed = await compiled.transformValue(timestamp);
+      const transformed = await compiled._transformValue(timestamp);
 
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.toISOString(), '2024-01-01T00:00:00.000Z');
@@ -93,7 +93,7 @@ describe('Schema Compilation - Date Type', function() {
 
       // Small timestamp (< 200000000) gets treated as seconds
       const timestamp = 100000000; // Small enough to be treated as seconds
-      const transformed = await compiled.transformValue(timestamp);
+      const transformed = await compiled._transformValue(timestamp);
 
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.getTime(), 100000000 * 1000);
@@ -103,7 +103,7 @@ describe('Schema Compilation - Date Type', function() {
       const schema = new Schema('date');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled.transformValue('1704067200000');
+      const transformed = await compiled._transformValue('1704067200000');
 
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.toISOString(), '2024-01-01T00:00:00.000Z');
@@ -114,7 +114,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const before = Date.now() + (24 * 60 * 60 * 1000);
-      const transformed = await compiled.transformValue('+1d');
+      const transformed = await compiled._transformValue('+1d');
       const after = Date.now() + (24 * 60 * 60 * 1000);
 
       assert.ok(transformed instanceof Date);
@@ -127,7 +127,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const before = Date.now() - (60 * 60 * 1000);
-      const transformed = await compiled.transformValue('-1h');
+      const transformed = await compiled._transformValue('-1h');
       const after = Date.now() - (60 * 60 * 1000);
 
       assert.ok(transformed instanceof Date);
@@ -151,7 +151,7 @@ describe('Schema Compilation - Date Type', function() {
 
       for (const { offset, approxDelta } of units) {
         const now = Date.now();
-        const transformed = await compiled.transformValue(offset);
+        const transformed = await compiled._transformValue(offset);
         const expectedTime = now + approxDelta;
 
         assert.ok(transformed instanceof Date);
@@ -164,7 +164,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.transformValue('not-a-date'),
+        () => compiled._transformValue('not-a-date'),
         TransformError
       );
     });
@@ -174,7 +174,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.transformValue(new Date('invalid')),
+        () => compiled._transformValue(new Date('invalid')),
         TransformError
       );
     });
@@ -184,12 +184,12 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.transformValue(true),
+        () => compiled._transformValue(true),
         TransformError
       );
 
       await assert.rejects(
-        () => compiled.transformValue({}),
+        () => compiled._transformValue({}),
         TransformError
       );
     });
@@ -202,7 +202,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const date = new Date('2024-06-15');
-      const validated = await compiled.validateValue(date);
+      const validated = await compiled._validateValue(date);
 
       assert.ok(validated instanceof Date);
       assert.strictEqual(validated.toISOString(), date.toISOString());
@@ -213,17 +213,17 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('2024-01-01'),
+        () => compiled._validateValue('2024-01-01'),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled.validateValue(1704067200000),
+        () => compiled._validateValue(1704067200000),
         ValidationError
       );
 
       // null means ignore
-      assert.strictEqual(await compiled.validateValue(null), null)
+      assert.strictEqual(await compiled._validateValue(null), null)
     });
 
     it('should reject invalid Date objects', async function() {
@@ -231,7 +231,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue(new Date('invalid')),
+        () => compiled._validateValue(new Date('invalid')),
         ValidationError
       );
     });
@@ -244,7 +244,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const date = new Date('2024-03-20T15:30:00Z');
-      const serialized = await compiled.serializeValue(date);
+      const serialized = await compiled._serializeValue(date);
 
       assert.strictEqual(serialized, '2024-03-20T15:30:00.000Z');
     });
@@ -254,7 +254,7 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       const date = new Date(0);
-      const serialized = await compiled.serializeValue(date);
+      const serialized = await compiled._serializeValue(date);
 
       assert.strictEqual(serialized, '1970-01-01T00:00:00.000Z');
     });
@@ -264,12 +264,12 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.serializeValue('2024-01-01', undefined, '', {strict: true}),
+        () => compiled._serializeValue('2024-01-01', undefined, '', {strict: true}),
         SerializeError
       );
 
       await assert.rejects(
-        () => compiled.serializeValue(1704067200000, undefined, '', {strict: true}),
+        () => compiled._serializeValue(1704067200000, undefined, '', {strict: true}),
         SerializeError
       );
     });
@@ -277,8 +277,8 @@ describe('Schema Compilation - Date Type', function() {
       const schema = new Schema('date');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled.serializeValue('2024-01-01'), undefined);
-      assert.strictEqual(await compiled.serializeValue(1704067200000), undefined);
+      assert.strictEqual(await compiled._serializeValue('2024-01-01'), undefined);
+      assert.strictEqual(await compiled._serializeValue(1704067200000), undefined);
     });
   });
 
@@ -350,15 +350,15 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Transform
-      const transformed = await compiled.transformValue('2024-12-25T00:00:00Z');
+      const transformed = await compiled._transformValue('2024-12-25T00:00:00Z');
       assert.ok(transformed instanceof Date);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.ok(validated instanceof Date);
 
       // Serialize
-      const serialized = await compiled.serializeValue(validated);
+      const serialized = await compiled._serializeValue(validated);
       assert.strictEqual(serialized, '2024-12-25T00:00:00.000Z');
     });
 
@@ -367,15 +367,15 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Transform
-      const transformed = await compiled.transformValue('now');
+      const transformed = await compiled._transformValue('now');
       assert.ok(transformed instanceof Date);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.ok(validated instanceof Date);
 
       // Serialize
-      const serialized = await compiled.serializeValue(validated);
+      const serialized = await compiled._serializeValue(validated);
       assert.ok(serialized.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/));
     });
 
@@ -386,16 +386,16 @@ describe('Schema Compilation - Date Type', function() {
       const timestamp = 1704067200000;
 
       // Transform
-      const transformed = await compiled.transformValue(timestamp);
+      const transformed = await compiled._transformValue(timestamp);
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.getTime(), timestamp);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.ok(validated instanceof Date);
 
       // Serialize
-      const serialized = await compiled.serializeValue(validated);
+      const serialized = await compiled._serializeValue(validated);
       assert.strictEqual(serialized, '2024-01-01T00:00:00.000Z');
     });
 
@@ -404,15 +404,15 @@ describe('Schema Compilation - Date Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Transform
-      const transformed = await compiled.transformValue('+2h');
+      const transformed = await compiled._transformValue('+2h');
       assert.ok(transformed instanceof Date);
 
       // Validate
-      const validated = await compiled.validateValue(transformed);
+      const validated = await compiled._validateValue(transformed);
       assert.ok(validated instanceof Date);
 
       // Serialize
-      const serialized = await compiled.serializeValue(validated);
+      const serialized = await compiled._serializeValue(validated);
       assert.ok(serialized.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/));
     });
 
@@ -423,11 +423,11 @@ describe('Schema Compilation - Date Type', function() {
       const originalDate = new Date('2024-06-15T10:30:00Z');
 
       // Serialize
-      const serialized = await compiled.serializeValue(originalDate);
+      const serialized = await compiled._serializeValue(originalDate);
       assert.strictEqual(serialized, '2024-06-15T10:30:00.000Z');
 
       // Transform back
-      const transformed = await compiled.transformValue(serialized);
+      const transformed = await compiled._transformValue(serialized);
       assert.ok(transformed instanceof Date);
       assert.strictEqual(transformed.toISOString(), originalDate.toISOString());
     });

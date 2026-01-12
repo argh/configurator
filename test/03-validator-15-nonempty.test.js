@@ -15,7 +15,7 @@ describe('Validator: nonempty', function() {
     const schema = new Schema('string').validator('$nonempty');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('hello');
+    const result = await compiled._validateValue('hello');
     assert.strictEqual(result, 'hello');
   });
 
@@ -24,36 +24,36 @@ describe('Validator: nonempty', function() {
     const compiled = await resolver.compile(schema);
 
     // nonempty trims and checks, so only spaces will fail
-    await assert.rejects(() => compiled.validateValue('   '), ValidationError);
+    await assert.rejects(() => compiled._validateValue('   '), ValidationError);
   });
 
   it('should accept string with content and spaces', async function() {
     const schema = new Schema('string').validator('$nonempty');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('  hello  ');
+    await compiled._validateValue('  hello  ');
   });
 
   it('should accept numbers as strings', async function() {
     const schema = new Schema('string').validator('$nonempty');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('123');
-    await compiled.validateValue('0');
+    await compiled._validateValue('123');
+    await compiled._validateValue('0');
   });
 
   it('should reject empty string', async function() {
     const schema = new Schema('string').validator('$nonempty');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue(''), ValidationError);
+    await assert.rejects(() => compiled._validateValue(''), ValidationError);
   });
 
   it('should reject whitespace-only string', async function() {
     const schema = new Schema('string').validator('$nonempty');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('   '), ValidationError);
-    await assert.rejects(() => compiled.validateValue('\t\n'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('   '), ValidationError);
+    await assert.rejects(() => compiled._validateValue('\t\n'), ValidationError);
   });
 });

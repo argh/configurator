@@ -15,34 +15,34 @@ describe('Validator: json', function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('{"key":"value"}');
-    await compiled.validateValue('{"a":1,"b":2}');
+    await compiled._validateValue('{"key":"value"}');
+    await compiled._validateValue('{"a":1,"b":2}');
   });
 
   it('should accept valid JSON array', async function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('[1,2,3]');
-    await compiled.validateValue('["a","b","c"]');
+    await compiled._validateValue('[1,2,3]');
+    await compiled._validateValue('["a","b","c"]');
   });
 
   it('should accept JSON primitives', async function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('null');
-    await compiled.validateValue('true');
-    await compiled.validateValue('123');
-    await compiled.validateValue('"string"');
+    await compiled._validateValue('null');
+    await compiled._validateValue('true');
+    await compiled._validateValue('123');
+    await compiled._validateValue('"string"');
   });
 
   it('should reject invalid JSON', async function() {
     const schema = new Schema('string').validator('$json');
     const compiled = await resolver.compile(schema);
 
-    await assert.rejects(() => compiled.validateValue('{invalid}'), ValidationError);
-    await assert.rejects(() => compiled.validateValue("{'single':quotes}"), ValidationError);
-    await assert.rejects(() => compiled.validateValue('{trailing:comma,}'), ValidationError);
+    await assert.rejects(() => compiled._validateValue('{invalid}'), ValidationError);
+    await assert.rejects(() => compiled._validateValue("{'single':quotes}"), ValidationError);
+    await assert.rejects(() => compiled._validateValue('{trailing:comma,}'), ValidationError);
   });
 });

@@ -665,38 +665,6 @@ describe('Configurator - Special Options', function() {
 
       assert.deepStrictEqual(config.tags, ['first', 'second', 'third']);
     });
-    // fixme - this actually works, but not by respecting the colon paths.  figure out what to do about that.
-    it.skip('should support union-keyed assignments with colon notation', async function() {
-      const schema = new Schema('object')
-        .property('animal', new Schema('object')
-          .unionSchema('cat', new Schema('object')
-            .property('type', Schema.literal('cat'))
-            .property('meow', new Schema('boolean', { default: false }))
-            .property('lives', new Schema('number', { default: 9 }))
-          )
-          .unionSchema('dog', new Schema('object')
-            .property('type', Schema.literal('dog'))
-            .property('bark', new Schema('boolean', { default: false }))
-            .property('wagsTail', new Schema('boolean', { default: true }))
-          )
-        );  // 'type' property auto-hoisted, discriminator auto-generated
-
-      const configurator = new Configurator({ schema });
-
-      const config = await configurator.configure({
-        appName: 'app',
-        argv: [
-          '-P', 'animal:cat.meow', 'true',
-          '-P', 'animal.type', 'cat',  // First set the discriminator to resolve the union
-          '-P', 'animal:cat.lives', '7'
-        ],
-        env: {}
-      });
-
-      assert.strictEqual(config.animal.type, 'cat');
-      assert.strictEqual(config.animal.meow, true);
-      assert.strictEqual(config.animal.lives, 7);
-    });
 
     it('should set values of different types', async function() {
       const schema = new Schema('object')

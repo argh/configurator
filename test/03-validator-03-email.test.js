@@ -16,7 +16,7 @@ describe('Validator: email', function() {
       const schema = new Schema('string').validator('$email');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('user@example.com');
+      const result = await compiled._validateValue('user@example.com');
       assert.strictEqual(result, 'user@example.com');
     });
 
@@ -24,7 +24,7 @@ describe('Validator: email', function() {
       const schema = new Schema('string').validator('$email');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('user@mail.example.com');
+      const result = await compiled._validateValue('user@mail.example.com');
       assert.strictEqual(result, 'user@mail.example.com');
     });
 
@@ -32,7 +32,7 @@ describe('Validator: email', function() {
       const schema = new Schema('string').validator('$email');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('user+tag@example.com');
+      const result = await compiled._validateValue('user+tag@example.com');
       assert.strictEqual(result, 'user+tag@example.com');
     });
 
@@ -40,7 +40,7 @@ describe('Validator: email', function() {
       const schema = new Schema('string').validator('$email');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('first.last@example.com');
+      const result = await compiled._validateValue('first.last@example.com');
       assert.strictEqual(result, 'first.last@example.com');
     });
 
@@ -48,7 +48,7 @@ describe('Validator: email', function() {
       const schema = new Schema('string').validator('$email');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('user123@example123.com');
+      const result = await compiled._validateValue('user123@example123.com');
       assert.strictEqual(result, 'user123@example123.com');
     });
 
@@ -56,7 +56,7 @@ describe('Validator: email', function() {
       const schema = new Schema('string').validator('$email');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled.validateValue('user@my-domain.com');
+      const result = await compiled._validateValue('user@my-domain.com');
       assert.strictEqual(result, 'user@my-domain.com');
     });
   });
@@ -67,7 +67,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('userexample.com'),
+        () => compiled._validateValue('userexample.com'),
         ValidationError
       );
     });
@@ -77,7 +77,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('user@'),
+        () => compiled._validateValue('user@'),
         ValidationError
       );
     });
@@ -87,7 +87,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('@example.com'),
+        () => compiled._validateValue('@example.com'),
         ValidationError
       );
     });
@@ -97,7 +97,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('user@example'),
+        () => compiled._validateValue('user@example'),
         ValidationError
       );
     });
@@ -107,7 +107,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('user @example.com'),
+        () => compiled._validateValue('user @example.com'),
         ValidationError
       );
     });
@@ -117,7 +117,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue('user@@example.com'),
+        () => compiled._validateValue('user@@example.com'),
         ValidationError
       );
     });
@@ -127,7 +127,7 @@ describe('Validator: email', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled.validateValue(''),
+        () => compiled._validateValue(''),
         ValidationError
       );
     });

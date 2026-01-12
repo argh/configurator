@@ -15,7 +15,7 @@ describe('Validator: reachable', function() {
     const schema = new Schema('string').validator('$reachable');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('localhost');
+    const result = await compiled._validateValue('localhost');
     assert.strictEqual(result, 'localhost');
   });
 
@@ -24,7 +24,7 @@ describe('Validator: reachable', function() {
     const schema = new Schema('string').validator('$reachable');
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('google.com');
+    await compiled._validateValue('google.com');
   });
 
   it('should reject non-existent domain', async function() {
@@ -33,7 +33,7 @@ describe('Validator: reachable', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('this-domain-definitely-does-not-exist-12345.com'),
+      () => compiled._validateValue('this-domain-definitely-does-not-exist-12345.com'),
       ValidationError
     );
   });
@@ -43,7 +43,7 @@ describe('Validator: reachable', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('!!!invalid!!!'),
+      () => compiled._validateValue('!!!invalid!!!'),
       ValidationError
     );
   });

@@ -32,7 +32,7 @@ describe('Validator: writable', function() {
     const schema = new Schema('string').validator('$writable');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue(testFile);
+    const result = await compiled._validateValue(testFile);
     assert.strictEqual(result, testFile);
   });
 
@@ -41,7 +41,7 @@ describe('Validator: writable', function() {
     const compiled = await resolver.compile(schema);
 
     const nonExistent = path.join(__dirname, 'new-file-that-does-not-exist.txt');
-    await compiled.validateValue(nonExistent);
+    await compiled._validateValue(nonExistent);
   });
 
   it('should reject file in non-existent directory', async function() {
@@ -49,7 +49,7 @@ describe('Validator: writable', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('/nonexistent/directory/file.txt'),
+      () => compiled._validateValue('/nonexistent/directory/file.txt'),
       ValidationError
     );
   });

@@ -33,7 +33,7 @@ describe('Validator: executable', function() {
     const schema = new Schema('string').validator('$executable');
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue(testFile);
+    const result = await compiled._validateValue(testFile);
     assert.strictEqual(result, testFile);
   });
 
@@ -47,7 +47,7 @@ describe('Validator: executable', function() {
 
     try {
       await assert.rejects(
-        () => compiled.validateValue(nonExec),
+        () => compiled._validateValue(nonExec),
         ValidationError
       );
     } finally {
@@ -60,7 +60,7 @@ describe('Validator: executable', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('/nonexistent/file'),
+      () => compiled._validateValue('/nonexistent/file'),
       ValidationError
     );
   });

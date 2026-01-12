@@ -39,10 +39,6 @@ export class Schema
    * @param {ISchemaMetadata} [metadata] - schema metadata
    */
   constructor(base, options, metadata) {
-
-    if (options || metadata) {
-// FIXME      throw new Error('lets seee..')
-    }
     /**
      * @type {Schema|undefined}
      * @internal
@@ -255,35 +251,13 @@ export class Schema
       }
     }
 
-    const parts = attributeName.split('.').map(p => p.trim());
-
-    if (parts.length === 1) {
-      if (attributeName.startsWith('_')) {
-        // This was a terrible hack.  I'm still paying the price.  Don't use this approach.
-        return this.meta(attributeName.slice(1), attributeValue);
-      }
-      else {
-        return this.option(attributeName, attributeValue);
-      }
+    if (attributeName.startsWith('_')) {
+      // This was a terrible hack.  I'm still paying the price.  Don't use this approach.
+      return this.meta(attributeName.slice(1), attributeValue);
     }
-    else if (parts.length === 2) {
-      throw new Error('UNSUPPORTED, KILL THIS!');  // FIXME
-      /*
-      if (parts[0] === 'option') {
-        return this.option(parts[1], attributeValue);
-      }
-      else if ((parts[0] === 'meta') || (parts[0] === 'metadata')) {
-        return this.meta(parts[1], attributeValue);
-      }
-      else if (parts[0] === 'handler') {
-        return this.handler(parts[1], attributeValue)
-      }
-      else {
-        throw new SchemaError(`Unknown attribute family "${parts[0]}"`)
-      }
-       */
+    else {
+      return this.option(attributeName, attributeValue);
     }
-    throw new SchemaError(`Bad attribute "${attributeName}"`);
   }
 
   /**
@@ -539,10 +513,6 @@ export class Schema
    * @returns {Schema} - returns self for fluent chaining
    */
   unionDiscriminator(spec) {
-    if (typeof spec === 'string') {
-      // FIXME
-      throw new Error('FIXME');  // use unionKey or $property processor
-    }
     return this.unionDiscriminators(spec);
   }
 
@@ -558,7 +528,6 @@ export class Schema
   unionDiscriminators(specs, policy) {
     return this.handler('discriminators', specs, policy);
   }
-
 
   /**
    * add a schema as a member of this schema's union

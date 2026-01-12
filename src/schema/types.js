@@ -12,7 +12,7 @@
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
 
-/** @import { CompiledSchema, VisitMode } from "./compiled-schema.js" */
+/** @import { CompiledSchema } from "./compiled-schema.js" */
 
 /**
  * @template TReturn

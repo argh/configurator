@@ -210,7 +210,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(hoistedProp);
 
     // The hoisted property should have the same normalizer
-    const normalized = await hoistedProp.normalizeValue('  Alpha  ');
+    const normalized = await hoistedProp._normalizeValue('  Alpha  ');
     assert.strictEqual(normalized, 'alpha');
   });
 });

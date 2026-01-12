@@ -12,7 +12,6 @@ import {
 import { ConfiguratorError } from './errors.js';
 import { SchemaResolver } from './schema/schema-resolver.js';
 import { stringify } from './schema/helpers/stringify.js';
-import { expandWildcards } from './schema/helpers/wildcard.js'
 import { existingAssignment } from './schema/helpers/assignments.js';
 import { deepAssign } from './utils.js';
 
@@ -311,7 +310,7 @@ export class Configurator {
         if (contextName) {
           let resolvedValue = assignedValue;
           try {
-            resolvedValue = await s.transformValue(assignedValue, configurationContext, contextName, {strict: false});
+            resolvedValue = await s._transformValue(assignedValue, configurationContext, contextName, {strict: false});
           }
           catch (_) {
             // ignore, just use original value

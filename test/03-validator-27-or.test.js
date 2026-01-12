@@ -17,7 +17,7 @@ describe('Validator: or', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('test123');
+    await compiled._validateValue('test123');
   });
 
   it('should accept value matching second condition', async function() {
@@ -26,7 +26,7 @@ describe('Validator: or', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('other123');
+    await compiled._validateValue('other123');
   });
 
   it('should accept value matching any condition', async function() {
@@ -35,8 +35,8 @@ describe('Validator: or', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('123');
-    await compiled.validateValue('abc');
+    await compiled._validateValue('123');
+    await compiled._validateValue('abc');
   });
 
   it('should reject when no condition matches', async function() {
@@ -46,7 +46,7 @@ describe('Validator: or', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('invalid'),
+      () => compiled._validateValue('invalid'),
       ValidationError
     );
   });
@@ -60,7 +60,7 @@ describe('Validator: or', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.validateValue('test');
+    const result = await compiled._validateValue('test');
     assert.strictEqual(result, 'TEST'); // First validator wins
   });
 

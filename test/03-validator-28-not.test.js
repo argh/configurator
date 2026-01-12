@@ -17,8 +17,8 @@ describe('Validator: not', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('other');
-    await compiled.validateValue('something');
+    await compiled._validateValue('other');
+    await compiled._validateValue('something');
   });
 
   it('should reject value that passes inner validator', async function() {
@@ -28,7 +28,7 @@ describe('Validator: not', function() {
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
-      () => compiled.validateValue('test123'),
+      () => compiled._validateValue('test123'),
       ValidationError
     );
   });
@@ -39,8 +39,8 @@ describe('Validator: not', function() {
     });
     const compiled = await resolver.compile(schema);
 
-    await compiled.validateValue('abc');
-    await assert.rejects(() => compiled.validateValue('123'), ValidationError);
+    await compiled._validateValue('abc');
+    await assert.rejects(() => compiled._validateValue('123'), ValidationError);
   });
 
   it('should generate negated description', async function() {
