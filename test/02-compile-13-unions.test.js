@@ -158,7 +158,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled.discriminateUnion({type: 'A'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({type: 'A'}, {}, compiled, '');
       assert.ok(discriminated);
     });
 
@@ -171,7 +171,7 @@ describe('Schema Compilation - Union Structure', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const discriminated = await compiled.discriminateUnion({kind: 'a'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({kind: 'a'}, {}, compiled, '');
       assert.ok(discriminated);
     });
 
@@ -186,7 +186,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled.discriminateUnion({type: 'A'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({type: 'A'}, {}, compiled, '');
       assert.ok(discriminated);
     });
 
@@ -201,7 +201,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled.discriminateUnion({type: 'B'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({type: 'B'}, {}, compiled, '');
       assert.ok(discriminated);
       assert.strictEqual(compiled.findUnionKey(discriminated), 'optionB');
     });

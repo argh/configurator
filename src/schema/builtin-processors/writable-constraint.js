@@ -3,7 +3,40 @@ import { constants } from 'node:fs';
 import { ConstraintError } from '../../errors.js';
 
 /**
- * Validate that path is writable (or parent directory is writable if path doesn't exist)
+ * **Processor**: `$writable` (async)
+ *
+ * Validates that a file system path is writable by checking write permissions.
+ * If the path does not exist, validates that the parent directory exists and is writable.
+ *
+ * This is an asynchronous processor that performs file system permission checks.
+ *
+ * @example
+ * ```javascript
+ * // Basic usage - validate output file path
+ * Schema.create('string').validator('$writable')
+ *
+ * // Configuration file that must be writable
+ * Schema.create('object', {
+ *   outputFile: Schema.create('string').validator('$writable'),
+ *   logFile: Schema.create('string').validator('$writable')
+ * })
+ *
+ * // Combined with other validators
+ * Schema.create('string')
+ *   .validator('$file')      // Must be a file
+ *   .validator('$writable')  // And must be writable
+ * ```
+ *
+ * **Valid values**:
+ * - Existing files with write permissions: `/tmp/output.log`, `./config.json`
+ * - Non-existent paths in writable directories: `/tmp/new-file.txt`, `./data/output.csv`
+ *
+ * **Invalid values**:
+ * - Read-only files: `/etc/hosts`, system-protected paths
+ * - Paths in non-existent parent directories: `/nonexistent/dir/file.txt`
+ * - Paths in read-only directories: `/read-only-mount/file.txt`
+ *
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const WRITABLE_CONSTRAINT = {
   keyword: 'writable',

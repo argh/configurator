@@ -7,6 +7,7 @@
  * @property {string} [unionKey]
  * @property {any} [input]
  * @property {any} [value]
+ * @internal
  */
 
 import { fpm } from './fpm.js';
@@ -36,7 +37,7 @@ export class TraversalHooks {
    * @param {string} hookName
    * @param {TraversalHook|Array.<TraversalHook>} hooks
    * @returns {this}
-   * @package
+   * @internal
    */
   hook(hookName, hooks = []) {
     if (!Array.isArray(hooks)) {
@@ -55,6 +56,7 @@ export class TraversalHooks {
    * @param {TraversalState} state
    * @param {...any} args
    * @returns {Promise<symbol>}
+   * @internal
    */
   async callHooks(hookName, state, ...args) {
     for (let hook of this.hooks[hookName] ?? []) {
@@ -81,6 +83,7 @@ export class TraversalHooks {
    *
    * @param {TraversalState} state
    * @returns {Promise<symbol>}
+   * @internal
    */
   async startCurrent(state) {
     const result = await this.callHooks('startCurrent', state);
@@ -96,6 +99,7 @@ export class TraversalHooks {
    *
    * @param {TraversalState} state
    * @returns {Promise<Symbol>}
+   * @internal
    */
   async endCurrent(state) {
     return await this.callHooks('endCurrent', state);
@@ -105,6 +109,7 @@ export class TraversalHooks {
    * @param {TraversalState} state
    * @param {TraversalProperty} property
    * @returns {Promise<symbol>}
+   * @internal
    */
   async startProperty(state, property) {
     return await this.callHooks('startProperty', state, property);
@@ -115,6 +120,7 @@ export class TraversalHooks {
    * @param {TraversalState} state
    * @param {TraversalProperty} property
    * @returns {Promise<symbol>}
+   * @internal
    */
   async endProperty(state, property) {
     return await this.callHooks('endProperty', state, property);
@@ -129,19 +135,17 @@ export const TraversalControl = {
   STOP: Symbol('STOP')
 }
 
+
 /**
- * @typedef {Object} TraversalOptions
+ * @typedef {Object} TraversalContextOptions
  * @property {boolean} [strict]
  * @property {boolean} [deep]
- * @property {boolean} [populateDefaults]
- * @property {any} [value]
- * @property {Map} [assignments]
  */
 
 export class TraversalContext
 {
   /**
-   * @param {TraversalOptions} [options]
+   * @param {TraversalContextOptions} [options]
    */
   constructor(options) {
     this._final = false;
@@ -152,25 +156,6 @@ export class TraversalContext
 
     /** @type {Map.<string,TraversalState>} */
     this.stateMap = new Map();
-
-    if (options?.value !== undefined) {
-      const traversalState = this.getState('');
-      traversalState.pending = options.value;
-    }
-
-    if (options?.assignments) {
-      for (let path of options.assignments.keys()) {
-        this.getState(path).isExplicit = true;
-      }
-    }
-
-    /*
-    this._value = undefined;
-    if (options?.value !== undefined) {
-      this.setValue(options.value);
-    }
-
-     */
   }
 
   update() {
@@ -1092,7 +1077,7 @@ export async function resolveUnionHook(state) {
   }
   const configuration = state.context.getValue();
   const value = state.pending ?? state.input ?? state.value;  // todo - think about this, it's pretty weird.
-  const unionSchema = await state.schema.discriminateUnion(value, configuration, state.path, {strict: state.context.final});
+  const unionSchema = await state.schema._discriminateUnion(value, configuration, state.path, {strict: state.context.final});
 
   if (unionSchema !== undefined) {
     state.unionKey = state.schema.findUnionKey(unionSchema);

@@ -1,7 +1,35 @@
 import { ConstraintError } from '../../errors.js';
 
 /**
- * Validate IPv6 address
+ * **Processor**: `$ipv6`
+ *
+ * Validates that a string is a properly formatted IPv6 address. Supports all standard IPv6
+ * notation formats including full notation, compressed notation (::), link-local addresses,
+ * IPv4-mapped IPv6 addresses, and zone identifiers.
+ *
+ * @example
+ * ```javascript
+ * // Basic usage
+ * Schema.create('string').validator('$ipv6')
+ *
+ * // In a schema property
+ * Schema.create('object', {
+ *   serverAddress: Schema.create('string').validator('$ipv6'),
+ *   dnsResolver: Schema.create('string').validator('$ipv6')
+ * })
+ * ```
+ *
+ * **Valid values**:
+ * - Full notation: `2001:0db8:0000:0000:0000:0000:0000:0001`
+ * - Compressed: `2001:db8::1`
+ * - Loopback: `::1`
+ * - All zeros: `::`
+ * - Link-local: `fe80::1%eth0`
+ * - IPv4-mapped: `::ffff:192.0.2.1`
+ *
+ * **Invalid values**: `192.168.1.1` (IPv4), `gggg::1` (invalid hex), `2001:db8::1::2` (double compression), `not-an-ip`
+ *
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const IPV6_CONSTRAINT = {
   keyword: 'ipv6',

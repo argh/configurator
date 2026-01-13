@@ -1,7 +1,39 @@
 import { ResolverError, ConstraintError } from '../../errors.js';
 
 /**
- * Build the $range constraint - validates numeric ranges
+ * **Processor**: `$range`
+ *
+ * Validates that a numeric value falls within the specified range (inclusive).
+ * Can specify minimum, maximum, or both bounds.
+ *
+ * @example
+ * ```javascript
+ * // Require value between 1 and 100 (inclusive)
+ * Schema.create('number').validator({$range: {min: 1, max: 100}})
+ *
+ * // At least 0 (no upper bound)
+ * Schema.create('number').validator({$range: {min: 0}})
+ *
+ * // At most 100 (no lower bound)
+ * Schema.create('number').validator({$range: {max: 100}})
+ *
+ * // Port number example
+ * Schema.create('object', {
+ *   port: Schema.create('number').validator({$range: {min: 1, max: 65535}})
+ * })
+ *
+ * // Percentage value
+ * Schema.create('number').validator({$range: {min: 0, max: 100}})
+ * ```
+ *
+ * **Parameters**:
+ * - `min` (number, optional): Minimum value (inclusive). If omitted, no lower bound.
+ * - `max` (number, optional): Maximum value (inclusive). If omitted, no upper bound.
+ *
+ * **Valid values**: Numbers within the specified range (both min and max are inclusive)
+ *
+ * **Invalid values**: Non-numeric values, numbers below min, numbers above max
+ *
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const RANGE_CONSTRAINT = {

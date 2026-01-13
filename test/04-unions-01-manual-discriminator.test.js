@@ -32,11 +32,11 @@ describe('Unions: Manual Discriminator Function', function() {
     const compiled = await resolver.compile(schema);
 
     // Test discriminateUnion directly
-    const resultA = await compiled.discriminateUnion({type: 'a', aValue: 'test'});
+    const resultA = await compiled._discriminateUnion({type: 'a', aValue: 'test'});
     assert.ok(resultA);
     assert.strictEqual(compiled.findUnionKey(resultA), 'a');
 
-    const resultB = await compiled.discriminateUnion({type: 'b', bValue: 42});
+    const resultB = await compiled._discriminateUnion({type: 'b', bValue: 42});
     assert.ok(resultB);
     assert.strictEqual(compiled.findUnionKey(resultB), 'b');
   });
@@ -54,7 +54,7 @@ describe('Unions: Manual Discriminator Function', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({type: 'unknown'});
+    const result = await compiled._discriminateUnion({type: 'unknown'});
     assert.strictEqual(result, undefined);
   });
 
@@ -79,7 +79,7 @@ describe('Unions: Manual Discriminator Function', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const resultStrict = await compiled.discriminateUnion(
+    const resultStrict = await compiled._discriminateUnion(
       {mode: 'strict', value: 'test'},
       {mode: 'strict'},
       ''
@@ -87,7 +87,7 @@ describe('Unions: Manual Discriminator Function', function() {
     assert.ok(resultStrict);
     assert.strictEqual(compiled.findUnionKey(resultStrict), 'strict');
 
-    const resultLax = await compiled.discriminateUnion(
+    const resultLax = await compiled._discriminateUnion(
       {mode: 'lax', value: 123},
       {mode: 'lax'},
       ''
@@ -111,7 +111,7 @@ describe('Unions: Manual Discriminator Function', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({type: 'a'});
+    const result = await compiled._discriminateUnion({type: 'a'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'a');
   });
@@ -125,7 +125,7 @@ describe('Unions: Manual Discriminator Function', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion(undefined);
+    const result = await compiled._discriminateUnion(undefined);
     assert.strictEqual(result, compiled.unionSchemas.a);
   });
 

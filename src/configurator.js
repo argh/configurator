@@ -15,8 +15,6 @@ import { stringify } from './schema/helpers/stringify.js';
 import { existingAssignment } from './schema/helpers/assignments.js';
 import { deepAssign } from './utils.js';
 
-/** @import { SerializeOptions, ConfigureOptions } from './schema/types.js' */
-
 
 const MODULE_INFO = {
   name: 'configurator',
@@ -187,6 +185,9 @@ export class Configurator {
     return this._resolver;
   }
 
+
+
+
   /**
    * Main entry point.  Load configuration assignments from all defined sources,
    * and use the highest priority assignments to build a configuration object
@@ -205,37 +206,11 @@ export class Configurator {
     const schema = await this._resolver.compile(this._schema);
     const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
 
-    // EXPERIMENT
-    // Original approach:
-    const configuration = await schema.processAssignments(assignments, undefined,{strict, deep, ...options?.assignmentOptions})
+    const configuration = await schema.processAssignments(assignments, undefined,{strict, deep, ...options})
 
-    /*
-    // Testing new approach:
-
-    // We can't handle magic paths in this approach:
-    for (const path of assignments.keys()) {
-      if (path.includes('*') || path.includes(':')) {
-        assignments.delete(path);
-      }
-    }
-    let input;
-    for (const [path, value] of assignments) {
-      input = deepAssign(input, path, value);
-    }
-
-    // Multi-phase
-    // TODO - investigate: share status of union resolution across phases?  (fewer loops)
-    //      - investigate: make defaults population part of normalization?
-    const normalized = await schema.normalizeValue(input);
-    const configuration = await schema.transform(normalized);
-//    await schema.populateDefaults(configuration);
-    await schema.validate(configuration);
-*/
     if (this._dumpContextName && configurationContext[this._dumpContextName]) {
       await this.dump(schema, configuration, configurationContext[this._dumpContextName]);
     }
-    // END EXPERIMENT
-
 
     return configuration;
   }
@@ -327,19 +302,20 @@ export class Configurator {
    * Configurator uses the "configuratorSchema" metadata to identify properties
    * that need special treatment (in this case: "help")
    *
-   * @param {Object} [attributes]             - override default attributes
    * @returns {Schema}
    */
-  static createHelpSchema(attributes) {
-    return new Schema('string', Object.assign({
-      allowEmpty: true,
-      values: ['advanced', 'system'],
-      _flagHint: 'h',
-      _description: 'display help information',
-      _valueDescription: '[advanced]',
-      _configuratorSchema: 'help',
-      _omitFromSerialize: true
-    }, attributes))
+  static createHelpSchema() {
+
+    return new Schema('string')
+      .allowEmpty()
+      .values(['advanced', 'system'])
+      .meta('flagHint', 'h')
+      .meta('description', 'display help information')
+      .meta('valueDescription', '[advanced]')
+      .meta('configuratorSchema', 'help')
+      .meta('omitFromSerialize')
+
+
 //      .property('*', new ConfiguratorSchemaDefinition('string', {
 //        values: ['advanced', 'system'],
 //        required: false
@@ -354,20 +330,18 @@ export class Configurator {
    * Configurator uses the "configuratorSchema" metadata to identify properties
    * that need special treatment (in this case: "config")
    *
-   * @param {Object} [attributes]             - override default attributes
    * @returns {Schema}
    */
 
-  static createConfigSchema(attributes) {
-    return new Schema('string', Object.assign({
-      validator: {$or: ['-', '$file']},
-      context: 'config',
-      _flagHint: 'C',
-      _description: 'load configuration from file (or - for stdin)',
-      _valueDescription: '[path|-]',
-      _configuratorSchema: 'config',
-      _omitFromSerialize: true
-    }, attributes))
+  static createConfigSchema() {
+    return new Schema('string')
+      .validator({$or: ['-', '$file']})
+      .option('context', 'config')
+      .meta('flagHint', 'C')
+      .meta('description', 'load configuration from file (or - for stdin)')
+      .meta('valueDescription', '[path|-]')
+      .meta('configuratorSchema', 'config')
+      .meta('omitFromSerialize')
   }
 
   /**
@@ -376,41 +350,46 @@ export class Configurator {
    * Configurator uses the "configuratorSchema" metadata to identify properties
    * that need special treatment (in this case: "dump")
    *
-   * @param {Object} [attributes]             - override default attributes
    * @returns {Schema}
    */
-  static createDumpSchema(attributes) {
-      return new Schema('string', Object.assign({
-        context: 'dump',
-        validator: '$writable',
-        _description: 'dump configuration to file (or - for stdout)',
-        _valueDescription: '[path|-]',
-        _advanced: true,
-        _configuratorSchema: 'dump',
-        _omitFromSerialize: true
-      }, attributes));
+  static createDumpSchema() {
+      return new Schema('string')
+        .option('context', 'dump')
+        .validator('$writable')
+        .meta('description', 'dump configuration to file (or - for stdout)')
+        .meta('valueDescription', '[path|-]')
+        .meta('advanced')
+        .meta('configuratorSchema', 'dump')
+        .meta('omitFromSerialize');
   }
 
 
-  static createSetPropertyValueSchema(attributes) {
-    return new Schema('array', Object.assign({
-      _description: 'set property value using path',
-      _advanced: true,
-      _flagHint: 'P',
-      _configuratorSchema: 'setPropertyValue',
-      _omitFromSerialize: true
-    }, attributes))
-      .property('0', new Schema('string', {
-        _description: 'dotted property path',
-        _valueDescription: 'path',
-        _hidden: true
-      }))
-      .property('1', new Schema('any', {
-        _description: 'property value',
-        _valueDescription: 'value',
-        _hidden: true
-      }))
+  /**
+   * Factory for building a schema to handle path-based property assignment requests.
+   *
+   * Configurator uses the "configurationSchema" metadata to identify properties
+   * that need special treatment (in this case: "setPropertyValue")
+   *
+   * @returns {Schema}
+   */
+  static createSetPropertyValueSchema() {
+    return new Schema('array')
+      .meta('description', 'set property value using path')
+      .meta('advanced')
+      .meta('flagHint', 'P')
+      .meta('configuratorSchema', 'setPropertyValue')
+      .meta('omitFromSerialize')
+      .property('0', new Schema('string')
+        .meta('description', 'dotted property path')
+        .meta('valueDescription', 'path')
+        .meta('hidden'))
+      .property('1', new Schema('any')
+        .meta('description', 'property value')
+        .meta('valueDescription', 'value')
+        .meta('hidden'));
   }
+
+  /** @import { SerializeOptions } from './schema/compiled-schema.js' */
 
   /**
    * Dump formatted configuration to stdout or file

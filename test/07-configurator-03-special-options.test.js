@@ -39,10 +39,9 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should use existing help schema if present', async function() {
-      const customHelp = Configurator.createHelpSchema({
-        _flagHint: 'H',
-        _description: 'custom help text'
-      });
+      const customHelp = Configurator.createHelpSchema()
+        .meta('flagHint', 'H')
+        .meta('description', 'custom help text')
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
@@ -57,9 +56,7 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should support renaming help to custom property name', async function() {
-      const customHelp = Configurator.createHelpSchema({
-        _description: 'halp me!'
-      });
+      const customHelp = Configurator.createHelpSchema().meta('description', 'halp me!');
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
@@ -116,10 +113,7 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should use existing config schema if present', async function() {
-      const customConfig = Configurator.createConfigSchema({
-        _flagHint: 'c',
-        _description: 'custom config file'
-      });
+      const customConfig = Configurator.createConfigSchema().meta('flagHint', 'c').meta('description', 'custom config file');
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
@@ -134,11 +128,11 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should support renaming config to custom property name like "profile"', async function() {
-      const profileConfig = Configurator.createConfigSchema({
-        context: 'profilePath',
-        _flagHint: 'P',
-        _description: 'profile configuration file'
-      });
+      const profileConfig = Configurator.createConfigSchema()
+                                        .option('context', 'profilePath')
+                                        .meta('flagHint', 'P')
+                                        .meta('description', 'profile configuration file');
+
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
@@ -197,10 +191,9 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should use existing setPropertyValue schema if present', async function() {
-      const customSetProp = Configurator.createSetPropertyValueSchema({
-        _flagHint: 'p',
-        _description: 'custom property setter'
-      });
+      const customSetProp = Configurator.createSetPropertyValueSchema()
+        .meta('flagHint', 'p')
+        .meta('description', 'custom property setter')
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
@@ -215,9 +208,7 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should support renaming setPropertyValue to custom property name', async function() {
-      const customSetProp = Configurator.createSetPropertyValueSchema({
-        _description: 'assign property'
-      });
+      const customSetProp = Configurator.createSetPropertyValueSchema().meta('description', 'assign property')
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))
@@ -394,9 +385,7 @@ describe('Configurator - Special Options', function() {
       };
       await fs.writeFile(configFile, JSON.stringify(configData), 'utf8');
 
-      const profileConfig = Configurator.createConfigSchema({
-        context: 'profilePath'
-      });
+      const profileConfig = Configurator.createConfigSchema().option('context', 'profilePath');
 
       const schema = new Schema('object')
         .property('database', new Schema('string'))
@@ -837,7 +826,7 @@ describe('Configurator - Special Options', function() {
         setPropertyValueEnabled: false
       });
 
-      const props = configurator.schema._properties;
+      const props = configurator.schema.properties;
 
       const helpProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'help');
       const configProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'config');
@@ -851,10 +840,10 @@ describe('Configurator - Special Options', function() {
     });
 
     it('should support custom names for all special options', async function() {
-      const customHelp = Configurator.createHelpSchema({ _description: 'halp me!' });
-      const customConfig = Configurator.createConfigSchema({ context: 'profilePath', _description: 'profile path' });
-      const customDump = Configurator.createDumpSchema({ context: 'output', _description: 'output path' });
-      const customSetProp = Configurator.createSetPropertyValueSchema({ _description: 'assign property' });
+      const customHelp = Configurator.createHelpSchema().meta('description', 'halp me!');
+      const customConfig = Configurator.createConfigSchema().option('context', 'profilePath').meta('description', 'profile path');
+      const customDump = Configurator.createDumpSchema().option('context', 'output').meta('description', 'output path');
+      const customSetProp = Configurator.createSetPropertyValueSchema().meta('description', 'assign property');
 
       const schema = new Schema('object')
         .property('value', new Schema('string'))

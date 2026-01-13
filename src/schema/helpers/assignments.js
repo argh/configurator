@@ -3,6 +3,7 @@
  * @param {Map<string,any>} assignments
  * @param {string} path
  * @returns {boolean}
+ * @internal
  */
 export function existingAssignment(assignments, path) {
   const parts = path.split('.');

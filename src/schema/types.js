@@ -12,6 +12,8 @@
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
 
+import { TraversalContext, TraversalHooks } from "./helpers/traversal.js";
+
 /** @import { CompiledSchema } from "./compiled-schema.js" */
 
 /**
@@ -132,51 +134,6 @@
  * @property {Object.<any,SchemaData>} [unionSchemas]
  */
 
-/** @typedef {Object} VisitOptions
- * @property {VisitMode} [mode]
- * @property {boolean} [resolveUnions] - true = attempt to resolve unions (otherwise just visit union itself)
- * @property {boolean} [visitUndefined] - true = visit entire schema hierarchy, even if the input object has undefined values
- * @property {boolean} [visitUndefinedShallow] - true = visit hierarchy, but don't continue into child properties if parent is undefined
- * @property {boolean} [visitUnexpected] - true = visit properties that were not expected
- * @property {boolean} [visitDefaults] -     true means visit even if value matches schema defaults
- * @property {boolean} [visitContainers] - true = call visitor on containers (post-order), not just leaf values
- * @property {boolean} [visitContainersPreOrder] - true = extra call to visitor on containers before iterating children
- */
-
-/** @typedef {Object} ValidateOptions
- * @extends VisitOptions
- * @property {boolean} [enforceUnionResolution]
- * @property {boolean} [enforceRequired]
- * @property {boolean} [enforceValues]
- * @property {boolean} [deepRequired]
- * @property {boolean} [disallowUnexpected]
- * @property {boolean} [strict]
- */
-
-/** @typedef {Object} PopulateOptions
- * @extends VisitOptions
- * @property {boolean} [strict]
- */
-
-/** @typedef {Object} SerializeOptions
- * @extends VisitOptions
- * @property {boolean} [strict]
- */
-
-/** @typedef {Object} AssignmentOptions
- * @property {boolean} [strict]
- * @property {boolean} [populateDefaults]
- * @property {PopulateOptions} [populateOptions]
- * @property {boolean} [validate]
- * @property {ValidateOptions} [validateOptions]
- */
-
-
-/** @typedef {Object} ConfigureOptions
- * @property {boolean} [strict]
- * @property {boolean} [deep]
- * @property {AssignmentOptions} [assignmentOptions]
- */
 
 /** @typedef {ValueProcessorDefinition|Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
 
@@ -212,6 +169,27 @@
  * @property {ProcessorSpec} spec
  * @property {SchemaValueProcessor<any>} processor
  * @property {string} [description]
+ */
+
+
+/**
+ * @typedef {Object} TraversalOptions
+ * @property {boolean} [strict]
+ * @property {boolean} [deep]
+ * @property {TraversalContext} [context]
+ * @property {TraversalHooks} [hooks]
+ * @property {string} [path]
+ * @property {string} [inputPath]
+ * @property {any} [target]
+ */
+
+/** @typedef {TraversalOptions & {[key:string]: any}} SerializeOptions */
+
+/** @typedef {TraversalOptions & {[key:string]: any}} ConfigureOptions */
+/** @typedef {TraversalOptions & {[key:string]: any}} ValidateOptions */
+
+/** @typedef {Object} ProcessOptions
+ * @property {TraversalContext|TraversalOptions} [context]
  */
 
 

@@ -33,7 +33,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(compiled.properties.color);
 
     // Should discriminate using name
-    const resultApple = await compiled.discriminateUnion({name: 'apple', color: 'red'});
+    const resultApple = await compiled._discriminateUnion({name: 'apple', color: 'red'});
     assert.ok(resultApple);
     assert.strictEqual(compiled.findUnionKey(resultApple), 'apple');
   });
@@ -64,7 +64,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(compiled.properties.size);
 
     // Can identify with just fruit + color
-    const result = await compiled.discriminateUnion({fruit: 'apple', color: 'green'});
+    const result = await compiled._discriminateUnion({fruit: 'apple', color: 'green'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'green-apple');
   });
@@ -91,7 +91,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(compiled.properties.subtype);
 
     // Need both properties to discriminate vehicles
-    const result = await compiled.discriminateUnion({type: 'vehicle', subtype: 'car'});
+    const result = await compiled._discriminateUnion({type: 'vehicle', subtype: 'car'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'vehicle-car');
   });
@@ -134,7 +134,7 @@ describe('Unions: Multi-Property Hoisting', function() {
     assert.ok(compiled.properties.flag);
     assert.ok(compiled.properties.type);
 
-    const result = await compiled.discriminateUnion({flag: true, type: 'a'});
+    const result = await compiled._discriminateUnion({flag: true, type: 'a'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'option-a');
   });

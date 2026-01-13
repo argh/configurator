@@ -5,12 +5,21 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "moduleResolution": "nodenext",
-    "module": "es2022",
+    "module": "nodenext",
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
     "noImplicitAny": false,
     "types": ["node", "mocha"],
     "useUnknownInCatchVariables": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "test",
+    "examples",
+    "coverage",
+    "docs-output",
+    "docs-output-contributors",
+    ".c8"
+  ]
 }

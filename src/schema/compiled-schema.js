@@ -1,16 +1,14 @@
 import {
-  ConstraintError,
-  NormalizeError, ProcessorError,
+  NormalizeError,
   SchemaError,
   SerializeError,
   TransformError,
   ValidationError
 } from '../errors.js';
-import { deepAssign, deepEquals, deepPrune, deepValue, isConstructor, isPlainObject } from '../utils.js';
+import { deepEquals, deepPrune, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { fpm } from './helpers/fpm.js';
 import {
-  deferContainer,
   checkRequiredHook,
   normalizeHook,
   transformHook,
@@ -32,16 +30,14 @@ import {
   TraversalHooks,
   inputToValueHook,
   normalizeInputHook, copyPropertyValueHook, simplePendingHook
+
 } from './helpers/traversal.js';
-import { stringify } from './helpers/stringify.js';
 
+/** @import { TraversalContextOptions } from './helpers/traversal.js' */
+/** @import { ISchema, ISchemaOptions, ISchemaMetadata, SchemaData, TraversalOptions, CompiledValueProcessorDefinition, ValidateOptions, SerializeOptions, ProcessOptions } from './types.js' */
 
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, AsyncSchemaValueVisitorFunction, AssignmentOptions, VisitOptions, SerializeOptions, ValidateOptions, PopulateOptions, CompiledValueProcessorDefinition } from './types.js' */
-
-/** @typedef {import('./types.js').ISchemaMetadata} CompiledSchemaMetadata */
-
-/** @typedef {ISchemaOptions} CompiledSchemaOptions
- */
+/** @typedef {ISchemaMetadata} CompiledSchemaMetadata */
+/** @typedef {ISchemaOptions} CompiledSchemaOptions */
 
 /** @typedef {Object} CompiledSchemaHandlers
  * @property {Array<CompiledValueProcessorDefinition>} [normalizers]
@@ -67,14 +63,11 @@ import { stringify } from './helpers/stringify.js';
  * - Errors are thrown if the input Schema is invalid, inconsistent, or missing required data.
  *
  * @class
- * @typedef {import("./types.js").ISchema} ISchema
  * @implements ISchema
  */
 export class CompiledSchema
 {
   static __TOKEN = Symbol('CONSTRUCT_USING_RESOLVER')
-  static __IGNORE = Symbol('IGNORE VALUE')
-  static __STAGED = Symbol('STAGED');
 
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
@@ -158,6 +151,7 @@ export class CompiledSchema
 
   /**
    * Properties are named child schemas, defining a hierarchical schema structure.
+   *
    * - Property schemas are always unique instances, copied during compilation, and not shared.
    * - Each child schema has a "name" that will always equal the property name within this schema.
    * - Each child schema has a "parent" that will always reference this schema.
@@ -176,7 +170,7 @@ export class CompiledSchema
    *
    * All handlers have the same async signature, receiving:
    *   1. a value to be processed by the current schema
-   *   2. a reference to the top-level aggregate being built or processed by the entire schema hierarchy
+   *   2. a reference to the top-level aggregate target being built or processed by the entire schema hierarchy
    *   3. a reference to the active schema that is processing the value
    *   4. the traversal path to the active schema (may not match schema path in event of wildcards!)
    *   5. any (unmanaged / developer defined) options passed to whatever invoked the handler processing
@@ -205,7 +199,9 @@ export class CompiledSchema
   }
 
   /**
-   * Extract this schema as a raw data object.
+   * Extract this schema as a raw data object usable for cloning this schema.
+   *
+   * Note that the data may include handler functions, so it cannot be assumed to be serializable to JSON!
    *
    * @returns {SchemaData|undefined}
    */
@@ -266,7 +262,9 @@ export class CompiledSchema
 
   /**
    * Return true if this schema is used to select union keys.
+   *
    * (This doesn't guarantee that there is a matching discriminator that uses it!)
+   *
    * @type {boolean}
    */
   get isUnionKey() {
@@ -275,6 +273,7 @@ export class CompiledSchema
 
   /**
    * Return true if the schema acts as a selector.
+   *
    * Selectors control the activation or deactivation of peer selection schemas using a conditional handler
    * synthesized during compilation.
    *
@@ -309,7 +308,8 @@ export class CompiledSchema
 
   /**
    * Return the legal (normalized) values this schema accepts, if defined.
-   * (This acts as an "upstream" check before calling any processing handlers.)
+   *
+   * (This acts as an "upstream" check before calling any transform handlers.)
    *
    * @type {Array<NonNullable<any>>|undefined}
    */
@@ -341,31 +341,21 @@ export class CompiledSchema
   }
 
   /**
-   * Returns true if the value defined by this schema is required to exist in the output to be valid.
+   * Returns whether this schema enforces strict/lax checking.
    *
-   * Under the normal pathways, this is a shallow requirement:
-   * - Each schema validates its own input; if the required flag is set, the input must not be undefined.
-   * - If the input value is defined and the schema has children, all child property schemas will
-   *   recursively validate the corresponding child value inside the input.
-   * - If the input value is undefined, child property schemas are NOT validated.
+   * - returns true if the schema uses strict checking
+   * - returns false if the schema uses lax checking
+   * - if undefined, it depends on the traversal context and the behavior of individual processors
    *
-   * (There can be subtle interplay between the "required" flag and the "default" setting, as defaults
-   * can be deep or shallow, depending on library configuration!)
+   * This setting is useful for preventing validation errors when transforms return new objects
+   * that contain extra properties that don't match the schema.
    *
-   * @type {boolean}
-   */
-  get required() {
-    return this._options.required ?? false;
-  }
-
-  /**
-   * Returns whether this schema enforces strict/lax validation:
-   * - returns true if the schema should always use strict validation
-   * - returns false if the schema should always use lax validation
-   * - if undefined, it's up to validator
+   * In most contexts (e.g. assignment processing and validation) strict processing is the default.
+   * Setting lax mode changes several behaviors:
+   * - If a union is marked lax, it is not an error to fail to resolve the union
+   * - If a leaf schema is marked lax, it is not an error if a value fails to assign to it
    *
-   * This setting is useful for preventing validation errors when transforms return objects
-   * that contain extra properties with no matching schema definition.
+   * Lax mode does *not* mean that errors during normalization
    *
    * @type {boolean|undefined}
    */
@@ -374,13 +364,44 @@ export class CompiledSchema
   }
 
   /**
+   * Returns true if the value defined by this schema is required to exist in the output to be valid.
+   *
+   * Under the normal pathways, this is a shallow requirement:
+   * - Each schema checks its own input; if the required flag is set, the input must not be undefined.
+   * - If the input value is defined and the schema defines child properties, the input will be traversed
+   *   and recursively checked against the child property schemas.
+   * - If the input value is undefined, child property schemas are NOT checked.
+   *
+   * If the "deep" flag is set on the schema, this behavior changes:
+   * - If the input value is undefined on a schema with "deep" set, child properties ARE checked.
+   *
+   * If a schema sets a default value, it will generally satisfy the required setting (unless set to a
+   * value function that returns undefined!)
+   *
+   * @type {boolean}
+   */
+  get required() {
+    return this._options.required ?? false;
+  }
+
+  /**
    * Returns the default value this schema provides if the input is undefined.
    *
    * This is normally interpreted as a "shallow" default;
-   * - if the schema being actively processed has a default value
-   * - if the schema being actively processed has a child property with a default value
+   * - If the schema being actively processed has a default value and the input value is undefined, the default is used.
+   * - If the schema being actively processed defines child properties, and is passed an input value that does not
+   *   contain a value for a specific child that defines a default, the child's default will be used.
+   * - If the schema being actively processed defines child properties, but is passed an undefined input value,
+   *   the child property schemas will not be traversed, and thus any child defaults will not take effect.
    *
-   * See the "deep" schema option to change this behavior.
+   * This last behavior changes if the "deep" schema option is set:
+   * - If the schema being actively processed defines child properties is passed an undefined input value when
+   *   the "deep" option is enabled, child property schemas will be traversed and any defaults will be used.
+   *
+   * The default may also be set to a value function:
+   * `async (value: any, target: any, schema: CompiledSchema, path: string, options: Object): any`
+   * that will be called during the normalization phase.  This can be useful for late binding, remote lookups,
+   * side effects, or lazy evaluation of expensive values.
    *
    * @type {any|undefined}
    */
@@ -463,7 +484,7 @@ export class CompiledSchema
    * @param {string} path
    * @param {Object} [options]
    * @returns {Promise<boolean>}
-   * @private
+   * @internal
    */
   async _checkCondition(value, target, path, options) {
     const conditions = Array.isArray(this._handlers.conditions)? this._handlers.conditions : [];
@@ -511,7 +532,7 @@ export class CompiledSchema
    * @param {string} [path] - path to this value in the output target
    * @param {Object} [options] - optional tweaks to normalizer behavior
    * @returns {Promise<any>}
-   * @private
+   * @internal
    */
   async _normalizeValue(value, target, path = this.path, options) {
     if (typeof value === 'function' && !isConstructor(value)) {
@@ -563,7 +584,7 @@ export class CompiledSchema
    * @param {string} path - the path to this value in the global target (caller will set)
    * @param {Object} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
-   * @private
+   * @internal
    */
   async _transformValue(value, target, path = this.path, options) {
     if (value === null || value === undefined) {
@@ -616,7 +637,7 @@ export class CompiledSchema
    * @param {string} path - path to the value within the output
    * @param {Object} options - options to tweak validation behavior
    * @returns {Promise<any>}
-   * @private
+   * @internal
    */
   async _validateValue(value, target, path = this.path, options) {
     if (this.required === true && value === undefined) {
@@ -647,7 +668,7 @@ export class CompiledSchema
    * @param {string} path - path to this value within the output
    * @param {Object} options - options to tweak serialization behavior
    * @returns {Promise<any>}
-   * @private
+   * @internal
    */
   async _serializeValue(value, target, path = this.path, options) {
     let serialized = value;
@@ -682,7 +703,7 @@ export class CompiledSchema
    * @param {any} target
    * @param {TraversalContext} context
    * @returns {Promise<any>}
-   * @private
+   * @internal
    */
   async _preload(target, context) {
     if (!context) {
@@ -698,11 +719,19 @@ export class CompiledSchema
 
 
   /**
+   * Normalize the input value.
+   *
+   * Unlike _normalizeValue, this will normalize an entire object hierarchy.
+   * Deprecated because this is weird, and under some conditions doesn't play well with the hook semantics.
+   * (Normalization and transformation are phases, not independent top level operations.)
+   *
    * @param {any} input - input value to normalize
    * @param {any} configuration - optional existing configuration
    * @returns {Promise<any>} - normalized value
+   * @deprecated
+   * @internal
    */
-  async XXXXXnormalize(input, configuration) {
+  async _normalize(input, configuration) {
     const context = new TraversalContext({strict: false});
 
     if (configuration !== undefined) {
@@ -721,11 +750,19 @@ export class CompiledSchema
   }
 
   /**
+   * Transform the input value.
+   *
+   * Unlike _transformValue, this will normalize and transform an entire object hierarchy.
+   * Deprecated because this is weird, and under some conditions doesn't play well with the hook semantics.
+   * (Normalization and transformation are phases, not independent top level operations.)
+   *
    * @param {any} input - input value to transform
-   * @param {import('./helpers/traversal.js').TraversalOptions} [options] - any tweaks to the transformer behavior
+   * @param {TraversalOptions} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
+   * @deprecated
+   * @internal
    */
-  async XXXXXtransform(input, options) {
+  async _transform(input, options) {
 
     const context = new TraversalContext(options);
 
@@ -740,6 +777,7 @@ export class CompiledSchema
     return result;
   }
 
+
   /**
    * Return a validated output if and only if the input fully matches the schema definition.
    *
@@ -748,12 +786,15 @@ export class CompiledSchema
    * - If the input data is invalid, the validate call will throw an error.
    *
    * @param {any} value - input value to validate
-   * @param {import('./helpers/traversal.js').TraversalOptions} [options] - any tweaks to the validator behavior
+   * @param {ValidateOptions} [options] - any tweaks to the validator behavior
    * @returns {Promise<any>} - validated value
    */
   async validate(value, options) {
-    let traversalOptions = {value, ...options};
-    const context = new TraversalContext(traversalOptions);
+    const context = new TraversalContext(options);
+    if (value !== undefined) {
+      await this._preload(value, context);
+    }
+
     const hooks = new TraversalHooks()
       .hook('startCurrent', [resolveUnionHook, checkConditionHook, inputToPendingHook])
       .hook('endCurrent', [resolveUnionHook, checkRequiredHook, checkUnresolvedHook, pendingToValueHook, validateHook])
@@ -764,20 +805,13 @@ export class CompiledSchema
   }
 
 
-
-  /** @typedef {import('./helpers/traversal.js').TraversalOptions} TraversalOptions */
-
-  /** @typedef {Object} ProcessOptions
-   * @property {TraversalContext|TraversalOptions} [context]
-   */
-
   /**
    * Process input path/value assignments into an output value based on the schema.
    *
    * Paths are dotted references into the schema hierarchy.  Assignment values are normalized, transformed,
    * validated, and then used to build the output value.
    *
-   * If an output target is provided, it is assumed to already be valid.
+   * If a value for the output target is provided, it is assumed to already be valid.
    *
    * Errors are thrown if:
    * - unexpected paths are provided that don't match the schema
@@ -789,12 +823,12 @@ export class CompiledSchema
    *
    * @param {Map<string,any>} assignments - path/value associations
    * @param {any} [target] - preexisting output value to build upon, if any
-   * @param {ProcessOptions & TraversalOptions} [options] - options to customize the traversal
+   * @param {ProcessOptions & TraversalOptions & TraversalContextOptions} [options] - options to customize the traversal
    * @returns {Promise<any>} - returns the output value
    */
   async processAssignments(assignments, target, options = {}) {
 
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(options.context ?? options);
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext({strict: options?.strict, deep: options?.deep});
     const hooks = new TraversalHooks()
       .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
       .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
@@ -807,10 +841,9 @@ export class CompiledSchema
     for (let [path, value] of assignments) {
       await this.traverse(value, {inputPath: path, context, hooks});
     }
-//    context.final = true;
+
     return await this.traverseMultipass(undefined, {context, hooks});
   }
-
 
   /**
    * Process an input value to an output value based on this schema.
@@ -825,11 +858,11 @@ export class CompiledSchema
    *
    * @param {any} input - the value to process
    * @param {any} [target] - preexisting output value to build upon, if any
-   * @param {ProcessOptions & TraversalOptions} [options] - options to customize the traversal
+   * @param {ProcessOptions & TraversalOptions & TraversalContextOptions} [options] - options to customize the traversal
    * @returns {Promise<any>} - returns the output value
    */
   async process(input, target, options = {}) {
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(options.context ?? options);
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext({strict: options?.strict, deep: options?.deep });
     const hooks = new TraversalHooks()
       .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
       .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
@@ -844,7 +877,6 @@ export class CompiledSchema
 
     return result;
   }
-
 
 
 
@@ -889,8 +921,9 @@ export class CompiledSchema
    * @param {string} path
    * @param {object} [options]
    * @returns {Promise<CompiledSchema|undefined>}
+   * @internal
    */
-  async discriminateUnion(value, target, path, options) {
+  async _discriminateUnion(value, target, path, options) {
 
     const strict = options?.strict ?? false;
 
@@ -942,7 +975,8 @@ export class CompiledSchema
   }
 
   /**
-   * Find the schema at a given path (supports wildcards and colon-delimited union keys in path components).
+   * Find the schema at a given path, falling back to the wildcard schema if one exists.
+   *
    * The root schema may be found at '', the empty string.  Array members are referenced with dotted integer indexes.
    *
    * @param {string} path
@@ -1047,11 +1081,10 @@ export class CompiledSchema
    * Invoke a provided visitor function on every schema node; if visitor returns false (explicitly), abort early.
    *
    * @param {(schema:CompiledSchema, path:string) => any} visitor - visitor function
-   * @param {{addUnionKeys?:boolean, onlySerializable?:boolean}} [options]
+   * @param {{onlySerializable?:boolean}} [options]
    * @returns {boolean} - returns true if visitors all returned true, false if any exited early
    */
   visitSchema(visitor, options) {
-    const addUnionKeys = options?.addUnionKeys ?? false;
     const onlySerializable = options?.onlySerializable ?? false;
     /**
      * @param {CompiledSchema} schema
@@ -1072,8 +1105,7 @@ export class CompiledSchema
       }
       if (schema.isUnion) {
         for (const unionSchemaKey in schema.unionSchemas) {
-          const p = addUnionKeys ? `${path}:${unionSchemaKey}` : path;
-          if (walk(schema.unionSchemas[unionSchemaKey], p) === false) {
+          if (walk(schema.unionSchemas[unionSchemaKey], path) === false) {
             return false;
           }
         }
@@ -1084,13 +1116,16 @@ export class CompiledSchema
   }
 
 
-
   /**
    * Traverse the provided input data based on the current schema.
    *
+   * Behaviors are composed via "hooks" that are called at pre/post phases during the traversal.
+   * This is all rather complex, so it's kept as an internal detail and is not part of the public API surface.
+   *
    * @param {any} input
-   * @param {Object} [options]
+   * @param {TraversalOptions} [options]
    * @returns {Promise<any>}
+   * @internal
    */
   async traverse(input, options) {
     const path = options?.path ?? '';
@@ -1148,6 +1183,9 @@ export class CompiledSchema
 
       const inputPathComponents = inputPath.split('.');
       const propertyKey = inputPathComponents.shift();
+      if (!propertyKey) {
+        return TraversalControl.OK;  // should never happen, but need to satisfy the typechecker
+      }
       const propertyInputPath = inputPathComponents.join('.')
       const property = state.context.getProperty(state, propertyKey);
       if (!property) {
@@ -1184,7 +1222,7 @@ export class CompiledSchema
 //          state.listPendingChildren().forEach(path => propertyKeys.add(path));
         }
       }
-      // fixme
+      // fixme - I hate this
       state.listPendingChildren().forEach(path => propertyKeys.add(path));
       // fixme
       const container = state.pending ?? state.value;
@@ -1256,34 +1294,30 @@ export class CompiledSchema
   }
 
   /**
-   * Traverse the provided input data based on the current schema.
+   * Continually traverse the provided input data based on the current schema until it stabilizes (or an error occurs)
+   *
+   * See traverse() for more details.
    *
    * @param {any} input
    * @param {Object} [options]
    * @returns {Promise<any>}
+   * @internal
    */
   async traverseMultipass(input, options) {
     let done = false;
     let result = undefined;
 
-    const hooks = options?.hooks ?? new TraversalHooks();
     const context = options?.context ?? new TraversalContext();
     const path = options?.path ?? '';
 
     // ensure the root state exists so that the context doesn't already appear to be completed on the first pass
     context.getState(path);
 
-//    result = await this.traverse(input, options);
     // loop until context stabilizes
     while (!done) {
       let counter = context.counter;
 
       result = await this.traverse(input, options);
-//      for (let p of context.incomplete) {
-//        await this.traverse(context.getState(p).input, {hooks, context, path, inputPath: p})
-//      }
-
-//      result = rootState.value;
 
       if (context.counter === counter || context.isComplete) {
         // nothing changed during this traversal pass, or we've handled all known assignments

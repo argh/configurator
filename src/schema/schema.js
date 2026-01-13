@@ -32,13 +32,23 @@ import { fpm } from './helpers/fpm.js';
 export class Schema
 {
   /**
-   * Construct a Schema.  Pass a string name of a registered schema to resolve as the base,
-   * or pass a schema-shaped object to extend.
+   * Construct a Schema.
+   *
+   * Pass a string name of a registered schema to resolve as the base, or pass a schema-shaped object to extend.
+   *
+   * Prefer the fluent setters over passing in options/metadata or attributes.
+   *
    * @param {string|ISchema|SchemaData} [base] - schema type or base to extend
    * @param {Object} [options] - schema options (also supports "attribute" shorthand syntax, but prefer being explicit)
    * @param {ISchemaMetadata} [metadata] - schema metadata
    */
   constructor(base, options, metadata) {
+
+    /**
+     * @type {string|undefined}
+     * @internal
+     */
+    this._base = undefined;
     /**
      * @type {Schema|undefined}
      * @internal
@@ -59,7 +69,7 @@ export class Schema
 
     /**
      * @type {SchemaHandlers}
-     * @private
+     * @internal
      */
     this._handlers = {};
 
@@ -82,7 +92,7 @@ export class Schema
     this._unionSchemas = {};
 
     if (typeof base === 'string') {
-      this.base = base;
+      this._base = base;
       if (options) {
         this._setAttributes(options);
       }
@@ -93,7 +103,7 @@ export class Schema
     else if ((base instanceof Schema) || (base instanceof CompiledSchema)) {
       this.extend(base);
       if (base instanceof Schema) {
-        this.base = base.base;
+        this._base = base.base;
       }
       // Apply additional options/metadata after extending
       if (options) {
@@ -110,49 +120,41 @@ export class Schema
   }
 
   /**
-   * parent schema
-   * @param {Schema} parent
+   * Parent schema, if this schema has been added as a property
+   *
+   * @type {Schema|undefined}
    */
-  set parent(parent) {
-    this._parent = parent;
-  }
-  /** @type {Schema|undefined} */
   get parent() {
     return this._parent;
   }
 
   /**
-   * property name of this schema within its parent
-   * @param {string} name
-   */
-  set name(name) {
-    this._name = name;
-  }
-
-  /**
-   * @returns {string|undefined}
+   * Property name of this schema within its parent
+   *
+   * @type {string|undefined}
    */
   get name() {
     return this._name;
   }
 
   /**
-   * name of a schema registered in SchemaResolver that this schema extends
-   * @param {string|undefined} base
-   */
-  set base(base) {
-    this._base = base;
-  }
-  /**
-   * @returns {string|undefined}
+   * Name of a schema registered in SchemaResolver that this schema extends
+   *
+   * @type {string|undefined}
    */
   get base() {
     return this._base;
   }
+  set base(base) {
+    this._base = base;
+  }
 
   /**
-   * computed path of this schema within the entire schema hierarchy
-   * @returns {string}
+   * Computed path of this schema within the entire schema hierarchy
+   *
+   * (The root schema path is the empty string.)
+   *
+   * @type {string}
    */
   get path() {
     if (!this.name) {
@@ -163,7 +165,10 @@ export class Schema
   }
 
   /**
-   * named child schemas
+   * Properties are named child schemas.
+   *
+   * Use the property setter rather than direct access to ensure data consistency.
+   *
    * @type {SchemaProperties}
    */
   get properties() {
@@ -171,7 +176,10 @@ export class Schema
   }
 
   /**
-   * handlers
+   * Handlers are grouped lists of value processors.
+   *
+   * Assign using the individual value processor setters.
+   *
    * @type {SchemaHandlers}
    */
   get handlers() {
@@ -179,7 +187,8 @@ export class Schema
   }
 
   /**
-   * settings that define how the schema behaves
+   * Options are settings that define how the schema behaves.
+   *
    * @returns {SchemaOptions}
    */
   get options() {
@@ -187,7 +196,8 @@ export class Schema
   }
 
   /**
-   * settings that describe how the schema should interact with users
+   * Metadata defines settings that describe how the schema should interact with users.
+   *
    * @type {SchemaMetadata}
    */
   get metadata() {
@@ -195,7 +205,8 @@ export class Schema
   }
 
   /**
-   * alternative schemas that make up this union
+   * Unions are sets of alternative schemas; a discriminator selects which to use.
+   *
    * @type {SchemaUnionSchemas}
    */
   get unionSchemas() {
@@ -203,7 +214,8 @@ export class Schema
   }
 
   /**
-   * extract the contents of this schema and its children as a regular object
+   * Extract the contents of this schema and its children as a regular object.
+   *
    * @returns {SchemaData}
    */
   toData() {
@@ -211,7 +223,8 @@ export class Schema
   }
 
   /**
-   * attributes were a convenient shorthand, but they really just add confusion
+   * Attributes were initially a convenient shorthand for constructing schemas, but now just add confusion.
+   *
    * @deprecated
    * @param {string} attributeName
    * @param {any} attributeValue
@@ -261,7 +274,8 @@ export class Schema
   }
 
   /**
-   * attributes were a convenient shorthand, but they really just add confusion*
+   * Attributes were initially a convenient shorthand for constructing schemas, but now just add confusion.
+   *
    * @deprecated
    * @param {Object} attributes
    * @returns {Schema}
@@ -279,7 +293,8 @@ export class Schema
   }
 
   /**
-   * property - add a named child schema
+   * Attach a named child schema
+   *
    * @param {string} propertyName - property name
    * @param {Schema|undefined} propertySchema - schema to associate with the property, undefined to delete current
    * @returns {Schema} - returns self for fluent chaining
@@ -316,13 +331,14 @@ export class Schema
     propertySchema._parent = this;
 
     if (this.base === undefined && this.options.type === undefined) {
-      this.base = Number.isInteger(propertyName)? 'array' : 'object';
+      this._base = Number.isInteger(propertyName)? 'array' : 'object';
     }
     return this;
   }
 
   /**
-   * bulk-add properties
+   * Bulk-add properties
+   *
    * @param {SchemaProperties} properties - property name
    * @param {symbol} [policy] - specify whether to overwrite or only initialize
    * @returns {Schema} - returns self for fluent chaining
@@ -341,7 +357,10 @@ export class Schema
   }
 
   /**
-   * define a schema option
+   * Define a schema option
+   *
+   * Options are settings that define how the schema behaves.
+   *
    * @param {string} option - option
    * @param {any} [value] - option value
    * @returns {Schema} - returns self for fluent chaining
@@ -366,7 +385,8 @@ export class Schema
   }
 
   /**
-   * bulk add options
+   * Bulk add options
+   *
    * @param {Object} options
    * @param {symbol} [policy]
    * @returns {Schema}
@@ -390,6 +410,7 @@ export class Schema
 
   /**
    * Helper function for the fluent handler api calls
+   *
    * @param {string} handlerName
    * @param {Array<ProcessorSpec>} specs
    * @param {symbol} [policy]
@@ -441,7 +462,8 @@ export class Schema
   }
 
   /**
-   * bulk add handlers
+   * Bulk add handlers
+   *
    * @param {Object} handlers
    * @param {symbol} [policy]
    * @returns {Schema}
@@ -458,7 +480,7 @@ export class Schema
   }
 
   /**
-   * define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
+   * Define schema metadata (like options, but for humans and ConfigurationSource hints) - todo: locale-aware
    *
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
    *
@@ -509,6 +531,7 @@ export class Schema
   /**
    * The discriminator handler returns the key or schema of the union member that should be used
    * This function appends a single value processor to the handler pipeline.
+   *
    * @param {ProcessorSpec} spec
    * @returns {Schema} - returns self for fluent chaining
    */
@@ -530,7 +553,8 @@ export class Schema
   }
 
   /**
-   * add a schema as a member of this schema's union
+   * Add a schema as an alternative member of this schema's union.
+   *
    * @param {string} key - union schema key (used by some discriminators to select this schema)
    * @param {Schema} unionSchema - schema that the discriminator selects, or true/false override if a group
    * @returns {Schema}
@@ -569,6 +593,7 @@ export class Schema
 
   /**
    * Bulk-add union schemas
+   *
    * @param {Object.<string,Schema>} unionSchemas
    * @param {symbol} [policy]
    * @returns {Schema}
@@ -592,7 +617,8 @@ export class Schema
   }
 
   /**
-   * mark this schema as only permitting union keys
+   * Mark this schema as containing (and only permitting) storage of union keys.
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -602,7 +628,11 @@ export class Schema
   }
 
   /**
-   * mark this schema as a selector
+   * Mark this schema as a selector.
+   *
+   * Selectors are a convenience wrapper for controlling selection conditions that only are true when
+   * the selector contains the correct selection value.
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -613,7 +643,13 @@ export class Schema
   }
 
   /**
-   * Mark this schema as a selection.  With the default argument, will compile to assume the property name
+   * Mark this schema as a selection.
+   *
+   * Selection schemas automatically create conditions that render the selection schema inactive
+   * unless the corresponding selector has the correct value.
+   *
+   * With the default argument, the selection schema condition uses the property name as the selector value.
+   *
    * @param {NonNullable<any>} [value]
    * @returns {Schema}
    */
@@ -629,7 +665,12 @@ export class Schema
   }
 
   /**
-   * Mark this schema as required (or not)
+   * Mark this schema as defining a required value (or not)
+   *
+   * Schema requirements are enforced during validation.
+   *
+   * Requirements are shallow; this can be changed via the deep() option.
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -639,7 +680,11 @@ export class Schema
   }
 
   /**
-   * Define a default value for this schema
+   * Define a default value for this schema to use if there is no input.
+   *
+   * Defaults are shallow and will not cause children of undefined inputs to populate;
+   * this can be changed via the deep() option.
+   *
    * @param {NonNullable<any>} value
    */
   default(value) {
@@ -650,6 +695,7 @@ export class Schema
   /**
    * Indicate that this schema should be deeply traversed even if the input is empty
    * (e.g. to enable deep defaults and requirements)
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -659,7 +705,8 @@ export class Schema
   }
 
   /**
-   * Mark this array/string as allowing empty values
+   * Mark this array/string as allowing empty values.
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -670,8 +717,11 @@ export class Schema
 
   /**
    * Mark this schema as allowing incremental assignment to children.
-   * (The default is true for any schema with children, so most of the
-   * time you'd be disabling it.)
+   *
+   * (The default is true for any schema with children, so most of the time you'd be disabling it.)
+   *
+   * Deprecated; use the "opaque" option as it more clearly indicates the actual intent.
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    * @deprecated
@@ -694,6 +744,7 @@ export class Schema
    * the staged normalized container contents as input.
    *
    * Validators for opaque schemas only run on the value itself, and do not traverse into any child properties.
+   * Opaque schemas thus generally require custom validators that know how to properly handle the value.
    *
    * @param {boolean} [value]
    */
@@ -703,6 +754,12 @@ export class Schema
 
   /**
    * Mark this schema as requiring strict enforcement (the default)
+   *
+   * Strict mode means that the data cannot have any extra data, and exactly matches the schema definition.
+   * Lax mode allows a more "fuzzy" interpretation of the data, but the data still must pass all value processors
+   * including the validation phases.  (To prevent exceptions during validation, wrap the processors in a
+   * $filter, which will just return undefined.)
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -713,6 +770,7 @@ export class Schema
 
   /**
    * Syntactic sugar for the oppositive of strict
+   *
    * @param {boolean} [value];
    * @returns {Schema}
    */
@@ -723,6 +781,7 @@ export class Schema
 
   /**
    * Mark this schema to inherit its value from a parent schema, and hide it while we're at it
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -736,6 +795,7 @@ export class Schema
 
   /**
    * Mark this schema as implicit in the transformed output (so no need to assign or check)
+   *
    * @param {boolean} [value]
    * @returns {Schema}
    */
@@ -746,7 +806,10 @@ export class Schema
 
 
   /**
-   * Define a legal value this schema can hold (simple === comparison only for now)
+   * Define a legal input value this schema will accept.
+   *
+   * Values will be normalized for comparison.
+   *
    * @param {NonNullable<any>} v
    * @returns {Schema}
    */
@@ -755,7 +818,10 @@ export class Schema
   }
 
   /**
-   * Define legal values this schema can hold (simple === comparison only for now)
+   * Define a list of one or more legal values this schema will accept
+   *
+   * Values will be normalized for comparison.
+   *
    * @param {Array<NonNullable<any>>} va
    * @param {symbol} [policy]
    * @returns {Schema}
@@ -852,6 +918,7 @@ export class Schema
   /**
    * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
    * This call appends a single value processor to the handler pipeline.
+   *
    * @param {ProcessorSpec} spec
    * @returns {Schema}
    */
@@ -874,6 +941,7 @@ export class Schema
   /**
    * The serialize handler restores a configuration value to its pre-transform normalized form.
    * This call appends a single value processor to the handler pipeline.
+   *
    * @param {ProcessorSpec} spec
    * @returns {Schema}
    */
@@ -895,7 +963,8 @@ export class Schema
 
 
   /**
-   * extend - use another schema to extend the current one without overwriting.
+   * Use another schema to extend the current one without overwriting.
+   *
    * @param {ISchema|SchemaData} otherSchema - source schema
    * @returns {Schema} - returns self
    */
@@ -906,7 +975,7 @@ export class Schema
 
     // Set base if not already set
     if (!this.base && otherSchema.base) {
-      this.base = otherSchema.base;
+      this._base = otherSchema.base;
     }
 
     this.addProperties(Object.fromEntries(
@@ -924,7 +993,8 @@ export class Schema
   }
 
   /**
-   * clone - make a copy of this schema
+   * Make a copy of this schema
+   *
    * @returns {Schema}
    */
   clone() {
@@ -945,12 +1015,15 @@ export class Schema
     const schema = new Schema();
 
     if (model.base) {
-      schema.base = model.base;
+      schema._base = model.base;
     }
     return schema.extend(model);
   }
   /**
    * Static schema factory (useful for aliasing to reduce typing!)
+   *
+   * Prefer using fluent setters over passing options/metadata to this call
+   *
    * @param {string|ISchema|SchemaData|Schema|CompiledSchema} [base] - schema
    * @param {Object} [options] - schema options
    * @param {ISchemaMetadata} [metadata] - schema metadata
@@ -962,6 +1035,9 @@ export class Schema
 
   /**
    * Static schema factory for special schemas that ignore assignments and produce a single defined value
+   *
+   * Prefer using fluent setters over passing options/metadata to this call
+   *
    * @param {NonNullable<any>} literalValue - the value this schema will always emit
    * @param {Object} [options] - additional options
    * @param {ISchemaMetadata} [metadata] - additional metadata
@@ -1017,6 +1093,13 @@ export class Schema
     return schema;
   }
 
+  /**
+   * Static schema factory for creating a schema that inherits its value from the first parent with the same name.
+   * TODO - this isn't being tested or used, verify & justify!
+   *
+   * @returns {Schema}
+   * @internal
+   */
   static inherit() {
     return new Schema()
       .option('compileHook', (hookEvent, hookSchema) => {
@@ -1054,6 +1137,14 @@ export class Schema
       .meta('internal')
   }
 
+  /**
+   * Static schema factory for creating a schema that gets its value from another location based on a path.
+   * TODO - this isn't being tested or used, verify & justify!
+   *
+   * @param {string} path
+   * @returns {Schema}
+   * @internal
+   */
   static reference(path) {
     return new Schema()
       .option('compileHook', (hookEvent, hookSchema) => {

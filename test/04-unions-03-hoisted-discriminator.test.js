@@ -31,11 +31,11 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.ok(compiled.properties.name);
 
     // Should discriminate based on name
-    const resultApple = await compiled.discriminateUnion({name: 'apple'});
+    const resultApple = await compiled._discriminateUnion({name: 'apple'});
     assert.ok(resultApple);
     assert.strictEqual(compiled.findUnionKey(resultApple), 'apple');
 
-    const resultBanana = await compiled.discriminateUnion({name: 'banana'});
+    const resultBanana = await compiled._discriminateUnion({name: 'banana'});
     assert.ok(resultBanana);
     assert.strictEqual(compiled.findUnionKey(resultBanana), 'banana');
   });
@@ -56,7 +56,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     assert.ok(compiled.properties.animal);
 
     // Should match with different casing due to normalization
-    const result = await compiled.discriminateUnion({animal: 'dog'});
+    const result = await compiled._discriminateUnion({animal: 'dog'});
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'Dog');
   });
@@ -153,7 +153,7 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
     const compiled = await resolver.compile(schema);
 
     // discrimination should quietly fail...
-    assert.strictEqual(await compiled.discriminateUnion({type: 'invalid'}), undefined);
+    assert.strictEqual(await compiled._discriminateUnion({type: 'invalid'}), undefined);
 
     // ...but failure to discriminate should throw an error.
     await assert.rejects(

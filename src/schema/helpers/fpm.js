@@ -6,7 +6,7 @@
  * @param {string|number} [property]
  * @param {string} [prep]
  * @returns {string}
- * @package
+ * @internal
  */
 export function fpm(message, path, property, prep = 'at') {
 
