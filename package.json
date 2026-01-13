@@ -34,7 +34,9 @@
     "docs:api": "typedoc",
     "docs:api:json": "typedoc --json docs-output/api.json",
     "docs:api:contributors": "typedoc --excludeInternal false --excludePrivate false --out docs-output-contributors",
-    "docs:api:contributors:json": "typedoc --excludeInternal false --excludePrivate false --json docs-output-contributors/api.json"
+    "docs:api:contributors:json": "typedoc --excludeInternal false --excludePrivate false --json docs-output-contributors/api.json",
+    "docs:api:md": "typedoc --options typedoc-md.json",
+    "docs:api:md:contributors": "typedoc --options typedoc-md.json --excludeInternal false --excludePrivate false --out docs-output-md-contributors"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.6.1",
@@ -44,7 +46,8 @@
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "mocha": "^10.2.0",
-    "typedoc": "^0.27.0",
+    "typedoc": "^0.28.16",
+    "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "~5.6.3"
   }
 }

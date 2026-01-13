@@ -10,12 +10,12 @@ import { CompiledSchema } from '../schema/compiled-schema.js';
  * If an appName is provided in the context, and it matches a top-level property name, this is truncated for
  * aesthetics.
  *
- * Options and aliases are specified with double hyphen (--option or --xy) and flags with a single hyphen (-F).
- * Values may be defined after the option or flag (--option value or -F value) or inline with an equals sign
- * (--option=value or -F=value).  Boolean schemas make the "true" value optional (--debug true, --debug=true, and --debug
- * all do the same thing, as with -D true, -D=true, or -D).  Flags may be consolidated, -x -y is the same as -xy for
- * boolean flags.  If you specify an inline value for the consolidated flags, they all share the value; --xy=false
- * is the same as -x false -y false.  If a flag requires an argument, it needs to be the last flag in the sequence.
+ * Options and aliases are specified with double hyphen (`--option` or `--xy`) and flags with a single hyphen (`-F`).
+ * Values may be defined after the option or flag (`--option value` or `-F value`) or inline with an equals sign
+ * (`--option=value` or `-F=value`).  Boolean schemas make the "true" value optional (`--debug true`, `--debug=true`, and `--debug`
+ * all do the same thing, as with `-D true`, `-D=true`, or `-D`).  Flags may be consolidated, `-x -y` is the same as `-xy` for
+ * boolean flags.  If you specify an inline value for the consolidated flags, they all share the value; `--xy=false`
+ * is the same as `-x false -y false`.  If a flag requires an argument, it needs to be the last flag in the sequence.
  *
  * Flag and alias allocation is on an opportunistic basis for "non-advanced" options based on the sequence of definition.
  *
@@ -31,12 +31,12 @@ import { CompiledSchema } from '../schema/compiled-schema.js';
  *
  * Additional Metadata
  *
- * advanced          - only list with --help advanced
- * hidden            - option exists, but does not show up in --help or --help advanced
- * general           - mark as a bare option without hyphen; typically used for gathering array values
- * internal          - do not generate a command-line option at all
- * description       - help description of the property
- * valueDescription  - help description of the value and its constraints
+ * - advanced          - only list with --help advanced
+ * - hidden            - option exists, but does not show up in --help or --help advanced
+ * - general           - mark as a bare option without hyphen; typically used for gathering array values
+ * - internal          - do not generate a command-line option at all
+ * - description       - help description of the property
+ * - valueDescription  - help description of the value and its constraints
  */
 export class CommandLineSource extends ConfigurationSource
 {

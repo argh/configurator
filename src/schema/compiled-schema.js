@@ -80,19 +80,40 @@ export class CompiledSchema
     if (token !== CompiledSchema.__TOKEN) {
       throw new SchemaError('CompiledSchema must be created via compilation');
     }
-    /** @type {string|undefined} */
+    /**
+     * @type {string|undefined}
+     * @private
+     */
     this._name = name;
-    /** @type {CompiledSchema|undefined} */
+    /**
+     * @type {CompiledSchema|undefined}
+     * @private
+     */
     this._parent = parent;
-    /** @type {CompiledSchemaProperties} */
+    /**
+     * @type {CompiledSchemaProperties}
+     * @private
+     */
     this._properties = {};
-    /** @type {CompiledSchemaHandlers} */
+    /**
+     * @type {CompiledSchemaHandlers}
+     * @private
+     */
     this._handlers = {};
-    /** @type {CompiledSchemaOptions} */
+    /**
+     * @type {CompiledSchemaOptions}
+     * @private
+     */
     this._options = {};
-    /** @type {CompiledSchemaMetadata} */
+    /**
+     * @type {CompiledSchemaMetadata}
+     * @private
+     */
     this._metadata = {};
-    /** @type {CompiledSchemaUnionSchemas} */
+    /**
+     * @type {CompiledSchemaUnionSchemas}
+     * @private
+     */
     this._unionSchemas = {};
   }
 

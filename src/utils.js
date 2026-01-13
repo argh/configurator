@@ -122,6 +122,7 @@ export function deepMerge(target, ...sources) {
  * @param {any} a
  * @param {any} b
  * @returns {boolean}
+ * @internal
  */
 export function deepEquals(a, b) {
   if (a === b) return true;

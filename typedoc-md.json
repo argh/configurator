@@ -1,0 +1,11 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "extends": "./typedoc.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "out": "docs-output-md",
+  "outputFileStrategy": "modules",
+  "membersWithOwnFile": ["Class", "Enum", "Interface"],
+  "hidePageHeader": true,
+  "hideBreadcrumbs": false,
+  "hidePageTitle": false
+}

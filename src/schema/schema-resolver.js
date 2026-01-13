@@ -28,13 +28,24 @@ import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
 /** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
 
+/**
+ * The SchemaResolver class is used to compile a Schema into a CompiledSchema.
+ *
+ * It also defines a registry of named schemas, and a registry of keywords that correspond to value processors.
+  */
 export class SchemaResolver
 {
   constructor() {
-    /** @type {Map<string,Schema>} */
+    /**
+     * @type {Map<string,Schema>}
+     * @private
+     */
     this.schemaMap = new Map();
 
-    /** @type {Map<string,ValueProcessorDefinition>} */
+    /**
+     * @type {Map<string,ValueProcessorDefinition>}
+     * @private
+     */
     this.processorMap = new Map();
     this._registerBuiltInSchemas();
     this._registerBuiltInValueProcessors()

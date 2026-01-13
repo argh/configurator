@@ -1,0 +1,39 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/index.js",
+    "src/configuration-sources/index.js",
+    "src/utils.js",
+    "src/schema/builtin-processors/index.js",
+    "src/schema/builtin-schemas/**"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "docs-output",
+  "readme": "none",
+  "exclude": [
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/test/**",
+    "**/*.test.js",
+    "**/.c8/**",
+    "**/examples/**"
+  ],
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeProtected": true,
+  "excludeNotDocumented": true,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "kindSortOrder": [
+    "Class",
+    "Constructor",
+    "Property",
+    "Method",
+    "Function"
+  ]
+}

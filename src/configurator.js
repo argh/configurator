@@ -22,6 +22,17 @@ const MODULE_INFO = {
 }
 
 /**
+ * @typedef {Object} ConfiguratorOptions
+ * @property {Schema} [schema]
+ * @property {SchemaResolver} [resolver]
+ * @property {Array<ConfigurationSource>} [sources] - if not provided, uses default sources from getDefaultSources()
+ * @property {boolean} [helpEnabled] - enable help option
+ * @property {boolean} [configEnabled] - enable configuration file option
+ * @property {boolean} [dumpEnabled] - enable dump file option
+ * @property {boolean} [setPropertyValueEnabled] - enable extended property value setting
+ */
+
+/**
  * The Configurator class coordinates configuration.
  *
  * A Schema is provided as input to define a valid configuration.
@@ -36,16 +47,6 @@ export class Configurator {
   static get Schema() { return Schema };
   static get CompiledSchema() { return CompiledSchema };
   static get SchemaResolver() { return SchemaResolver };
-  /**
-   * @typedef {Object} ConfiguratorOptions
-   * @property {Schema} [schema]
-   * @property {SchemaResolver} [resolver]
-   * @property {Array<ConfigurationSource>} [sources] - if not provided, uses default sources from getDefaultSources()
-   * @property {boolean} [helpEnabled] - enable help option
-   * @property {boolean} [configEnabled] - enable configuration file option
-   * @property {boolean} [dumpEnabled] - enable dump file option
-   * @property {boolean} [setPropertyValueEnabled] - enable extended property value setting
-   */
 
   /**
    * Create a new Configurator
@@ -389,7 +390,7 @@ export class Configurator {
         .meta('hidden'));
   }
 
-  /** @import { SerializeOptions } from './schema/compiled-schema.js' */
+  /** @import { ConfigureOptions, SerializeOptions } from './schema/types.js' */
 
   /**
    * Dump formatted configuration to stdout or file

@@ -14,3 +14,5 @@ coverage/
 .c8/
 docs-output/
 docs-output-contributors/
+docs-output-md/
+docs-output-md-contributors/
