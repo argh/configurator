@@ -20,8 +20,10 @@ import { deepValue } from '../utils.js';
  * then the function will never be called.  This lazy evaluation is useful when computing the default value may
  * have side effects or hidden costs, like instantiating a singleton or calling an external service.
  *
- * Note that this source is currently unable to populate defaults under wildcard paths, but there is some "fallback"
- * logic (in CompiledSchema.validate and .visit) that attempts to fill in missing defaults.
+ * Defaults inside union members have keyed paths (e.g. backend.storage:mongo.collection, backend.storage:redis:maxmemory)
+ *
+ * Wildcard defaults (e.g. commands.*.version or even keyed like commands.*:list.recursive) are emitted and expanded
+ * by CompiledSchema to match any resolved unions.
  */
 export class SchemaDefaultsSource
   extends ConfigurationSource
@@ -42,12 +44,6 @@ export class SchemaDefaultsSource
     const assignments = new Map();
 
     schema.visitSchema(  (schema, path) => {
-      if (path === '') {
-//        return;  // we deal with the root as a special case
-      }
-      if (path.indexOf('*') !== -1) {
-//        return;  // we can't synthesize default assignments for wildcard schemas!  or can we?  (leave the * as a marker?)
-      }
       if (schema.default !== undefined) {
         if (assignments.has(path) && assignments.get(path) !== schema.default) {
           throw new SchemaError(`Ambiguous default value for ${path}: ${assignments.get(path)} vs ${schema.default}`)

@@ -5,12 +5,12 @@ const appName = 'basics';
 // Root schema
 const schema = new Schema('object');
 
-// Debug property at root level (factory function, fluent api)
+// Debug property at root level
 schema.property('debug',
   new Schema('boolean')
+    .meta('description', 'enable debugging')
     .meta('advanced', true)  // hide from basic CLI help
     .meta('flagHint', 'D')   // advanced options normally don't get a CLI flag allocated
-    .meta('description', 'enable debugging')
 );
 
 const resolver = new SchemaResolver();
@@ -20,46 +20,54 @@ resolver.registerSchema('MagicCode',
   new Schema('string')
     .validator('$alphanum')
     .meta('valueName', 'code')
-)
+);
 
-// App-specific schema (fluent api)
+// App-specific schema
+
 schema.property(appName,
   new Schema('object')
     .property('files',
-      new Schema('array').allowEmpty()
-        .meta('general', true)  // CLI hint to not require an explicit option
+      new Schema('array')
+        .allowEmpty()
         .meta('description', 'files to process')
-        .property('*',
-          new Schema('string').validator('$file')))
+        .meta('general', true)  // CLI hint to not require an explicit option
+        .property('*', new Schema('string').validator('$file'))
+    )
     .property('verbose',
-      new Schema('boolean').default(false)
+      new Schema('boolean')
+        .default(false)
+        .meta('description', 'enable verbose diagnostics')
         .meta('advanced', true)
-        .meta('description', 'enable verbose diagnostics'))
+    )
     .property('codes',
-      new Schema('array').required()
-        .meta('description', 'magic secret codes')
+      new Schema('array')
+        .required()
         .property('*', new Schema('MagicCode'))
-        .validator({'$length': {min: 2}})))
+        .meta('description', 'magic secret codes')
+        .validator({'$length': {min: 2}})
+    )
+)
 
+// As a personal style choice, you can alias the static factory function to make construction more terse:
+const s = Schema.create;
 
-// Server configuration schema, showing alternative attributes-based definition
-// (attributes with an underscore are stored in metadata without underscore)
-schema.property('server', new Schema('object')
-  .property('host', new Schema('string', {
-    default: 'localhost',
-    validator: {$or: ['$ipv4', '$ipv6', '$reachable']},
-    _description: 'health check address'
-  }))
-  .property('port', new Schema('number', {
-    default: 80,
-    validator: '$port',
-    _description: 'health check port'
-  }))
-  .property('protocol', new Schema('string', {
-    validator: {$in: ['https', 'http']},
-    _description: 'health check protocol',
-    advanced: true
-  }))
+// Server configuration schema
+schema.property('server', s('object')
+  .property('host', s('string')
+    .default('localhost')
+    .validator({$or: ['$ipv4', '$ipv6', '$reachable']})
+    .meta('description', 'health check address')
+  )
+  .property('port', s('number')
+    .default(80)
+    .validator('$port')
+    .meta('description', 'health check port')
+  )
+  .property('protocol', s('string')
+    .validator({$in: ['https', 'http']})
+    .meta('description', 'health check protocol')
+    .meta('advanced')  // default value for metadata is
+  )
 );
 
 try {

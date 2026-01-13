@@ -4,7 +4,8 @@
     "test/**",
     "coverage/**",
     "examples/**",
-    "src/schema/types.js"
+    "src/schema/types.js",
+    "eslint.config.js"
   ],
   "all": true,
   "check-coverage": true,
