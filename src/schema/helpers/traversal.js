@@ -462,6 +462,7 @@ export class TraversalState {
       if (this._schema?.required) {
         return false;
       }
+      // fixme - what about default functions?  it could return undefined.
       if (this._schema?.default !== undefined) {
         return false;
       }
@@ -665,6 +666,7 @@ export class TraversalState {
     if (this.hasPendingChildren) {
       return true;
     }
+
     const isEmpty = (Array.isArray(this._pending) && this._pending.length === 0)
                     || (typeof this._pending === 'object' && Object.keys(this._pending).length === 0);
 

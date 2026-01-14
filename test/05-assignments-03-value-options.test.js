@@ -4,7 +4,7 @@ import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ValidationError } from '../src/errors.js';
 
-describe('Assignments - Value Options (default, inherit, required)', function() {
+describe('Assignments - Value Options (default, required)', function() {
   let resolver;
 
   beforeEach(function() {

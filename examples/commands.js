@@ -155,9 +155,8 @@ const computeCommandSchema = new Schema('object')
     .validator('$alphanum')
     .required()
   )
-  .property('debug', new Schema('boolean')
-    .inherit(true)
-  );
+  .property('debug', Schema.inherit());
+
 
 // COMPUTE SUB-COMMANDS
 

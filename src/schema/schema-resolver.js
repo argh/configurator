@@ -406,7 +406,7 @@ export class SchemaResolver
             const base = `${source.base}`
 
             strictCompileError = new ResolverError(`Unable to resolve "${base}"`)
-            outputSchema.options.transformer = ((value, config, schema) => {
+            outputSchema.transformer((value, config, schema) => {
               if (schema.options.strict !== false) {
                 throw strictCompileError;
               }
@@ -455,6 +455,10 @@ export class SchemaResolver
     }
     for (const [unionKey, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
       outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, parent, name);
+    }
+
+    if (source.options.compileHook && typeof source.options.compileHook === 'function') {
+      source.options.compileHook('link', source);
     }
 
     const specialOptions = ['values' /*, 'default'*/];

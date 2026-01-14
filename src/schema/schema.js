@@ -1,10 +1,10 @@
 import { ConfiguratorError, SchemaError, ValidationError } from '../errors.js';
 import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
-import { deepValue } from '../utils.js';
+import { deepEquals, deepValue } from '../utils.js';
 import { fpm } from './helpers/fpm.js';
 
-/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec } from './types.js' */
+/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec, AsyncSchemaValueProcessor } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
@@ -685,7 +685,7 @@ export class Schema
    * Defaults are shallow and will not cause children of undefined inputs to populate;
    * this can be changed via the deep() option.
    *
-   * @param {NonNullable<any>} value
+   * @param {NonNullable<any>|SchemaValueProcessor<any>} value
    */
   default(value) {
     this.options.default = value;
@@ -776,20 +776,6 @@ export class Schema
    */
   lax(value) {
     this.options.strict = (value === undefined) ? false : !value;
-    return this;
-  }
-
-  /**
-   * Mark this schema to inherit its value from a parent schema, and hide it while we're at it
-   *
-   * @param {boolean} [value]
-   * @returns {Schema}
-   */
-  inherit(value) {
-    this.options.inherit = value ?? true;
-    if (this.options.inherit) {
-      this.metadata.hidden = true;
-    }
     return this;
   }
 
@@ -1094,28 +1080,57 @@ export class Schema
   }
 
   /**
-   * Static schema factory for creating a schema that inherits its value from the first parent with the same name.
-   * TODO - this isn't being tested or used, verify & justify!
+   * Static schema factory for creating a schema that inherits its value from the first parent with the property name.
+   * If no property name is provided, the inherit schema's property name is used, so it will look for the same name
+   * higher in the schema hierarchy.
    *
    * @returns {Schema}
+   * @param {string} [propertyName]
    * @internal
    */
-  static inherit() {
+  static inherit(propertyName) {
+
     return new Schema()
       .option('compileHook', (hookEvent, hookSchema) => {
-        if (hookEvent !== 'finalize') {
-          return;
+        if (hookEvent === 'compile') {
+          const name = propertyName ?? hookSchema.name;
+
+          if (!hookSchema.parent) {
+            throw new SchemaError('A top-level schema cannot have an inherited value');
+          }
+
+          if (name === '*') {
+            throw new SchemaError('A wildcard cannot inherit its value');
+          }
         }
-        if (!hookSchema.parent) {
-          throw new SchemaError('A top-level schema cannot have an inherited value');
+
+        if (hookEvent === 'finalize') {
+          const name = propertyName ?? hookSchema.name;
+
+          // Walk up the parent hierarchy to verify the property exists in some ancestor
+          // Start from grandparent since parent.properties[name] would be ourselves
+          let ancestor = hookSchema.parent?.parent;
+          let found = false;
+          while (ancestor) {
+            if (ancestor.properties[name]) {
+              found = true;
+              break;
+            }
+            ancestor = ancestor.parent;
+          }
+
+          if (!found) {
+            throw new SchemaError(`Inherited property "${name}" not found in any ancestor of "${hookSchema.path}"`);
+          }
         }
       })
-      .normalizer((_value, _config, _schema, path) => {
-        return path.substring(path.lastIndexOf('.') + 1);
-      })
-      .transformer((propName, config, schema, path) => {
-        while (path && schema.parent) {
-          schema = schema.parent;
+      .normalizer((_value, config, schema, path) => {
+        const propName = propertyName ?? schema.name;
+
+        const root = schema.getRoot();
+
+        // Walk up from current position to root, looking for the property
+        while (path) {
           const lastDot = path.lastIndexOf('.');
           if (lastDot === -1) {
             path = '';
@@ -1123,15 +1138,23 @@ export class Schema
           else {
             path = path.substring(0, lastDot);
           }
-          if (schema.properties[propName]) {
-            return deepValue(config, path ? `${path}.${propName}` : `${propName}`);
+          const propertyPath = path ? `${path}.${propName}` : `${propName}`;
+
+          const candidateSchema = root.find(propertyPath);
+          if (candidateSchema === schema) {
+            continue;  // skip ourselves
+          }
+          // If we found a schema at this path, return the value from config
+          if (candidateSchema) {
+            return deepValue(config, propertyPath);
           }
         }
         return undefined;
       })
+
       .serializer(() => undefined)
-      .default((_value, config, _schema, path) => {
-        return path.substring(path.lastIndexOf('.') + 1)
+      .default((_value, config, schema, path) => {
+        return propertyName ?? schema.name;
       })
       .meta('omitFromSerialize')
       .meta('internal')
@@ -1139,7 +1162,6 @@ export class Schema
 
   /**
    * Static schema factory for creating a schema that gets its value from another location based on a path.
-   * TODO - this isn't being tested or used, verify & justify!
    *
    * @param {string} path
    * @returns {Schema}
@@ -1151,22 +1173,32 @@ export class Schema
         if (hookEvent !== 'finalize') {
           return;
         }
-        if (!hookSchema.find(path)) {
+        if (!hookSchema.getRoot().find(path)) {
           throw new SchemaError(`Unable to find reference path ${path}`);
         }
       })
-      .normalizer(() => {
-        return path;
-      })
-      .transformer((_, config) => {
+      .normalizer((_, config) => {
         return deepValue(config, path);
       })
-      .validator((value, config) => {
+      .validator((value, config, schema) => {
+        const root = schema.getRoot();
+
+        const referenceSchema = root.find(path);
         const configValue = deepValue(config, path);
-        if (configValue === value) { // fixme oh crap, there might be a different value where our reference points!  can't guarantee equality of reference!
-          return configValue;
+
+        // If identical, we're done.
+        if (configValue === value) {
+          return value;
         }
-        throw new ValidationError(`Reference is not exactly the same as ${path}`)
+
+        // simple values and opaque values must have an identical reference
+        if (!referenceSchema.hasChildren || referenceSchema.opaque) {
+          throw new ValidationError(`Reference is not exactly the same as ${path}`)
+        }
+
+        // this feels wrong, but there's no guarantee a container wasn't rebuilt during validation
+        return value;
+
       })
       .serializer(() => undefined)
       .default(() => {
