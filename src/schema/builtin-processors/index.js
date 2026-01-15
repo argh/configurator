@@ -24,6 +24,7 @@ import { WRITABLE_CONSTRAINT } from './writable-constraint.js';
 import { EXECUTABLE_CONSTRAINT } from './executable-constraint.js';
 import { REACHABLE_CONSTRAINT } from './reachable-constraint.js';
 import { HTTPURL_CONSTRAINT } from './httpurl-constraint.js';
+import { TRUTHY_CONSTRAINT } from './truthy-constraint.js';
 
 // Simple operators
 import { TRIM_OPERATOR } from './trim-operator.js';
@@ -50,6 +51,10 @@ import { FLOOR_OPERATOR } from './build-floor-operator.js';
 import { FILTER_OPERATOR } from './build-filter-operator.js';
 import { PIPELINE_OPERATOR } from './build-pipeline-operator.js';
 import { PROPERTY_OPERATOR } from './build-property-operator.js';
+import { REFERENCE_OPERATOR } from './build-reference-operator.js';
+import { DEFINED_CONSTRAINT } from './defined-constraint.js';
+import { FIRST_OPERATOR } from './build-first-operator.js';
+
 
 
 /** @import { ValueProcessorDefinition } from '../types.js'; */
@@ -61,6 +66,7 @@ import { PROPERTY_OPERATOR } from './build-property-operator.js';
 export function getBuiltinProcessors() {
   return [
     // Simple constraints
+    DEFINED_CONSTRAINT,
     HOSTNAME_CONSTRAINT,
     URL_CONSTRAINT,
     EMAIL_CONSTRAINT,
@@ -86,6 +92,7 @@ export function getBuiltinProcessors() {
     EXECUTABLE_CONSTRAINT,
     REACHABLE_CONSTRAINT,
     HTTPURL_CONSTRAINT,
+    TRUTHY_CONSTRAINT,
 
     // Simple operators
     TRIM_OPERATOR,
@@ -111,7 +118,9 @@ export function getBuiltinProcessors() {
     CEIL_OPERATOR,
     FLOOR_OPERATOR,
     FILTER_OPERATOR,
-    PROPERTY_OPERATOR
+    PROPERTY_OPERATOR,
+    REFERENCE_OPERATOR,
+    FIRST_OPERATOR
   ];
 }
 
@@ -121,6 +130,7 @@ export function getBuiltinProcessors() {
 // than by importing these definitions directly.
 export {
   // Simple constraints
+  DEFINED_CONSTRAINT,
   HOSTNAME_CONSTRAINT,
   URL_CONSTRAINT,
   EMAIL_CONSTRAINT,
@@ -146,6 +156,7 @@ export {
   EXECUTABLE_CONSTRAINT,
   REACHABLE_CONSTRAINT,
   HTTPURL_CONSTRAINT,
+  TRUTHY_CONSTRAINT,
 
   // Simple operators
   TRIM_OPERATOR,
@@ -171,5 +182,7 @@ export {
   CEIL_OPERATOR,
   FLOOR_OPERATOR,
   FILTER_OPERATOR,
-  PROPERTY_OPERATOR
+  PROPERTY_OPERATOR,
+  REFERENCE_OPERATOR,
+  FIRST_OPERATOR
 };

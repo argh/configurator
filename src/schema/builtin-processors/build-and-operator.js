@@ -20,21 +20,11 @@ import { ResolverError } from '../../errors.js';
  *   ]
  * })
  *
- * // Complex validation with custom processors
- * Schema.create('string').validator({
- *   $and: [
- *     '$trim',
- *     {$length: {min: 8}},
- *     /^[A-Za-z0-9]+$/
- *   ]
- * })
- *
  * // In a schema property
- * Schema.create('object', {
- *   username: Schema.create('string').validator({
- *     $and: ['$nonempty', '$alphanum', {$length: {min: 3, max: 20}}]
- *   })
- * })
+ * Schema.create('object')
+ *   .property('username', Schema.create('string')
+ *     .validator({$and: ['$nonempty', '$alphanum', {$length: {min: 3, max: 20}}]})
+ * )
  * ```
  *
  * **Parameters**:
@@ -58,11 +48,10 @@ export const AND_OPERATOR = {
     return ({
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
       processor: async (value, configuration, schema, path, options) => {
-        let v = value;
         for (const {processor} of compiled) {
-          v = await processor(v, configuration, schema, path, options);
+          await processor(value, configuration, schema, path, options);
         }
-        return v;
+        return value;
       },
       description: descriptions.length > 1
                    ? descriptions.map(d => d.includes('|') ? `(${d})` : d).join(' & ')

@@ -495,6 +495,31 @@ export class CompiledSchema
   }
 
   /**
+   *
+   * @param {Array<CompiledValueProcessorDefinition>} defs
+   * @param {any} value
+   * @param {any} target
+   * @param {string} path
+   * @param {object} options
+   * @returns {Promise<any>}
+   * @private
+   */
+  async _execProcessors(defs, value, target, path, options) {
+
+    const _frame = {
+      stack: [value]
+    };
+
+    let v = value;
+    for (const def of defs) {
+      v = await def.processor(value, target, this, path, {...options, _frame})
+    }
+    return v;
+  }
+
+
+
+  /**
    * Check if the normalized provided value (and/or current output target) passes the schema conditional check.
    *
    * Failed conditions will be repeatedly re-checked during assignment processing until the final pass.

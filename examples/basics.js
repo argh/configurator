@@ -18,6 +18,7 @@ const resolver = new SchemaResolver();
 // Let's define a reusable schema base
 resolver.registerSchema('MagicCode',
   new Schema('string')
+    .normalizer('$lowercase')
     .validator('$alphanum')
     .meta('valueName', 'code')
 );
@@ -39,10 +40,10 @@ schema.property(appName,
         .meta('description', 'enable verbose diagnostics')
         .meta('advanced', true)
     )
-    .property('codes',
+    .property('codes', // accept magic codes that don't contain "q"
       new Schema('array')
         .required()
-        .property('*', new Schema('MagicCode'))
+        .property('*', new Schema('MagicCode').validator(/^[^q]+$/))
         .meta('description', 'magic secret codes')
         .validator({'$length': {min: 2}})
     )
@@ -75,7 +76,7 @@ try {
     appName,
     defaults: { [appName]: { verbose: true }},                               // app defaults are low priority but take precedence over schema defaults
     env: { 'BASICS_SERVER_HOST' : '127.0.0.1' },                             // normally omit, defaults to process.env
-    argv: ['-D', '--server-port', '8081', '--codes', '5xx', 'z10', '123'],  // normally omit, defaults to process.argv
+    argv: ['-D', '--server-port', '8081', '--codes', '5xx', 'z10', '123'],   // normally omit, defaults to process.argv
     overrides: { server: { protocol: 'https', port: 443 } }                  // overrides default to highest priority
   });
   console.log('Configuration results: ', config);

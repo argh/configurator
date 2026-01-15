@@ -110,6 +110,10 @@ export class SchemaResolver
       throw new ResolverError(`Processor '${keyword}' must have processor or builder`);
     }
 
+    if (description && typeof description !== 'string') {
+      throw new ResolverError(`Processor description must be a string`);
+    }
+
     this.processorMap.set(keyword, definition);
     return this;
   }
@@ -250,7 +254,7 @@ export class SchemaResolver
       return {
         spec,
         processor: this._asyncifySVF(registered.processor),
-        description: registered.description
+        description: registered.description // ?? keyword - todo - check if keyword is already added elsewhere
       }
     }
 
@@ -293,7 +297,7 @@ export class SchemaResolver
 
       const compiled = this._compileProcessorSpec(def.spec);
       if (def.description) {
-        compiled.description = def.description;
+        compiled.description = `${def.description}`;
       }
       return compiled;
     }
@@ -337,12 +341,17 @@ export class SchemaResolver
    * This can be useful if you need to make changes to the full schema, e.g. prepending processors
    * before the base class handlers.
    *
-   * @param {Schema|CompiledSchema|SchemaData} inputSchema
+   * @param {Schema|CompiledSchema|SchemaData|string} inputSchema
    * @param {Schema} [parent]
    * @param {string} [name]
    * @returns {Schema}
    */
   resolve(inputSchema, parent, name) {
+
+    if (typeof inputSchema === 'string') {
+      inputSchema = this.getSchema(inputSchema);
+    }
+
     const outputSchema = new Schema();
 
     /** @type {Schema|CompiledSchema|SchemaData|undefined} */

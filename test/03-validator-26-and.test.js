@@ -21,17 +21,17 @@ describe('Validator: and', function() {
     await compiled._validateValue('testest');
   });
 
-  it('should chain validators and pass value through', async function() {
+  it('should return original value if everything passes and not chain value', async function() {
     const schema = new Schema('string').validator({
       $and: [
         (v) => v.toLowerCase(),
-        /^hello$/
+        /^hello$/i
       ]
     });
     const compiled = await resolver.compile(schema);
 
     const result = await compiled._validateValue('HELLO');
-    assert.strictEqual(result, 'hello');
+    assert.strictEqual(result, 'HELLO');
   });
 
   it('should reject when first condition fails', async function() {

@@ -750,6 +750,7 @@ export class Schema
    */
   opaque(value = true) {
     this.options.allowIncremental = !value;
+    return this;
   }
 
   /**

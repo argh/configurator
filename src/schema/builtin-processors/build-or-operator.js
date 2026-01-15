@@ -59,7 +59,8 @@ export const OR_OPERATOR = {
         const errors = [];
         for (const {processor} of compiled) {
           try {
-            return await processor(v, c, s, p, o);
+            await processor(v, c, s, p, o);
+            return v;
           } catch (error) {
             errors.push(error.message);
           }

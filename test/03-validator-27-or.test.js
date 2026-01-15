@@ -51,17 +51,17 @@ describe('Validator: or', function() {
     );
   });
 
-  it('should return first successful result', async function() {
+  it('should return original value if any pass', async function() {
     const schema = new Schema('string').validator({
       $or: [
-        (v) => v.toUpperCase(),
-        (v) => v.toLowerCase()
+        /other/,
+        /test/i
       ]
     });
     const compiled = await resolver.compile(schema);
 
     const result = await compiled._validateValue('test');
-    assert.strictEqual(result, 'TEST'); // First validator wins
+    assert.strictEqual(result, 'test');
   });
 
   it('should generate combined description', async function() {

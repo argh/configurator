@@ -55,7 +55,8 @@ export const PROPERTY_OPERATOR = {
           throw new SchemaError(`Unknown property ${propertyName}`);
         }
         return (typeof current === 'object' && current !== null)? current[propertyName] : undefined;
-      }
+      },
+      description: `${propertyName}`
     };
   }
 };

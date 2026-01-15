@@ -5,48 +5,54 @@ import { Configurator, SchemaResolver, Schema, CompiledSchema, ConfiguratorError
 import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { isConstructor, toConstantCase } from '../src/utils.js';
 
+// This example aggregates (almost) everything you can do with Configurator into one
+// extremely contrived demo.
 
-
-// SCHEMAS AND VALIDATORS
+// SCHEMAS AND VALUE PROCESSORS
 const resolver = new SchemaResolver();
 
-// In addition to defining structure, Schemas may have optional handlers, several of which are called
-// during the process of transforming input data into the final output data:
+// In addition to defining structure, Schemas may define optional handlers, several of which are called
+// during the process of converting an input value into an output value:
 //
 // * condition   - check whether to process the current schema or ignore it
-// * normalizer  - ensure the input is in a supported input format
-// * transformer - convert the input format to the output format
+// * normalizer  - ensure the input is in a canonical input format
+// * transformer - convert the normalized input format to the output format
 // * validator   - ensure the output format meets specified constraints
 // * serializer  - convert the output format back to a serializable (e.g. json) input format
 //
-// The schemas defined in the default resolver handle this for basic types, but you
-// you can define your own custom schemas this way as well.
+// Handlers are built as a pipeline of value processor functions.  The built-in schemas for basic types
+// are almost entirely defined by their handler pipelines.  Your custom schemas can augment these
+// basic handler pipelines, or you can define your own from scratch.
 //
-// Handlers have the same call signature, for example,
+// Value processors in all the handler pipelines all share the the same call signature:
 //
-//   output = await schema.transformer(input, configuration, schema, path)
+//   output = await processor(input, target, schema, path, options)
 //
-// where "input" is the value being specified in the assignment, "configuration" is
-// the current state of the configuration object being built, "schema" is a reference
-// to the active definition itself, and "path" is the dotted path inside the configuration
-// where the value will be written.  (Many handlers only need the first argument!)
+// where "input" is the value being specified in the assignment, "target" is
+// the current value of the entire configuration object being built, "schema" is a reference
+// to the active definition itself, and "path" is the dotted path within the schema hierarchy
+// of the current input and schema, and where the value will eventually be written within the target.
+// (Many handlers only need the first argument!)
 //
-// Normalizers, transformers, and serializers must either:
-// 1. Return a (potentially transformed) value
+// Normalizers, transformers, validators, and serializers must either:
+// 1. Return a (potentially altered) value
 // 2. Return undefined if the value cannot currently be provided
 // 3. Throw an error if there is a fundamental problem with the provided value or the current state.
 // (Conditions should return true if the schema should be processed, false otherwise.)
 //
-// Transform attempts that return undefined will be retried until a value is resolved
+// In most cases, handler calls that return undefined will be retried until a value is resolved
 // or the configuration has stabilized.  This allows types to be defined where their value
-// depends on other aspects of the configuration state.
+// is dynamic or depends on other aspects of the configuration state.
 
 // Here is an example of a schema that can accept either a positive number,
 // an ISO string, or the string "now" to indicate the current time should be used:
 
 resolver.registerSchema('timestamp', new Schema('any')
   .normalizer((value) => {
-    if ((typeof value === 'number') || (typeof value === 'string') || value instanceof Date) {
+    if (!value || value === 'now') {
+      return Date.now();
+    }
+    else if ((typeof value === 'number') || (typeof value === 'string') || value instanceof Date) {
       return value;
     }
     else {
@@ -59,9 +65,6 @@ resolver.registerSchema('timestamp', new Schema('any')
         throw new Error(`Invalid negative timestamp value: ${value}`);
       }
       return value;
-    }
-    else if (!value || value === 'now') {
-      return Date.now();
     }
     else if (typeof value === 'string') {
       const t = new Date(value).getTime();
@@ -107,32 +110,30 @@ class Havarti extends Cheese { }
 const cheeses = new Map([Cheddar, Mozzarella, Parmesan, Provolone, Stilton, Gouda, Emmental, Brie, Muenster, Havarti].map(c => [c.name.toLowerCase(), c]));
 
 resolver.registerSchema('Cheese', new Schema('any')
-  .transformer((value) => {
-    if (typeof value === 'string') {
-      value = value.toLowerCase();
-      if (cheeses.has(value)) {
-        value = cheeses.get(value);
-      }
-      else {
-        throw new Error('unsupported cheese');
-      }
+  .values(Array.from(cheeses.keys()))
+  .normalizer('$lowercase')
+  .normalizer(value => {
+    if (!cheeses.has(value)) {
+      throw new Error(`unknown cheese ${value}`);
     }
+    return value;
+  })
 
-    if (!isConstructor(value)) {
+  .transformer((value) => {
+    const cheeseClass = cheeses.get(value);
+
+    if (!isConstructor(cheeseClass)) {
       throw new Error('invalid cheese constructor');
     }
 
     // @ts-ignore
-    if (!value.prototype instanceof Cheese) {
+    if (!cheeseClass.prototype instanceof Cheese) {
       throw new Error('not a cheese!')
     }
-
-    if (value.name) {
-      return new value();
-    }
-    else {
+    if (!cheeseClass.name) {
       throw new Error('cannot use unnamed cheese')
     }
+    return new cheeseClass();
   })
   .validator((value) => {
     if (value instanceof Cheese) {
@@ -188,8 +189,10 @@ resolver.registerSchema('Printer', new Schema('any')
 );
 
 
-// This is an example of a union.
-
+// This is an example of a union.  The schema compiler automatically discovers that
+// each union member has a "type" property constrained to a unique value, so it is
+// able to automatically generate a discriminator function.  (For more complex unions,
+// you have the option to provide your own discriminator.)
 
 class RepoOperation {
   constructor(type) {
@@ -283,6 +286,10 @@ resolver.registerSchema('FoldOperation',
     .property('type', new Schema('string').value('fold'))
     .property('foldCount', new Schema('number').validator('$positive'))
 );
+
+// Note the use of Schema.literal for the type property in the next operation schemas.
+// This is essentially syntactic sugar for a schema that always returns a fixed value.
+
 resolver.registerSchema('SpindleOperation',
   new Schema('RepoOperation')
     .transformer(() => new SpindleOperation())
@@ -299,17 +306,17 @@ resolver.registerSchema('MutilateOperation',
 
 // Validators are used to provide constraints on top of the type system, by checking
 // whether the typed value meets one or more provided criteria.  Validators may also
-// perform subtle type-compliant refinements to their input, such as normalizing
-// capitalization or trimming whitespace.
+// perform subtle type-compliant refinements to their input, such as standardizing
+// capitalization or trimming whitespace.  As mentioned above, validators are defined
+// as "processor functions", simple (potentially async) functions called in a pipeline to
+// process values.  You can define them inline, or register them with the schema resolver
+// and reference them by name; they will be resolved when the schema is compiled.
 //
-// A set of commonly used validator functions are pre-registered by default.  See
-// the documentation for a detailed list.  (Note that validator names are always
-// prefixed with "$" to disambiguate checking a validator vs. checking for a specific
-// value.)
-//
-// The validator function may be synchronous or asynchronous, and receives only
-// the value to be checked.  It should return the (potentially refined) value if it
-// is valid, or throw an error if not.
+// A set of commonly used processor functions are pre-registered by default.  See
+// the documentation for a detailed list.  (Note that processor keywords are always
+// prefixed with "$" to disambiguate checking a processor vs. comparison with a literal
+// value.)  Any of the built-in processors can also be used by normalizers and transformers,
+// but they are especially useful for validators.
 //
 // Here is an example of an asynchronous validator that checks whether the path
 // value provided lives within a git repository:
@@ -338,14 +345,12 @@ resolver.registerValueProcessor('inside-git-repo', async (value) => {
     throw new Error(`Invalid path: ${value}`);
   }
   return check(value);
-}, () => {
-  return 'path to git repo'
-});
+}, 'path to git repo');
 
 
 // SCHEMA
 //
-// Schema names and Validator names will not be resolved until the configuration is being populated.
+// Schema names and processor keywords will not be resolved until the configuration is being populated.
 
 const schema = new Schema('object')
   .property('halp', Configurator.createHelpSchema().meta('flagHint', 'H'))
@@ -359,11 +364,8 @@ const schema = new Schema('object')
       .meta('flagHint', 'D')
       .meta('advanced', true)
     )
-    .property('foo', new Schema('boolean')
-      .default(false)
-    )
     .property('fakeSecretDelay', new Schema('number')
-      .default(500)
+      .default(1000)
       .meta('hidden', true)
     )
     .property('printer', new Schema('Printer')
@@ -379,14 +381,17 @@ const schema = new Schema('object')
     .property('nickname', new Schema('string')
       .required()
       .validator(/[a-z]{3,}/i)
+      .meta('description', 'user doing work')
     )
     .property('token', new Schema('string')
       .required()
       .validator(/[0-9|a-f]{12}/i)
+      .meta('description', 'user credentials')
       .meta('secret', true)  // this is a private metadata value that we use in the source below
     )
     .property('cheeses', new Schema('array')
-      .default([Cheddar, Provolone])
+      .default(['Cheddar', 'Provolone'])
+      .meta('description', 'cheeses the user will accept to do work')
       .property('*', new Schema('Cheese'))
     )
   )
@@ -398,8 +403,10 @@ const schema = new Schema('object')
       .default('now')
     )
     .property('operations', new Schema('array')
+      .meta('description', 'list of operations user will perform')
       .property('*',
-        new Schema()
+        new Schema('object')
+          .meta('valueDescription', 'operation')
           .unionSchema('seek', new Schema('SeekOperation'))
           .unionSchema('punch', new Schema('PunchOperation'))
           .unionSchema('read', new Schema('ReadOperation'))
@@ -408,7 +415,7 @@ const schema = new Schema('object')
           .unionSchema('mutilate', new Schema('MutilateOperation'))
       )
     )
-    .property('cheese', new Schema('Cheese'))
+    .property('cheese', new Schema('Cheese').meta('description', 'cheese to offer the user as payment'))
   )
 
 class FakeSecretsSource extends ConfigurationSource {
@@ -457,7 +464,7 @@ class FakeSecretsSource extends ConfigurationSource {
       // that this source assignment will be the one actually used (and wasn't
       // overridden by a higher priority assignment!)
       //
-      // Assignments to value resolver functions are called late in the process.
+      // Value resolver functions are called late in the assignment process.
 
       assignments.set(path, async (_, configuration) => {
         if (typeof configuration.app?.fakeSecretDelay !== 'number') {
@@ -500,9 +507,9 @@ schema.property('profile', Configurator.createConfigSchema()
 );
 const configurator = new Configurator({ schema, resolver, sources });
 
-// Write a demo profile file for the example...
+// Write a demo profile file for the example... (passing operations on the command line in JSON is ugly)
 await writeFile('./example-profile.json', JSON.stringify({
-  user: {nickname: 'bob', cheeses: ['brie', 'cheddar', 'stilton']},
+  user: {nickname: 'bob', cheeses: ['brie', 'stilton']},
   work: {operations: [{type: 'seek', x: 10, y: 5}, {type: 'punch', punchCount: 4}, {type: 'read', readLength: 2}, {type: 'seek', y: 6}, {type: 'punch'}]}
 }));
 
@@ -510,30 +517,45 @@ try {
   const config = await configurator.configure({
     appName: 'app',    // env var prefix, also used to make cmd line args for matching schema more concise
     // comment out these next lines if you want to use the actual environment and command line
-    env: {APP_FAKE_SECRET_DELAY: '1000'},
-    argv: ['--work-repo=./src', '-VD', '--profile=./example-profile.json', '--printer=bar', '--work-cheese=cheddar', /*'--dump=./example-config.json'*/],
+    env: {APP_FAKE_SECRET_DELAY: '10'},
+    argv: ['--work-repo=./src', '-VD', '--profile=./example-profile.json', '--printer=bar', '--work-cheese=brie', /*'--dump=./example-config.json'*/],
     overrides: { app: { printer: new FooPrinter() }}
   })
   const printer = config.app?.printer;
 
-  const cheeseAccepted = config.work.cheese && config.user.cheeses.find(cheese => {
-    return (cheese.name === config.work.cheese.name);
-  })
-
-  if (cheeseAccepted) {
+  if (!config.work) {
     if (printer) {
-      printer.print(`Cheese payment "${config.work?.cheese?.name}" accepted, analyzing repo "${config.work.repo}" using timestamp ${new Date(config.work?.modified)}`)
-      printer.print(config.work.operations.map(o => o.execute()).join(' -> '))
+      printer.print('No work to do, give me cheese and a task!');
     }
     else {
-      console.error('No printer!');
+      console.error('No printer and no work!')
     }
   }
-  else if (!config.work?.cheese) {
-    console.error(`I don't work for free!  Gimme cheese!`)
-  }
   else {
-    console.error(`Cheese payment "${config.work?.cheese?.name}" rejected!  I work for: ${config.user?.cheeses?.map(c => c.name).join(' | ')}`)
+
+    const cheeseAccepted = config.work.cheese && config.user.cheeses.find(cheese => {
+      return (cheese.name === config.work.cheese.name);
+    })
+
+    if (cheeseAccepted) {
+      if (printer) {
+        printer.print(
+          `Cheese payment "${config.work.cheese?.name}" accepted, analyzing repo "${config.work.repo}" using timestamp ${new Date(
+            config.work?.modified)}`)
+        printer.print(config.work.operations?.map(o => o.execute()).join(' -> '))
+      }
+      else {
+        console.error('No printer!');
+      }
+    }
+    else if (!config.work?.cheese) {
+      console.error(`I don't work for free!  Gimme cheese!`)
+    }
+    else {
+      console.error(
+        `Cheese payment "${config.work?.cheese?.name}" rejected!  I work for: ${config.user?.cheeses?.map(c => c.name)
+                                                                                      .join(' | ')}`)
+    }
   }
 
   // You can use the file written by --dump as the input for config (--profile,
