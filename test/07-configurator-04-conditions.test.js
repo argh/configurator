@@ -12,7 +12,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('mode', new Schema('string', { default: 'production' }))
         .property('debugOptions', new Schema('object', {
-          condition: (value, configuration) => configuration.mode === 'development'
+          condition: (value, configuration) => configuration?.mode === 'development'
         })
           .property('verbose', new Schema('boolean', { default: false }))
           .property('logLevel', new Schema('string', { default: 'debug' }))
@@ -38,7 +38,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('mode', new Schema('string'))
         .property('debugOptions', new Schema('object', {
-          condition: (value, configuration) => configuration.mode === 'development'
+          condition: (value, configuration) => configuration?.mode === 'development'
         })
           .property('verbose', new Schema('boolean', { default: false }))
           .property('logLevel', new Schema('string', { default: 'debug' }))
@@ -66,7 +66,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('useCache', new Schema('boolean', { default: true }))
         .property('cache', new Schema('object', {
-          condition: (value, configuration) => configuration.useCache === true
+          condition: (value, configuration) => configuration?.useCache === true
         })
           .property('ttl', new Schema('number', { default: 3600 }))
           .property('maxSize', new Schema('number', { default: 1000 }))
@@ -115,14 +115,14 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('enableNewFeature', new Schema('boolean', { default: false }))
         .property('newFeatureConfig', new Schema('object', {
-          condition: (value, configuration) => configuration.enableNewFeature === true
+          condition: (value, configuration) => configuration?.enableNewFeature === true
         })
           .property('apiVersion', new Schema('string', { default: 'v2' }))
           .property('timeout', new Schema('number', { default: 5000 }))
         )
         .property('enableBetaFeature', new Schema('boolean', { default: false }))
         .property('betaFeatureConfig', new Schema('object', {
-          condition: (value, configuration) => configuration.enableBetaFeature === true
+          condition: (value, configuration) => configuration?.enableBetaFeature === true
         })
           .property('experimental', new Schema('boolean', { default: true }))
         );
@@ -168,7 +168,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('enableFeature', new Schema('boolean'))
         .property('featureConfig', new Schema('object', {
-          condition: (value, configuration) => configuration.enableFeature === true
+          condition: (value, configuration) => configuration?.enableFeature === true
         })
           .property('setting', new Schema('string'))
         );
@@ -201,7 +201,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('secure', new Schema('boolean', { default: false }))
         .property('ssl', new Schema('object', {
-          condition: (value, configuration) => configuration.secure === true
+          condition: (value, configuration) => configuration?.secure === true
         })
           .property('cert', new Schema('string'))
           .property('key', new Schema('string'))
@@ -236,7 +236,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('enableLogging', new Schema('boolean'))
         .property('logging', new Schema('object', {
-          condition: (value, configuration) => configuration.enableLogging === true
+          condition: (value, configuration) => configuration?.enableLogging === true
         })
           .property('level', new Schema('string', { default: 'info' }))
           .property('format', new Schema('string', { default: 'json' }))
@@ -271,10 +271,10 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('stage', new Schema('string'))
         .property('enableMonitoring', new Schema('boolean', {
-          condition: (value, configuration) => configuration.stage === 'production'
+          condition: (value, configuration) => configuration?.stage === 'production'
         }))
         .property('monitoring', new Schema('object', {
-          condition: (value, configuration) => configuration.enableMonitoring === true
+          condition: (value, configuration) => configuration?.enableMonitoring === true
         })
           .property('endpoint', new Schema('string'))
           .property('interval', new Schema('number', { default: 60 }))
@@ -340,7 +340,7 @@ describe('Configurator - Conditions Integration', function() {
       const schema = new Schema('object')
         .property('enableDatabase', new Schema('boolean'))
         .property('database', new Schema('object', {
-          condition: (value, configuration) => configuration.enableDatabase === true
+          condition: (value, configuration) => configuration?.enableDatabase === true
         })
           .property('host', new Schema('string'))
           .property('connection', new Schema('string'))
@@ -377,17 +377,17 @@ describe('Configurator - Conditions Integration', function() {
           .default('development')
         )
         .property('devTools', new Schema('object').deep()
-          .condition( (value, configuration) => configuration.environment === 'development')
+          .condition( (value, configuration) => configuration?.environment === 'development')
           .property('hotReload', new Schema('boolean', { default: true }))
           .property('debugPanel', new Schema('boolean', { default: true }))
         )
         .property('monitoring', new Schema('object').deep()
-          .condition((value, configuration) => configuration.environment === 'staging' || configuration.environment === 'production')
+          .condition((value, configuration) => configuration?.environment === 'staging' || configuration.environment === 'production')
           .property('enabled', new Schema('boolean', { default: true }))
           .property('sampleRate', new Schema('number', { default: 1.0 }))
         )
         .property('optimizations', new Schema('object').deep()
-          .condition( (value, configuration) => configuration.environment === 'production')
+          .condition( (value, configuration) => configuration?.environment === 'production')
           .property('minify', new Schema('boolean', { default: true }))
           .property('cache', new Schema('boolean', { default: true }))
         );
@@ -444,18 +444,18 @@ describe('Configurator - Conditions Integration', function() {
           .property('experimentalCache', new Schema('boolean'))
         )
         .property('uiConfig', new Schema('object', {
-          condition: (value, configuration) => configuration.features?.newUI === true
+          condition: (value, configuration) => configuration?.features?.newUI === true
         })
           .property('theme', new Schema('string', { default: 'modern' }))
           .property('animations', new Schema('boolean', { default: true }))
         )
         .property('apiConfig', new Schema('object', {
-          condition: (value, configuration) => configuration.features?.betaAPI === true
+          condition: (value, configuration) => configuration?.features?.betaAPI === true
         })
           .property('endpoint', new Schema('string'))
         )
         .property('cacheConfig', new Schema('object', {
-          condition: (value, configuration) => configuration.features?.experimentalCache === true
+          condition: (value, configuration) => configuration?.features?.experimentalCache === true
         })
           .property('strategy', new Schema('string', { default: 'lru' }))
           .property('size', new Schema('number', { default: 1000 }))

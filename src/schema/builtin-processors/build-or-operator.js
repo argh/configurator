@@ -55,11 +55,11 @@ export const OR_OPERATOR = {
                             : descriptions[0]
     return {
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (v, c, s, p, o) => {
+      processor: async (v, t, l, o) => {
         const errors = [];
         for (const {processor} of compiled) {
           try {
-            await processor(v, c, s, p, o);
+            await processor(v, t, l, o);
             return v;
           } catch (error) {
             errors.push(error.message);

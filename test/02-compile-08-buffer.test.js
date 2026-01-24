@@ -21,7 +21,7 @@ describe('Schema Compilation - Buffer Type', function() {
       assert.ok(n1 instanceof Buffer);
 
       const n2 = await compiled._normalizeValue(Buffer.alloc(10).toString('base64'));
-      assert.ok(typeof n2 === 'string');
+      assert.ok(n2 instanceof Buffer);
 
 
       await assert.rejects(

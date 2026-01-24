@@ -37,10 +37,10 @@ export const FIRST_OPERATOR = {
     return ({
       spec: processors,
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (value, configuration, schema, path, options) => {
+      processor: async (value, configuration, location, options) => {
         for (const {processor} of compiled) {
           try {
-            return await processor(value, configuration, schema, path, options);
+            return await processor(value, configuration, location, options);
           }
           catch (error) {
             // ignored

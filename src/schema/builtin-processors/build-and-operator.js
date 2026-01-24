@@ -47,9 +47,9 @@ export const AND_OPERATOR = {
 
     return ({
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (value, configuration, schema, path, options) => {
+      processor: async (value, configuration, location, options) => {
         for (const {processor} of compiled) {
-          await processor(value, configuration, schema, path, options);
+          await processor(value, configuration, location, options);
         }
         return value;
       },

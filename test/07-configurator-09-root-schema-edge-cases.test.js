@@ -458,10 +458,10 @@ describe('Configurator - Root Schema Edge Cases', function() {
       });
 
       // Schema should have these properties added
-      assert.ok(configurator.schema._properties.help);
-      assert.ok(configurator.schema._properties.config);
-      assert.ok(configurator.schema._properties.dump);
-      assert.ok(configurator.schema._properties.setPropertyValue);
+      assert.ok(configurator.schema.properties.help);
+      assert.ok(configurator.schema.properties.config);
+      assert.ok(configurator.schema.properties.dump);
+      assert.ok(configurator.schema.properties.setPropertyValue);
     });
 
     it('should work with explicit disable flags for primitives', async function() {

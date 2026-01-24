@@ -71,14 +71,20 @@ schema.property('server', s('object')
   )
 );
 
-try {
-  const config = await new Configurator({schema, resolver}).configure({
+
+const context = (process.env.CONFIGURATOR_TEST === 'true')?
+  {
     appName,
     defaults: { [appName]: { verbose: true }},                               // app defaults are low priority but take precedence over schema defaults
     env: { 'BASICS_SERVER_HOST' : '127.0.0.1' },                             // normally omit, defaults to process.env
     argv: ['-D', '--server-port', '8081', '--codes', '5xx', 'z10', '123'],   // normally omit, defaults to process.argv
     overrides: { server: { protocol: 'https', port: 443 } }                  // overrides default to highest priority
-  });
+  }
+  : { appName }
+
+
+try {
+  const config = await new Configurator({schema, resolver}).configure(context);
   console.log('Configuration results: ', config);
 }
 catch (error) {

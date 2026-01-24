@@ -3,14 +3,15 @@ import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
 import { deepEquals, deepValue } from '../utils.js';
 import { fpm } from './helpers/fpm.js';
+import { SchemaLocation } from './schema-location.js';
 
 /** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec, AsyncSchemaValueProcessor } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
 // This is stupid, but my IDE keeps preferring a global Schema reference over the local one:
-/** @typedef {Object.<string, import('./schema.js').Schema>} SchemaProperties */
-/** @typedef {Object.<string, import('./schema.js').Schema>} SchemaUnionSchemas */
+/** @typedef {Object.<string, import("./types.js").ISchema>} SchemaProperties */
+/** @typedef {Object.<string, import("./types.js").ISchema>} SchemaUnionSchemas */
 
 /** @typedef {Object} SchemaHandlers
  * @property {Array<ProcessorSpec>} [normalizers]
@@ -49,17 +50,6 @@ export class Schema
      * @internal
      */
     this._base = undefined;
-    /**
-     * @type {Schema|undefined}
-     * @internal
-     */
-    this._parent = undefined;
-
-    /**
-     * @type {string|undefined}
-     * @internal
-     */
-    this._name = undefined;
 
     /**
      * @type {SchemaProperties}
@@ -97,7 +87,7 @@ export class Schema
         this._setAttributes(options);
       }
       if (metadata) {
-        this.meta(metadata, true);
+        this.addMetadata(metadata);
       }
     }
     else if ((base instanceof Schema) || (base instanceof CompiledSchema)) {
@@ -110,7 +100,7 @@ export class Schema
         this._setAttributes(options);
       }
       if (metadata) {
-        this.meta(metadata, true);
+        this.addMetadata(metadata);
       }
     }
     else if (typeof base === 'object' && base !== null) {
@@ -125,7 +115,7 @@ export class Schema
    * @type {Schema|undefined}
    */
   get parent() {
-    return this._parent;
+   throw new Error('FIXME');
   }
 
   /**
@@ -134,7 +124,7 @@ export class Schema
    * @type {string|undefined}
    */
   get name() {
-    return this._name;
+    throw new Error('FIXME')
   }
 
   /**
@@ -157,11 +147,15 @@ export class Schema
    * @type {string}
    */
   get path() {
+    throw new Error('FIXME');
+    /*
     if (!this.name) {
       return '';  // this is an unattached schema, no path.
     }
     const parent = this.parent;
     return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
+
+     */
   }
 
   /**
@@ -296,7 +290,7 @@ export class Schema
    * Attach a named child schema
    *
    * @param {string} propertyName - property name
-   * @param {Schema|undefined} propertySchema - schema to associate with the property, undefined to delete current
+   * @param {Schema|CompiledSchema|undefined} propertySchema - schema to associate with the property, undefined to delete current
    * @returns {Schema} - returns self for fluent chaining
    */
   property(propertyName, propertySchema) {
@@ -304,12 +298,11 @@ export class Schema
       throw new SchemaError('Properties must be associated with a valid name');
     }
     if (propertySchema instanceof CompiledSchema) {
-      throw new SchemaError(`Unable to set property ${propertyName} to a compiled schema`);
+      // FIXME - this should be legal with the new approach, maybe?
+//      throw new SchemaError(`Unable to set property ${propertyName} to a compiled schema`);
     }
-    if (!(propertySchema instanceof Schema)) {
+    if (!(propertySchema instanceof Schema) && !(propertySchema instanceof CompiledSchema)) {
       if (propertySchema === undefined) {
-        delete this.properties[propertyName]?._name;
-        delete this.properties[propertyName]?._parent;
         delete this.properties[propertyName];
         return this;
       }
@@ -318,17 +311,10 @@ export class Schema
       }
     }
     if (propertySchema === this) {
-      throw new SchemaError('Cannot add self as a child schema');
-    }
-    if (propertySchema.parent) {
-      if (propertySchema.parent === this) {
-        return this;   // no-op
-      }
-      throw new SchemaError(`Cannot set property ${propertyName} to a schema that is already bound to a different parent`);
+      // FIXME - maybe ok?
+//      throw new SchemaError('Cannot add self as a child schema');
     }
     this.properties[propertyName] = propertySchema;
-    propertySchema._name = propertyName;
-    propertySchema._parent = this;
 
     if (this.base === undefined && this.options.type === undefined) {
       this._base = Number.isInteger(propertyName)? 'array' : 'object';
@@ -349,7 +335,7 @@ export class Schema
       throw new SchemaError('Invalid properties definition');
     }
     for (const [key, schema] of Object.entries(properties)) {
-      if (policy === SchemaPolicy.OVERWRITE || this._properties[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this.properties[key] === undefined) {
         this.property(key, Schema.createFromModel(schema));
       }
     }
@@ -556,16 +542,13 @@ export class Schema
    * Add a schema as an alternative member of this schema's union.
    *
    * @param {string} key - union schema key (used by some discriminators to select this schema)
-   * @param {Schema} unionSchema - schema that the discriminator selects, or true/false override if a group
+   * @param {Schema|CompiledSchema} unionSchema - schema that the discriminator selects, or true/false override if a group
    * @returns {Schema}
    */
   unionSchema(key, unionSchema) {
 
-    if (!(unionSchema instanceof Schema )) {
+    if (!(unionSchema instanceof Schema || unionSchema instanceof CompiledSchema)) {
       throw new SchemaError(`Invalid schema for union member ${key}`);
-    }
-    if (unionSchema._name || unionSchema._parent) {
-      throw new SchemaError(`Unable to associate union member ${key} with a schema that is already attached`);
     }
 
     if ((this.base === undefined/* || this.base === 'any'*/) && Object.keys(unionSchema.properties).length > 0) {
@@ -573,20 +556,6 @@ export class Schema
     }
 
     this._unionSchemas[key] = unionSchema;
-
-    // NOTE: the current schema might not have been attached yet, so we will set a dynamic lookup
-    // on the union schemas
-    const self = this;
-    Object.defineProperty(unionSchema, 'name', {
-      get() { return self.name },
-      enumerable: true,
-      configurable: true
-    })
-    Object.defineProperty(unionSchema, 'parent', {
-      get() { return self.parent },
-      enumerable: true,
-      configurable: true
-    })
 
     return this;
   }
@@ -645,8 +614,8 @@ export class Schema
   /**
    * Mark this schema as a selection.
    *
-   * Selection schemas automatically create conditions that render the selection schema inactive
-   * unless the corresponding selector has the correct value.
+   * A selection schema automatically creates a condition that only activates the schema if the corresponding
+   * selector has the correct value.
    *
    * With the default argument, the selection schema condition uses the property name as the selector value.
    *
@@ -654,13 +623,25 @@ export class Schema
    * @returns {Schema}
    */
   selection(value) {
-    if (value === false) {
-      // if it was previously set to something, we may have a lingering condition, but it should ignore
-      delete this.options.selection;
-    }
-    else {
-      this.options.selection = value ?? true;
-    }
+    this.options.selection = value ?? true;
+
+    this.condition(async (_, target, location) => {
+      if (!location.schema.isSelection) {
+        throw new SchemaError(fpm(`Conditional expected a selection schema!`, location.path));
+      }
+
+      const selectionValue = (this.options.selection === true)? location.name : this.options.selection;
+
+      const selectorLocation = await location.parent?.findPropertyLocation(pl => pl.schema.isSelector)
+
+      if (selectorLocation) {
+        const ss = selectorLocation.schema;
+        const selectorValue = deepValue(target, selectorLocation.path);
+        return (await ss._normalizeValue(selectorValue, target, selectorLocation) === (await ss._normalizeValue(selectionValue, target, selectorLocation)));
+      }
+      return false;
+    })
+
     return this;
   }
 
@@ -1092,70 +1073,28 @@ export class Schema
   static inherit(propertyName) {
 
     return new Schema()
-      .option('compileHook', (hookEvent, hookSchema) => {
-        if (hookEvent === 'compile') {
-          const name = propertyName ?? hookSchema.name;
-
-          if (!hookSchema.parent) {
-            throw new SchemaError('A top-level schema cannot have an inherited value');
-          }
-
-          if (name === '*') {
-            throw new SchemaError('A wildcard cannot inherit its value');
-          }
+      .normalizer(/** @type {SchemaValueProcessor<any>} */ (_value, config, location) => {
+        const name = propertyName ?? location.name;
+        if (location.parent === undefined) {
+          throw new SchemaError('A top-level schema cannot have an inherited value');
         }
+        let ancestorLocation = location.parent?.parent;
 
-        if (hookEvent === 'finalize') {
-          const name = propertyName ?? hookSchema.name;
+        while (ancestorLocation !== undefined) {
+          const candidate = ancestorLocation.relative(name);
 
-          // Walk up the parent hierarchy to verify the property exists in some ancestor
-          // Start from grandparent since parent.properties[name] would be ourselves
-          let ancestor = hookSchema.parent?.parent;
-          let found = false;
-          while (ancestor) {
-            if (ancestor.properties[name]) {
-              found = true;
-              break;
-            }
-            ancestor = ancestor.parent;
+          if (candidate !== undefined) {
+            return deepValue(config, candidate.path);
           }
-
-          if (!found) {
-            throw new SchemaError(`Inherited property "${name}" not found in any ancestor of "${hookSchema.path}"`);
-          }
+          ancestorLocation = ancestorLocation.parent;
         }
-      })
-      .normalizer((_value, config, schema, path) => {
-        const propName = propertyName ?? schema.name;
+        throw new SchemaError(`Inherited property "${name}" not found in any ancestor of "${location}"`);
 
-        const root = schema.getRoot();
-
-        // Walk up from current position to root, looking for the property
-        while (path) {
-          const lastDot = path.lastIndexOf('.');
-          if (lastDot === -1) {
-            path = '';
-          }
-          else {
-            path = path.substring(0, lastDot);
-          }
-          const propertyPath = path ? `${path}.${propName}` : `${propName}`;
-
-          const candidateSchema = root.find(propertyPath);
-          if (candidateSchema === schema) {
-            continue;  // skip ourselves
-          }
-          // If we found a schema at this path, return the value from config
-          if (candidateSchema) {
-            return deepValue(config, propertyPath);
-          }
-        }
-        return undefined;
       })
 
       .serializer(() => undefined)
-      .default((_value, config, schema, path) => {
-        return propertyName ?? schema.name;
+      .default(/** @type {SchemaValueProcessor<any>} */ (_value, config, location) => {
+        return propertyName ?? location.name;
       })
       .meta('omitFromSerialize')
       .meta('internal')
@@ -1170,21 +1109,19 @@ export class Schema
    */
   static reference(path) {
     return new Schema()
-      .option('compileHook', (hookEvent, hookSchema) => {
-        if (hookEvent !== 'finalize') {
-          return;
+      .normalizer((_, config, location) => {
+        const referenceSchema = location.absolute(path)?.schema;
+        if (referenceSchema === undefined) {
+          throw new SchemaError(`Reference path ${path} not found`);
         }
-        if (!hookSchema.getRoot().find(path)) {
-          throw new SchemaError(`Unable to find reference path ${path}`);
-        }
-      })
-      .normalizer((_, config) => {
         return deepValue(config, path);
       })
-      .validator((value, config, schema) => {
-        const root = schema.getRoot();
+      .validator(/** @type {SchemaValueProcessor<any>} */ (value, config, location) => {
 
-        const referenceSchema = root.find(path);
+        const referenceSchema = location.absolute(path)?.schema;
+        if (referenceSchema === undefined) {
+          throw new ValidationError(`Reference path ${path} not found`);
+        }
         const configValue = deepValue(config, path);
 
         // If identical, we're done.
@@ -1193,7 +1130,7 @@ export class Schema
         }
 
         // simple values and opaque values must have an identical reference
-        if (!referenceSchema.hasChildren || referenceSchema.opaque) {
+        if (!referenceSchema?.hasChildren || referenceSchema.isOpaque) {
           throw new ValidationError(`Reference is not exactly the same as ${path}`)
         }
 
@@ -1207,6 +1144,10 @@ export class Schema
       })
       .meta('omitFromSerialize')
       .meta('internal')
+  }
+
+  static self() {
+    return new Schema().meta('internal').meta('$SELF')
   }
 }
 

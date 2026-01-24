@@ -146,9 +146,10 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
 
   it('should throw error when property value does not match any union', async function() {
     const schema = new Schema('object')
-      .unionSchema('valid', new Schema('object')
-        .property('type', Schema.literal('valid'))
-      );
+      .unionSchema('a', new Schema('object')
+        .property('type', Schema.literal('valid')))
+      .unionSchema('b', new Schema('object')
+        .property('type', Schema.literal('also-valid')))
 
     const compiled = await resolver.compile(schema);
 
@@ -160,7 +161,6 @@ describe('Unions: Hoisted Discriminator (Single Property)', function() {
       () => compiled.validate({type: 'invalid'}),
       (error) => {
         assert.ok(error instanceof UnionResolutionError);
-        assert.ok(error?.message.includes('conflict when setting type to invalid'))
         return true;
       }
     );

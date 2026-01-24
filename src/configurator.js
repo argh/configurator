@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 
-import { CompiledSchema } from './schema/compiled-schema.js';
-import { Schema } from './schema/schema.js';
+import { Schema, CompiledSchema, SchemaResolver, SchemaLocation } from './index.js';
 import {
   ConfigurationSource,
   CommandLineSource,
@@ -10,11 +9,12 @@ import {
   JsonFileSource
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './errors.js';
-import { SchemaResolver } from './schema/schema-resolver.js';
+
 import { stringify } from './schema/helpers/stringify.js';
 import { existingAssignment } from './schema/helpers/assignments.js';
-import { deepAssign } from './utils.js';
+import { deepAssign, toPascalCase } from './utils.js';
 
+/** @import {ISchema} from './schema/types.js' */
 
 const MODULE_INFO = {
   name: 'configurator',
@@ -23,7 +23,7 @@ const MODULE_INFO = {
 
 /**
  * @typedef {Object} ConfiguratorOptions
- * @property {Schema} [schema]
+ * @property {import('./schema/schema.js').Schema|CompiledSchema} [schema]
  * @property {SchemaResolver} [resolver]
  * @property {Array<ConfigurationSource>} [sources] - if not provided, uses default sources from getDefaultSources()
  * @property {boolean} [helpEnabled] - enable help option
@@ -44,9 +44,10 @@ const MODULE_INFO = {
  * using the CompiledSchema to produce a validated configuration object.
  */
 export class Configurator {
-  static get Schema() { return Schema };
-  static get CompiledSchema() { return CompiledSchema };
-  static get SchemaResolver() { return SchemaResolver };
+// These confuse the webstorm index/typechecker...
+//  static get Schema() { return Schema };
+//  static get CompiledSchema() { return CompiledSchema };
+//  static get SchemaResolver() { return SchemaResolver };
 
   /**
    * Create a new Configurator
@@ -57,54 +58,47 @@ export class Configurator {
    * @param {ConfiguratorOptions} [options]
    */
   constructor(options = {}) {
+    /** @type {Schema|CompiledSchema} */
     this._schema = options.schema ?? new Schema('object');
+    /** @type {SchemaResolver} */
     this._resolver = options.resolver ?? new SchemaResolver();
     this._sources = options.sources;
 
-    const helpEnabled = (options.helpEnabled !== false);
-    if (helpEnabled) {
-      let helpSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'help')
-      if (!helpSchema) {
-        helpSchema = Configurator.createHelpSchema();
-        this._schema.property('help', helpSchema);
-      }
-    }
+    this._specialContextNames = {};
 
-    const configEnabled = (options.configEnabled !== false);
-    if (configEnabled) {
-      let configSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'config')
-      if (!configSchema) {
-        configSchema = Configurator.createConfigSchema();
-        this._schema.property('config', configSchema);
-      }
-      this._configContextName = configSchema._options['context'] ?? 'config';
-    }
-
-    const dumpEnabled = (options.dumpEnabled !== false)
-    if (dumpEnabled) {
-      let dumpSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'dump')
-      if (!dumpSchema) {
-        dumpSchema = Configurator.createDumpSchema();
-        this._schema.property('dump', dumpSchema);
-      }
-      this._dumpContextName = dumpSchema._options['context'] ?? 'dump';
-    }
-
-    const setPropertyValueEnabled = (options.setPropertyValueEnabled !== false);
-    if (setPropertyValueEnabled) {
-      let setPropertyValueEnabledSchema = Object.values(this._schema._properties).find(schema => schema.metadata['configuratorSchema'] === 'setPropertyValue')
-      if (!setPropertyValueEnabledSchema) {
-        setPropertyValueEnabledSchema = Configurator.createSetPropertyValueSchema()
-        this._schema.property('setPropertyValue', setPropertyValueEnabledSchema);
+    // This relies on consistent naming within the Configurator class:
+    for (const special of ['help', 'config', 'dump', 'setPropertyValue']) {
+      const enabled = (options[`${special}Enabled`] !== false);
+      if (enabled) {
+        let specialSchema = this._findSpecialConfiguratorSchema(special);
+        if (specialSchema === undefined) {
+          if (this._schema instanceof CompiledSchema) {
+            throw new ConfiguratorError(`Cannot add ${special} schema to a precompiled schema`);
+          }
+          /** @type {() => Schema} */
+          const factory = Configurator[`create${toPascalCase(special)}Schema`]
+          specialSchema = factory();
+          this._schema.property(special, specialSchema);
+        }
+        this._specialContextNames[special] = specialSchema.options['context'] ?? special;
       }
     }
 
     if (!this._sources) {
       this._sources = Configurator.getDefaultSources({
-        configContextName: this._configContextName
+        configContextName: this._specialContextNames['config']
       });
     }
 
+  }
+
+  /**
+   * @param {string} metadataValue
+   * @returns {Schema|CompiledSchema|undefined}
+   * @private
+   */
+  _findSpecialConfiguratorSchema(metadataValue) {
+    return Object.values(this._schema.properties).find(schema => schema.metadata['configuratorSchema'] === metadataValue)
   }
 
   /**
@@ -172,7 +166,7 @@ export class Configurator {
 
   /**
    * Schema definition being used by this Configurator
-   * @returns {Schema}
+   * @returns {Schema|CompiledSchema}
    */
   get schema() {
     return this._schema;
@@ -209,8 +203,9 @@ export class Configurator {
 
     const configuration = await schema.processAssignments(assignments, undefined,{strict, deep, ...options})
 
-    if (this._dumpContextName && configurationContext[this._dumpContextName]) {
-      await this.dump(schema, configuration, configurationContext[this._dumpContextName]);
+    const dumpContextName = this._specialContextNames['dump'];
+    if (dumpContextName && configurationContext[dumpContextName]) {
+      await this.dump(schema, configuration, configurationContext[dumpContextName]);
     }
 
     return configuration;
@@ -247,8 +242,9 @@ export class Configurator {
       sourceAssignmentsList.push(sourceAssignments);
     }
     // By contract, config file sources need to remove the config property from the context if they handled it
-    if (this._configContextName && context[this._configContextName]) {
-      throw new ConfiguratorError(`Unable to load configuration from ${context[this._configContextName]}`);
+    const configContextName = this._specialContextNames['config'];
+    if (configContextName && context[configContextName]) {
+      throw new ConfiguratorError(`Unable to load configuration from ${context[configContextName]}`);
     }
 
     /**
@@ -278,15 +274,19 @@ export class Configurator {
    * @private
    */
   async _handleContextAssignments(schema, sourceAssignments, configurationContext) {
+    const root = new SchemaLocation(schema);
     // Some properties are set up to pass their value downstream to later sources via the context.
     for (const [path, assignedValue] of sourceAssignments) {
-      const s = schema.find(path)
-      if (s?.options.context) {
-        const contextName = (typeof s.options.context === 'string') ? s.options.context : s.name;
+
+      const location = root.relative(path);
+      const s = location?.schema;
+      if (location !== undefined && s?.options.context) {
+
+        const contextName = (typeof s.options.context === 'string') ? s.options.context : location.name;
         if (contextName) {
           let resolvedValue = assignedValue;
           try {
-            resolvedValue = await s._transformValue(assignedValue, configurationContext, contextName, {strict: false});
+            resolvedValue = await s._normalizeValue(assignedValue, undefined, undefined, {strict: false});
           }
           catch (_) {
             // ignore, just use original value

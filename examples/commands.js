@@ -190,18 +190,21 @@ computeSchema
     )
   );
 
-
-try {
-  const config = await new Configurator({schema: rootSchema}).configure({
+const context = (process.env.CONFIGURATOR_TEST === 'true')?
+  {
     appName,
 
     env: { 'CLOUD_STORAGE_BANDWIDTH' : '750' },                                              // normally omit, defaults to process.env
 //    argv: ['--help']                                                                       // this is a good example for showing help formatting
 //    argv: ['--ct=abc', '--ck=123', 'storage', 'get', '-b', 'mybucket', '-k', 'mykey' ],    // normally omit, defaults to process.argv
-      argv: ['--ct=abc', '--ck=123', '--debug', 'compute', '--watch', 'describe', '--cluster', 'fred', '-i=336aac1e-feee-4974-9f6b-cbbe18914899']
+    argv: ['--ct=abc', '--ck=123', '--debug', 'compute', '--watch', 'describe', '--cluster', 'fred', '-i=336aac1e-feee-4974-9f6b-cbbe18914899']
 //    argv: ['--ct=abc', '--ck=123', 'compute', 'instances', '--cluster', 'fred']
 
-  });
+  }
+  : { appName }
+
+try {
+  const config = await new Configurator({schema: rootSchema}).configure(context);
   // Observe that storage.bandwidth does not show up unless the command is "storage" (a condition is synthesized from the selection)
   console.log('Configuration results: ', JSON.stringify(config, null, 2));
 

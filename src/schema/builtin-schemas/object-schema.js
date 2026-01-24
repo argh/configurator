@@ -5,7 +5,7 @@ import { ConstraintError } from '../../errors.js';
 export const OBJECT_SCHEMA = new Schema()
   .option('type', 'object')
   .meta('valueName', 'object')
-  .normalizer((value, _, schema) => {
+  .normalizer((value) => {
     if (value === true) {
       value = {};
     }

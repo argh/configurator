@@ -51,7 +51,7 @@ export const EACH_OPERATOR = {
 
     return {
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (value, configuration, schema, path, options) => {
+      processor: async (value, configuration, location, options) => {
         if (!Array.isArray(value)) {
           throw new ConstraintError('Value must be an array');
         }
@@ -59,7 +59,7 @@ export const EACH_OPERATOR = {
         // try to return original if possible...
         let same = true;
         for (const item of value) {
-          const processed = await compiled.processor(item, configuration, schema, path, options);
+          const processed = await compiled.processor(item, configuration, location, options);
           if (processed !== item) {
             same = false;
           }

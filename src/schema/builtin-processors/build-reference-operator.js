@@ -36,11 +36,10 @@ export const REFERENCE_OPERATOR = {
 
     return {
       /** @type {import("../types.js").SchemaValueProcessor<any>} */
-      processor: async (current, target, schema) => {
-        const root = schema.getRoot();
-        const pathSchema = root.find(path);
+      processor: async (current, target, location) => {
+        const pathLocation = location.absolute(path);
 
-        if (pathSchema === undefined) {
+        if (pathLocation === undefined) {
           throw new SchemaError(`Unknown path ${path}`);
         }
         return deepValue(target, path);

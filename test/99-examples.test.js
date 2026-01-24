@@ -12,7 +12,9 @@ describe('Examples', () => {
       this.slow(200);
       this.timeout(10000);
       const examplePath = path.join(examplesDir, file);
-      exec(`node ${examplePath}`, (error, stdout, stderr) => {
+      exec(`node ${examplePath}`,
+        {env: { ...process.env, CONFIGURATOR_TEST: true}},
+        (error, stdout, stderr) => {
         if (error) {
           console.log(`stdout: ${stdout}`);
           console.log(`stderr: ${stderr}`);

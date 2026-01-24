@@ -517,9 +517,9 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       resolver.registerParameterizedValueProcessor('allOf', (args, compileSpec) => {
         const compiled = args.map(spec => compileSpec(spec));
         return {
-          processor: async (value, config, schema, path) => {
+          processor: async (value, config, location) => {
             for (const c of compiled) {
-              await c.processor(value, config, schema, path);
+              await c.processor(value, config, location);
             }
             return value;
           }

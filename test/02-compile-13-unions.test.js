@@ -158,7 +158,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled._discriminateUnion({type: 'A'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({type: 'A'}, {});
       assert.ok(discriminated);
     });
 
@@ -171,7 +171,7 @@ describe('Schema Compilation - Union Structure', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const discriminated = await compiled._discriminateUnion({kind: 'a'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({kind: 'a'}, {});
       assert.ok(discriminated);
     });
 
@@ -179,14 +179,14 @@ describe('Schema Compilation - Union Structure', function() {
       const schema = new Schema('object')
         .unionSchema('optionA', new Schema('object')
           .property('type', new Schema('string').values(['A'])))
-        .unionDiscriminator((value, config, unionSchema) => {
-          return value.type === 'A' ? unionSchema.unionSchemas.optionA : undefined;
+        .unionDiscriminator((value, config, location) => {
+          return value.type === 'A' ? location.schema.unionSchemas.optionA : undefined;
         });
 
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled._discriminateUnion({type: 'A'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({type: 'A'}, {});
       assert.ok(discriminated);
     });
 
@@ -201,7 +201,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled._discriminateUnion({type: 'B'}, {}, compiled, '');
+      const discriminated = await compiled._discriminateUnion({type: 'B'}, {});
       assert.ok(discriminated);
       assert.strictEqual(compiled.findUnionKey(discriminated), 'optionB');
     });

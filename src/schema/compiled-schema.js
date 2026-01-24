@@ -5,35 +5,14 @@ import {
   TransformError,
   ValidationError
 } from '../errors.js';
-import { deepEquals, deepPrune, isConstructor, isPlainObject } from '../utils.js';
+import { behead, deepEquals, deepPrune, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { fpm } from './helpers/fpm.js';
-import {
-  checkRequiredHook,
-  normalizeHook,
-  transformHook,
-  validateHook,
-  resolveUnionHook,
-  startPropertyHook,
-  endPropertyHook,
-  TraversalContext,
-  TraversalControl,
-  pendingToValueHook,
-  checkConditionHook,
-  existingPropertyHook,
-  inputToPendingHook,
-  checkPropertySchema,
-  defaultsHook,
-  serializeHook,
-  checkUnresolvedHook,
-  filterPropertyHook,
-  TraversalHooks,
-  inputToValueHook,
-  normalizeInputHook, copyPropertyValueHook, simplePendingHook
+import { SchemaLocation } from './schema-location.js';
+import { TraversalContext, TraversalState, TraversalProperty, processingHooks, preloadHooks, serializationHooks, normalizationHooks, transformationHooks, validationHooks, TraversalHooks, TraversalControl } from './traversal/index.js';
 
-} from './helpers/traversal.js';
 
-/** @import { TraversalContextOptions } from './helpers/traversal.js' */
+/** @import { TraversalContextOptions } from './traversal/traversal-context.js' */
 /** @import { ISchema, ISchemaOptions, ISchemaMetadata, SchemaData, TraversalOptions, CompiledValueProcessorDefinition, ValidateOptions, SerializeOptions, ProcessOptions } from './types.js' */
 
 /** @typedef {ISchemaMetadata} CompiledSchemaMetadata */
@@ -68,28 +47,15 @@ import {
 export class CompiledSchema
 {
   static __TOKEN = Symbol('CONSTRUCT_USING_RESOLVER')
-
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
    *
    * @param {Symbol} token - magic to reduce shenanigans
-   * @param {CompiledSchema|undefined} [parent] - parent schema when added as a child
-   * @param {string|undefined} [name] - property name within parent when added as a child
    */
-  constructor(token, parent, name) {
+  constructor(token) {
     if (token !== CompiledSchema.__TOKEN) {
       throw new SchemaError('CompiledSchema must be created via compilation');
     }
-    /**
-     * @type {string|undefined}
-     * @private
-     */
-    this._name = name;
-    /**
-     * @type {CompiledSchema|undefined}
-     * @private
-     */
-    this._parent = parent;
     /**
      * @type {CompiledSchemaProperties}
      * @private
@@ -118,41 +84,6 @@ export class CompiledSchema
   }
 
   /**
-   * The name of the parent schema property that references this schema.  If there is no parent, returns undefined.
-   *
-   * @type {string|undefined}
-   */
-  get name() {
-    return this._name;
-  }
-
-  /**
-   * The parent schema that has this schema as a property. If there is no parent, returns undefined.
-   *
-   * @type {CompiledSchema|undefined}
-   */
-  get parent() {
-    return this._parent; // overridden just for type narrowing
-  }
-
-  /**
-   * The path to this schema within the entire schema hierarchy.
-   *
-   * - The root schema path is an empty string.
-   * - Due to wildcard properties, the schema path may not match match the traversal path of a resolved target.
-   * - Union schemas all return their path as if they were co-located with their union.
-   *
-   * @type {string}
-   */
-  get path() {
-    if (!this.name) {
-      return '';  // this is an unattached schema, no path.
-    }
-    const parent = this.parent;
-    return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
-  }
-
-  /**
    * Options contains information that changes schema parsing and processing.
    *
    * @type {CompiledSchemaOptions}
@@ -173,10 +104,6 @@ export class CompiledSchema
   /**
    * Properties are named child schemas, defining a hierarchical schema structure.
    *
-   * - Property schemas are always unique instances, copied during compilation, and not shared.
-   * - Each child schema has a "name" that will always equal the property name within this schema.
-   * - Each child schema has a "parent" that will always reference this schema.
-   *
    * @type {CompiledSchemaProperties}
    */
   get properties() {
@@ -192,8 +119,7 @@ export class CompiledSchema
    * All handlers have the same async signature, receiving:
    *   1. a value to be processed by the current schema
    *   2. a reference to the top-level aggregate target being built or processed by the entire schema hierarchy
-   *   3. a reference to the active schema that is processing the value
-   *   4. the traversal path to the active schema (may not match schema path in event of wildcards!)
+   *   3. a location defining the current schema and the traversal path to where it was encountered
    *   5. any (unmanaged / developer defined) options passed to whatever invoked the handler processing
    *
    * The compiled handlers may vary in their return types and exception handling behavior.
@@ -244,6 +170,15 @@ export class CompiledSchema
   }
 
   /**
+   * Return true if this schema supports wildcard properties.
+   *
+   * @type {boolean}
+   */
+  get hasWildcard() {
+    return this._properties['*'] !== undefined;
+  }
+
+  /**
    * Return true if this schema defines an array.
    *
    * Arrays sometimes need special treatment; the built-in 'array' base schema sets this option.
@@ -284,7 +219,8 @@ export class CompiledSchema
   /**
    * Return true if this schema is used to select union keys.
    *
-   * (This doesn't guarantee that there is a matching discriminator that uses it!)
+   * (This doesn't guarantee that there is a matching discriminator on the parent that uses it!)
+   * todo - convert this option into a generated normalizer that enforces union key values at runtime?
    *
    * @type {boolean}
    */
@@ -305,26 +241,37 @@ export class CompiledSchema
   }
 
   /**
+   * Return true if this schema contains a selector as a child.
+   * @returns {boolean}
+   */
+  get hasChildSelector() {
+    return Object.values(this._properties).some(propertySchema => propertySchema.isSelector);
+  }
+
+  /**
    * Return true if this schema is a selection conditionally activated by a peer selector.
    *
    * @type {boolean}
    */
   get isSelection() {
-    return this._options.selection !== undefined;
+    return this._options.selection !== undefined && this._options.selection !== false;  // todo - use a symbol to trigger name rather than "true"...
+  }
+
+  /**
+   * Return true if this schema contains a selection as a child.
+   * @returns {boolean}
+   */
+  get hasChildSelection() {
+    return Object.values(this._properties).some(propertySchema => propertySchema.isSelection);
   }
 
   /**
    * Get the selector value that triggers this selection.  The default value for a selection is its own property name.
    *
-   * @type {string|undefined}
+   * @type {string|boolean|undefined}
    */
   get selection() {
-    if (typeof this._options.selection === 'string') {
-      return this._options.selection;
-    }
-    else {
-      return this._options.selection ? this.name : undefined;
-    }
+    return this._options.selection;
   }
 
   /**
@@ -336,29 +283,6 @@ export class CompiledSchema
    */
   get values() {
     return this._options.values;
-  }
-
-  /**
-   * Return true if this schema seems to be able to handle a given input value.
-   *
-   * @param {any} value
-   * @returns {Promise<boolean>}
-   */
-  async accepts(value) {
-    let normalizedValue;
-    try {
-      normalizedValue = await this._normalizeValue(value);
-      if (normalizedValue === undefined) {
-        return false;
-      }
-    }
-    catch (_) {
-      return false;
-    }
-    if (!Array.isArray(this.values)) {
-      return true;
-    }
-    return this.values.some(v => deepEquals(v, normalizedValue));
   }
 
   /**
@@ -420,7 +344,7 @@ export class CompiledSchema
    *   the "deep" option is enabled, child property schemas will be traversed and any defaults will be used.
    *
    * The default may also be set to a value function:
-   * `async (value: any, target: any, schema: CompiledSchema, path: string, options: Object): any`
+   * `async (value: any, target: any, location:SchemaLocation, options: Object): any`
    * that will be called during the normalization phase.  This can be useful for late binding, remote lookups,
    * side effects, or lazy evaluation of expensive values.
    *
@@ -459,7 +383,7 @@ export class CompiledSchema
    *
    * @type {boolean}
    */
-  get inherit() {
+  get isInherited() {
     return this._options.inherit ?? false;
   }
 
@@ -470,7 +394,7 @@ export class CompiledSchema
    *
    * @type {boolean}
    */
-  get implicit() {
+  get isImplicit() {
     return this._options.implicit ?? false;
   }
 
@@ -490,49 +414,41 @@ export class CompiledSchema
    *
    * @returns {boolean}
    */
-  get opaque() {
+  get isOpaque() {
     return !this.hasChildren || this._options.allowIncremental === false;
   }
 
   /**
-   *
-   * @param {Array<CompiledValueProcessorDefinition>} defs
-   * @param {any} value
-   * @param {any} target
-   * @param {string} path
-   * @param {object} options
+   * @param {Array<CompiledValueProcessorDefinition>} processorDefinitions
+   * @param {any} value - value to normalize
+   * @param {any} target - top level output target being built (avoid using for normalizers!)
+   * @param {SchemaLocation} location - path to this value in the output target
+   * @param {Object} [options] - optional tweaks to processor behavior
    * @returns {Promise<any>}
-   * @private
    */
-  async _execProcessors(defs, value, target, path, options) {
-
-    const _frame = {
-      stack: [value]
-    };
-
-    let v = value;
-    for (const def of defs) {
-      v = await def.processor(value, target, this, path, {...options, _frame})
+  async _executeProcessorPipeline(processorDefinitions = [], value, target, location, options) {
+    if (location.schema !== this) {
+      throw new SchemaError(fpm('Inconsistent schema location', location));
     }
-    return v;
+    for (const def of processorDefinitions) {
+      value = await def.processor(value, target, location, options);
+    }
+    return value;
   }
-
-
-
   /**
-   * Check if the normalized provided value (and/or current output target) passes the schema conditional check.
+   * Check if the provided value (and/or current output target) passes the schema conditional check.
    *
    * Failed conditions will be repeatedly re-checked during assignment processing until the final pass.
    * Errors encountered while checking conditions are caught and simply result in a failed condition.
    *
    * @param {any} value
-   * @param {any} target
-   * @param {string} path
+   * @param {any} [target]
+   * @param {SchemaLocation} [location]
    * @param {Object} [options]
    * @returns {Promise<boolean>}
    * @internal
    */
-  async _checkCondition(value, target, path, options) {
+  async _checkCondition(value, target, location = new SchemaLocation(this), options) {
     const conditions = Array.isArray(this._handlers.conditions)? this._handlers.conditions : [];
 
     // no conditions = pass!
@@ -543,7 +459,7 @@ export class CompiledSchema
     let checked = value;
     for (const condition of conditions) {
       try {
-        checked = await condition.processor(checked, target, this, path, options);
+        checked = await condition.processor(checked, target, location, options);
       }
       catch (error) {
         return false;  // exception = failed condition check
@@ -552,15 +468,69 @@ export class CompiledSchema
     return Boolean(checked);
   }
 
+  /**
+   * Use the registered discriminator to return a matching union schema, or undefined if the union cannot be resolved.
+   * Discriminator functions must return either one of the unionSchema members, a unionSchema key, or undefined.
+   *
+   * @param {any} value
+   * @param {any} [target]
+   * @param {SchemaLocation} [location]
+   * @param {object} [options]
+   * @returns {Promise<CompiledSchema|undefined>}
+   * @internal
+   */
+  async _discriminateUnion(value, target, location = new SchemaLocation(this), options) {
+    if (location.schema !== this) {
+      throw new SchemaError(fpm('Inconsistent discriminator schema location', location));
+    }
+
+    const strict = options?.strict ?? false;
+
+    if (!this.isUnion || this._handlers.discriminators === undefined) {
+      return undefined;
+    }
+
+    const discriminators = Array.isArray(this._handlers.discriminators)? this._handlers.discriminators : [];
+
+    // we'll run multiple discriminators if necessary, but it's a bizarre use case...
+
+    let discriminatorResult = value;
+    for (const discriminator of discriminators) {
+      try {
+        discriminatorResult = await discriminator.processor(discriminatorResult, target, location, options);
+      }
+      catch (error) {
+        if (strict) {
+          throw error;
+        }
+        return undefined;
+      }
+    }
+    if (!discriminatorResult) {
+      if (strict) {
+        throw new SchemaError(fpm('Unable to resolve union', location));
+      }
+      return undefined;
+    }
+    if (typeof discriminatorResult === 'string') {
+      // String lookups (e.g., from property extraction) - return undefined if no match
+      return this.unionSchemas[discriminatorResult];
+    }
+    if (discriminatorResult instanceof CompiledSchema && this.findUnionKey(discriminatorResult)) {
+      return discriminatorResult;
+    }
+    // Schema returned but not valid - this is a developer error
+    throw new SchemaError(fpm('Union discriminator returned unexpected value', location))
+  }
 
   /**
    * Ensure the input is of an expected shape that can be handled by this schema.
    *
-   * Runs all normalizer value processors in a pipeline until one returns undefined or throws an error.
+   * Runs all normalizer value processors in a pipeline until completion or an error is thrown.
    * As most external configuration will originate in the form of strings or JSON
    * structures, the main task of a normalizer is to "canonicalize" these inputs:
    * - The normalized output should be accepted by the transformer handler.
-   * - Normalizers should pass through valid transformed values unchanged.
+   * - Normalizers should usually pass through valid transformed values unchanged.
    * - By contract, when passed "true", a container schema should construct an "empty"
    *   container (e.g. {} or []).  (Even a schema that defines transformation to a
    *   complex class should have a normalized empty container format to use for construction).
@@ -569,45 +539,50 @@ export class CompiledSchema
    *
    * Unlike other handlers, normalizers should generally not depend on the overall
    * target configuration state, as they are sometimes invoked in isolation (even during compilation!)
-   * and thus shouldn't depend on the "undefined means retry later" behavior of other handlers.
+   * and thus shouldn't assume the "undefined means retry later" behavior of other handlers.
    *
    * Also note that normalizeValue does not recursively examine child properties.
    *
    * @param {any} value - value to normalize
    * @param {any} [target] - top level output target being built (avoid using for normalizers!)
-   * @param {string} [path] - path to this value in the output target
+   * @param {SchemaLocation} [location] - path to this value in the output target
    * @param {Object} [options] - optional tweaks to normalizer behavior
    * @returns {Promise<any>}
    * @internal
    */
-  async _normalizeValue(value, target, path = this.path, options) {
+  async _normalizeValue(value, target, location = new SchemaLocation(this), options) {
+
+    if (location.schema !== this) {
+      throw new SchemaError(fpm('Inconsistent schema location', location));
+    }
+
     if (typeof value === 'function' && !isConstructor(value)) {
       if (this.options.type !== 'function') {
         try {
-          value = await value(true, target, this, path, options);
+          value = await value(true, target, location, options);
         }
         catch (error) {
-          throw new NormalizeError(fpm('Exception calling value function', path), {cause: error});
+          throw new NormalizeError(fpm('Exception calling value function', location), {cause: error});
         }
       }
     }
 
-    if (value === undefined || value === null) {
-      return value;
+    if (value === null) {
+      return null;
     }
 
-    const normalizers = Array.isArray(this._handlers.normalizers)? this._handlers.normalizers : [];
-
-    let normalized = value;
-    for (const normalizer of normalizers) {
-      try {
-        normalized = await normalizer.processor(normalized, target, this, path, options);
-      }
-      catch (error) {
-        throw new NormalizeError(fpm('Could not normalize', path), {cause: error});
+    if (value === undefined) {
+      if (!this.options.allowUndefined) {
+        return undefined;
       }
     }
-    return normalized;
+
+    try {
+      return await this._executeProcessorPipeline(this._handlers.normalizers, value, target, location, options);
+    }
+    catch (error) {
+      throw new NormalizeError(fpm('Could not normalize', location), {cause: error});
+    }
   }
 
   /**
@@ -626,47 +601,33 @@ export class CompiledSchema
    * Child properties are not traversed in this call, and are presumed to already have been transformed.
    *
    * @param {any} value - input value to transform
-   * @param {any} target - global target in case the transformer depends on it
-   * @param {string} path - the path to this value in the global target (caller will set)
+   * @param {any} [target] - global target in case the transformer depends on it
+   * @param {SchemaLocation} [location] - the traversal location of the schema
    * @param {Object} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
    * @internal
    */
-  async _transformValue(value, target, path = this.path, options) {
+  async _transformValue(value, target, location = new SchemaLocation(this), options) {
+
+    if (location.schema !== this) {
+      throw new SchemaError(fpm('Inconsistent transform schema location', location));
+    }
+
     if (value === null || value === undefined) {
       return value;
     }
 
     const strict = this.strict ?? options?.strict ?? true;
 
-    // If we have defined legal values, the input (or the normalized version of the input) must be found.
-    if (Array.isArray(this.values) && this.values.length > 0) {
-      if (!this.values.includes(value) && !this.values.some(v => deepEquals(v, value))) {
-        const normalized = await this._normalizeValue(value, target, path, options);
-        if (!this.values.includes(normalized) && !this.values.some(v => deepEquals(v, normalized))) {
-          if (strict) {
-            throw new TransformError(
-              fpm(`Invalid value: "${value}", expected one of {${this.values.join('|')}}`, path));
-          }
-          else {
-            return undefined;  // we cannot transform this, at least not right now.
-          }
-        }
+    try {
+      if (! await this.accepts(value, target, location, {...options, strict})) {
+        return undefined;
       }
+      return await this._executeProcessorPipeline(this._handlers.transformers, value, target, location, options);
     }
-
-    const transformers = Array.isArray(this._handlers.transformers)? this._handlers.transformers : [];
-
-    let transformed = value;
-    for (const transformer of transformers) {
-      try {
-        transformed = await transformer.processor(transformed, target, this, path, options);
-      }
-      catch (error) {
-        throw new TransformError(fpm('Unable to transform', path), {cause: error})
-      }
+    catch (error) {
+      throw new TransformError(fpm('Unable to transform', location), {cause: error})
     }
-    return transformed;
   }
 
   /**
@@ -679,45 +640,41 @@ export class CompiledSchema
    * Children are not traversed in this call.
    *
    * @param {any} value - value to validate
-   * @param {any} target - complete output target
-   * @param {string} path - path to the value within the output
-   * @param {Object} options - options to tweak validation behavior
+   * @param {any} [target] - complete output target
+   * @param {SchemaLocation} [location] - traversal location of this schema
+   * @param {Object} [options] - options to tweak validation behavior
    * @returns {Promise<any>}
    * @internal
    */
-  async _validateValue(value, target, path = this.path, options) {
+  async _validateValue(value, target, location = new SchemaLocation(this), options) {
     if (this.required === true && value === undefined) {
-      throw new ValidationError(fpm('Missing required value', path));
+      throw new ValidationError(fpm('Missing required value', location));
     }
     if (value === null || value === undefined) {
       return value;
     }
-    const validators = Array.isArray(this._handlers.validators)? this._handlers.validators : [];
 
-    let validated = value;
-    for (const validator of validators) {
-      try {
-        validated = await validator.processor(validated, target, this, path, options);
-      }
-      catch (error) {
-        throw new ValidationError(fpm(`Unable to validate "${value}"`, path), {cause: error});
-      }
+    try {
+      // validators cannot clear the value, they can only throw
+      return await this._executeProcessorPipeline(this._handlers.validators, value, target, location, options) ?? value;
     }
-    return validated ?? value;  // validators cannot clear the value, they can only throw
+    catch (error) {
+      throw new ValidationError(fpm(`Unable to validate {${value}}`, location), {cause: error});
+    }
   }
 
   /**
    * Serialize the provided input value.
    *
    * @param {any} value - value to serialize
-   * @param {any} target - entire output being serialized
-   * @param {string} path - path to this value within the output
-   * @param {Object} options - options to tweak serialization behavior
+   * @param {any} [target] - entire output being serialized
+   * @param {SchemaLocation} [location] - traversal location to current schema
+   * @param {Object} [options] - options to tweak serialization behavior
    * @returns {Promise<any>}
    * @internal
    */
-  async _serializeValue(value, target, path = this.path, options) {
-    let serialized = value;
+  async _serializeValue(value, target, location = new SchemaLocation(this), options) {
+
     const serializers = Array.isArray(this._handlers.serializers)? this._handlers.serializers : [];
 
     if (serializers.length === 0) {
@@ -726,20 +683,75 @@ export class CompiledSchema
         return this.isArray? [] : {}
       }
     }
-    for (const serializer of serializers) {
-      try {
-        serialized = await serializer.processor(serialized, target, this, path, options);
+    try {
+      return await this._executeProcessorPipeline(serializers, value, target, location, options) ?? value; // validators cannot clear the value, they can only throw
+    }
+    catch (error) {
+      if (options?.strict) {
+        throw new SerializeError(fpm('Unable to serialize', location), {cause: error})
       }
-      catch (error) {
-        if (options?.strict) {
-          throw new SerializeError(fpm('Unable to serialize', path), {cause: error})
-        }
-        else {
-          return undefined;
-        }
+      else {
+        return undefined;
       }
     }
-    return serialized;
+  }
+
+  /**
+   * Return true if this schema seems to be able to handle a given input value.
+   *
+   * @param {any} value
+   * @param {any} [target]
+   * @param {SchemaLocation} [location]
+   * @param {any} [options]
+   * @returns {Promise<boolean>}
+   */
+  async accepts(value, target, location = new SchemaLocation(this), options) {
+
+    const strict = options?.strict;
+
+    if (value === undefined) {
+      if (this.options.allowUndefined) {
+        return true;
+      }
+      if (strict) {
+        throw new ValidationError(fpm('Schema does not accept an undefined input', location));
+      }
+      return false;
+    }
+
+    // todo - perhaps we should require that the value has been already normalized?
+    /*
+    let normalizedValue;
+    try {
+      normalizedValue = await this._normalizeValue(value, target, location, options);
+      if (normalizedValue === undefined) {
+        if (strict) {
+          throw new NormalizeError(fpm('Schema normalization failed', location));
+        }
+        return false;
+      }
+    }
+    catch (error) {
+      if (strict) {
+        throw error;
+      }
+      return false;
+    }
+
+     */
+    if (!Array.isArray(this.values)) {
+      return true;
+    }
+    const found = this.values.some(v => deepEquals(v, value));
+
+    if (!found) {
+      if (strict) {
+        // todo - consider using valueDescription metadata
+        throw new ValidationError(fpm(`Invalid value: <${value}>, expected one of {${this.values.join('|')}}`, location));
+      }
+      return false;
+    }
+    return true;
   }
 
 
@@ -752,45 +764,40 @@ export class CompiledSchema
    * @internal
    */
   async _preload(target, context) {
+
+    const location = new SchemaLocation(this);
+
     if (!context) {
-      context = new TraversalContext();
+      context = new TraversalContext(location);
     }
-
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', inputToValueHook)
-      .hook('startProperty', copyPropertyValueHook)
-
-    return await this.traverse(target, {hooks, context});
+    return await this.traverse(target, {hooks: preloadHooks, context});
   }
 
 
   /**
    * Normalize the input value.
    *
-   * Unlike _normalizeValue, this will normalize an entire object hierarchy.
+   * Unlike _normalizeValue, this will normalize an entire object hierarchy, starting at the root.
    * Deprecated because this is weird, and under some conditions doesn't play well with the hook semantics.
    * (Normalization and transformation are phases, not independent top level operations.)
    *
    * @param {any} input - input value to normalize
-   * @param {any} configuration - optional existing configuration
+   * @param {any} [target] - optional existing value
+   * @param {any} [options]
    * @returns {Promise<any>} - normalized value
    * @deprecated
    * @internal
    */
-  async _normalize(input, configuration) {
-    const context = new TraversalContext({strict: false});
+  async _normalize(input, target, options) {
+    const location = options?.location ?? new SchemaLocation(this);
 
-    if (configuration !== undefined) {
-      await this._preload(configuration, context);
+    const context = new TraversalContext(location, {strict: false});
+
+    if (target !== undefined) {
+      await this._preload(target, context);
     }
 
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [defaultsHook, normalizeHook, resolveUnionHook])
-      .hook('endCurrent', [pendingToValueHook, resolveUnionHook])
-      .hook('startProperty', [startPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
-
-    const result = await this.traverseMultipass(input, {hooks, context});
+    const result = await this.traverseMultipass(input, {hooks: normalizationHooks, context});
 
     return result;
   }
@@ -798,7 +805,7 @@ export class CompiledSchema
   /**
    * Transform the input value.
    *
-   * Unlike _transformValue, this will normalize and transform an entire object hierarchy.
+   * Unlike _transformValue, this assumes it starts at the root, and will normalize and transform an entire object hierarchy.
    * Deprecated because this is weird, and under some conditions doesn't play well with the hook semantics.
    * (Normalization and transformation are phases, not independent top level operations.)
    *
@@ -809,16 +816,10 @@ export class CompiledSchema
    * @internal
    */
   async _transform(input, options) {
+    const location = options?.location ?? new SchemaLocation(this);
 
-    const context = new TraversalContext(options);
-
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
-      .hook('endCurrent', [transformHook, resolveUnionHook])
-      .hook('startProperty', [startPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
-
-    const result = await this.traverseMultipass(input, {hooks, context});
+    const context = new TraversalContext(location, options);
+    const result = await this.traverseMultipass(input, {hooks: transformationHooks, context});
 
     return result;
   }
@@ -827,27 +828,22 @@ export class CompiledSchema
   /**
    * Return a validated output if and only if the input fully matches the schema definition.
    *
-   * Runs all validator processors in a pipeline until one returns undefined or throws an error:
-   * - The validation input is assumed to already have been transformed.
-   * - If the input data is invalid, the validate call will throw an error.
+   * Note: depending on the processors used for validation, the input value may be mutated during validation!
+   * (todo - create an option that prevents this from happening?)
    *
    * @param {any} value - input value to validate
    * @param {ValidateOptions} [options] - any tweaks to the validator behavior
    * @returns {Promise<any>} - validated value
    */
   async validate(value, options) {
-    const context = new TraversalContext(options);
+    const location = options?.location ?? new SchemaLocation(this);
+
+    const context = new TraversalContext(location, options);
     if (value !== undefined) {
       await this._preload(value, context);
     }
 
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [resolveUnionHook, checkConditionHook, inputToPendingHook])
-      .hook('endCurrent', [resolveUnionHook, checkRequiredHook, checkUnresolvedHook, pendingToValueHook, validateHook])
-      .hook('startProperty', [startPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
-
-    return await this.traverseMultipass(value, {hooks, context})
+    return await this.traverseMultipass(value, {hooks: validationHooks, context})
   }
 
 
@@ -873,19 +869,16 @@ export class CompiledSchema
    * @returns {Promise<any>} - returns the output value
    */
   async processAssignments(assignments, target, options = {}) {
+    const location = options?.location ?? new SchemaLocation(this);
 
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext({strict: options?.strict, deep: options?.deep});
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
-      .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
-      .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep});
 
     if (target !== undefined) {
       await this._preload(target, context);
     }
-    for (let [path, value] of assignments) {
-      await this.traverse(value, {inputPath: path, context, hooks});
+    const hooks = processingHooks;
+    for (let [inputPath, input] of assignments) {
+      await this.traverse(input, {inputPath, context, hooks});
     }
 
     return await this.traverseMultipass(undefined, {context, hooks});
@@ -908,12 +901,10 @@ export class CompiledSchema
    * @returns {Promise<any>} - returns the output value
    */
   async process(input, target, options = {}) {
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext({strict: options?.strict, deep: options?.deep });
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [defaultsHook, normalizeInputHook, resolveUnionHook, checkConditionHook, normalizeHook, transformHook])
-      .hook('endCurrent', [transformHook, resolveUnionHook, checkRequiredHook, validateHook /*, markValuesDone*/])
-      .hook('startProperty', [startPropertyHook, filterPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
+    const location = options?.location ?? new SchemaLocation(this);
+
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep });
+    const hooks = processingHooks;
 
     if (target !== undefined) {
       await this._preload(target, context);
@@ -941,74 +932,20 @@ export class CompiledSchema
    * @returns {Promise<NonNullable<any>>}
    */
   async serialize(configuration, options) {
-    const context = new TraversalContext({strict: options?.strict ?? false});
-    const hooks = new TraversalHooks()
-      .hook('startCurrent', [simplePendingHook, resolveUnionHook, checkConditionHook, serializeHook])
-      .hook('endCurrent', [])
-      .hook('startProperty', [startPropertyHook, checkPropertySchema])
-      .hook('endProperty', [endPropertyHook])
+    const location = options?.location ?? new SchemaLocation(this);
+
+    const context = new TraversalContext(location, {strict: options?.strict ?? false});
+
 
     if (configuration !== undefined) {
       context.setValue(configuration);  // serialization uses a fixed configuration
     }
 
-    const result = await this.traverseMultipass(configuration, {hooks, context})
+    const result = await this.traverseMultipass(configuration, {hooks: serializationHooks, context})
 
     // clean up any null markers or undefined keys
     return deepPrune(result);
     }
-
-  /**
-   * Use the registered discriminator to return a matching union schema, or undefined if the union cannot be resolved.
-   * Discriminator functions must return either one of the unionSchema members, a unionSchema key, or undefined.
-   *
-   * @param {any} value
-   * @param {any} target
-   * @param {string} path
-   * @param {object} [options]
-   * @returns {Promise<CompiledSchema|undefined>}
-   * @internal
-   */
-  async _discriminateUnion(value, target, path, options) {
-
-    const strict = options?.strict ?? false;
-
-    if (!this.isUnion || this._handlers.discriminators === undefined) {
-      return undefined;
-    }
-
-    const discriminators = Array.isArray(this._handlers.discriminators)? this._handlers.discriminators : [];
-
-    // we'll run multiple discriminators if necessary, but it's a bizarre use case...
-
-    let discriminatorResult = value;
-    for (const discriminator of discriminators) {
-      try {
-        discriminatorResult = await discriminator.processor(discriminatorResult, target, this, path, options);
-      }
-      catch (error) {
-        if (strict) {
-          throw error;
-        }
-        return undefined;
-      }
-    }
-    if (!discriminatorResult) {
-      if (strict) {
-        throw new SchemaError(fpm('Unable to resolve union', path));
-      }
-      return undefined;
-    }
-    if (typeof discriminatorResult === 'string') {
-      // String lookups (e.g., from property extraction) - return undefined if no match
-      return this.unionSchemas[discriminatorResult];
-    }
-    if (discriminatorResult instanceof CompiledSchema && this.findUnionKey(discriminatorResult)) {
-      return discriminatorResult;
-    }
-    // Schema returned but not valid - this is a developer error
-    throw new SchemaError(fpm('Union discriminator returned unexpected value', path))
-  }
 
   /**
    * Given a reference to a union schema member, return the matching key, or undefined if it cannot be found.
@@ -1024,6 +961,7 @@ export class CompiledSchema
    * Find the schema at a given path, falling back to the wildcard schema if one exists.
    *
    * The root schema may be found at '', the empty string.  Array members are referenced with dotted integer indexes.
+   * Note that find() does not check union members; use SchemaLocation for finding schemas resolved during traversal.
    *
    * @param {string} path
    * @returns {undefined|CompiledSchema}
@@ -1048,46 +986,6 @@ export class CompiledSchema
   }
 
   /**
-   * Find the parent schema for a given path, even if parts of the path do not exist in the schema hierarchy.
-   *
-   * Given unknown path components, the result might be several levels higher than the provided path would imply!
-   *
-   * @param {string} path
-   * @returns {CompiledSchema|undefined}
-   */
-  findParent(path) {
-    if (!path || path === '' || path === '.') {
-      return undefined;
-    }
-    const dot = path.lastIndexOf('.');
-
-    if (dot === -1) {
-      return this;
-    }
-    path = path.substring(0, dot);
-    const parentSchema = this.find(path);
-    if (parentSchema) {
-      return parentSchema;
-    }
-    return this.findParent(path);
-  }
-
-  /**
-   * Get the root schema that has this schema somewhere in its hierarchy (possibly itself)
-   *
-   * @returns {CompiledSchema}
-   */
-  getRoot() {
-    /** @type {CompiledSchema} */
-    let s = this;
-    while (s.parent) {
-      s = s.parent;
-    }
-    return s;
-  }
-
-
-  /**
    * toAssignments - attempt to convert input data to a map of assignments.
    *
    * @param {any} object - input
@@ -1101,6 +999,12 @@ export class CompiledSchema
 
     const assignments = new Map();
 
+    /**
+     *
+     * @param {CompiledSchema} schema
+     * @param {any} current
+     * @param {string} path
+     */
     function walk(schema, current, path) {
       const isContainer = Array.isArray(current) || isPlainObject(current);
 
@@ -1111,7 +1015,7 @@ export class CompiledSchema
         const entries = Array.isArray(current)? current.entries() : Object.entries(current);
 
         for (const [key, value] of entries) {
-          const propertySchema = schema?.getPropertySchema(key);
+          const propertySchema = schema?.getPropertySchema(`${key}`);
           walk(propertySchema, value, path ? `${path}.${key}` : `${key}`)
         }
       }
@@ -1131,6 +1035,7 @@ export class CompiledSchema
    * @returns {boolean} - returns true if visitors all returned true, false if any exited early
    */
   visitSchema(visitor, options) {
+    const walked = new Set();
     const onlySerializable = options?.onlySerializable ?? false;
     /**
      * @param {CompiledSchema} schema
@@ -1138,6 +1043,10 @@ export class CompiledSchema
      * @returns {any|boolean}
      */
     function walk(schema, path) {
+      if (walked.has(schema)) {
+        return false;
+      }
+      walked.add(schema);
       if (schema.metadata.omitFromSerialize && onlySerializable) {
         return false;
       }
@@ -1174,11 +1083,13 @@ export class CompiledSchema
    * @internal
    */
   async traverse(input, options) {
-    const path = options?.path ?? '';
-    const inputPath = options?.inputPath ?? '';
 
+    const context = options?.context ?? new TraversalContext(new SchemaLocation(this)).finalize();
     const hooks = options?.hooks ?? new TraversalHooks();
-    const context = options?.context ?? new TraversalContext().finalize();
+
+    const path = options?.path ?? '';
+    const inputPath = options?.inputPath ?? '';  // the relative path from this schema to the input
+    const isInputPath = (inputPath === '');
 
     const target = options?.target;
     if (path === '' && target !== undefined) {
@@ -1188,8 +1099,6 @@ export class CompiledSchema
 
     const state = context.getState(path);
 
-    const isInputPath = (inputPath === '');
-
     const initialize = async() => {
       if (state.schema === undefined) {
         state.schema = this;
@@ -1198,15 +1107,15 @@ export class CompiledSchema
       if (isInputPath) {
         if (input !== undefined) {
           state.assignedInput = input;
-          }
+        }
         if (state.assignedInput !== undefined) {
-          if (state.treatAsExplicit) {
+          if (true || state.treatAsExplicit) {
             state.isExplicit = true;
           }
         }
       } else {
-        const fullInputPath = path? `${path}.${inputPath}` : inputPath;
-        const inputState = context.getState(fullInputPath);
+        const inputState = state.relative(inputPath);
+
         if (input !== undefined && inputState.assignedInput !== input) {
           inputState.assignedInput = input;
         }
@@ -1227,29 +1136,40 @@ export class CompiledSchema
         return TraversalControl.OK;
       }
 
+
+      const [propertyKey, propertyInputPath] = behead(inputPath);
+
+      /*
       const inputPathComponents = inputPath.split('.');
       const propertyKey = inputPathComponents.shift();
       if (!propertyKey) {
         return TraversalControl.OK;  // should never happen, but need to satisfy the typechecker
       }
       const propertyInputPath = inputPathComponents.join('.')
-      const property = state.context.getProperty(state, propertyKey);
-      if (!property) {
+
+       */
+      //const property = state.context.getProperty(state, propertyKey);
+
+      const propertyState = state.relative(propertyKey);
+
+
+      if (!propertyState) {
         return TraversalControl.OK;
       }
-      const startResult = await hooks.startProperty(state, property);
+      const startResult = await hooks.startProperty(state, propertyState);
 
       if (startResult !== TraversalControl.OK) {
         return TraversalControl.OK;
       }
 
-      property.value = await property.state.schema?.traverse(input, {context, hooks, path: property.state.path, inputPath: propertyInputPath});
-      if (property.value !== undefined && state.pending === undefined && state.value === undefined) {
+      //property.value = await property.state.schema?.traverse(input, {context, hooks, path: property.state.path, inputPath: propertyInputPath});
+      /*propertyState.value = */await propertyState.schema?.traverse(input, {context, hooks, path: propertyState.path, inputPath: propertyInputPath});
+      if (propertyState.value !== undefined && state.pending === undefined && state.value === undefined) {
         // lazy container creation - todo - move into endProperty by passing hooks in?
         state.isExplicit = true;
         await hooks.startCurrent(state);  // todo - check errors/result
       }
-      await hooks.endProperty(state, property);
+      await hooks.endProperty(state, propertyState);
     }
 
     const handleProperties = async() => {
@@ -1288,11 +1208,12 @@ export class CompiledSchema
       }
 
       for (const propertyKey of propertyKeys.keys()) {
-        const property = context.getProperty(state, propertyKey);
-        if (!property) {
+//        const property = context.getProperty(state, propertyKey);
+        const propertyState = state.relative(propertyKey);
+        if (!propertyState) {
           continue;
         }
-        const startResult = await hooks.startProperty(state, property);
+        const startResult = await hooks.startProperty(state, propertyState);
 
         if (startResult === TraversalControl.SKIP) {
           continue;
@@ -1304,18 +1225,19 @@ export class CompiledSchema
         const propertyOptions = {
           context,
           hooks,
-          path: property.state.path
+          path: propertyState.path
         }
 
-        if (property.state.schema !== undefined) {
-          property.value = await property.state.schema.traverse(property.input, propertyOptions);
+        if (propertyState.schema !== undefined) { // input is set via the start property hook!
+          /*property.value = */await propertyState.schema.traverse(undefined, propertyOptions);
         }
 
-        if (property.value !== undefined && state.pending === undefined &&  state.value === undefined) {
+        if (propertyState.value !== undefined && state.pending === undefined &&  state.value === undefined) {
+          // support lazily-created containers that wait for at least one defined child property value
           state.isExplicit = true;
           await hooks.startCurrent(state);  // todo - check errors?
         }
-        const endResult = await hooks.endProperty(state, property);
+        const endResult = await hooks.endProperty(state, propertyState);
 
         if (endResult === TraversalControl.STOP) {
           break;
@@ -1353,7 +1275,7 @@ export class CompiledSchema
     let done = false;
     let result = undefined;
 
-    const context = options?.context ?? new TraversalContext();
+    const context = options?.context ?? new TraversalContext(new SchemaLocation(this));
     const path = options?.path ?? '';
 
     // ensure the root state exists so that the context doesn't already appear to be completed on the first pass
@@ -1499,15 +1421,19 @@ export class CompiledSchema
    *
    * @internal
    */
-  freeze() {
+  freeze(seen = new Set()) {
+    if (seen.has(this)) {
+      return;
+    }
+    seen.add(this);
     for (const childSchema of Object.values(this._properties)) {
-      childSchema.freeze();
+      childSchema.freeze(seen);
     }
     Object.freeze(this._properties);
     Object.freeze(this._options);
     Object.freeze(this._metadata);
     for (const unionSchema of Object.values(this._unionSchemas)) {
-      unionSchema.freeze();
+      unionSchema.freeze(seen);
     }
     Object.freeze(this._unionSchemas);
     Object.freeze(this);

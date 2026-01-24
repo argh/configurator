@@ -1,7 +1,7 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
-import { Configurator, SchemaResolver, Schema, CompiledSchema, ConfiguratorError } from '../src/index.js';
+import { Configurator, SchemaResolver, Schema, ConfiguratorError } from '../src/index.js';
 import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { isConstructor, toConstantCase } from '../src/utils.js';
 
@@ -26,13 +26,13 @@ const resolver = new SchemaResolver();
 //
 // Value processors in all the handler pipelines all share the the same call signature:
 //
-//   output = await processor(input, target, schema, path, options)
+//   output = await processor(input, target, location, options)
 //
 // where "input" is the value being specified in the assignment, "target" is
-// the current value of the entire configuration object being built, "schema" is a reference
-// to the active definition itself, and "path" is the dotted path within the schema hierarchy
-// of the current input and schema, and where the value will eventually be written within the target.
-// (Many handlers only need the first argument!)
+// the current value of the entire configuration object being built, "location" contains the
+// traversal location within the schema hierarchy of the current input and schema, as well as
+// where the value will eventually be written within the target.  Options are passed through
+// from the top-level call that invoked the processor.  (Many handlers only need the first argument!)
 //
 // Normalizers, transformers, validators, and serializers must either:
 // 1. Return a (potentially altered) value
@@ -505,6 +505,7 @@ schema.property('profile', Configurator.createConfigSchema()
   .option('context', 'profilePath')
   .meta('flagHint', 'P')
 );
+/** @type {ConfiguratorOptions} */
 const configurator = new Configurator({ schema, resolver, sources });
 
 // Write a demo profile file for the example... (passing operations on the command line in JSON is ugly)
@@ -514,13 +515,16 @@ await writeFile('./example-profile.json', JSON.stringify({
 }));
 
 try {
-  const config = await configurator.configure({
-    appName: 'app',    // env var prefix, also used to make cmd line args for matching schema more concise
-    // comment out these next lines if you want to use the actual environment and command line
-    env: {APP_FAKE_SECRET_DELAY: '10'},
-    argv: ['--work-repo=./src', '-VD', '--profile=./example-profile.json', '--printer=bar', '--work-cheese=brie', /*'--dump=./example-config.json'*/],
-    overrides: { app: { printer: new FooPrinter() }}
-  })
+  const context = (process.env.CONFIGURATOR_TEST === 'true')?
+    {
+      appName: 'app',    // env var prefix, also used to make cmd line args for matching schema more concise
+      // comment out these next lines if you want to use the actual environment and command line
+      env: {APP_FAKE_SECRET_DELAY: '10'},
+      argv: ['--work-repo=./src', '-VD', '--profile=./example-profile.json', '--printer=bar', '--work-cheese=brie', /*'--dump=./example-config.json'*/],
+      overrides: { app: { printer: new FooPrinter() }}
+    }
+    : { appName: 'app' }
+  const config = await configurator.configure(context);
   const printer = config.app?.printer;
 
   if (!config.work) {

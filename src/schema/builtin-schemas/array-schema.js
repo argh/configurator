@@ -4,12 +4,12 @@ import { ConstraintError } from '../../errors.js';
 
 export const ARRAY_SCHEMA = new Schema()
   .option('type', 'array')
-  .normalizer((value, _, schema) => {
+  .normalizer((value, _, location) => {
     if (value === true) {
       value = [];
     }
-    else if (value === '*' && schema.properties['*']?.values?.length) {
-      value = [...schema.properties['*'].values];
+    else if (value === '*' && location.schema.properties['*']?.values?.length) {
+      value = [...location.schema.properties['*'].values];
     }
     if (typeof value === 'string') {
       value = value.trim();
@@ -32,12 +32,12 @@ export const ARRAY_SCHEMA = new Schema()
     }
     throw new ConstraintError(`Invalid input for array: ${value}`)
   })
-  .transformer((value, _, schema) => {
+  .transformer((value, _, location) => {
     if (value === true) {
       value = [];
     }
-    else if (value === '*' && schema.properties['*']?.values?.length) {
-      value = [...schema.properties['*'].values];
+    else if (value === '*' && location.schema.properties['*']?.values?.length) {
+      value = [...location.schema.properties['*'].values];
     }
     if (typeof value === 'string') {
       value = value.trim();

@@ -1,22 +1,27 @@
+import { SchemaLocation } from "../schema-location.js";
+
 /**
- * Format a path (possibly with property), typically for error messages.
+ * Format a location/path (possibly with property), typically for error messages.
  *
  * @param {string} message
- * @param {string} path
+ * @param {string|SchemaLocation|undefined} where - path or location
  * @param {string|number} [property]
  * @param {string} [prep]
  * @returns {string}
  * @internal
  */
-export function fpm(message, path, property, prep = 'at') {
+export function fpm(message, where, property, prep = 'at') {
 
+  if (where instanceof SchemaLocation) {
+    where = `${where}`;
+  }
   let m = message;
 
   if (property) {
     m += ` property ${property}`
   }
-  if (path) {
-    m += ` ${prep} ${path}`;
+  if (where) {
+    m += ` ${prep} ${where}`;
   }
 
   return m;

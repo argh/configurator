@@ -1,13 +1,12 @@
-//import { Buffer } from 'node:buffer';
 import { CompiledSchema } from './compiled-schema.js';
-import { Schema, SchemaPolicy } from './schema.js';
+import { Schema } from './schema.js';
 import {
   ConfiguratorError,
   SchemaError,
   ConstraintError,
   ResolverError
 } from '../errors.js';
-import { deepValue, toKebabCase } from '../utils.js';
+import { toKebabCase } from '../utils.js';
 import {
   findDiscriminatorProperties,
   generateAutomaticDiscriminatorFunction,
@@ -26,7 +25,10 @@ import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
 import { getBuiltinProcessors } from './builtin-processors/index.js';
 import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
-/** @import { ISchemaOptions, ISchemaMetadata, SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
+import { fpm } from './helpers/fpm.js';
+import { formatArgumentType } from './helpers/format.js';
+
+/** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
 
 /**
  * The SchemaResolver class is used to compile a Schema into a CompiledSchema.
@@ -35,18 +37,20 @@ import { stringify } from './helpers/stringify.js';
   */
 export class SchemaResolver
 {
-  constructor() {
-    /**
-     * @type {Map<string,Schema>}
-     * @private
-     */
-    this.schemaMap = new Map();
+  /**
+   * @type {Map<string,Schema>}
+   */
+  #schemaMap = new Map();
+  /**
+   * @type {Map<string,ValueProcessorDefinition>}
+   */
+  #processorMap = new Map();
 
-    /**
-     * @type {Map<string,ValueProcessorDefinition>}
-     * @private
-     */
-    this.processorMap = new Map();
+  #compilationCache = new Map();
+  #resolveCache = new Map();
+  #finalizationSet = new Set();
+
+  constructor() {
     this._registerBuiltInSchemas();
     this._registerBuiltInValueProcessors()
   }
@@ -62,7 +66,7 @@ export class SchemaResolver
       throw new ResolverError(`Registry can only store Schema instances`);
     }
     const registryName = toKebabCase(name);
-    this.schemaMap.set(registryName, schema);
+    this.#schemaMap.set(registryName, schema);
     return this;
   }
 
@@ -73,7 +77,7 @@ export class SchemaResolver
    */
   getSchema(name) {
     const registryName = toKebabCase(name);
-    const schema = this.schemaMap.get(registryName);
+    const schema = this.#schemaMap.get(registryName);
     if (!schema) {
       throw new ResolverError(`Unable to resolve "${name}"`);
     }
@@ -87,7 +91,7 @@ export class SchemaResolver
    */
   hasSchema(name) {
     const registryName = toKebabCase(name);
-    return this.schemaMap.has(registryName);
+    return this.#schemaMap.has(registryName);
   }
 
   /**
@@ -114,7 +118,7 @@ export class SchemaResolver
       throw new ResolverError(`Processor description must be a string`);
     }
 
-    this.processorMap.set(keyword, definition);
+    this.#processorMap.set(keyword, definition);
     return this;
   }
 
@@ -239,7 +243,7 @@ export class SchemaResolver
     // Simple keyword handling
     if (typeof spec === 'string' && spec.startsWith('$')) {
       const keyword = spec.slice(1);
-      const registered = this.processorMap.get(keyword);
+      const registered = this.#processorMap.get(keyword);
 
       if (!registered) {
         throw new ResolverError(`Unknown processor keyword: ${spec}`);
@@ -269,7 +273,7 @@ export class SchemaResolver
           const keywordName = keyword.startsWith('$') ? keyword.slice(1) : keyword;
           const args = spec[keyword];
 
-          const registered = this.processorMap.get(keywordName);
+          const registered = this.#processorMap.get(keywordName);
 
           if (!registered) {
             throw new ResolverError(`Unknown processor keyword: ${keyword}`);
@@ -347,12 +351,16 @@ export class SchemaResolver
    * @returns {Schema}
    */
   resolve(inputSchema, parent, name) {
-
     if (typeof inputSchema === 'string') {
       inputSchema = this.getSchema(inputSchema);
     }
-
+    if (this.#resolveCache.has(inputSchema)) {
+      return this.#resolveCache.get(inputSchema);
+    }
     const outputSchema = new Schema();
+
+    this.#resolveCache.set(inputSchema, outputSchema);
+    this.#resolveCache.set(outputSchema, outputSchema);
 
     /** @type {Schema|CompiledSchema|SchemaData|undefined} */
     let source = inputSchema;
@@ -415,8 +423,8 @@ export class SchemaResolver
             const base = `${source.base}`
 
             strictCompileError = new ResolverError(`Unable to resolve "${base}"`)
-            outputSchema.transformer((value, config, schema) => {
-              if (schema.options.strict !== false) {
+            outputSchema.normalizer((value, config, location) => {
+              if (location.schema.strict !== false) {
                 throw strictCompileError;
               }
               return undefined;
@@ -440,15 +448,23 @@ export class SchemaResolver
   }
 
   /**
-   * @param {Schema|SchemaData} inputSchema
-   * @param {CompiledSchema} [parent] - parent schema (if attached)
-   * @param {string} [name]               - property name in parent (if attached)
+   * @param {Schema|CompiledSchema|SchemaData} inputSchema
+   * @param {string} [path]
    * @returns {Promise<CompiledSchema>}
    * @private
    */
-  async _compile(inputSchema, parent, name) {
+  async _compile(inputSchema, path = '') {
 
-    const outputSchema = new CompiledSchema(CompiledSchema.__TOKEN, parent, name);
+    if (inputSchema instanceof CompiledSchema) {
+      return inputSchema;
+    }
+    if (this.#compilationCache.has(inputSchema)) {
+      return this.#compilationCache.get(inputSchema);
+    }
+
+    const outputSchema = new CompiledSchema(CompiledSchema.__TOKEN);
+
+    this.#compilationCache.set(inputSchema, outputSchema);
 
     const source = this.resolve(inputSchema);
 
@@ -457,13 +473,15 @@ export class SchemaResolver
     }
 
     for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
-      outputSchema.properties[propName] = await this._compile(propSchema, outputSchema, propName);
+      const propertyPath = path? `${path}.${propName}` : propName;
+      outputSchema.properties[propName] = await this._compile(propSchema, propertyPath);
     }
     for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
       outputSchema.metadata[metaName] = metaValue;
     }
     for (const [unionKey, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
-      outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, parent, name);
+      // todo - restore notion of union-keyed path elements
+      outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, path);
     }
 
     if (source.options.compileHook && typeof source.options.compileHook === 'function') {
@@ -478,6 +496,7 @@ export class SchemaResolver
       }
       outputSchema.options[optionName] = optionValue;
     }
+
     await this._compileNormalizers(source, outputSchema);
     await this._compileValues(source, outputSchema);  // performs normalization!
 //    await this._compileDefault(source, outputSchema);  // performs normalization!
@@ -493,75 +512,24 @@ export class SchemaResolver
     return outputSchema;
   }
 
-    /**
-     *
-     * @param {CompiledSchema} schema
-     * @returns {string}
-     * @private
-     */
-    static _formatArgumentType(schema) {
 
-      if (schema.metadata.valueDescription) {
-        return schema.metadata.valueDescription;
-      }
-
-      let argumentTypeString;
-      if (schema.isArray && schema.hasChildren) {
-        const props = Object.keys(schema.properties)
-                          .sort((a, b) => {
-                            if (a === '*') return 1;
-                            if (b === '*') return -1;
-                            return a.localeCompare(b, undefined, {numeric: true});
-                          })
-                          .map(k => schema.properties[k]);
-
-        argumentTypeString = props.map(s => SchemaResolver._formatArgumentType(s)).join(', ')
-
-        if (schema.properties['*']) {
-          argumentTypeString += '...';
-        }
-
-        if (schema.metadata.validatorDescription) {
-          if (argumentTypeString && !argumentTypeString.includes(schema.metadata.validatorDescription)) {
-            argumentTypeString += ` {${schema.metadata.validatorDescription}}`;
-          }
-        }
-      }
-      else {
-        if (Array.isArray(schema.options.values) && schema.options.values.length > 0) {
-          argumentTypeString = schema.options.values.map(v => `${v}`)
-                                     .sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).join('|');
-        }
-        else {
-          argumentTypeString = schema.metadata.valueName ?? (schema.isArray? '' : schema.options.type);
-
-          if (schema.metadata.validatorDescription) {
-            if (!argumentTypeString || (argumentTypeString === schema.options.type)) {
-              argumentTypeString = schema.metadata.validatorDescription;  // overwrite basic "type names"
-            }
-            else {
-              argumentTypeString = `${argumentTypeString} {${schema.metadata.validatorDescription}}`;
-            }
-          }
-        }
-        if (argumentTypeString === undefined) {
-          argumentTypeString = 'value';
-        }
-        if (schema.isArray && !argumentTypeString.includes('...')) {
-          argumentTypeString += '...';
-        }
-      }
-      return argumentTypeString;
-    }
 
   /**
    * @param {CompiledSchema} schema
+   * @param {string} [path]
+   * @param {CompiledSchema} [parent]
    * @returns {Promise<CompiledSchema>}
    * @private
    */
-  async _finalize(schema) {
-    for (const propSchema of Object.values(schema.properties)) {
-      await this._finalize(propSchema);
+  async _finalize(schema, path = '', parent) {
+
+    if (this.#finalizationSet.has(schema)) {
+      return schema;
+    }
+    this.#finalizationSet.add(schema);
+    for (const [propName, propSchema] of Object.entries(schema.properties)) {
+      const propPath = path ? `${path}.${propName}` : propName;
+      await this._finalize(propSchema, propPath, schema);
     }
     for (const unionSchema of Object.values(schema.unionSchemas)) {
 
@@ -577,19 +545,25 @@ export class SchemaResolver
         }
       }
 
-      await this._finalize(unionSchema);
+      await this._finalize(unionSchema, path, parent);
     }
-    await this._finalizeValues(schema);
+    await this._finalizeValues(schema, parent);
     await this._finalizeMetadata(schema);
 
-    const p = schema.path ? ` at "${schema.path}"` : ``;
-
     if (schema.isUnion && !schema.handlers.discriminators) {
-      throw new ConfiguratorError(`Union schema${p} needs a discriminator defined`);
+      throw new SchemaError(fpm(`No discriminator defined for union`, path));
     }
 
     if (schema.hasChildren && schema.options.type !== 'object' && schema.options.type !== 'array' && schema.options.type !== 'any') {
-      throw new ConfiguratorError(`Schema${p} has children defined but is not a container`);
+      throw new SchemaError(fpm(`Schema defines child properties but does not identify as a container`, path));
+    }
+
+    if (schema.isUnion && schema.hasWildcard) {
+      throw new SchemaError(fpm(`Wildcard properties cannot be set on a union`, path));
+    }
+
+    if (schema.hasChildSelector !== schema.hasChildSelection) {
+      throw new SchemaError(fpm(`Inconsistently defined selector/selections in properties`, path));
     }
 
     if (schema.options.compileHook && typeof schema.options.compileHook === 'function') {
@@ -634,55 +608,23 @@ export class SchemaResolver
    * @private
    */
   _asyncifySVF(fn, d) {
-    return async (v, c, s, p, o) => {
+    return async (value, target, location, options) => {
 
-      if (!s) {
+      if (!location) {
         throw new ConfiguratorError('Invalid call to schema value function');  // developer error
       }
-      c = c ?? {};
-      p = p ?? s.path;
-      o = o ?? {};
 
       if (!fn) {
-        return v ?? d
+        return value ?? d
       }
       if (typeof fn === 'function') {
         // @ts-ignore
-        return fn(v, c, s, p, o);
+        return fn(value, target, location, options);
       }
       return fn;
     }
   }
 
-  /**
-   *
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileOptions(src, dst) {
-    for (const [optionName, optionValue] of Object.entries(src.options)) {
-      if (optionValue !== undefined && dst.options[optionName] === undefined) {
-
-        // Special options:
-        if (optionName === 'values') {
-          if (dst.hasChildren) {
-            // child properties are assigned incrementally, so complex object values would never match
-            throw new SchemaError(`Cannot set values for an schema with child properties`);
-          }
-          const values = Array.isArray(optionValue)? optionValue : [optionValue];
-          dst.options.values = [];
-          for (const v of values) {
-            dst.options.values.push(await dst._normalizeValue(v, {}, dst.path));
-          }
-        }
-        else {
-          dst.options[optionName] = optionValue;
-        }
-      }
-    }
-  }
 
   /**
    * @param {string} handlerName
@@ -715,6 +657,12 @@ export class SchemaResolver
     }
   }
 
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @returns {Promise<void>}
+   * @private
+   */
   async _compileNormalizers(src, dst) {
     await this._compileHandler('normalizers', src, dst, 'normalizerDescription');
   }
@@ -724,32 +672,6 @@ export class SchemaResolver
   }
 
   async _compileConditions(src, dst) {
-
-    if (src.options.selection !== undefined) {
-      const condition = async (value, configuration, schema, path) => {
-        if (!schema.isSelection) {
-          return true;   // in case someone changed their mind?
-        }
-        const ldi = path.lastIndexOf('.');
-        const parentPath = (ldi === -1) ? '' : path.substring(0, ldi);
-
-        const parentSchema = schema.parent;
-
-        for (const propName in parentSchema?.properties) {
-          const s = parentSchema.properties[propName];
-
-          if (s.isSelector) {
-            const selectorPath = parentPath ? `${parentPath}.${propName}` : propName;
-            const selectorValue = deepValue(configuration, selectorPath);
-            return (await s._normalizeValue(selectorValue)) === (await s._normalizeValue(schema.selection));
-          }
-        }
-        return false;
-      }
-      src.conditions(condition, SchemaPolicy.PREPEND);
-    }
-
-
     await this._compileHandler('conditions', src, dst, 'conditionDescription');
   }
 
@@ -785,23 +707,6 @@ export class SchemaResolver
     }
   }
 
-  /* todo - remove - no longer doing this!  defaults need to be evaluated lazily to ensure that default functions are called properly
-
-  async _compileDefault(src, dst) {
-    if (dst.options.default !== undefined || src.options.default === undefined) {
-      return;
-    }
-    if (typeof src.options.default === 'function') {
-      // lazy normalization!
-      dst.options.default = src.options.default;
-    }
-    else {
-      dst.options.default = await dst.normalizeValue(src.options.default);
-    }
-  }
-
-   */
-
   async _compileValues(src, dst) {
     if (dst.options.values !== undefined || src.options.values === undefined) {
       return;
@@ -814,8 +719,17 @@ export class SchemaResolver
       dst.options.values.push(await dst._normalizeValue(value));
     }
   }
-  async _finalizeValues(dst) {
+
+  /**
+   *
+   * @param {CompiledSchema} dst
+   * @param {CompiledSchema} [parent]
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _finalizeValues(dst, parent) {
     if (dst.options.values !== undefined) {
+      // todo - maybe throw an exception if we needed to synthesize values but it was already defined?
       return;
     }
     if (dst.isSelector && dst.isUnionKey) {
@@ -823,22 +737,27 @@ export class SchemaResolver
     }
     const v = new Set();
     if (dst.isUnionKey) {
-      if (dst.parent === undefined || !dst.parent.isUnion) {
+      if (!parent?.isUnion) {
         throw new SchemaError('Cannot populate values for a union key property without a parent union')
       }
-      for (const key in dst.parent.unionSchemas) {
+      for (const key in parent.unionSchemas) {
         v.add(await dst._normalizeValue(key));
       }
     }
     if (dst.isSelector) {
-      if (dst.parent === undefined) {
-        throw new SchemaError(`Cannot populate values for an invalid selector`);
+      if (parent === undefined) {
+        throw new SchemaError(`Cannot populate values for a detached selector schema`);
       }
 
-      for (const propName in dst.parent.properties) {
-        const propSchema = dst.parent.properties[propName];
+      if (!parent.hasChildSelection) {
+        throw new SchemaError(`Cannot populate values for a selector if the parent has no selections`);
+      }
+
+      for (const propName in parent.properties) {
+        const propSchema = parent.properties[propName];
         if (propSchema.isSelection) {
-          v.add(await dst._normalizeValue(propSchema.selection));
+          const selectionValue = (propSchema.selection === true)? propName : propSchema.selection;
+          v.add(await dst._normalizeValue(selectionValue));
         }
       }
     }
@@ -849,13 +768,8 @@ export class SchemaResolver
   }
   async _finalizeMetadata(schema) {
     if (!schema.metadata.valueDescription) {
-      const valueDescription = SchemaResolver._formatArgumentType(schema);
-      if (schema.parent?.isArray) {
-        schema.metadata.valueDescription = valueDescription;
-      }
-      else {
-        schema.metadata.valueDescription = schema.required ? `<${valueDescription}>` : `[${valueDescription}]`;
-      }
+      const valueDescription = formatArgumentType(schema);
+      schema.metadata.valueDescription = schema.required ? `<${valueDescription}>` : `[${valueDescription}]`;
     }
     if (!schema.metadata.valueName) {
       schema.metadata.valueName = schema.metadata.parserTypeHint ?? 'value';
@@ -941,7 +855,7 @@ export class SchemaResolver
         hoisted.values(Array.from(values))
       }
 
-      const compiledHoisted = await this._compile(hoisted, schema, property);
+      const compiledHoisted = await this._compile(hoisted, property);
       await this._finalize(compiledHoisted);
 
       schema.properties[property] = compiledHoisted;

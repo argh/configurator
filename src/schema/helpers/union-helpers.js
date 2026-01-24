@@ -1,5 +1,6 @@
 import { ConfiguratorError, SchemaError, UnionResolutionError, ValidationError } from "../../errors.js";
 import { CompiledSchema } from "../compiled-schema.js";
+import { SchemaLocation } from "../schema-location.js";
 import { fpm } from './fpm.js';
 
 
@@ -17,7 +18,7 @@ export function findDiscriminatorProperties(schemas) {
   for (const schema of schemas) {
     let found = false;
     for (const [property, propertySchema] of Object.entries(schema.properties)) {
-      if (Array.isArray(propertySchema.options.values) && (propertySchema.options.values.length > 0)) {
+      if (Array.isArray(propertySchema.values) && (propertySchema.values.length > 0)) {
         if (!discriminatorPropertyMap.has(property)) {
           discriminatorPropertyMap.set(property, new Set());
         }
@@ -41,7 +42,7 @@ export function findDiscriminatorProperties(schemas) {
         continue;
       }
       const propertySchema = schema1.properties[property];
-      if (propertySchema.options.default !== undefined) {
+      if (propertySchema.default !== undefined) {
         eliminated.add(property);
         // a default would cause it to self-discriminate!
         continue;
@@ -84,8 +85,11 @@ export function findDiscriminatorProperties(schemas) {
         const prop1 = schema1.properties[property];
         const prop2 = schema2.properties[property];
 
-        const values1 = prop1.options.values ?? []; // should always be set, but fallback for typecheck nanny
-        const values2 = prop2.options.values ?? [];
+        const values1 = prop1.values ?? []; // should always be set, but fallback for typecheck nanny
+        const values2 = prop2.values ?? [];
+
+        // TODO - consider...?
+        //const otherOverlap = values1.some(v => prop2.accepts(v));
 
         // If the value sets are disjoint, we can distinguish them
         const hasOverlap = values1.some(v => values2.includes(v));
@@ -121,14 +125,13 @@ export function generateAutomaticDiscriminatorFunction(schema) {
   /**
    * @param {any} inputObject
    * @param {any} configuration
-   * @param {CompiledSchema} schema
-   * @param {string} path
+   * @param {SchemaLocation} location
    * @param {Object} [options]
    * @returns {Promise<CompiledSchema|undefined>}
    */
-  async function discriminator(inputObject, configuration, schema, path, options) {
+  async function discriminator(inputObject, configuration, location, options) {
 
-    let candidates = new Set(Object.values(schema.unionSchemas))
+    let candidates = new Set(unionSchemas)
     let matched = false;
 
     for (const [property, schemaSet] of discriminatorProps) {
@@ -151,20 +154,26 @@ export function generateAutomaticDiscriminatorFunction(schema) {
         if (!candidates.has(schema)) {
           continue;
         }
+        const propertyLocation = location.union(schema)?.relative(property);
 
-        const propertySchema = schema.properties[property];
+        if (propertyLocation === undefined) {
+          // should never happen!
+          continue;
+        }
+
+//        const propertySchema = schema.properties[property];
 //        if (!propertySchema) {
 //          continue;
 //        }
 
-        if (await propertySchema?.accepts(propertyValue)) {
+        if (await propertyLocation.schema.accepts(propertyValue, configuration, propertyLocation, {...options, strict: false})) {
           matched = true;
         }
         else {
           candidates.delete(schema);
 
           if (candidates.size === 0) {
-            throw new UnionResolutionError(fpm(`Union resolution conflict when setting ${property} to ${propertyValue}`, path));
+            throw new UnionResolutionError(fpm(`Union resolution conflict when setting ${property} to ${propertyValue}`, location));
           }
         }
       }
@@ -174,20 +183,20 @@ export function generateAutomaticDiscriminatorFunction(schema) {
       if (!matched) {
         // didn't actually match, just accidentally ended up here (only one option?)
         if (options?.strict) {
-          throw new UnionResolutionError(fpm('Union resolution failure (no matches)', path));
+          throw new UnionResolutionError(fpm('Union resolution failure (no matches)', location));
         }
         return undefined;
       }
       return Array.from(candidates)[0];
     }
     else if (candidates.size === 0) {
-      throw new UnionResolutionError(fpm('Union resolution failure (no matches)', path));
+      throw new UnionResolutionError(fpm('Union resolution failure (no matches)', location));
     }
     else {
       if (options?.strict) {
         const keys = Array.from(candidates).map(s => schema.findUnionKey(s)).join('|')
 
-        throw new UnionResolutionError(fpm(`Union resolution ambiguity (could be ${keys})`, path));
+        throw new UnionResolutionError(fpm(`Union resolution ambiguity (could be ${keys})`, location));
       }
       return undefined;
     }
@@ -211,9 +220,12 @@ export function generatePropertyValueDiscriminatorFunction(schema, propertyName)
 
   /**
    * @param {any} input
+   * @param {any} target
+   * @param {SchemaLocation} location
    * @returns {Promise<CompiledSchema|string|undefined>}
    */
-  async function discriminator(input) {
+  async function discriminator(input, target, location) {
+    // we could just look at location, but the union knows its own properties
     return input?.[propertyName];
   }
   return discriminator;
