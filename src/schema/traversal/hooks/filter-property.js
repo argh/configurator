@@ -1,13 +1,12 @@
 import { TraversalControl } from '../traversal-hooks.js';
-import { TraversalProperty } from '../traversal-property.js';
 import { TraversalState } from '../traversal-state.js';
 
 /**
  * @param {TraversalState} state
- * @param {TraversalProperty }property
+ * @param {TraversalState} propertyState
  * @returns {Promise<symbol>}
  */
-export async function filterProperty(state, property) {
+export async function filterProperty(state, propertyState) {
   // Skip empty placeholder containers in final pass
   if (state.context.final && state.isEmptyPlaceholder) {
     return TraversalControl.SKIP;

@@ -1,12 +1,15 @@
-import { TraversalProperty } from "../traversal-property.js";
+
 import { TraversalState } from "../traversal-state.js";
 
 /**
  *
  * @param {TraversalState} state
- * @param {TraversalProperty} property
+ * @param {TraversalState} propertyState
  * @returns {Promise<void>}
  */
-export async function existingProperty(state, property) {
-  property.input = state.value?.[property.key];
+export async function existingProperty(state, propertyState) {
+  const propertyName = state.name;
+  const propertyKey = /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName;
+
+  propertyState.input = state.value?.[propertyKey];
 }

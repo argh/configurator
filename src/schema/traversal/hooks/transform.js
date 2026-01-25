@@ -14,6 +14,10 @@ export async function transform(state, hookName) {
     state.pending = undefined;
     return TraversalControl.OK;
   }
+  if (state.schema?.isImplicit) {
+    // implicit schemas never directly transform; they must use a value prepared by their parent.
+    return TraversalControl.OK;
+  }
   if (state.pending === undefined || state.schema === undefined || state.isUnion /*|| state.isEmptyPlaceholder*/) {
     return TraversalControl.OK;
   }

@@ -2,20 +2,19 @@
 
 import { Schema, SchemaResolver } from '../src/index.js';
 
-class Final {
+class Thing {
   #stuff = {}
 
   get stuff() {
     return this.#stuff;
   }
-
-  set stuff(value) {
+  set stuff(_) {
     throw new Error('assignment disallowed!')
   }
 }
 
 const srcSchema = new Schema('object')
-  .transformer(() => new Final())
+  .transformer((_) => new Thing())
   .property('stuff',
     new Schema('object')
       .implicit()
@@ -25,6 +24,13 @@ const srcSchema = new Schema('object')
 const resolver = new SchemaResolver();
 const compiledSchema = await resolver.compile(srcSchema);
 
-const result = await compiledSchema.process({stuff: {a: 1, b: 2}});
+const input = {stuff: {a: 1, b: 2}};
+const result = await compiledSchema.process(input);
 
-console.log(result);
+if (result?.stuff?.a === input.stuff.a && result?.stuff?.b === input.stuff.b) {
+  console.log('ok!');
+}
+else {
+  console.error('oops!');
+  throw new Error('something went wrong!')
+}

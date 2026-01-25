@@ -19,11 +19,14 @@ export async function preparePending(state) {
       state.pending = state.value;
     }
     else {
+      // create an empty container to hold children
+
       const configuration = state.context.getValue();
       state.pending = await state.schema?._normalizeValue(true, configuration, state.location);
     }
   }
   else {
+    // presumably normalized via the normalizeInput hook
     state.pending = state.input;
   }
 }

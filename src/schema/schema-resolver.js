@@ -27,6 +27,7 @@ import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
 import { fpm } from './helpers/fpm.js';
 import { formatArgumentType } from './helpers/format.js';
+import path from 'node:path';
 
 /** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
 
@@ -207,7 +208,7 @@ export class SchemaResolver
     if (typeof spec === 'function') {
       return {
         spec,
-        processor: this._asyncifySVF(spec),  // wrap in async to ensure we can manage exceptions
+        processor: this._asyncifySVP(spec),  // wrap in async to ensure we can manage exceptions
         description: undefined
       }
     }
@@ -257,7 +258,7 @@ export class SchemaResolver
 
       return {
         spec,
-        processor: this._asyncifySVF(registered.processor),
+        processor: this._asyncifySVP(registered.processor),
         description: registered.description // ?? keyword - todo - check if keyword is already added elsewhere
       }
     }
@@ -438,7 +439,7 @@ export class SchemaResolver
       }
       //source = (source instanceof CompiledSchema)? undefined : (source.base ? this.getSchema(source.base) : undefined);
     }
-    if (!(inputSchema instanceof CompiledSchema) && inputSchema.base && !outputSchema._metadata.parserTypeHint) {
+    if (!(inputSchema instanceof CompiledSchema) && inputSchema.base && !outputSchema.metadata.parserTypeHint) {
       outputSchema.metadata.parserTypeHint = inputSchema.base;
     }
     if (outputSchema.options.strict !== false && strictCompileError) {
@@ -497,14 +498,13 @@ export class SchemaResolver
       outputSchema.options[optionName] = optionValue;
     }
 
-    await this._compileNormalizers(source, outputSchema);
-    await this._compileValues(source, outputSchema);  // performs normalization!
-//    await this._compileDefault(source, outputSchema);  // performs normalization!
-    await this._compileConditions(source, outputSchema);
-    await this._compileTransformers(source, outputSchema);
-    await this._compileValidators(source, outputSchema);
-    await this._compileSerializers(source, outputSchema);
-    await this._compileDiscriminator(source, outputSchema);
+    await this._compileNormalizers(source, outputSchema, path);
+    await this._compileValues(source, outputSchema, path);  // performs normalization!
+    await this._compileConditions(source, outputSchema, path);
+    await this._compileTransformers(source, outputSchema, path);
+    await this._compileValidators(source, outputSchema, path);
+    await this._compileSerializers(source, outputSchema, path);
+    await this._compileDiscriminator(source, outputSchema, path);
 
     if (outputSchema.options.compileHook && typeof outputSchema.options.compileHook === 'function') {
       outputSchema.options.compileHook('compile', outputSchema);
@@ -576,38 +576,10 @@ export class SchemaResolver
    * @template TReturn
    * @param {SchemaValueProcessor<TReturn>|TReturn} fn
    * @param {TReturn} [d]
-   * @returns {SchemaValueProcessor<TReturn>}
-   * @private
-   */
-  _svf(fn, d) {
-    return (v, c, s, p, o) => {
-
-      if (!s) {
-        throw new ConfiguratorError('Invalid call to schema value function');  // developer error
-      }
-      c = c ?? {};
-      p = p ?? s.path;
-      o = o ?? {};
-
-      if (!fn) {
-        return v ?? d
-      }
-      if (typeof fn === 'function') {
-        // @ts-ignore
-        return fn(v, c, s, p, o);
-      }
-      return fn;
-    }
-  }
-
-  /**
-   * @template TReturn
-   * @param {SchemaValueProcessor<TReturn>|TReturn} fn
-   * @param {TReturn} [d]
    * @returns {AsyncSchemaValueProcessor<TReturn>}
    * @private
    */
-  _asyncifySVF(fn, d) {
+  _asyncifySVP(fn, d) {
     return async (value, target, location, options) => {
 
       if (!location) {
@@ -627,14 +599,15 @@ export class SchemaResolver
 
 
   /**
-   * @param {string} handlerName
    * @param {Schema} src
    * @param {CompiledSchema} dst
+   * @param {string} path
+   * @param {string} handlerName
    * @param {string} [descriptionMetadata];
    * @returns {Promise<void>}
    * @private
    */
-  async _compileHandler(handlerName, src, dst, descriptionMetadata) {
+  async _compileHandler(src, dst, path, handlerName, descriptionMetadata) {
     if (dst.handlers[handlerName] !== undefined) {
       return;
     }
@@ -642,7 +615,7 @@ export class SchemaResolver
     const specList = src.handlers[handlerName] ?? [];
 
     if (!Array.isArray(specList)) {
-      throw new SchemaError(`Invalid ${handlerName} definition in ${src.path ? src.path : 'root'} schema`);
+      throw new SchemaError(`Invalid ${handlerName} definition in ${path ? path : 'root'} schema`);
     }
     if (specList.length === 0) {
       return;
@@ -660,35 +633,66 @@ export class SchemaResolver
   /**
    * @param {Schema} src
    * @param {CompiledSchema} dst
+   * @param {string} path
    * @returns {Promise<void>}
    * @private
    */
-  async _compileNormalizers(src, dst) {
-    await this._compileHandler('normalizers', src, dst, 'normalizerDescription');
+  async _compileNormalizers(src, dst, path) {
+    await this._compileHandler(src, dst, path, 'normalizers', 'normalizerDescription');
   }
-
-  async _compileTransformers(src, dst) {
-    await this._compileHandler('transformers', src, dst, 'transformerDescription');
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileTransformers(src, dst, path) {
+    await this._compileHandler(src, dst, path, 'transformers', 'transformerDescription');
   }
-
-  async _compileConditions(src, dst) {
-    await this._compileHandler('conditions', src, dst, 'conditionDescription');
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileConditions(src, dst, path) {
+    await this._compileHandler(src, dst, path, 'conditions', 'conditionDescription');
   }
-
-  async _compileValidators(src, dst) {
-    await this._compileHandler('validators', src, dst, 'validatorDescription');
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileValidators(src, dst, path) {
+    await this._compileHandler(src, dst, path, 'validators', 'validatorDescription');
   }
-
-  async _compileSerializers(src, dst) {
-    await this._compileHandler('serializers', src, dst, 'serializerDescription');
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileSerializers(src, dst, path) {
+    await this._compileHandler(src, dst, path, 'serializers', 'serializerDescription');
   }
-
-  async _compileDiscriminator(src, dst) {
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileDiscriminator(src, dst, path) {
     if (!dst.isUnion || dst.handlers.discriminators) {
       return;
     }
     if (src.handlers.discriminators) {
-      await this._compileHandler('discriminators', src, dst, 'discriminatorDescription');
+      await this._compileHandler(src, dst, path, 'discriminators', 'discriminatorDescription');
       return;
     }
     const unionKeyProperty = Object.entries(dst.properties).find(e => e[1].isUnionKey);
@@ -706,8 +710,14 @@ export class SchemaResolver
       ];
     }
   }
-
-  async _compileValues(src, dst) {
+  /**
+   * @param {Schema} src
+   * @param {CompiledSchema} dst
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _compileValues(src, dst, path) {
     if (dst.options.values !== undefined || src.options.values === undefined) {
       return;
     }

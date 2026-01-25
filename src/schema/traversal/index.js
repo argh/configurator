@@ -18,16 +18,16 @@ import { checkUnresolved } from './hooks/check-unresolved.js';
 import { pendingToValue } from './hooks/pending-to-value.js';
 import { inputToValue } from './hooks/input-to-value.js';
 import { copyPropertyValue } from './hooks/copy-property-value.js';
+import { propertyImplicit } from './hooks/property-implicit.js';
 
 export { TraversalContext } from './traversal-context.js';
 export { TraversalState } from './traversal-state.js';
-export { TraversalProperty } from './traversal-property.js';
 export { TraversalHooks, TraversalControl } from './traversal-hooks.js';
 
 export const processingHooks = new TraversalHooks()
   .hook('startCurrent', [checkDefaults, normalizeInput, resolveUnion, checkCondition, preparePending, transform])
   .hook('endCurrent', [transform, resolveUnion, checkRequired, validate /*, markValuesDone*/])
-  .hook('startProperty', [propertyStart, filterProperty, checkPropertySchema])
+  .hook('startProperty', [propertyStart, filterProperty, checkPropertySchema, propertyImplicit])
   .hook('endProperty', [propertyEnd])
 
 export const serializationHooks = new TraversalHooks()

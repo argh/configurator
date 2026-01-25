@@ -7,7 +7,6 @@ import { SchemaError } from '../../errors.js';
 import { SchemaLocation } from '../schema-location.js';
 
 import { TraversalState } from './traversal-state.js';
-import { TraversalProperty } from './traversal-property.js';
 
 export class TraversalContext
 {
@@ -85,32 +84,6 @@ export class TraversalContext
   }
 
 
-  /**
-   *
-   * @param {TraversalState} state
-   * @param {string} propertyName
-   * @returns {TraversalProperty|undefined}
-   */
-  getProperty(state, propertyName) {
-
-
-    const propertyPath = state.path ? `${state.path}.${propertyName}` : `${propertyName}`;
-    const propertyState = this.getState(propertyPath);
-
-    const propertyLocation = state.location?.relative(propertyName);
-    //const propertySchema = state.schema?.getPropertySchema(propertyName);
-    const propertySchema = propertyLocation?.schema;
-
-    if (propertyState.schema === undefined) {
-      propertyState.schema = propertySchema;
-    }
-    else if (propertyState.schema !== propertySchema && !propertySchema?.isUnion) {
-      propertyState.schema = propertySchema;  // reset it in case our union resolved
-      propertyState.value = undefined;        // and force it to re-resolve
-    }
-
-    return new TraversalProperty(propertyState);
-  }
 
   /**
    * @param {string|SchemaLocation} path

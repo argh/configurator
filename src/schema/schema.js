@@ -32,6 +32,24 @@ import { SchemaLocation } from './schema-location.js';
  */
 export class Schema
 {
+  /** @type {string|undefined} */
+  #base;
+
+  /** @type {SchemaProperties} */
+  #properties = {};
+
+  /** @type {SchemaHandlers} */
+  #handlers = {};
+
+  /** @type {SchemaOptions} */
+  #options = {};
+
+  /** @type {ISchemaMetadata} */
+  #metadata = {};
+
+  /**@type {SchemaUnionSchemas} */
+  #unionSchemas = {};
+
   /**
    * Construct a Schema.
    *
@@ -44,45 +62,8 @@ export class Schema
    * @param {ISchemaMetadata} [metadata] - schema metadata
    */
   constructor(base, options, metadata) {
-
-    /**
-     * @type {string|undefined}
-     * @internal
-     */
-    this._base = undefined;
-
-    /**
-     * @type {SchemaProperties}
-     * @internal
-     */
-    this._properties = {};
-
-    /**
-     * @type {SchemaHandlers}
-     * @internal
-     */
-    this._handlers = {};
-
-    /**
-     * @type {SchemaOptions}
-     * @internal
-     */
-    this._options = {};
-
-    /**
-     * @type {ISchemaMetadata}
-     * @internal
-     */
-    this._metadata = {};
-
-    /**
-     * @type {SchemaUnionSchemas}
-     * @internal
-     */
-    this._unionSchemas = {};
-
     if (typeof base === 'string') {
-      this._base = base;
+      this.base = base;
       if (options) {
         this._setAttributes(options);
       }
@@ -93,7 +74,7 @@ export class Schema
     else if ((base instanceof Schema) || (base instanceof CompiledSchema)) {
       this.extend(base);
       if (base instanceof Schema) {
-        this._base = base.base;
+        this.base = base.base;
       }
       // Apply additional options/metadata after extending
       if (options) {
@@ -110,52 +91,15 @@ export class Schema
   }
 
   /**
-   * Parent schema, if this schema has been added as a property
-   *
-   * @type {Schema|undefined}
-   */
-  get parent() {
-   throw new Error('FIXME');
-  }
-
-  /**
-   * Property name of this schema within its parent
-   *
-   * @type {string|undefined}
-   */
-  get name() {
-    throw new Error('FIXME')
-  }
-
-  /**
    * Name of a schema registered in SchemaResolver that this schema extends
    *
    * @type {string|undefined}
    */
   get base() {
-    return this._base;
+    return this.#base;
   }
   set base(base) {
-    this._base = base;
-  }
-
-  /**
-   * Computed path of this schema within the entire schema hierarchy
-   *
-   * (The root schema path is the empty string.)
-   *
-   * @type {string}
-   */
-  get path() {
-    throw new Error('FIXME');
-    /*
-    if (!this.name) {
-      return '';  // this is an unattached schema, no path.
-    }
-    const parent = this.parent;
-    return parent?.path ? `${parent.path}.${this.name}` : `${this.name}`;
-
-     */
+    this.#base = base;
   }
 
   /**
@@ -166,7 +110,7 @@ export class Schema
    * @type {SchemaProperties}
    */
   get properties() {
-    return this._properties;   // overridden just for type narrowing
+    return this.#properties;
   }
 
   /**
@@ -177,7 +121,7 @@ export class Schema
    * @type {SchemaHandlers}
    */
   get handlers() {
-    return this._handlers;
+    return this.#handlers;
   }
 
   /**
@@ -186,7 +130,7 @@ export class Schema
    * @returns {SchemaOptions}
    */
   get options() {
-    return this._options;
+    return this.#options;
   }
 
   /**
@@ -195,7 +139,7 @@ export class Schema
    * @type {SchemaMetadata}
    */
   get metadata() {
-    return this._metadata;
+    return this.#metadata;
   }
 
   /**
@@ -204,7 +148,7 @@ export class Schema
    * @type {SchemaUnionSchemas}
    */
   get unionSchemas() {
-    return this._unionSchemas; // overridden just for type narrowing
+    return this.#unionSchemas; // overridden just for type narrowing
   }
 
   /**
@@ -223,7 +167,6 @@ export class Schema
    * @param {string} attributeName
    * @param {any} attributeValue
    * @returns {Schema}
-   * @private
    * @internal
    */
   _setAttribute(attributeName, attributeValue) {
@@ -273,7 +216,6 @@ export class Schema
    * @deprecated
    * @param {Object} attributes
    * @returns {Schema}
-   * @private
    * @internal
    */
   _setAttributes(attributes = {}) {
@@ -317,7 +259,7 @@ export class Schema
     this.properties[propertyName] = propertySchema;
 
     if (this.base === undefined && this.options.type === undefined) {
-      this._base = Number.isInteger(propertyName)? 'array' : 'object';
+      this.base = Number.isInteger(propertyName)? 'array' : 'object';
     }
     return this;
   }
@@ -362,10 +304,10 @@ export class Schema
       value = true;
     }
     if (value === null) {
-      delete this._options[option];
+      delete this.options[option];
     }
     else {
-      this._options[option] = value;
+      this.options[option] = value;
     }
     return this;
   }
@@ -387,7 +329,7 @@ export class Schema
       throw new SchemaError('Options definition must be an object');
     }
     for (const [key, value] of Object.entries(options)) {
-      if (policy === SchemaPolicy.OVERWRITE || this._options[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this.options[key] === undefined) {
         this.option(key, value);
       }
     }
@@ -483,13 +425,13 @@ export class Schema
       value = true;
     }
     if (value === null) {
-      delete this._metadata[meta];
+      delete this.metadata[meta];
     }
     else {
       if (meta.startsWith('_')) {
         meta = meta.slice(1);
       }
-      this._metadata[meta] = value;
+      this.metadata[meta] = value;
     }
     return this;
   }
@@ -507,7 +449,7 @@ export class Schema
       throw new SchemaError('Invalid metadata definition');
     }
     for (const [key, value] of Object.entries(metadata)) {
-      if (policy === SchemaPolicy.OVERWRITE || this._metadata[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this.metadata[key] === undefined) {
         this.meta(key, value);
       }
     }
@@ -555,7 +497,7 @@ export class Schema
       this.base = (unionSchema.properties['*'] || unionSchema.properties['0']) ? 'array' : 'object';
     }
 
-    this._unionSchemas[key] = unionSchema;
+    this.unionSchemas[key] = unionSchema;
 
     return this;
   }
@@ -578,7 +520,7 @@ export class Schema
     }
 
     for (const [key, unionSchema] of Object.entries(unionSchemas)) {
-      if (policy === SchemaPolicy.OVERWRITE || this._unionSchemas[key] === undefined) {
+      if (policy === SchemaPolicy.OVERWRITE || this.unionSchemas[key] === undefined) {
         this.unionSchema(key, Schema.createFromModel(unionSchema));
       }
     }
@@ -943,7 +885,7 @@ export class Schema
 
     // Set base if not already set
     if (!this.base && otherSchema.base) {
-      this._base = otherSchema.base;
+      this.base = otherSchema.base;
     }
 
     this.addProperties(Object.fromEntries(
@@ -983,7 +925,7 @@ export class Schema
     const schema = new Schema();
 
     if (model.base) {
-      schema._base = model.base;
+      schema.base = model.base;
     }
     return schema.extend(model);
   }

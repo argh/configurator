@@ -96,7 +96,7 @@ describe('Configurator - Special Options', function() {
       assert.ok(configProp, 'Config schema should be auto-added');
       assert.match(configProp.metadata.description ?? '', /load.+configuration.+file/);
       assert.strictEqual(configProp.metadata.flagHint, 'C');
-      assert.strictEqual(configProp._options.context, 'config');
+      assert.strictEqual(configProp.options.context, 'config');
     });
 
     it('should not add config schema when configEnabled is false', async function() {
@@ -259,7 +259,7 @@ describe('Configurator - Special Options', function() {
 
       assert.ok(dumpProp, 'Dump schema should be auto-added');
       assert.match(dumpProp.metadata.description ?? '', /dump.+configuration.+file/);
-      assert.strictEqual(dumpProp._options.context, 'dump');
+      assert.strictEqual(dumpProp.options.context, 'dump');
     });
 
     it('should not add dump schema when dumpEnabled is false', async function() {

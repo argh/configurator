@@ -248,7 +248,8 @@ export class TraversalState
 
 
   get hasProcessedInput() {
-    return this.value !== undefined && this.assignedInput !== undefined && this._inputs.has(this._assignedInput);
+//    return this.value !== undefined && this.assignedInput !== undefined && this._inputs.has(this.assignedInput);
+    return this.value !== undefined && this.assignedInput !== undefined && this.input !== undefined && this._inputs.has(this.assignedInput);
   }
 
   get isPlaceholder() {

@@ -5,7 +5,6 @@
  * @returns {Promise<symbol|void>}
  */
 
-import { TraversalProperty } from "./traversal-property.js";
 import { TraversalState } from "./traversal-state.js";
 
 export const TraversalControl = {

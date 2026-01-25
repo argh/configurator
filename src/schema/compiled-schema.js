@@ -9,7 +9,7 @@ import { behead, deepEquals, deepPrune, isConstructor, isPlainObject } from '../
 import { toData } from './helpers/to-data.js';
 import { fpm } from './helpers/fpm.js';
 import { SchemaLocation } from './schema-location.js';
-import { TraversalContext, TraversalState, TraversalProperty, processingHooks, preloadHooks, serializationHooks, normalizationHooks, transformationHooks, validationHooks, TraversalHooks, TraversalControl } from './traversal/index.js';
+import { TraversalContext, processingHooks, preloadHooks, serializationHooks, normalizationHooks, transformationHooks, validationHooks, TraversalHooks, TraversalControl } from './traversal/index.js';
 
 
 /** @import { TraversalContextOptions } from './traversal/traversal-context.js' */
@@ -47,6 +47,18 @@ import { TraversalContext, TraversalState, TraversalProperty, processingHooks, p
 export class CompiledSchema
 {
   static __TOKEN = Symbol('CONSTRUCT_USING_RESOLVER')
+
+  /** @type {CompiledSchemaProperties} */
+  #properties = {};
+  /** @type {CompiledSchemaHandlers} */
+  #handlers = {};
+  /** @type {CompiledSchemaOptions} */
+  #options = {};
+  /** @type {CompiledSchemaMetadata} */
+  #metadata = {};
+  /** @type {CompiledSchemaUnionSchemas} */
+  #unionSchemas = {};
+
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
    *
@@ -56,31 +68,6 @@ export class CompiledSchema
     if (token !== CompiledSchema.__TOKEN) {
       throw new SchemaError('CompiledSchema must be created via compilation');
     }
-    /**
-     * @type {CompiledSchemaProperties}
-     * @private
-     */
-    this._properties = {};
-    /**
-     * @type {CompiledSchemaHandlers}
-     * @private
-     */
-    this._handlers = {};
-    /**
-     * @type {CompiledSchemaOptions}
-     * @private
-     */
-    this._options = {};
-    /**
-     * @type {CompiledSchemaMetadata}
-     * @private
-     */
-    this._metadata = {};
-    /**
-     * @type {CompiledSchemaUnionSchemas}
-     * @private
-     */
-    this._unionSchemas = {};
   }
 
   /**
@@ -89,7 +76,7 @@ export class CompiledSchema
    * @type {CompiledSchemaOptions}
    */
   get options() {
-    return this._options;
+    return this.#options;
   }
 
   /**
@@ -98,7 +85,7 @@ export class CompiledSchema
    * @type {CompiledSchemaMetadata}
    */
   get metadata() {
-    return this._metadata;
+    return this.#metadata;
   }
 
   /**
@@ -107,7 +94,7 @@ export class CompiledSchema
    * @type {CompiledSchemaProperties}
    */
   get properties() {
-    return this._properties;
+    return this.#properties;
   }
 
   /**
@@ -127,7 +114,7 @@ export class CompiledSchema
    * @type {CompiledSchemaHandlers}
    */
   get handlers() {
-    return this._handlers;
+    return this.#handlers;
   }
 
   /**
@@ -142,7 +129,7 @@ export class CompiledSchema
    * @type {CompiledSchemaUnionSchemas}
    */
   get unionSchemas() {
-    return this._unionSchemas;
+    return this.#unionSchemas;
   }
 
   /**
@@ -163,7 +150,7 @@ export class CompiledSchema
    */
   get hasChildren() {
     // noinspection LoopStatementThatDoesntLoopJS
-    for (const _ in this._properties) {
+    for (const _ in this.properties) {
       return true;
     }
     return false;
@@ -175,7 +162,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get hasWildcard() {
-    return this._properties['*'] !== undefined;
+    return this.properties['*'] !== undefined;
   }
 
   /**
@@ -186,7 +173,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isArray() {
-    return this._options.type === 'array';
+    return this.options.type === 'array';
   }
 
   /**
@@ -198,7 +185,7 @@ export class CompiledSchema
    * @returns {boolean}
    */
   get isFunction() {
-    return this._options.type === 'function'
+    return this.options.type === 'function'
   }
 
 
@@ -210,7 +197,7 @@ export class CompiledSchema
    */
   get isUnion() {
     // noinspection LoopStatementThatDoesntLoopJS
-    for (const _ in this._unionSchemas) {
+    for (const _ in this.unionSchemas) {
       return true;
     }
     return false;
@@ -225,7 +212,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isUnionKey() {
-    return !!this._options.unionKey;
+    return !!this.options.unionKey;
   }
 
   /**
@@ -237,7 +224,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isSelector() {
-    return !!this._options.selector;
+    return !!this.options.selector;
   }
 
   /**
@@ -245,7 +232,7 @@ export class CompiledSchema
    * @returns {boolean}
    */
   get hasChildSelector() {
-    return Object.values(this._properties).some(propertySchema => propertySchema.isSelector);
+    return Object.values(this.properties).some(propertySchema => propertySchema.isSelector);
   }
 
   /**
@@ -254,7 +241,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isSelection() {
-    return this._options.selection !== undefined && this._options.selection !== false;  // todo - use a symbol to trigger name rather than "true"...
+    return this.options.selection !== undefined && this.options.selection !== false;  // todo - use a symbol to trigger name rather than "true"...
   }
 
   /**
@@ -262,7 +249,7 @@ export class CompiledSchema
    * @returns {boolean}
    */
   get hasChildSelection() {
-    return Object.values(this._properties).some(propertySchema => propertySchema.isSelection);
+    return Object.values(this.properties).some(propertySchema => propertySchema.isSelection);
   }
 
   /**
@@ -271,7 +258,7 @@ export class CompiledSchema
    * @type {string|boolean|undefined}
    */
   get selection() {
-    return this._options.selection;
+    return this.options.selection;
   }
 
   /**
@@ -282,7 +269,7 @@ export class CompiledSchema
    * @type {Array<NonNullable<any>>|undefined}
    */
   get values() {
-    return this._options.values;
+    return this.options.values;
   }
 
   /**
@@ -305,7 +292,7 @@ export class CompiledSchema
    * @type {boolean|undefined}
    */
   get strict() {
-    return this._options.strict;
+    return this.options.strict;
   }
 
   /**
@@ -326,7 +313,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get required() {
-    return this._options.required ?? false;
+    return this.options.required ?? false;
   }
 
   /**
@@ -351,7 +338,7 @@ export class CompiledSchema
    * @type {any|undefined}
    */
   get default() {
-    return this._options.default;
+    return this.options.default;
   }
 
   /**
@@ -366,8 +353,8 @@ export class CompiledSchema
    * @type {boolean|undefined}
    */
   get deep() {
-    if (this._options.deep !== undefined) {
-      return this._options.deep;
+    if (this.options.deep !== undefined) {
+      return this.options.deep;
     }
     if (this.hasChildren && this.required) {
       return true;
@@ -384,7 +371,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isInherited() {
-    return this._options.inherit ?? false;
+    return this.options.inherit ?? false;
   }
 
   /**
@@ -395,7 +382,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isImplicit() {
-    return this._options.implicit ?? false;
+    return this.options.implicit ?? false;
   }
 
   /**
@@ -406,7 +393,7 @@ export class CompiledSchema
    * @deprecated
    */
   get allowIncremental() {
-    return this._options.allowIncremental ?? this.hasChildren;
+    return this.options.allowIncremental ?? this.hasChildren;
   }
 
   /**
@@ -415,7 +402,7 @@ export class CompiledSchema
    * @returns {boolean}
    */
   get isOpaque() {
-    return !this.hasChildren || this._options.allowIncremental === false;
+    return !this.hasChildren || this.options.allowIncremental === false;
   }
 
   /**
@@ -449,7 +436,7 @@ export class CompiledSchema
    * @internal
    */
   async _checkCondition(value, target, location = new SchemaLocation(this), options) {
-    const conditions = Array.isArray(this._handlers.conditions)? this._handlers.conditions : [];
+    const conditions = Array.isArray(this.handlers.conditions)? this.handlers.conditions : [];
 
     // no conditions = pass!
     if (conditions.length === 0) {
@@ -486,11 +473,11 @@ export class CompiledSchema
 
     const strict = options?.strict ?? false;
 
-    if (!this.isUnion || this._handlers.discriminators === undefined) {
+    if (!this.isUnion || this.handlers.discriminators === undefined) {
       return undefined;
     }
 
-    const discriminators = Array.isArray(this._handlers.discriminators)? this._handlers.discriminators : [];
+    const discriminators = Array.isArray(this.handlers.discriminators)? this.handlers.discriminators : [];
 
     // we'll run multiple discriminators if necessary, but it's a bizarre use case...
 
@@ -578,7 +565,7 @@ export class CompiledSchema
     }
 
     try {
-      return await this._executeProcessorPipeline(this._handlers.normalizers, value, target, location, options);
+      return await this._executeProcessorPipeline(this.handlers.normalizers, value, target, location, options);
     }
     catch (error) {
       throw new NormalizeError(fpm('Could not normalize', location), {cause: error});
@@ -613,6 +600,10 @@ export class CompiledSchema
       throw new SchemaError(fpm('Inconsistent transform schema location', location));
     }
 
+    if (this.isImplicit) {
+      throw new SchemaError(fpm('Cannot transform a value for an implicit schema', location));
+    }
+
     if (value === null || value === undefined) {
       return value;
     }
@@ -623,7 +614,7 @@ export class CompiledSchema
       if (! await this.accepts(value, target, location, {...options, strict})) {
         return undefined;
       }
-      return await this._executeProcessorPipeline(this._handlers.transformers, value, target, location, options);
+      return await this._executeProcessorPipeline(this.handlers.transformers, value, target, location, options);
     }
     catch (error) {
       throw new TransformError(fpm('Unable to transform', location), {cause: error})
@@ -656,7 +647,7 @@ export class CompiledSchema
 
     try {
       // validators cannot clear the value, they can only throw
-      return await this._executeProcessorPipeline(this._handlers.validators, value, target, location, options) ?? value;
+      return await this._executeProcessorPipeline(this.handlers.validators, value, target, location, options) ?? value;
     }
     catch (error) {
       throw new ValidationError(fpm(`Unable to validate {${value}}`, location), {cause: error});
@@ -675,7 +666,7 @@ export class CompiledSchema
    */
   async _serializeValue(value, target, location = new SchemaLocation(this), options) {
 
-    const serializers = Array.isArray(this._handlers.serializers)? this._handlers.serializers : [];
+    const serializers = Array.isArray(this.handlers.serializers)? this.handlers.serializers : [];
 
     if (serializers.length === 0) {
       // fallback (?)
@@ -1136,22 +1127,8 @@ export class CompiledSchema
         return TraversalControl.OK;
       }
 
-
       const [propertyKey, propertyInputPath] = behead(inputPath);
-
-      /*
-      const inputPathComponents = inputPath.split('.');
-      const propertyKey = inputPathComponents.shift();
-      if (!propertyKey) {
-        return TraversalControl.OK;  // should never happen, but need to satisfy the typechecker
-      }
-      const propertyInputPath = inputPathComponents.join('.')
-
-       */
-      //const property = state.context.getProperty(state, propertyKey);
-
       const propertyState = state.relative(propertyKey);
-
 
       if (!propertyState) {
         return TraversalControl.OK;
@@ -1161,9 +1138,7 @@ export class CompiledSchema
       if (startResult !== TraversalControl.OK) {
         return TraversalControl.OK;
       }
-
-      //property.value = await property.state.schema?.traverse(input, {context, hooks, path: property.state.path, inputPath: propertyInputPath});
-      /*propertyState.value = */await propertyState.schema?.traverse(input, {context, hooks, path: propertyState.path, inputPath: propertyInputPath});
+      await propertyState.schema?.traverse(input, {context, hooks, path: propertyState.path, inputPath: propertyInputPath});
       if (propertyState.value !== undefined && state.pending === undefined && state.value === undefined) {
         // lazy container creation - todo - move into endProperty by passing hooks in?
         state.isExplicit = true;
@@ -1177,8 +1152,9 @@ export class CompiledSchema
         return TraversalControl.OK;
       }
       const propertyKeys = new Set();
-      if (isPlainObject(state.input) || Array.isArray(state.input)) {
-        Object.keys(state.input).forEach(key => propertyKeys.add(key));
+      const input = state.input ?? state.assignedInput;
+      if (isPlainObject(input) || Array.isArray(input) || (input && !this.isOpaque)) {
+        Object.keys(input).forEach(key => propertyKeys.add(key));
       }
       if (context.final) {
         Object.keys(this.properties).forEach(key => { if (key !== '*') { propertyKeys.add(key) } } );
@@ -1229,7 +1205,7 @@ export class CompiledSchema
         }
 
         if (propertyState.schema !== undefined) { // input is set via the start property hook!
-          /*property.value = */await propertyState.schema.traverse(undefined, propertyOptions);
+          await propertyState.schema.traverse(undefined, propertyOptions);
         }
 
         if (propertyState.value !== undefined && state.pending === undefined &&  state.value === undefined) {
@@ -1262,7 +1238,7 @@ export class CompiledSchema
   }
 
   /**
-   * Continually traverse the provided input data based on the current schema until it stabilizes (or an error occurs)
+   * Repeatedly traverse the provided input data based on the current schema until it stabilizes (or an error occurs)
    *
    * See traverse() for more details.
    *
@@ -1426,16 +1402,16 @@ export class CompiledSchema
       return;
     }
     seen.add(this);
-    for (const childSchema of Object.values(this._properties)) {
+    for (const childSchema of Object.values(this.#properties)) {
       childSchema.freeze(seen);
     }
-    Object.freeze(this._properties);
-    Object.freeze(this._options);
-    Object.freeze(this._metadata);
-    for (const unionSchema of Object.values(this._unionSchemas)) {
+    Object.freeze(this.#properties);
+    Object.freeze(this.#options);
+    Object.freeze(this.#metadata);
+    for (const unionSchema of Object.values(this.#unionSchemas)) {
       unionSchema.freeze(seen);
     }
-    Object.freeze(this._unionSchemas);
+    Object.freeze(this.#unionSchemas);
     Object.freeze(this);
   }
 }

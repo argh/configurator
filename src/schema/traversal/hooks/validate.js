@@ -19,7 +19,8 @@ export async function validate(state) {
     }
 
     if (state.hasWorkInProgress) {
-      throw new ValidationError(fpm('Incomplete assignment', state.path));
+      const foo = state.hasWorkInProgress;
+      throw new ValidationError(fpm(`Incomplete assignment ${foo}`, state.path));
     }
 
   }
