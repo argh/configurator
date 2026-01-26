@@ -493,6 +493,9 @@ export class Schema
       throw new SchemaError(`Invalid schema for union member ${key}`);
     }
 
+    // fixme - defaulting the base should probably be deferred until compilation time!
+    // or maybe only if we are hoisting...?
+    // (if we have a custom discriminator function, we may prefer "any" over "object"!)
     if ((this.base === undefined/* || this.base === 'any'*/) && Object.keys(unionSchema.properties).length > 0) {
       this.base = (unionSchema.properties['*'] || unionSchema.properties['0']) ? 'array' : 'object';
     }
@@ -970,6 +973,7 @@ export class Schema
       .option('default', literalValue)
       .option('compileHook', (eventName, hookSchema) => {
         if (eventName === 'finalize') {
+          // FIXME - path doesn't exist!
           const p = hookSchema.path ? ` at "${hookSchema.path}"` : ``;
           if (hookSchema.options.values?.length !== 1) {
             throw new SchemaError(`Literal schema${p} needs one value defined`);
@@ -981,6 +985,10 @@ export class Schema
             throw new SchemaError(`Literal schema${p} should not be a union`)
           }
         }
+      })
+      .normalizer((input) =>
+      {
+        return input;
       })
       .transformer(() => literalValue)
 

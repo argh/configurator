@@ -19,7 +19,16 @@ export async function propertyEnd(state, propertyState) {
     return TraversalControl.STOP;
   }
   if (parentContainer === undefined || (typeof parentContainer !== 'object')) {
-    throw new SchemaError(fpm('Not a valid container', state.path));
+    // try to be helpful
+    let stringifiedParentContainer = `${parentContainer}`;
+    if (stringifiedParentContainer.length > 20) {
+      stringifiedParentContainer = stringifiedParentContainer.slice(0, 20) + '...'
+    }
+    const message = stringifiedParentContainer.length?
+                    `<<${stringifiedParentContainer}>> is not a valid container (set opaque option?)`
+                    : 'Not a valid container (set opaque option?)'
+
+    throw new SchemaError(fpm(message, state.path));
   }
 
   if (propertyState.schema?.isImplicit) {
@@ -29,7 +38,9 @@ export async function propertyEnd(state, propertyState) {
     const propertyName = propertyState.name;
     const propertyKey = /^\d+$/.test(propertyName) ? Number(propertyName) : propertyName;
 
-    parentContainer[propertyKey] = propertyState.value;
+    if (parentContainer[propertyKey] !== propertyState.value) {
+      parentContainer[propertyKey] = propertyState.value;
+    }
 
     if (!propertyState.isUnion) {
       propertyState.isProcessed = true;

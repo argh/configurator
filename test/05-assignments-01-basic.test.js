@@ -704,7 +704,7 @@ describe('Assignments - Basic Processing', function() {
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
-          assert.ok(err instanceof TransformError);
+          assert.ok(err instanceof ValidationError);
 
           return true;
         }

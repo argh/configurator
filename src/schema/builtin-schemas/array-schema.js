@@ -53,7 +53,10 @@ export const ARRAY_SCHEMA = new Schema()
     }
     throw new ConstraintError(`Invalid array: ${value}`);
   })
-  .validator((value) => {
+  .validator((value, target, location) => {
+    if (location.schema.hasChildren && location.schema.isOpaque) {
+      return value;  // user needs to do their own validation!
+    }
     if (!Array.isArray(value)) {
       throw new ConstraintError(`Invalid array: ${value}`)
     }

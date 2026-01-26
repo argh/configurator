@@ -16,6 +16,8 @@ export async function normalizeInput(state) {
   if (state.assignedInput !== undefined) {
     const input = await state.schema?._normalizeValue(state.assignedInput, configuration, state.location);
     if (input !== undefined) {
+      // verify this input is ok...
+      await state.schema?.accepts(input, configuration, state.location, {strict: true});
       state.input = input;
     }
   }

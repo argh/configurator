@@ -27,7 +27,6 @@ import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
 import { fpm } from './helpers/fpm.js';
 import { formatArgumentType } from './helpers/format.js';
-import path from 'node:path';
 
 /** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
 
@@ -347,11 +346,9 @@ export class SchemaResolver
    * before the base class handlers.
    *
    * @param {Schema|CompiledSchema|SchemaData|string} inputSchema
-   * @param {Schema} [parent]
-   * @param {string} [name]
    * @returns {Schema}
    */
-  resolve(inputSchema, parent, name) {
+  resolve(inputSchema) {
     if (typeof inputSchema === 'string') {
       inputSchema = this.getSchema(inputSchema);
     }
@@ -373,7 +370,7 @@ export class SchemaResolver
     while (source !== undefined) {
       for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
         if (!outputSchema.properties.hasOwnProperty(propName)) {
-          outputSchema.properties[propName] = this.resolve(propSchema, outputSchema, propName);
+          outputSchema.properties[propName] = this.resolve(propSchema);
         }
       }
       for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
@@ -383,7 +380,7 @@ export class SchemaResolver
       }
       for (const [discriminatorValue, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
         if (!outputSchema.unionSchemas.hasOwnProperty(discriminatorValue)) {
-          outputSchema.unionSchemas[discriminatorValue] = this.resolve(unionSchema, parent, name);
+          outputSchema.unionSchemas[discriminatorValue] = this.resolve(unionSchema);
         }
       }
       for (const [handlerName, handlerValues] of Object.entries(source.handlers ?? {})) {
@@ -481,7 +478,7 @@ export class SchemaResolver
       outputSchema.metadata[metaName] = metaValue;
     }
     for (const [unionKey, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
-      // todo - restore notion of union-keyed path elements
+      // todo - restore support for union-keyed path elements?
       outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, path);
     }
 

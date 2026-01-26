@@ -3,11 +3,12 @@ import {
   SchemaError,
   SerializeError,
   TransformError,
+  UnionResolutionError,
   ValidationError
 } from '../errors.js';
 import { behead, deepEquals, deepPrune, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
-import { fpm } from './helpers/fpm.js';
+import { fpm, fpvm } from './helpers/fpm.js';
 import { SchemaLocation } from './schema-location.js';
 import { TraversalContext, processingHooks, preloadHooks, serializationHooks, normalizationHooks, transformationHooks, validationHooks, TraversalHooks, TraversalControl } from './traversal/index.js';
 
@@ -419,6 +420,9 @@ export class CompiledSchema
     }
     for (const def of processorDefinitions) {
       value = await def.processor(value, target, location, options);
+      if (value === null) {
+        return null;
+      }
     }
     return value;
   }
@@ -495,7 +499,7 @@ export class CompiledSchema
     }
     if (!discriminatorResult) {
       if (strict) {
-        throw new SchemaError(fpm('Unable to resolve union', location));
+        throw new UnionResolutionError(fpm('Unable to resolve union', location));
       }
       return undefined;
     }
@@ -568,7 +572,7 @@ export class CompiledSchema
       return await this._executeProcessorPipeline(this.handlers.normalizers, value, target, location, options);
     }
     catch (error) {
-      throw new NormalizeError(fpm('Could not normalize', location), {cause: error});
+      throw new NormalizeError(fpvm('Unable to normalize', value, location), {cause: error});
     }
   }
 
@@ -617,7 +621,7 @@ export class CompiledSchema
       return await this._executeProcessorPipeline(this.handlers.transformers, value, target, location, options);
     }
     catch (error) {
-      throw new TransformError(fpm('Unable to transform', location), {cause: error})
+      throw new TransformError(fpvm('Unable to transform', value, location), {cause: error})
     }
   }
 
@@ -1151,51 +1155,13 @@ export class CompiledSchema
       if (!this.hasChildren || !isInputPath) {
         return TraversalControl.OK;
       }
-      const propertyKeys = new Set();
-      const input = state.input ?? state.assignedInput;
-      if (isPlainObject(input) || Array.isArray(input) || (input && !this.isOpaque)) {
-        Object.keys(input).forEach(key => propertyKeys.add(key));
-      }
-      if (context.final) {
-        Object.keys(this.properties).forEach(key => { if (key !== '*') { propertyKeys.add(key) } } );
+      const propertyStates = state.activePropertyStates;
 
-        if (this.properties['*']) {
-          // wildcard, so let's look for any interesting children in the state map
-//          state.listPendingChildren().forEach(path => propertyKeys.add(path));
-        }
-      }
-      // fixme - I hate this
-      state.listPendingChildren().forEach(path => propertyKeys.add(path));
-      // fixme
-      const container = state.pending ?? state.value;
-
-      const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
-// todo - think about this; state.input==undefined is an unreliable indicator of "no work to do" as we might have lingering conditions/etc for final pass
-      if (!existingProperties && !state.isExplicit && state.input === undefined && !state.isDeep) {
-        return;
-      }
-
-      if (existingProperties && context.final) {
-        Object.keys(container).forEach(key => {
-          if (strict || this.getPropertySchema(key)) {
-            propertyKeys.add(key)
-          }
-        });
-      }
-
-      for (const propertyKey of propertyKeys.keys()) {
-//        const property = context.getProperty(state, propertyKey);
-        const propertyState = state.relative(propertyKey);
-        if (!propertyState) {
-          continue;
-        }
+      async function handlePropertyStart(propertyState) {
         const startResult = await hooks.startProperty(state, propertyState);
 
-        if (startResult === TraversalControl.SKIP) {
-          continue;
-        }
-        else if (startResult === TraversalControl.STOP) {
-          break;  // do we actually need this, or is it hypothetical?
+        if (startResult !== TraversalControl.OK) {
+          return false;
         }
 
         const propertyOptions = {
@@ -1207,18 +1173,17 @@ export class CompiledSchema
         if (propertyState.schema !== undefined) { // input is set via the start property hook!
           await propertyState.schema.traverse(undefined, propertyOptions);
         }
-
-        if (propertyState.value !== undefined && state.pending === undefined &&  state.value === undefined) {
-          // support lazily-created containers that wait for at least one defined child property value
-          state.isExplicit = true;
-          await hooks.startCurrent(state);  // todo - check errors?
-        }
-        const endResult = await hooks.endProperty(state, propertyState);
-
-        if (endResult === TraversalControl.STOP) {
-          break;
-        }
+        return propertyState.value !== undefined;  // return true if the property has a value
       }
+      // Process properties in parallel:
+      const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);
+      if (state.pending === undefined && state.value === undefined && hasPropertyValue) {
+        // Lazy-create container if any child property has a value
+        state.isExplicit = true;
+        await hooks.startCurrent(state);  // todo - check errors?
+      }
+      await Promise.all(propertyStates.map(propertyState => hooks.endProperty(state, propertyState)))
+
       return TraversalControl.OK;
     }
     const endCurrent = async () => {

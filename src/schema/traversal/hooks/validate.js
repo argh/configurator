@@ -1,5 +1,5 @@
 import { ValidationError } from '../../../errors.js';
-import { fpm } from '../../helpers/fpm.js';
+import { fpm, fpvm } from '../../helpers/fpm.js';
 import { TraversalControl } from '../traversal-hooks.js';
 import { TraversalState } from '../traversal-state.js';
 
@@ -20,7 +20,7 @@ export async function validate(state) {
 
     if (state.hasWorkInProgress) {
       const foo = state.hasWorkInProgress;
-      throw new ValidationError(fpm(`Incomplete assignment ${foo}`, state.path));
+      throw new ValidationError(fpvm(`Incomplete assignment`, state.pending, state.path));
     }
 
   }

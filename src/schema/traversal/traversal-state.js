@@ -1,6 +1,7 @@
 import { CompiledSchema } from '../compiled-schema.js';
 import { SchemaLocation } from '../schema-location.js';
 import { TraversalContext } from './traversal-context.js';
+import { isPlainObject } from '../../utils.js';
 
 export class TraversalState
 {
@@ -140,6 +141,7 @@ export class TraversalState
 
     if (this.schema?.hasChildren && !this.schema.isUnion) {
       const isEmpty = input === undefined
+                      || input === null
                       || input === true
                       || (Array.isArray(input) && input.length === 0)
                       || (typeof input === 'object' && Object.keys(input).length === 0);
@@ -420,6 +422,9 @@ export class TraversalState
     if (this.pending === undefined) {
       return false;
     }
+    if (this.schema?.isImplicit) {
+      return false;
+    }
     if (!this.isContainer) {
       return true;
     }
@@ -440,5 +445,47 @@ export class TraversalState
       }
     }
     return true;
+  }
+
+  /**
+   * @returns {TraversalState[]}
+   */
+  get activePropertyStates() {
+    if (this.schema === undefined) {
+      return [];
+    }
+    const propertyKeys = new Set();
+    const input = this.input ?? this.assignedInput;
+    if (isPlainObject(input) || Array.isArray(input) || (input && !this.isOpaque)) {
+      Object.keys(input).forEach(key => propertyKeys.add(key));
+    }
+    if (this.context.final) {
+      Object.keys(this.schema.properties).forEach(key => { if (key !== '*') { propertyKeys.add(key) } } );
+
+      if (this.schema.hasWildcard) {
+        // wildcard, so let's look for any interesting children in the state map
+//          state.listPendingChildren().forEach(path => propertyKeys.add(path));
+      }
+    }
+    // fixme - I hate this
+    this.listPendingChildren().forEach(path => propertyKeys.add(path));
+    // fixme
+    const container = this.pending ?? this.value;
+
+    const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
+// todo - think about this; state.input==undefined is an unreliable indicator of "no work to do" as we might have lingering conditions/etc for final pass
+    if (!existingProperties && !this.isExplicit && this.input === undefined && !this.isDeep) {
+      return [];
+    }
+    const strict = this.schema?.strict ?? this.context.strict;
+    if (existingProperties && this.context.final) {
+      Object.keys(container).forEach(key => {
+        if (strict || this.schema?.getPropertySchema(key)) {
+          propertyKeys.add(key)
+        }
+      });
+    }
+
+    return [...propertyKeys].map(propertyKey => this.relative(propertyKey)).filter(Boolean);
   }
 }

@@ -482,7 +482,7 @@ describe('Configurator - Transforms Integration', function() {
         }),
         {
           name: 'TransformError',
-          message: /Unable to transform at value/
+          message: /Unable to transform value/
         }
       );
     });
