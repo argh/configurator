@@ -11,6 +11,10 @@ export async function normalizeInput(state) {
     // fast-out to avoid renormalization if possible
     return (state.schema?.hasChildren && !state.schema?.isOpaque) ? TraversalControl.STOP : TraversalControl.SKIP;
   }
+  if (state.assignedInput === null) {
+    return TraversalControl.STOP;
+  }
+
   const configuration = state.context.getValue();
 
   if (state.assignedInput !== undefined) {

@@ -1,7 +1,9 @@
 import { CompiledSchema } from '../compiled-schema.js';
 import { SchemaLocation } from '../schema-location.js';
 import { TraversalContext } from './traversal-context.js';
-import { isPlainObject } from '../../utils.js';
+import { isPlainObject, isPrimitive } from '../../utils.js';
+import { SchemaError } from '../../errors.js';
+import { fpm, fpvm } from '../helpers/fpm.js';
 
 export class TraversalState
 {
@@ -97,9 +99,10 @@ export class TraversalState
     return this.location?.schema;
   }
   set schema(schema) {
-    // todo - figure this out
     if (this.location === undefined || schema === undefined) {
-      throw new Error('FIXME');
+      // todo - This probably would indicate a library coding error.
+      //        If user code triggers this exception, file a bug!
+      throw new SchemaError(fpm('Inconsistent traversal state', this.location));
     }
     if (this.schema !== schema) {
       this.context.update();
@@ -156,6 +159,10 @@ export class TraversalState
     return this._pending;
   }
   set pending(pending) {
+    if (pending === null) {
+      this.value = null;
+      this._pending = undefined;
+    }
     this._pending = pending;
   }
 
@@ -163,16 +170,16 @@ export class TraversalState
     return this._value;
   }
   set value(value) {
-    if (value === true && this.schema?.hasChildren) {
-      // FIXME - debugging
-      throw new Error('whoops');
+    if (isPrimitive(value) && this.schema?.hasChildren && !this.schema?.isImplicit && !this.schema?.isOpaque) {
+      throw new SchemaError(fpvm('Container processing resulted in unexpected primitive', value, this.location));
     }
     if (this._value === value) {
       return;
     }
     if (this._value === null) {
-      // FIXME - error type
-      throw new Error(`Cannot set value at ${this._path} - node is pruned`);
+      // todo - This likely indicates a library coding error.
+      //        If user code triggers this exception, file a bug!
+      throw new SchemaError(`Cannot set value at ${this._path} - node is pruned`);
     }
 
     this._value = value;
@@ -202,13 +209,10 @@ export class TraversalState
     this._processed = Boolean(value);
   }
 
-
-  //
   // TODO - check this weird case:
   //        1. create an opaque schema with members {x,y,z}.  z is conditional on {x,y} being defined.
   //        2. assign {x,y,z}; {x,y} will likely get finalized into the object
   //        3. the z assignment wakes up; is there a way to absorb it? or does it turn into a new {z} object?
-  //
 
   get isComplete() {
     if (this.value === null) {
@@ -221,6 +225,7 @@ export class TraversalState
         return false;
       }
       // fixme - what about default functions?  it could return undefined.
+      //         (the existence of a function default is not indicative of being incomplete!)
       if (this.schema?.default !== undefined) {
         return false;
       }

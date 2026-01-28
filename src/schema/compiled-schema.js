@@ -654,7 +654,7 @@ export class CompiledSchema
       return await this._executeProcessorPipeline(this.handlers.validators, value, target, location, options) ?? value;
     }
     catch (error) {
-      throw new ValidationError(fpm(`Unable to validate {${value}}`, location), {cause: error});
+      throw new ValidationError(fpvm('Unable to validate', value, location), {cause: error});
     }
   }
 
@@ -683,7 +683,7 @@ export class CompiledSchema
     }
     catch (error) {
       if (options?.strict) {
-        throw new SerializeError(fpm('Unable to serialize', location), {cause: error})
+        throw new SerializeError(fpvm('Unable to serialize', value, location), {cause: error})
       }
       else {
         return undefined;
@@ -742,7 +742,7 @@ export class CompiledSchema
     if (!found) {
       if (strict) {
         // todo - consider using valueDescription metadata
-        throw new ValidationError(fpm(`Invalid value: <${value}>, expected one of {${this.values.join('|')}}`, location));
+        throw new ValidationError(fpm(`Invalid value: «${value}», expected one of {${this.values.join('|')}}`, location));
       }
       return false;
     }
@@ -1103,7 +1103,10 @@ export class CompiledSchema
         if (input !== undefined) {
           state.assignedInput = input;
         }
-        if (state.assignedInput !== undefined) {
+        if (state.assignedInput === null) {
+          state.value = null;
+        }
+        else if (state.assignedInput !== undefined) {
           if (true || state.treatAsExplicit) {
             state.isExplicit = true;
           }
@@ -1173,7 +1176,7 @@ export class CompiledSchema
         if (propertyState.schema !== undefined) { // input is set via the start property hook!
           await propertyState.schema.traverse(undefined, propertyOptions);
         }
-        return propertyState.value !== undefined;  // return true if the property has a value
+        return propertyState.value !== undefined && propertyState.value !== null;  // return true if the property has a value
       }
       // Process properties in parallel:
       const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);

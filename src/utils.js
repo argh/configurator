@@ -79,7 +79,16 @@ export function isPlainObject(obj) {
 }
 
 export function isObject(item) {
+  // todo - should we allow 'function'?
   return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+export function isPrimitive(item) {
+  if (item === undefined || item === null) {
+    return false; // these values have special meaning for this library and are thus not assignable primitives!
+  }
+  const type = typeof item;
+  return type !== 'object' && type !== 'function';
 }
 
 export function isConstructor(f) {

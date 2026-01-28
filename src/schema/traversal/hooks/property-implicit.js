@@ -8,7 +8,9 @@ import { TraversalState } from '../traversal-state.js';
  * @returns {Promise<symbol>}
  */
 export async function propertyImplicit(state, propertyState) {
-
+  if (propertyState.value === null) {
+    return TraversalControl.STOP;
+  }
   if (propertyState.schema?.isImplicit && state.value !== undefined) {
     if (propertyState.input === undefined) {
 //      propertyState.input = propertyState.assignedInput;

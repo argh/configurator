@@ -232,17 +232,18 @@ export class Schema
    * Attach a named child schema
    *
    * @param {string} propertyName - property name
-   * @param {Schema|CompiledSchema|undefined} propertySchema - schema to associate with the property, undefined to delete current
+   * @param {Schema|CompiledSchema|string|undefined} propertySchema - schema to associate with the property, undefined to delete current
    * @returns {Schema} - returns self for fluent chaining
    */
   property(propertyName, propertySchema) {
     if (typeof propertyName !== 'string') {
       throw new SchemaError('Properties must be associated with a valid name');
     }
-    if (propertySchema instanceof CompiledSchema) {
-      // FIXME - this should be legal with the new approach, maybe?
-//      throw new SchemaError(`Unable to set property ${propertyName} to a compiled schema`);
+    if (propertySchema === 'string') {
+      // you usually wouldn't want to do this because you almost always want to edit the property schema
+      propertySchema = new Schema(propertySchema);
     }
+
     if (!(propertySchema instanceof Schema) && !(propertySchema instanceof CompiledSchema)) {
       if (propertySchema === undefined) {
         delete this.properties[propertyName];
@@ -252,14 +253,13 @@ export class Schema
         throw new SchemaError('Property value must be a schema');
       }
     }
-    if (propertySchema === this) {
-      // FIXME - maybe ok?
-//      throw new SchemaError('Cannot add self as a child schema');
-    }
     this.properties[propertyName] = propertySchema;
 
+    // If you don't want the default object/array because their validation rules don't match your intent,
+    // either use "any" as the base, or explicitly set options.type ahead of time so that it's clear you
+    // know what you're doing.  TODO - probably should only check this during compilation so that order doesn't matter!
     if (this.base === undefined && this.options.type === undefined) {
-      this.base = Number.isInteger(propertyName)? 'array' : 'object';
+      //this.base = Number.isInteger(propertyName)? 'array' : 'object';
     }
     return this;
   }
@@ -351,7 +351,7 @@ export class Schema
     if (!Object.values(SchemaPolicy).includes(policy)) {
       throw new SchemaError('Unknown policy');
     }
-    if (specs === null || specs === undefined) {
+    if (specs === undefined) {
       if (policy === SchemaPolicy.OVERWRITE) {
         delete this.handlers[handlerName];
       }
@@ -365,7 +365,7 @@ export class Schema
     }
 
     const processorDefinitions = specs.map(spec => {
-      if (typeof spec === 'object' && spec.processor) {
+      if (typeof spec === 'object' && spec !== null && spec.processor) {
         return {...spec, spec};
       }
       else {
@@ -973,33 +973,20 @@ export class Schema
       .option('default', literalValue)
       .option('compileHook', (eventName, hookSchema) => {
         if (eventName === 'finalize') {
-          // FIXME - path doesn't exist!
-          const p = hookSchema.path ? ` at "${hookSchema.path}"` : ``;
+          // Verify that the schema wasn't mangled into something weird
           if (hookSchema.options.values?.length !== 1) {
-            throw new SchemaError(`Literal schema${p} needs one value defined`);
+            throw new SchemaError(`Literal schema needs one value defined`);
           }
           if (hookSchema.hasChildren) {
-            throw new SchemaError(`Literal schema${p} should not have child properties`)
+            throw new SchemaError(`Literal schema should not have child properties`)
           }
           if (hookSchema.isUnion) {
-            throw new SchemaError(`Literal schema${p} should not be a union`)
+            throw new SchemaError(`Literal schema should not be a union`)
           }
         }
       })
-      .normalizer((input) =>
-      {
-        return input;
-      })
+      .normalizer(input => input)
       .transformer(() => literalValue)
-
-// I think we can trust the values check for validation...
-//      .validator((/** @type {any} */ value, _, /** @type {CompiledSchema} */ schema, /** @type {string} */ path) => {
-//        if (value !== literalValue) {
-//          throw new ValidationError(fpm(`Expected literal ${JSON.stringify(literalValue)}`, path));
-//        }
-//        return literalValue;
-//      });
-
 
     if (options) {
       schema._setAttributes(options);

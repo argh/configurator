@@ -25,7 +25,7 @@ import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
 import { getBuiltinProcessors } from './builtin-processors/index.js';
 import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
-import { fpm } from './helpers/fpm.js';
+import { fpm, fpvm } from './helpers/fpm.js';
 import { formatArgumentType } from './helpers/format.js';
 
 /** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
@@ -188,7 +188,15 @@ export class SchemaResolver
    * @private
    */
   _compileProcessorSpec(spec) {
-    if (spec === undefined || spec === null || (Array.isArray(spec) && spec.length === 0)) {
+    if (spec === null || spec === '$null') {
+      // special case: explicit prune
+      return {
+        spec: '$null',
+        processor: async _ => null,
+        description: 'null'
+      }
+    }
+    if (spec === undefined || (Array.isArray(spec) && spec.length === 0)) {
       return {
         spec: [],
         processor: async (value) => value,
@@ -291,7 +299,7 @@ export class SchemaResolver
         // not a keyword, fall through and interpret as a processor definition;
       }
 
-      if (!def.spec) {
+      if (def.spec === undefined) {
         throw new ResolverError('Invalid processor definition (no spec or keyword)');
       }
 
@@ -312,10 +320,10 @@ export class SchemaResolver
     const description = stringify(spec);
     return {
       spec,
-      processor: async (value) => {
+      processor: async (value, target, location) => {
         // if the value passed in is undefined, we'll synthesize the passed value
         if (value !== undefined && value !== spec) {
-          throw new ConstraintError(`Value must be exactly ${spec}`);
+          throw new ConstraintError(fpvm('Must have exact', spec));
         }
         return value;
       },
@@ -349,6 +357,7 @@ export class SchemaResolver
    * @returns {Schema}
    */
   resolve(inputSchema) {
+
     if (typeof inputSchema === 'string') {
       inputSchema = this.getSchema(inputSchema);
     }
@@ -466,9 +475,7 @@ export class SchemaResolver
 
     const source = this.resolve(inputSchema);
 
-    if (source.options.compileHook && typeof source.options.compileHook === 'function') {
-      source.options.compileHook('resolve', source);
-    }
+    runCompileHook('resolve', source, path);
 
     for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
       const propertyPath = path? `${path}.${propName}` : propName;
@@ -482,9 +489,7 @@ export class SchemaResolver
       outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, path);
     }
 
-    if (source.options.compileHook && typeof source.options.compileHook === 'function') {
-      source.options.compileHook('link', source);
-    }
+    runCompileHook('link', source, path)
 
     const specialOptions = ['values' /*, 'default'*/];
 
@@ -503,9 +508,8 @@ export class SchemaResolver
     await this._compileSerializers(source, outputSchema, path);
     await this._compileDiscriminator(source, outputSchema, path);
 
-    if (outputSchema.options.compileHook && typeof outputSchema.options.compileHook === 'function') {
-      outputSchema.options.compileHook('compile', outputSchema);
-    }
+    runCompileHook('compile', outputSchema, path);
+
     return outputSchema;
   }
 
@@ -563,9 +567,8 @@ export class SchemaResolver
       throw new SchemaError(fpm(`Inconsistently defined selector/selections in properties`, path));
     }
 
-    if (schema.options.compileHook && typeof schema.options.compileHook === 'function') {
-      schema.options.compileHook('finalize', schema);
-    }
+    runCompileHook('finalize', schema, path);
+
     return schema;
   }
 
@@ -871,3 +874,22 @@ export class SchemaResolver
   }
 }
 
+/**
+ * @param {string} hookName
+ * @param {import('./schema.js').ISchema} schema
+ * @param {string} path
+ * @private
+ */
+function runCompileHook(hookName, schema, path) {
+  try {
+    const hookFunction = schema.options.compileHook;
+
+    if (typeof hookFunction !== 'function') {
+      return;
+    }
+    hookFunction(hookName, schema);
+  }
+  catch (error) {
+    throw new SchemaError(fpm(`Compilation error: ${error.message}`, path));
+  }
+}

@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { Schema, SchemaResolver } from '../src/index.js';
 import { AssertionError } from 'node:assert/strict';
+import { ValidationError } from '../src/errors.js';
 
 const resolver = new SchemaResolver();
 
@@ -12,12 +13,9 @@ const resolver = new SchemaResolver();
 //
 // (Contrast with the more draconian "opaque" option.)
 
-// Here is a demo class with two properties that shouldn't be assigned directly:
+// Here is a demo class with three properties that shouldn't be assigned directly:
 
 class Thing {
-  /** @type {Object.<string,string>} */
-  #stuff = {}
-
   constructor() {
     // let's define a read-only type field the hard way:
     Object.defineProperty(this, 'type', {
@@ -28,20 +26,15 @@ class Thing {
   }
 
   // here's a computed getter:
-  get integers() {
-    return integerStringList(Object.values(this.stuff));
+  get name() {
+    return `${this.stuff.firstName ?? "Unknown"} ${this.stuff.lastName ?? "Unknown"}`
   }
 
-
-  // here's a getter for that
+  /** @type {Object.<string,string>} */
+  #stuff = {}
+  // here's a getter for that private field
   get stuff() {
     return this.#stuff;
-  }
-  toJSON() {
-    return {
-      type: 'thing',
-      stuff: this.stuff
-    }
   }
 }
 
@@ -67,8 +60,8 @@ catch (error) {
   }
 }
 try {
-  testThing.integers = '123';
-  assert(false, 'Assigning to integers is supposed to throw an exception!')
+  testThing.name = 'Fred Johnson';
+  assert(false, 'Assigning to name is supposed to throw an exception!')
 }
 catch (error) {
   if (! (error instanceof TypeError)) {
@@ -90,25 +83,15 @@ const inadequateThingSchema = await resolver.compile(
   new Schema('object')
     .transformer(_ => new Thing())
     .property('type', new Schema('string')
-      // We can block attempts to assign "type" to anything that doesn't match the value already returned from Thing.
-      .normalizer(input => {
-        if (typeof input === 'string') {
-          return input.toLowerCase();
-        }
-        throw new Error('unknown type');
-      })
-      .validator(value => {
-        if (value !== 'thing') {
-          throw new Error('not a thing!');
-        }
-        return value;
-      })
+      // Requiring assignment values to exactly match the existing value cause them to be skipped.
+      .normalizer('$lowercase')
+      .validator('thing')
     )
-    .property('integers', new Schema('string')
-      // We can ignore attempts to assign "integers" by ignoring the value provided, always using the value from Thing.
-      .normalizer(_ => undefined))
+    .property('name', new Schema('string')
+      // We can ignore attempts to assign "name" by explicitly pruning it
+      .normalizer(null))
     .property('stuff',
-      // Here's where it gets tricky:
+      // Here's where it will fall apart...
       new Schema('object')
         .property('*', new Schema('string')))
 );
@@ -122,32 +105,33 @@ const alsoHarmless = await inadequateThingSchema.process({type: 'THING'});
 assert (alsoHarmless instanceof Thing);
 assert(alsoHarmless.type === 'thing');
 
-// Whereas an incorrect type value is correct caught by the validator.
-// (This works, but is kind of verbose.)
+// Whereas an incorrect type value is correctly caught by the validator.
+// (This works but is kind of verbose.)
 try {
   await inadequateThingSchema.process({type: 'not-a-thing'});
   assert(false, 'Should have thrown an error!')
 }
 catch (error) {
-  assert(error?.cause?.message === 'not a thing!');
+  assert(error instanceof ValidationError);
 }
 
-// An attempted assignment to "integers" is ignored:
-const ignored = await inadequateThingSchema.process({type: 'thing', integers: 'this makes no sense'});
-assert(ignored.integers === '');
+// An attempted assignment to "name" is ignored:
+const ignored = await inadequateThingSchema.process({type: 'thing', name: 'John Doe'});
+assert(ignored.name === 'Unknown Unknown');
 
 // But here's the problem... (this is a little more subtle):
-
 try {
   await inadequateThingSchema.process({stuff: {x: 10, y: 20}})
   assert(false, 'Should not be here, demo should have thrown an error!');
 }
 catch (error) {
-  // So here's the issue: the schema is actually trying to assign stuff = {}!
+  // The issue: the schema is actually trying to assign stuff = {}!
+  // We can't use the "nullify assignment" trick because we actually need a normalized value
+  // to hold pending child assignments.
   if (!(error instanceof TypeError)) { throw error }
 }
 
-// We can't even handle an actual Thing:
+// This also means we can't even handle an actual Thing instance:
 
 try {
   const testThing = new Thing();
@@ -157,6 +141,7 @@ try {
   assert(false, 'Should should have thrown an error!');
 }
 catch (error) {
+  // expected...
   if (!(error instanceof TypeError)) { throw error }
 }
 
@@ -164,7 +149,7 @@ catch (error) {
 
 // Let's fix all these issues.
 // 1. Mark "type" as literal to simplify value checking.
-// 2. Mark "integers" as implicit so we don't need to throw away the assignment ourselves.
+// 2. Mark "name" as implicit so we don't need to nullify the assignment.
 // 3. Mark "stuff" implicit to use the object in Thing but still allow the child assignments.
 
 const betterThingSchema = await resolver.compile(new Schema('object')
@@ -175,7 +160,7 @@ const betterThingSchema = await resolver.compile(new Schema('object')
   })
   // literals enforce their input, but we will also ensure it isn't reassigned!
   .property('type', Schema.literal('thing'))
-  .property('integers', new Schema('string').implicit())
+  .property('name', new Schema('string').implicit())
   .property('stuff',
     new Schema('object')
       .implicit()
@@ -186,12 +171,13 @@ const betterThingSchema = await resolver.compile(new Schema('object')
 for (const goodInput of [
   {},
   { type: 'thing' },
-  { integers: 'ignored'},
+  { name: 'ignored'},
   { stuff: {} },
   { stuff: { info } },
+  { stuff: { firstName: 'Camina', lastName: 'Drummer' }},
   { stuff: undefined },
   { stuff: null },
-  { type: 'thing', stuff: { x: 123, y: 456 }}
+  { type: 'thing', stuff: { x: 123, y: 456, firstName: 'James', lastName: 'Holden' }}
 ]) {
   const goodThing = await betterThingSchema.process(goodInput);
 
@@ -202,7 +188,9 @@ for (const goodInput of [
     assert(goodThing.stuff[k] === `${v}`);
 
   }
-  assert(goodThing.integers === integerStringList(Object.values(goodThing.stuff)))
+  if (goodThing.stuff.firstName && goodThing.stuff.lastName) {
+    assert(goodThing.name === `${goodThing.stuff.firstName} ${goodThing.stuff.lastName}`);
+  }
 
   const dogfood = await betterThingSchema.process(goodThing);
 
@@ -229,7 +217,3 @@ for (const badInput of [
 
 console.log('lgtm!');
 
-function integerStringList(values = []) {
-  return values.filter(v => Number.isInteger(Number(v))).map(v => `${v}`).join(',');
-
-}
