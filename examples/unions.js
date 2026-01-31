@@ -172,12 +172,17 @@ schema.property('cheese', unionCheeseSchema);
 
 import {stringify} from '../src/schema/helpers/stringify.js';
 try {
-  const configuration = await new Configurator({schema})
-    .configure({
+
+  const context = (process.env.CONFIGURATOR_TEST === 'true')?
+    {
       appName,
 //      overrides: {test0: cheeses[2]},
       argv: ['--t1n=brie', '--t2n', 'feta', '--test3-name=cheddar', '-t', 'crumbly', '-ab', '-r=natural']  // some defaults for package testing
-    });
+    }
+    : { appName }
+
+  const configuration = await new Configurator({schema})
+    .configure(context);
   //console.log(stringify(configuration, null, 2));
   console.log(stringify(configuration, {space: 2}));
 }

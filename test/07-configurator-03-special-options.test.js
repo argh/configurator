@@ -17,7 +17,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, helpEnabled: true });
 
       // Help property should be auto-added
-      const helpProp = Object.values(configurator.schema._properties)
+      const helpProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'help');
 
       assert.ok(helpProp, 'Help schema should be auto-added');
@@ -32,7 +32,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, helpEnabled: false });
 
       // Help property should not be present
-      const helpProp = Object.values(configurator.schema._properties)
+      const helpProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'help');
 
       assert.strictEqual(helpProp, undefined, 'Help schema should not be added');
@@ -50,7 +50,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, helpEnabled: true });
 
       // Should use custom help schema
-      const helpProp = configurator.schema._properties['help'];
+      const helpProp = configurator.schema.properties['help'];
       assert.strictEqual(helpProp.metadata.description, 'custom help text');
       assert.strictEqual(helpProp.metadata.flagHint, 'H');
     });
@@ -65,7 +65,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, helpEnabled: true });
 
       // Should recognize it by _configuratorSchema: 'help'
-      const halpProp = configurator.schema._properties['halp'];
+      const halpProp = configurator.schema.properties['halp'];
       assert.strictEqual(halpProp.metadata.configuratorSchema, 'help');
       assert.strictEqual(halpProp.metadata.description, 'halp me!');
     });
@@ -90,13 +90,13 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, configEnabled: true });
 
       // Config property should be auto-added
-      const configProp = Object.values(configurator.schema._properties)
+      const configProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'config');
 
       assert.ok(configProp, 'Config schema should be auto-added');
       assert.match(configProp.metadata.description ?? '', /load.+configuration.+file/);
       assert.strictEqual(configProp.metadata.flagHint, 'C');
-      assert.strictEqual(configProp._options.context, 'config');
+      assert.strictEqual(configProp.options.context, 'config');
     });
 
     it('should not add config schema when configEnabled is false', async function() {
@@ -106,7 +106,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, configEnabled: false });
 
       // Config property should not be present
-      const configProp = Object.values(configurator.schema._properties)
+      const configProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'config');
 
       assert.strictEqual(configProp, undefined, 'Config schema should not be added');
@@ -122,7 +122,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, configEnabled: true });
 
       // Should use custom config schema
-      const configProp = configurator.schema._properties['config'];
+      const configProp = configurator.schema.properties['config'];
       assert.strictEqual(configProp.metadata.description, 'custom config file');
       assert.strictEqual(configProp.metadata.flagHint, 'c');
     });
@@ -141,7 +141,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, configEnabled: true });
 
       // Should recognize it by _configuratorSchema: 'config'
-      const profileProp = configurator.schema._properties['profile'];
+      const profileProp = configurator.schema.properties['profile'];
       assert.strictEqual(profileProp.metadata.configuratorSchema, 'config');
       assert.strictEqual(profileProp.metadata.description, 'profile configuration file');
       assert.strictEqual(profileProp.options.context, 'profilePath');
@@ -168,7 +168,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema });
 
       // SetPropertyValue property should be auto-added by default
-      const setPropProp = Object.values(configurator.schema._properties)
+      const setPropProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'setPropertyValue');
 
       assert.ok(setPropProp, 'SetPropertyValue schema should be auto-added');
@@ -184,7 +184,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, setPropertyValueEnabled: false });
 
       // SetPropertyValue property should not be present
-      const setPropProp = Object.values(configurator.schema._properties)
+      const setPropProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'setPropertyValue');
 
       assert.strictEqual(setPropProp, undefined, 'SetPropertyValue schema should not be added');
@@ -202,7 +202,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, setPropertyValueEnabled: true });
 
       // Should use custom setPropertyValue schema
-      const setPropProp = configurator.schema._properties['setPropertyValue'];
+      const setPropProp = configurator.schema.properties['setPropertyValue'];
       assert.strictEqual(setPropProp.metadata.description, 'custom property setter');
       assert.strictEqual(setPropProp.metadata.flagHint, 'p');
     });
@@ -217,7 +217,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, setPropertyValueEnabled: true });
 
       // Should recognize it by _configuratorSchema: 'setPropertyValue'
-      const assignProp = configurator.schema._properties['assign'];
+      const assignProp = configurator.schema.properties['assign'];
       assert.strictEqual(assignProp.metadata.configuratorSchema, 'setPropertyValue');
       assert.strictEqual(assignProp.metadata.description, 'assign property');
     });
@@ -232,8 +232,8 @@ describe('Configurator - Special Options', function() {
       assert.strictEqual(setPropSchema.metadata.omitFromSerialize, true);
 
       // Verify array structure
-      const path0 = setPropSchema._properties['0'];
-      const path1 = setPropSchema._properties['1'];
+      const path0 = setPropSchema.properties['0'];
+      const path1 = setPropSchema.properties['1'];
 
       assert.ok(path0, 'Should have property at index 0');
       assert.strictEqual(path0.base, 'string');
@@ -254,12 +254,12 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, dumpEnabled: true });
 
       // Dump property should be auto-added
-      const dumpProp = Object.values(configurator.schema._properties)
+      const dumpProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'dump');
 
       assert.ok(dumpProp, 'Dump schema should be auto-added');
       assert.match(dumpProp.metadata.description ?? '', /dump.+configuration.+file/);
-      assert.strictEqual(dumpProp._options.context, 'dump');
+      assert.strictEqual(dumpProp.options.context, 'dump');
     });
 
     it('should not add dump schema when dumpEnabled is false', async function() {
@@ -269,7 +269,7 @@ describe('Configurator - Special Options', function() {
       const configurator = new Configurator({ schema, dumpEnabled: false });
 
       // Dump property should not be present
-      const dumpProp = Object.values(configurator.schema._properties)
+      const dumpProp = Object.values(configurator.schema.properties)
         .find(s => s.metadata['configuratorSchema'] === 'dump');
 
       assert.strictEqual(dumpProp, undefined, 'Dump schema should not be added');
@@ -801,7 +801,7 @@ describe('Configurator - Special Options', function() {
       });
 
       // All four special schemas should be present
-      const props = configurator.schema._properties;
+      const props = configurator.schema.properties;
 
       const helpProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'help');
       const configProp = Object.values(props).find(s => s.metadata['configuratorSchema'] === 'config');
@@ -860,7 +860,7 @@ describe('Configurator - Special Options', function() {
         setPropertyValueEnabled: true
       });
 
-      const props = configurator.schema._properties;
+      const props = configurator.schema.properties;
 
       assert.strictEqual(props['halp'].metadata.configuratorSchema, 'help');
       assert.strictEqual(props['profile'].metadata.configuratorSchema, 'config');

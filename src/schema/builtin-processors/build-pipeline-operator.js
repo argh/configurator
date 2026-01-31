@@ -71,10 +71,13 @@ export const PIPELINE_OPERATOR = {
     return ({
       spec: processors,
       /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (value, configuration, schema, path, options) => {
+      processor: async (value, configuration, location, options) => {
         let v = value;
         for (const {processor} of compiled) {
-          v = await processor(v, configuration, schema, path, options);
+          v = await processor(v, configuration, location, options);
+          if (v === null) {
+            return null;
+          }
         }
         return v;
       },

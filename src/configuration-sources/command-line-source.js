@@ -62,13 +62,17 @@ export class CommandLineSource extends ConfigurationSource
    * @private
    */
   _generateOptions(schema, appName) {
+    const walked = new Set();
     /**
      * @param {CompiledSchema} schema
      * @param {string} path
      * @param {ParsingContext} ctx
      */
     function walk(schema, path, ctx) {
-
+      if (walked.has(schema)) {
+        return ctx;
+      }
+      walked.add(schema);
       // The schema hierarchy defines a tree of objects containing configurable properties, but in some cases, the
       // activation of those objects is controlled by an implicit hierarchy of commands, where the application itself
       // acts as the "root command" that owns the first-level schema.  For command-line processing, we make that
@@ -80,14 +84,15 @@ export class CommandLineSource extends ConfigurationSource
           if (propertyName === '*') {
             continue;  // shouldn't happen; array elements are handled as an aggregated parsed value
           }
-          if (childSchema.inherit || childSchema.metadata.internal) {
+          if (childSchema.isInherited || childSchema.metadata.internal) {
             continue;
           }
 
           const childPath = path ? `${path}.${propertyName}` : `${propertyName}`;
 
           if (childSchema.isSelection) {
-            const selection = childSchema.selection;
+            // todo - think about how to not duplicate this logic from the selection condition internals
+            const selection = (childSchema.selection === true)? propertyName : childSchema.selection;
 
             const childSelectionContext = new ParsingContext(appName, ctx, childPath);
             walk(childSchema, childPath, childSelectionContext);
@@ -476,7 +481,7 @@ export class CommandLineSource extends ConfigurationSource
           // Skip hidden options and handle advanced options based on showAdvanced flag
           const m = clOptionData.schema.metadata;
           const o = clOptionData.schema.options;
-          if (m.internal || m.system || m.hidden || o.inherit) continue;
+          if (m.internal || m.system || m.hidden || o.isInherited) continue;
           if (m.advanced) {
             foundAdvanced = true;
             if (!showAdvanced) continue;

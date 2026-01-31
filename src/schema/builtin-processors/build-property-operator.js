@@ -50,8 +50,8 @@ export const PROPERTY_OPERATOR = {
 
     return {
       /** @type {import("../types.js").SchemaValueProcessor<any>} */
-      processor: async (current, configuration, schema) => {
-        if (schema.getPropertySchema(propertyName) === undefined) {
+      processor: async (current, configuration, location) => {
+        if (location.schema.getPropertySchema(propertyName) === undefined) {
           throw new SchemaError(`Unknown property ${propertyName}`);
         }
         return (typeof current === 'object' && current !== null)? current[propertyName] : undefined;

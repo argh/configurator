@@ -375,7 +375,7 @@ describe('Configurator - Transforms Integration', function() {
       const schema = new Schema('object')
         .property('enableEncryption', new Schema('boolean'))
         .property('apiKey', new Schema('string', {
-          condition: (value, config) => config.enableEncryption === true,
+          condition: (value, config) => config?.enableEncryption === true,
           transformer: (value) => {
             // Simulate decryption
             if (value.startsWith('encrypted:')) {
@@ -482,7 +482,7 @@ describe('Configurator - Transforms Integration', function() {
         }),
         {
           name: 'TransformError',
-          message: /Unable to transform at value/
+          message: /Unable to transform value/
         }
       );
     });

@@ -17,9 +17,9 @@ describe('Assignments - Unions', function() {
       const schema = new Schema('object')
         .property('shape', new Schema('object')
           .property('type', new Schema('string'))
-          .unionDiscriminator((value, _, unionSchema) => {
-            if (value?.type === 'circle') return unionSchema.unionSchemas.circle;
-            if (value?.type === 'rectangle') return unionSchema.unionSchemas.rectangle;
+          .unionDiscriminator((value, _, location) => {
+            if (value?.type === 'circle') return location.schema.unionSchemas.circle;
+            if (value?.type === 'rectangle') return location.schema.unionSchemas.rectangle;
             return undefined;
           })
           .unionSchema('circle', new Schema('object')
@@ -54,9 +54,9 @@ describe('Assignments - Unions', function() {
       const schema = new Schema('object')
         .property('shape', new Schema('object')
           .property('type', new Schema('string'))
-          .unionDiscriminator((value, _, unionSchema) => {
-            if (value?.type === 'circle') return unionSchema.unionSchemas.circle;
-            if (value?.type === 'rectangle') return unionSchema.unionSchemas.rectangle;
+          .unionDiscriminator((value, _, location) => {
+            if (value?.type === 'circle') return location.schema.unionSchemas.circle;
+            if (value?.type === 'rectangle') return location.schema.unionSchemas.rectangle;
             return undefined;
           })
           .unionSchema('circle', new Schema('object')
@@ -417,7 +417,7 @@ describe('Assignments - Unions', function() {
             .property('type', Schema.literal('number-type'))
             .property('data', new Schema('number'))
             .property('doubled', new Schema('number')
-              .transformer((value, config, schema, path) => {
+              .transformer((value, config) => {
                 if (config.value?.data === undefined) {
                   return undefined;  // compute later
                 }

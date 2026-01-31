@@ -5,7 +5,8 @@
     "coverage/**",
     "examples/**",
     "src/schema/types.js",
-    "eslint.config.js"
+    "eslint.config.js",
+    "docs-output/*"
   ],
   "all": true,
   "check-coverage": true,

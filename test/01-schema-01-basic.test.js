@@ -343,50 +343,6 @@ describe('Schema - Basic Construction', function() {
     });
   });
 
-  describe('Schema identity and parent/name tracking', function() {
-
-    it('should have undefined parent and name when unattached', function() {
-      const schema = new Schema('string');
-      assert.strictEqual(schema.parent, undefined);
-      assert.strictEqual(schema.name, undefined);
-      assert.strictEqual(schema.path, '');
-    });
-
-    it('should set parent and name when attached as a property', function() {
-      const parent = new Schema('object');
-      const child = new Schema('string');
-
-      parent.property('childName', child);
-
-      assert.strictEqual(child.parent, parent);
-      assert.strictEqual(child.name, 'childName');
-      assert.strictEqual(child.path, 'childName');
-    });
-
-    it('should build correct path for nested schemas', function() {
-      const root = new Schema('object');
-      const level1 = new Schema('object');
-      const level2 = new Schema('string');
-
-      root.property('level1', level1);
-      level1.property('level2', level2);
-
-      assert.strictEqual(level2.path, 'level1.level2');
-    });
-
-    it('should clear parent and name when property is removed', function() {
-      const parent = new Schema('object');
-      const child = new Schema('string');
-
-      parent.property('childName', child);
-      assert.strictEqual(child.name, 'childName');
-
-      parent.property('childName', undefined);
-      assert.strictEqual(child.name, undefined);
-      assert.strictEqual(child.parent, undefined);
-    });
-  });
-
   describe('Fluent chaining', function() {
 
     it('should support method chaining for property definitions', function() {

@@ -704,7 +704,7 @@ describe('Assignments - Basic Processing', function() {
       await assert.rejects(
         () => compiled.processAssignments(assignments),
         (err) => {
-          assert.ok(err instanceof TransformError);
+          assert.ok(err instanceof ValidationError);
 
           return true;
         }
@@ -845,8 +845,8 @@ describe('Assignments - Basic Processing', function() {
       const compiled = await resolver.compile(schema);
 
       // Verify the convenience getter works
-      assert.strictEqual(compiled.properties.computed.implicit, true);
-      assert.strictEqual(compiled.properties.regular.implicit, false);
+      assert.strictEqual(compiled.properties.computed.isImplicit, true);
+      assert.strictEqual(compiled.properties.regular.isImplicit, false);
     });
 
     it('should not attempt to set implicit property even with value in assignments', async function() {
@@ -1000,18 +1000,14 @@ describe('Assignments - Basic Processing', function() {
           .property('x', new Schema('number').default(0))
           .property('y', new Schema('number').default(0))
           .property('display', new Schema('string')
-            .condition((_, configuration, schema, path) => {
-              const dot = path.lastIndexOf('.');
-              const parentPath = path.slice(0, dot);
-              const coordinate = deepValue(configuration, parentPath);
+            .condition((_, configuration, location) => {
+              const coordinate = deepValue(configuration, location.parent.path);
               return configuration.options?.debug === true
                      && coordinate?.x !== undefined
                      && coordinate?.y !== undefined
             })
-            .default((_, configuration, schema, path) => {
-              const dot = path.lastIndexOf('.');
-              const parentPath = path.slice(0, dot);
-              const coordinate = deepValue(configuration, parentPath);
+            .default((_, configuration, location) => {
+              const coordinate = deepValue(configuration, location.parent.path);
               return `[${coordinate.x},${coordinate.y}]`
             })
           )

@@ -2,8 +2,9 @@ import { Schema } from '../schema.js';
 
 export const ANY_SCHEMA = new Schema()
   .option('type', 'any')
-  .normalizer((value, _, schema) => {
+  .normalizer((value, _, location) => {
     if (value === true) {
+      const schema = location.schema;
       const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
 
       if (hasChildren) {
@@ -18,7 +19,8 @@ export const ANY_SCHEMA = new Schema()
     }
     return value;
   })
-  .transformer((value, _, schema) => {
+  .transformer((value, _, location) => {
+    const schema = location.schema;
     if (value === true) {
       const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
 

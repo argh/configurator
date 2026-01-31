@@ -234,7 +234,7 @@ describe('Configurator - Custom Types Integration', function() {
       const testSchema = new Schema('object')
         .property('enableSampling', new Schema('boolean'))
         .property('sampleRate', new Schema('percentage', {
-          condition: (value, config) => config.enableSampling === true,
+          condition: (value, config) => config?.enableSampling === true,
           default: 0.1
         }));
 
@@ -250,8 +250,8 @@ describe('Configurator - Custom Types Integration', function() {
         env: { 'APP_SAMPLE_RATE': '25%' }
       });
 
-      assert.strictEqual(config1.enableSampling, true);
-      assert.strictEqual(config1.sampleRate, 0.25);
+      assert.strictEqual(config1?.enableSampling, true);
+      assert.strictEqual(config1?.sampleRate, 0.25);
 
       const config2 = await configurator.configure({
         appName: 'app',

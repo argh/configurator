@@ -39,14 +39,14 @@ describe('Configurator - Complex Scenarios', function() {
           .property('name', new Schema('string'))
           .property('poolSize', new Schema('number', {
             default: 10,
-            condition: (value, config) => config.environment === 'production'
+            condition: (value, config) => config?.environment === 'production'
           }))
         )
         .property('cache', new Schema('object')
           .property('enabled', new Schema('boolean', { default: false }))
           .property('ttl', new Schema('number', {
             default: 3600,
-            condition: (value, config) => config.cache?.enabled === true
+            condition: (value, config) => config?.cache?.enabled === true
           }))
         )
         .property('logging', new Schema('object')
@@ -62,11 +62,11 @@ describe('Configurator - Complex Scenarios', function() {
         .property('features', new Schema('object')
           .property('analytics', new Schema('boolean', {
             default: false,
-            condition: (value, config) => config.environment === 'production'
+            condition: (value, config) => config?.environment === 'production'
           }))
           .property('debugging', new Schema('boolean', {
             default: true,
-            condition: (value, config) => config.environment === 'development'
+            condition: (value, config) => config?.environment === 'development'
           }))
         );
 
@@ -240,13 +240,13 @@ describe('Configurator - Complex Scenarios', function() {
           }))
           .property('deployToken', new Schema('string', {
             transformer: (value) => `***${value.slice(-6)}`,
-            condition: (value, config) => config.ci?.stages?.some(s => s.stage === 'deploy')
+            condition: (value, config) => config?.ci?.stages?.some(s => s.stage === 'deploy')
           }))
         )
         .property('notifications', new Schema('object')
           .property('enabled', new Schema('boolean', { default: false }))
           .property('channels', new Schema('array', {
-            condition: (value, config) => config.notifications?.enabled === true
+            condition: (value, config) => config?.notifications?.enabled === true
           })
             .property('*', new Schema('string'))
           )
@@ -353,18 +353,18 @@ describe('Configurator - Complex Scenarios', function() {
           .property('storage', new Schema('number', { default: 1024 }))
           .property('apiCalls', new Schema('number', {
             default: 1000,
-            condition: (value, config) => config.tenant?.tier !== 'free'
+            condition: (value, config) => config?.tenant?.tier !== 'free'
           }))
         )
         .property('features', new Schema('object')
           .property('customDomain', new Schema('boolean', {
             default: false,
-            condition: (value, config) => config.tenant?.tier === 'enterprise'
+            condition: (value, config) => config?.tenant?.tier === 'enterprise'
           }))
           .property('sso', new Schema('boolean', {
             default: false,
             condition: (value, config) =>
-              config.tenant?.tier === 'professional' || config.tenant?.tier === 'enterprise'
+              config?.tenant?.tier === 'professional' || config?.tenant?.tier === 'enterprise'
           }))
           .property('support', new Schema('string', {
             values: ['community', 'email', 'priority'],
@@ -381,11 +381,11 @@ describe('Configurator - Complex Scenarios', function() {
         .property('billing', new Schema('object')
           .property('enabled', new Schema('boolean', {
             default: true,
-            condition: (value, config) => config.tenant?.tier !== 'free'
+            condition: (value, config) => config?.tenant?.tier !== 'free'
           }))
           .property('cycle', new Schema('duration', {
             default: '30d',
-            condition: (value, config) => config.billing?.enabled === true
+            condition: (value, config) => config?.billing?.enabled === true
           }))
         );
 
@@ -592,21 +592,21 @@ describe('Configurator - Complex Scenarios', function() {
         .property('features', new Schema('object')
           .property('newUI', new Schema('boolean', {
             default: false,
-            condition: (value, config) => config.experimentalFeatures === true
+            condition: (value, config) => config?.experimentalFeatures === true
           }))
           .property('advancedAnalytics', new Schema('boolean', {
             default: false,
             condition: (value, config) =>
-              config.userTier === 'premium' || config.userTier === 'enterprise'
+              config?.userTier === 'premium' || config?.userTier === 'enterprise'
           }))
           .property('aiAssistant', new Schema('boolean', {
             default: false,
             condition: (value, config) =>
-              config.betaProgram === true && config.userTier === 'enterprise'
+              config?.betaProgram === true && config?.userTier === 'enterprise'
           }))
         )
         .property('uiSettings', new Schema('object', {
-          condition: (value, config) => config.features?.newUI === true
+          condition: (value, config) => config?.features?.newUI === true
         })
           .property('theme', new Schema('string', {
             values: ['light', 'dark', 'auto'],
@@ -615,13 +615,13 @@ describe('Configurator - Complex Scenarios', function() {
           .property('animations', new Schema('boolean', { default: true }))
         )
         .property('analyticsConfig', new Schema('object', {
-          condition: (value, config) => config.features?.advancedAnalytics === true
+          condition: (value, config) => config?.features?.advancedAnalytics === true
         })
           .property('retention', new Schema('number', { default: 90 }))
           .property('customReports', new Schema('boolean', { default: true }))
         )
         .property('aiConfig', new Schema('object', {
-          condition: (value, config) => config.features?.aiAssistant === true
+          condition: (value, config) => config?.features?.aiAssistant === true
         })
           .property('model', new Schema('string', { default: 'gpt-4' }))
           .property('maxTokens', new Schema('number', { default: 4000 }))

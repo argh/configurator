@@ -23,7 +23,8 @@ describe('Unions: Manual Discriminator Function', function() {
         .property('type', Schema.literal('b'))
         .property('bValue', new Schema('number'))
       )
-      .unionDiscriminator((value, _, unionSchema) => {
+      .unionDiscriminator((value, _, location) => {
+        const unionSchema = location.schema;
         if (value.type === 'a') return unionSchema.unionSchemas.a;
         if (value.type === 'b') return unionSchema.unionSchemas.b;
         return undefined;
@@ -47,8 +48,8 @@ describe('Unions: Manual Discriminator Function', function() {
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('a'))
       )
-      .unionDiscriminator((value) => {
-        if (value.type === 'a') return schema.unionSchemas.a;
+      .unionDiscriminator((value, target, location) => {
+        if (value.type === 'a') return location.schema.unionSchemas.a;
         return undefined;
       });
 
@@ -69,7 +70,8 @@ describe('Unions: Manual Discriminator Function', function() {
         .property('mode', Schema.literal('lax'))
         .property('value', new Schema('any'))
       )
-      .unionDiscriminator((value, configuration, unionSchema) => {
+      .unionDiscriminator((value, configuration, location) => {
+        const unionSchema = location.schema;
         // Discriminator can look at configuration state
         if (configuration.mode === 'strict') {
           return unionSchema.unionSchemas.strict;
@@ -81,16 +83,14 @@ describe('Unions: Manual Discriminator Function', function() {
 
     const resultStrict = await compiled._discriminateUnion(
       {mode: 'strict', value: 'test'},
-      {mode: 'strict'},
-      ''
+      {mode: 'strict'}
     );
     assert.ok(resultStrict);
     assert.strictEqual(compiled.findUnionKey(resultStrict), 'strict');
 
     const resultLax = await compiled._discriminateUnion(
       {mode: 'lax', value: 123},
-      {mode: 'lax'},
-      ''
+      {mode: 'lax'}
     );
     assert.ok(resultLax);
     assert.strictEqual(compiled.findUnionKey(resultLax), 'lax');
@@ -102,10 +102,10 @@ describe('Unions: Manual Discriminator Function', function() {
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('a'))
       )
-      .unionDiscriminator(async (value, _, unionSchema) => {
+      .unionDiscriminator(async (value, _, location) => {
         // Simulate async lookup
         await new Promise(resolve => setTimeout(resolve, 1));
-        if (value.type === 'a') return unionSchema.unionSchemas.a;
+        if (value.type === 'a') return location.schema.unionSchemas.a;
         return undefined;
       });
 
@@ -121,7 +121,7 @@ describe('Unions: Manual Discriminator Function', function() {
       .unionSchema('a', new Schema('object')
         .property('type', Schema.literal('a'))
       )
-      .unionDiscriminator((v, c, s) => s.unionSchemas.a);
+      .unionDiscriminator((v, c, l) => l.schema.unionSchemas.a);
 
     const compiled = await resolver.compile(schema);
 
@@ -137,7 +137,8 @@ describe('Unions: Manual Discriminator Function', function() {
       .unionSchema('b', new Schema('object')
         .property('type', Schema.literal('b'))
       )
-      .unionDiscriminator((value, _, unionSchema) => {
+      .unionDiscriminator((value, _, location) => {
+        const unionSchema = location.schema;
         if (value.type === 'a') return unionSchema.unionSchemas.a;
         if (value.type === 'b') return unionSchema.unionSchemas.b;
         return undefined;
@@ -158,9 +159,9 @@ describe('Unions: Manual Discriminator Function', function() {
     const schema = new Schema('object')
       .unionSchema('keyA', schemaA)
       .unionSchema('keyB', schemaB)
-      .unionDiscriminator((value, _, unionSchema) => {
-        if (value.a) return unionSchema.unionSchemas.keyA;
-        if (value.b) return unionSchema.unionSchemas.keyB;
+      .unionDiscriminator((value, _, location) => {
+        if (value.a) return location.schema.unionSchemas.keyA;
+        if (value.b) return location.schema.unionSchemas.keyB;
         return undefined;
       });
 

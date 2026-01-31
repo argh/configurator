@@ -193,30 +193,21 @@ describe('Assignments - Indirection (inherit, reference)', function() {
         const schema = Schema.inherit();
 
         await assert.rejects(
-          () => resolver.compile(schema),
+          async () => {
+            const compiled = await resolver.compile(schema);
+            await compiled.process({});
+          },
           (err) => {
-            assert.ok(err instanceof SchemaError);
-            assert.ok(err.message.includes('top-level'));
+            assert.ok(err?.cause instanceof SchemaError);
+            assert.ok(err?.cause.message.includes('top-level'));
             return true;
           }
         );
       });
 
-      it('should throw when used with wildcard property name', async function() {
-        const schema = new Schema('object')
-          .property('*', Schema.inherit());
 
-        await assert.rejects(
-          () => resolver.compile(schema),
-          (err) => {
-            assert.ok(err instanceof SchemaError);
-            assert.ok(err.message.includes('wildcard'));
-            return true;
-          }
-        );
-      });
 
-      it('should throw at compile time when property schema not found in any ancestor', async function() {
+      it('should throw when property schema not found in any ancestor', async function() {
         const schema = new Schema('object')
           .property('server', new Schema('object')
             .property('missing', Schema.inherit())
@@ -224,11 +215,14 @@ describe('Assignments - Indirection (inherit, reference)', function() {
           );
 
         await assert.rejects(
-          () => resolver.compile(schema),
+          async () => {
+            const compiled = await resolver.compile(schema);
+            await compiled.process({server: { port: 123 }})
+          },
           (err) => {
-            assert.ok(err instanceof SchemaError);
-            assert.ok(err.message.includes('missing'));
-            assert.ok(err.message.includes('not found in any ancestor'));
+            assert.ok(err?.cause instanceof SchemaError);
+            assert.ok(err?.cause.message.includes('missing'));
+            assert.ok(err?.cause.message.includes('not found in any ancestor'));
             return true;
           }
         );
@@ -438,17 +432,20 @@ describe('Assignments - Indirection (inherit, reference)', function() {
 
     describe('Error cases', function() {
 
-      it('should throw at compile time when reference path does not exist in schema', async function() {
+      it('should throw when reference path does not exist in schema', async function() {
         const schema = new Schema('object')
           .property('target', new Schema('object')
             .property('value', Schema.reference('nonexistent.path'))
           );
 
         await assert.rejects(
-          () => resolver.compile(schema),
+          async () => {
+            const compiled = await resolver.compile(schema)
+            await compiled.process({target: {}});
+          },
           (err) => {
-            assert.ok(err instanceof SchemaError);
-            assert.ok(err.message.includes('reference path'));
+            assert.ok(err?.cause instanceof SchemaError);
+            assert.ok(err?.cause.message.includes('Reference path'));
             return true;
           }
         );
@@ -462,10 +459,17 @@ describe('Assignments - Indirection (inherit, reference)', function() {
           );
 
         await assert.rejects(
-          () => resolver.compile(schema),
+          async () => {
+            const compiled = await resolver.compile(schema);
+
+            const assignments = new Map([
+              ['target', {}]
+            ]);
+            await compiled.processAssignments(assignments);
+          },
           (err) => {
-            assert.ok(err instanceof SchemaError);
-            assert.ok(err.message.includes('reference path'));
+            assert.ok(err?.cause instanceof SchemaError);
+            assert.ok(err?.cause.message.includes('Reference path'));
             return true;
           }
         );

@@ -5,27 +5,38 @@ export const BUFFER_SCHEMA = new Schema()
   .option('type', 'buffer')
   .meta('parserTypeHint', 'string')
   .normalizer(value => {
-    if (typeof value === 'string' || Buffer.isBuffer(value)) {
+    if (Buffer.isBuffer(value)) {
       return value;
     }
-    if (typeof value === 'object') {
-      if (!value.size) {
-        throw new ConstraintError(`Invalid input for buffer: ${value}`);
+    try {
+      if (typeof value === 'string') {
+        return Buffer.from(value,'base64');
       }
-      return Buffer.alloc(value.size ?? 0, value.fill, value.encoding);
+      if (typeof value === 'object' && Number.isInteger(value.size)) {
+        return Buffer.alloc(value.size, value.fill ?? 0, value.encoding ?? 'utf8');
+      }
+      else if (typeof value === 'object' && value.encoding !== undefined) {
+        return Buffer.from(value.buffer)
+      }
+      return Buffer.from(value);
+    }
+    catch (error) {
+      throw new ConstraintError('Buffer array contains invalid data', {cause: error});
     }
   })
   .transformer((value) => {
+    if (Buffer.isBuffer(value)) {
+      return value;
+    }
     try {
+      // we prefer to already have a buffer, but allow anything we can easily convert
       if (typeof value === 'string') {
-        return Buffer.from(value, 'base64');
+        return Buffer.from(value,'base64');
       }
-      else {
-        return Buffer.from(value);
-      }
+      return Buffer.from(value);
     }
     catch (error) {
-      throw new ConstraintError(`Invalid buffer: ${value}`, {cause: error});
+      throw new ConstraintError('Buffer array contains invalid data', {cause: error});
     }
   })
   .validator(value => {

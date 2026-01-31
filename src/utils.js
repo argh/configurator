@@ -79,7 +79,16 @@ export function isPlainObject(obj) {
 }
 
 export function isObject(item) {
+  // todo - should we allow 'function'?
   return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+export function isPrimitive(item) {
+  if (item === undefined || item === null) {
+    return false; // these values have special meaning for this library and are thus not assignable primitives!
+  }
+  const type = typeof item;
+  return type !== 'object' && type !== 'function';
 }
 
 export function isConstructor(f) {
@@ -328,4 +337,32 @@ export function deepPrune(value) {
   else {
     return value;
   }
+}
+
+/**
+ * Split off the first section of a path
+ *
+ * @param {string} path
+ * @returns {[string,string|undefined]}
+ */
+export function behead(path) {
+  if (path === '') {
+    return ['', undefined];
+  }
+  const dot = path.indexOf('.');
+
+  return (dot === -1)? [path, ''] : [path.slice(0, dot), path.slice(dot + 1)];
+}
+
+/**
+ * Extract the last part of the path
+ * @param {string} path
+ */
+export function propertyName(path) {
+  const dot = path.lastIndexOf('.');
+
+  if (dot === -1) {
+    return path;
+  }
+  return path.slice(dot + 1);
 }

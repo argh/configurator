@@ -5,7 +5,7 @@ import { ConstraintError } from '../../errors.js';
 export const OBJECT_SCHEMA = new Schema()
   .option('type', 'object')
   .meta('valueName', 'object')
-  .normalizer((value, _, schema) => {
+  .normalizer((value) => {
     if (value === true) {
       value = {};
     }
@@ -43,7 +43,11 @@ export const OBJECT_SCHEMA = new Schema()
     }
     throw new ConstraintError(`Invalid object: ${value}`)
   })
-  .validator((value) => {
+  .validator((value, target, location) => {
+    if (location.schema.hasChildren && location.schema.isOpaque) {
+      // user will need to do their own validation!
+      return value;
+    }
     if (typeof value !== 'object') {
       throw new ConstraintError(`Invalid object: ${value}`)
     }

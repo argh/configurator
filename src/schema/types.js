@@ -1,9 +1,6 @@
 /**
  * @typedef {Object} ISchema
  * @property {string} [base] - Base schema name for extension
- * @property {string} [name] - Schema name
- * @property {ISchema} [parent] - Parent schema in hierarchy
- * @property {string} path - Path to this schema in the schema hierarchy
  * @property {ISchemaProperties} properties - Schema properties
  * @property {ISchemaOptions} options - Schema options
  * @property {ISchemaMetadata} metadata - Schema metadata
@@ -12,9 +9,10 @@
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
 
-import { TraversalContext, TraversalHooks } from "./helpers/traversal.js";
+import { TraversalContext, TraversalHooks } from './traversal/index.js';
 
 /** @import { CompiledSchema } from "./compiled-schema.js" */
+/** @import { SchemaLocation } from "./schema-location.js" */
 
 /**
  * @template TReturn
@@ -22,8 +20,7 @@ import { TraversalContext, TraversalHooks } from "./helpers/traversal.js";
  * @callback SchemaValueProcessorBase
  * @param {any} value
  * @param {Object|Array<any>} configuration
- * @param {TSchema} schema
- * @param {String} path
+ * @param {SchemaLocation} location
  * @param {Object} [options]
  * @returns {TReturn}
  */
@@ -178,6 +175,7 @@ import { TraversalContext, TraversalHooks } from "./helpers/traversal.js";
  * @property {boolean} [deep]
  * @property {TraversalContext} [context]
  * @property {TraversalHooks} [hooks]
+ * @property {SchemaLocation} [location]
  * @property {string} [path]
  * @property {string} [inputPath]
  * @property {any} [target]

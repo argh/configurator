@@ -215,10 +215,14 @@ describe('Assignments - Conditional Processing', function() {
       const schema = new Schema('object')
         .property('step1', new Schema('string'))
         .property('step2', new Schema('string')
-          .condition((value, configuration) => configuration.step3 !== undefined)
+          .condition((value, configuration) => {
+            return (configuration.step3 !== undefined)
+          })
         )
         .property('step3', new Schema('string')
-          .condition((value, configuration) => configuration.step1 !== undefined)
+          .condition((value, configuration) => {
+            return (configuration.step1 !== undefined)
+          })
         );
 
       const compiled = await resolver.compile(schema);
@@ -229,7 +233,7 @@ describe('Assignments - Conditional Processing', function() {
         ['step1', 'first'],
       ]);
 
-      const result = await compiled.processAssignments(assignments);
+      const result = await compiled.processAssignments(assignments, {});
 
       assert.deepStrictEqual(result, {
         step1: 'first',
@@ -255,7 +259,7 @@ describe('Assignments - Conditional Processing', function() {
         ['b', 'valueB']
       ]);
 
-      const result = await compiled.processAssignments(assignments) ?? {};
+      const result = await compiled.processAssignments(assignments, {}) ?? {};
 
       // Both should be suppressed due to circular dependency
       assert.deepStrictEqual(result, {});
@@ -307,11 +311,11 @@ describe('Assignments - Conditional Processing', function() {
           .property('*', new Schema('object')
             .property('enabled', new Schema('boolean'))
             .property('value', new Schema('string')
-              .condition((value, configuration, schema, path) => {
+              .condition((value, configuration, location) => {
                 // Get the parent object from the configuration using the path
-                const pathParts = path.split('.');
+                const pathParts = location.path.split('.');
                 const index = pathParts[pathParts.length - 2]; // Get array index
-                return configuration.items?.[index]?.enabled === true;
+                return configuration?.items?.[index]?.enabled === true;
               })
             )
           )

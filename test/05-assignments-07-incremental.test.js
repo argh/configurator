@@ -44,8 +44,8 @@ describe('Assignments - Incremental vs Staged Processing', function() {
       const schema = new Schema('object')
         .property('data', new Schema('object')
           .option('allowIncremental', false)
-          .transformer((value, configuration, schema, path) => {
-            transformCalls.push({ path, value });
+          .transformer((value, configuration, location) => {
+            transformCalls.push({ path: location.path, value });
             return value;
           })
           .property('x', new Schema('number'))
@@ -261,7 +261,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
       const schema = new Schema('object')
         .property('child', new Schema('object')
           .option('allowIncremental', false)
-          .transformer((value, configuration, schema, path) => {
+          .transformer(value => {
             childCalls.push(value);
             return value;
           })
@@ -292,13 +292,13 @@ describe('Assignments - Incremental vs Staged Processing', function() {
       const schema = new Schema('object')
         .property('wrapper', new Schema('object')
           .option('allowIncremental', false)
-          .transformer((value, configuration, schema, path) => {
+          .transformer((value) => {
             // Deep copy to capture actual value at call time
             parentCalls.push(JSON.parse(JSON.stringify(value)));
             return value;
           })
           .property('child', new Schema('object')
-            .transformer((value, configuration, schema, path) => {
+            .transformer((value) => {
               // Deep copy to capture actual value at call time
               childCalls.push(JSON.parse(JSON.stringify(value)));
               return value;
@@ -397,7 +397,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
 
       const schema = new Schema('object')
         .option('allowIncremental', false)
-        .transformer((value, configuration, schema, path) => {
+        .transformer((value) => {
           transformCalls.push(value);
           return value;
         })

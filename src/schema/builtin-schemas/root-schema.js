@@ -6,16 +6,16 @@ export const ROOT_SCHEMA = new Schema()
   .meta('internal')
   .meta('omitFromSerialize')
   .normalizer(() => 'root-schema')
-  .transformer((_v, _c, schema) => {
-    while (schema?.parent) {
-      schema = schema.parent;
+  .transformer((_v, _c, location) => {
+    while (location?.parent) {
+      location = location.parent;
     }
-    return schema;
+    return location?.schema;
   })
-  .serializer((_v, _c, schema) => {
-    while (schema?.parent) {
-      schema = schema.parent;
+  .serializer((_v, _c, location) => {
+    while (location?.parent) {
+      location = location.parent;
     }
-    return schema.toData();
+    return location?.toData();
   })
 
