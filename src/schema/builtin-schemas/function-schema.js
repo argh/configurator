@@ -8,6 +8,7 @@ export const FUNCTION_SCHEMA = new Schema()
   .meta('hidden')
   .meta('internal')
   .meta('omitFromSerialize')
+  .option('dynamic', false)
   .normalizer((value) => {
     if (typeof value === 'function' || typeof value === 'string') {
       return value;

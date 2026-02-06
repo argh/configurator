@@ -70,17 +70,20 @@ export const PIPELINE_OPERATOR = {
 
     return ({
       spec: processors,
-      /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (value, configuration, location, options) => {
+
+      processor: /** @type {import('../types.js').SchemaValueProcessor<any>} */
+        (async (value, configuration, location, options) => {
+        const allowUndefined = location.schema?.options.allowUndefined ?? options?.allowUndefined ?? false;
+
         let v = value;
         for (const {processor} of compiled) {
-          v = await processor(v, configuration, location, options);
-          if (v === null) {
-            return null;
+          if ((v === undefined && !allowUndefined) || v === null) {
+            return v;
           }
+          v = await processor(v, configuration, location, options);
         }
         return v;
-      },
+      }),
       description: descriptions.length > 1
                    ? descriptions.map(d => (d.includes('|') || d.includes('&')) ? `(${d})` : d).join(' >> ')
                    : descriptions[0]

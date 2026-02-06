@@ -4,6 +4,8 @@ import { Schema, SchemaPolicy } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ValidationError } from '../src/errors.js';
 
+import { Logger } from '../../logger/src/logger.js'
+
 describe('Assignments - Incremental vs Staged Processing', function() {
   let resolver;
 
@@ -40,7 +42,6 @@ describe('Assignments - Incremental vs Staged Processing', function() {
 
     it('should stage assignments when allowIncremental is false', async function() {
       const transformCalls = [];
-
       const schema = new Schema('object')
         .property('data', new Schema('object')
           .option('allowIncremental', false)
@@ -328,6 +329,54 @@ describe('Assignments - Incremental vs Staged Processing', function() {
       assert.deepStrictEqual(result, { wrapper: { child: { a: 'hello', b: 'world' } } });
     });
 
+
+  it('should handle parent non-incremental with child non-incremental', async function() {
+    const parentCalls = [];
+    const childCalls = [];
+
+    const schema = new Schema('object')
+      .property('flag', new Schema('boolean'))
+      .property('wrapper', new Schema('object')
+        .option('allowIncremental', false)
+        .transformer((value) => {
+          // Deep copy to capture actual value at call time
+          parentCalls.push(JSON.parse(JSON.stringify(value)));
+          return value;
+        })
+        .property('child', new Schema('object')
+          .option('allowIncremental', false)
+          .transformer((value) => {
+            // Deep copy to capture actual value at call time
+            childCalls.push(JSON.parse(JSON.stringify(value)));
+            return value;
+          })
+          .condition((input, target) => { return target?.flag === true })
+          .property('a', new Schema('string'))
+          .property('b', new Schema('string'))
+        )
+      );
+
+    const compiled = await resolver.compile(schema);
+
+    let flag = 0;
+    const assignments = new Map([
+      ['wrapper.child.a', 'hello'],
+      ['wrapper.child.b', 'world'],
+      ['flag', () => { if (flag < 2) { flag++; return undefined } else { return true; }}]
+    ]);
+    //const logger = new Logger('test', { global: true, level: 'debug' });
+    const result = await compiled.processAssignments(assignments, undefined, { debug: true });
+
+    // Child transformer called with normalized empty object (incremental)
+    assert.strictEqual(childCalls.length, 1);
+    assert.deepStrictEqual(childCalls[0], { a: 'hello', b: 'world' });
+
+    // Parent transformer called once with complete staged object including child
+    assert.strictEqual(parentCalls.length, 1);
+    assert.deepStrictEqual(parentCalls[0], { child: { a: 'hello', b: 'world' } });
+
+    assert.deepStrictEqual(result, { flag: true, wrapper: { child: { a: 'hello', b: 'world' } } });
+  });
   });
 
   describe('Edge cases', function() {

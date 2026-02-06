@@ -234,10 +234,10 @@ describe('Schema Compilation - Inheritance', function() {
       assert.strictEqual(await compiled._normalizeValue('42'), 42);
 
       // Local metadata should win
-      assert.strictEqual(compiled.metadata.level, 3);
+      assert.strictEqual(compiled.metadata.level, '3');
       // Should have metadata from all layers
-      assert.strictEqual(compiled.metadata.layer2, true);
-      assert.strictEqual(compiled.metadata.layer3, true);
+      assert.strictEqual(compiled.metadata.layer2, 'true');
+      assert.strictEqual(compiled.metadata.layer3, 'true');
     });
 
     it('should follow precedence rules through chain', async function() {

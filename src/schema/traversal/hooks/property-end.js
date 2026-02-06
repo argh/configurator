@@ -25,10 +25,10 @@ export async function propertyEnd(state, propertyState) {
       stringifiedParentContainer = stringifiedParentContainer.slice(0, 20) + '...'
     }
     const message = stringifiedParentContainer.length?
-                    `<<${stringifiedParentContainer}>> is not a valid container (set opaque option?)`
+                    `«${stringifiedParentContainer}» is not a valid container (set opaque option?)`
                     : 'Not a valid container (set opaque option?)'
 
-    throw new SchemaError(fpm(message, state.path));
+    throw new SchemaError(message, {path: state.path});
   }
 
   if (propertyState.schema?.isImplicit) {

@@ -54,6 +54,7 @@ import { PROPERTY_OPERATOR } from './build-property-operator.js';
 import { REFERENCE_OPERATOR } from './build-reference-operator.js';
 import { DEFINED_CONSTRAINT } from './defined-constraint.js';
 import { FIRST_OPERATOR } from './build-first-operator.js';
+import { IF_OPERATOR } from './build-if-operator.js';
 
 
 
@@ -120,7 +121,8 @@ export function getBuiltinProcessors() {
     FILTER_OPERATOR,
     PROPERTY_OPERATOR,
     REFERENCE_OPERATOR,
-    FIRST_OPERATOR
+    FIRST_OPERATOR,
+    IF_OPERATOR
   ];
 }
 
@@ -184,5 +186,6 @@ export {
   FILTER_OPERATOR,
   PROPERTY_OPERATOR,
   REFERENCE_OPERATOR,
-  FIRST_OPERATOR
+  FIRST_OPERATOR,
+  IF_OPERATOR
 };

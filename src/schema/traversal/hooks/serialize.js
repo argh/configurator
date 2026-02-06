@@ -19,7 +19,7 @@ export async function serialize(state) {
   const inputValue = state.schema?.hasChildren ? true : state.input;
 
   if (state.value === undefined || !state.isContainer) {
-    state.value = await state.schema?._serializeValue(inputValue, configuration, state.location);
+    state.value = await state.schema?._serializeValue(inputValue, configuration, state.location, {traversalState: state});
     state.pending = undefined;
   }
 }

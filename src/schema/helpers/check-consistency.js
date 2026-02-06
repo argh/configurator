@@ -82,11 +82,11 @@ export function checkConsistency(schema, input, path, allowExistingValue = false
     current = current[key];
 
     if (current === undefined) {
-      throw new SchemaError(fpm('Parent container does not exist', pathSoFar));
+      throw new SchemaError('Parent container does not exist', {path: pathSoFar});
     }
 
     if (current === null || (typeof current !== 'object' && !Array.isArray(current))) {
-      throw new SchemaError(fpm('Parent path is not a container', pathSoFar));
+      throw new SchemaError('Parent path is not a container', {path: pathSoFar});
     }
   }
 
@@ -96,7 +96,7 @@ export function checkConsistency(schema, input, path, allowExistingValue = false
     const finalKey = /^\d+$/.test(finalSegment) ? Number(finalSegment) : finalSegment;
 
     if (current[finalKey] !== undefined) {
-      throw new SchemaError(fpm('Value already exists', path));
+      throw new SchemaError('Value already exists', {path}));
     }
   }
 }

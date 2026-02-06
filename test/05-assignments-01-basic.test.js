@@ -5,6 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ConstraintError, NormalizeError, SchemaError, TransformError, ValidationError } from '../src/errors.js';
 import { deepAssign, deepValue } from '../src/utils.js';
 import { CompiledSchema } from '../src/index.js';
+import { Logger } from '../../logger/src/logger.js';
 
 describe('Assignments - Basic Processing', function() {
   let resolver;
@@ -729,6 +730,7 @@ describe('Assignments - Basic Processing', function() {
     });
 
     it('should not include properties with undefined values', async function() {
+      const logger = new Logger('test', {global: true, level: 'debug'})
       const schema = new Schema('object')
         .property('random', new Schema('number'))
         .property('value', new Schema('string', {
@@ -742,11 +744,11 @@ describe('Assignments - Basic Processing', function() {
         ['value', 'undefined']
       ]);
 
-      const result = await compiled.processAssignments(assignments);
+      const result = await compiled.processAssignments(assignments, undefined, {debug: true});
 
       // Undefined values are not assigned
       assert.strictEqual(result.value, undefined);
-      await verify(compiled, result, assignments);
+      await verify(compiled, result, assignments, undefined, {debug: true});
     });
   });
 
@@ -989,6 +991,8 @@ describe('Assignments - Basic Processing', function() {
   });
 
   describe('Complex-valued assignments', function() {
+    // NOTE: this is a bad practice; dynamic default is called during normalization, before the condition check!
+    // (In general, try to avoid conditional logic in the normalization flow.)
     const schema = new Schema('object')
       .property('command', new Schema('string'))
       .property('options', new Schema('object')
@@ -1008,6 +1012,9 @@ describe('Assignments - Basic Processing', function() {
             })
             .default((_, configuration, location) => {
               const coordinate = deepValue(configuration, location.parent.path);
+              if (coordinate?.x === undefined || coordinate?.y === undefined) {
+                return undefined;
+              }
               return `[${coordinate.x},${coordinate.y}]`
             })
           )

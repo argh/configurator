@@ -13,7 +13,7 @@ export async function checkUnresolved(state) {
   }
 
   if (!state.schema) {
-    throw new ValidationError(fpm('Failed to resolve', state.path));
+    throw new ValidationError('Failed to resolve', {path: state.path});
   }
 
 //  const incomplete = state.context.getIncomplete();

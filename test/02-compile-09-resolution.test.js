@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { SchemaError } from '../src/errors.js';
+import { assertErrorMessageInCauseChain, SchemaError } from '../src/errors.js';
 
 describe('Schema Compilation - Base Type Resolution', function() {
   let resolver;
@@ -172,7 +172,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
 
       await assert.rejects(
       async () => await resolver.compile(schema),
-        /Unable to resolve "nonexistent-type"/
+        (error) => assertErrorMessageInCauseChain(error, /Unable to resolve "nonexistent-type"/)
       );
     });
   });
@@ -290,7 +290,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       // Should resolve through all layers to number base type
       assert.strictEqual(await compiled._normalizeValue('42'), 42);
       // Local metadata should win
-      assert.strictEqual(compiled.metadata.level, 3);
+      assert.strictEqual(compiled.metadata.level, '3');
     });
   });
 
@@ -326,7 +326,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       // Should fail with resolver2
       await assert.rejects(
       async () => await resolver2.compile(schema),
-        /Unable to resolve "newtype"/
+        error => assertErrorMessageInCauseChain(error, /Unable to resolve "newtype"/)
       );
     });
   });
@@ -339,7 +339,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       await assert.rejects(
       async () => await resolver.compile(schema),
 
-        /Unable to resolve "missing-type"/
+        error => assertErrorMessageInCauseChain(error, /Unable to resolve "missing-type"/)
       );
     });
     it('should not throw for missing base type in lax mode', async function() {

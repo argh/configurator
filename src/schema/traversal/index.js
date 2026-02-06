@@ -42,6 +42,9 @@ export const validationHooks = new TraversalHooks()
   .hook('startProperty', [propertyStart, checkPropertySchema])
   .hook('endProperty', [propertyEnd])
 
+export const postProcessValidationHooks = new TraversalHooks()
+  .hook('endCurrent', [validate])
+
 export const normalizationHooks = new TraversalHooks()
   .hook('startCurrent', [checkDefaults, preparePending, resolveUnion])
   .hook('endCurrent', [pendingToValue, resolveUnion])

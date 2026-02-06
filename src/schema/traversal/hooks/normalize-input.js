@@ -18,11 +18,17 @@ export async function normalizeInput(state) {
   const configuration = state.context.getValue();
 
   if (state.assignedInput !== undefined) {
-    const input = await state.schema?._normalizeValue(state.assignedInput, configuration, state.location);
+    const input = await state.schema?._normalizeValue(state.assignedInput, configuration, state.location, {traversalState: state});
     if (input !== undefined) {
       // verify this input is ok...
       await state.schema?.accepts(input, configuration, state.location, {strict: true});
       state.input = input;
+    }
+    else {
+      if (state.context.final) {
+//// fixme?        state.isProcessed = true;
+        return TraversalControl.STOP;
+      }
     }
   }
   // re-check cache in case the normalization produced a different value

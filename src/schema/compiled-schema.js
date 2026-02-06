@@ -1,5 +1,5 @@
 import {
-  NormalizeError,
+  NormalizeError, ProcessorError,
   SchemaError,
   SerializeError,
   TransformError,
@@ -8,9 +8,19 @@ import {
 } from '../errors.js';
 import { behead, deepEquals, deepPrune, isConstructor, isPlainObject } from '../utils.js';
 import { toData } from './helpers/to-data.js';
-import { fpm, fpvm } from './helpers/fpm.js';
 import { SchemaLocation } from './schema-location.js';
-import { TraversalContext, processingHooks, preloadHooks, serializationHooks, normalizationHooks, transformationHooks, validationHooks, TraversalHooks, TraversalControl } from './traversal/index.js';
+import {
+  TraversalContext,
+  processingHooks,
+  preloadHooks,
+  serializationHooks,
+  normalizationHooks,
+  transformationHooks,
+  validationHooks,
+  TraversalHooks,
+  TraversalControl,
+  postProcessValidationHooks
+} from './traversal/index.js';
 
 
 /** @import { TraversalContextOptions } from './traversal/traversal-context.js' */
@@ -183,7 +193,7 @@ export class CompiledSchema
    * Functions passed to most operations are interpreted as dynamic values (called to retrieve actual value).
    * This setting overrides that behavior, and forces a passed function to be treated as a simple value.
    *
-   * @returns {boolean}
+   * @type {boolean}
    */
   get isFunction() {
     return this.options.type === 'function'
@@ -230,7 +240,7 @@ export class CompiledSchema
 
   /**
    * Return true if this schema contains a selector as a child.
-   * @returns {boolean}
+   * @type {boolean}
    */
   get hasChildSelector() {
     return Object.values(this.properties).some(propertySchema => propertySchema.isSelector);
@@ -247,7 +257,7 @@ export class CompiledSchema
 
   /**
    * Return true if this schema contains a selection as a child.
-   * @returns {boolean}
+   * @type {boolean}
    */
   get hasChildSelection() {
     return Object.values(this.properties).some(propertySchema => propertySchema.isSelection);
@@ -271,6 +281,16 @@ export class CompiledSchema
    */
   get values() {
     return this.options.values;
+  }
+
+  /**
+   * Returns true if this schema defines any values it accepts.
+   *
+   * @type {boolean}
+   */
+  get hasValues() {
+    const v = this.options.values;
+    return Array.isArray(v) && v.length > 0;
   }
 
   /**
@@ -390,7 +410,7 @@ export class CompiledSchema
    * Returns true if the container allows incremental assignment to children.
    * Deprecated - use "opaque" as a more accurate signal of intent.
    *
-   * @returns {boolean}
+   * @type {boolean}
    * @deprecated
    */
   get allowIncremental() {
@@ -400,7 +420,7 @@ export class CompiledSchema
   /**
    * Returns true if the schema defines a value whose internals are hidden after transformation.
    *
-   * @returns {boolean}
+   * @type {boolean}
    */
   get isOpaque() {
     return !this.hasChildren || this.options.allowIncremental === false;
@@ -416,9 +436,12 @@ export class CompiledSchema
    */
   async _executeProcessorPipeline(processorDefinitions = [], value, target, location, options) {
     if (location.schema !== this) {
-      throw new SchemaError(fpm('Inconsistent schema location', location));
+      throw new SchemaError('Inconsistent schema location', {location});
     }
     for (const def of processorDefinitions) {
+      if (typeof def.processor !== 'function') {
+        throw new SchemaError('Processor is not a function', {location, value: def})
+      }
       value = await def.processor(value, target, location, options);
       if (value === null) {
         return null;
@@ -472,7 +495,7 @@ export class CompiledSchema
    */
   async _discriminateUnion(value, target, location = new SchemaLocation(this), options) {
     if (location.schema !== this) {
-      throw new SchemaError(fpm('Inconsistent discriminator schema location', location));
+      throw new SchemaError('Inconsistent discriminator schema location', {location});
     }
 
     const strict = options?.strict ?? false;
@@ -499,7 +522,7 @@ export class CompiledSchema
     }
     if (!discriminatorResult) {
       if (strict) {
-        throw new UnionResolutionError(fpm('Unable to resolve union', location));
+        throw new UnionResolutionError('Unable to resolve union', {location});
       }
       return undefined;
     }
@@ -511,7 +534,7 @@ export class CompiledSchema
       return discriminatorResult;
     }
     // Schema returned but not valid - this is a developer error
-    throw new SchemaError(fpm('Union discriminator returned unexpected value', location))
+    throw new SchemaError('Union discriminator returned unexpected value', {location})
   }
 
   /**
@@ -544,16 +567,16 @@ export class CompiledSchema
   async _normalizeValue(value, target, location = new SchemaLocation(this), options) {
 
     if (location.schema !== this) {
-      throw new SchemaError(fpm('Inconsistent schema location', location));
+      throw new SchemaError('Inconsistent schema location', {location});
     }
 
     if (typeof value === 'function' && !isConstructor(value)) {
-      if (this.options.type !== 'function') {
+      if (this.options.dynamic !== false) {
         try {
           value = await value(true, target, location, options);
         }
         catch (error) {
-          throw new NormalizeError(fpm('Exception calling value function', location), {cause: error});
+          throw new NormalizeError('Exception calling value function', {location, cause: error});
         }
       }
     }
@@ -572,7 +595,7 @@ export class CompiledSchema
       return await this._executeProcessorPipeline(this.handlers.normalizers, value, target, location, options);
     }
     catch (error) {
-      throw new NormalizeError(fpvm('Unable to normalize', value, location), {cause: error});
+      throw new NormalizeError('Unable to normalize', {value, location, cause: error});
     }
   }
 
@@ -601,11 +624,11 @@ export class CompiledSchema
   async _transformValue(value, target, location = new SchemaLocation(this), options) {
 
     if (location.schema !== this) {
-      throw new SchemaError(fpm('Inconsistent transform schema location', location));
+      throw new SchemaError('Inconsistent transform schema location', {location});
     }
 
     if (this.isImplicit) {
-      throw new SchemaError(fpm('Cannot transform a value for an implicit schema', location));
+      throw new SchemaError('Cannot transform a value for an implicit schema', {location});
     }
 
     if (value === null || value === undefined) {
@@ -621,7 +644,7 @@ export class CompiledSchema
       return await this._executeProcessorPipeline(this.handlers.transformers, value, target, location, options);
     }
     catch (error) {
-      throw new TransformError(fpvm('Unable to transform', value, location), {cause: error})
+      throw new TransformError('Unable to transform', {value, location, cause: error})
     }
   }
 
@@ -643,7 +666,7 @@ export class CompiledSchema
    */
   async _validateValue(value, target, location = new SchemaLocation(this), options) {
     if (this.required === true && value === undefined) {
-      throw new ValidationError(fpm('Missing required value', location));
+      throw new ValidationError('Missing required value', {location});
     }
     if (value === null || value === undefined) {
       return value;
@@ -654,7 +677,7 @@ export class CompiledSchema
       return await this._executeProcessorPipeline(this.handlers.validators, value, target, location, options) ?? value;
     }
     catch (error) {
-      throw new ValidationError(fpvm('Unable to validate', value, location), {cause: error});
+      throw new ValidationError('Unable to validate', {value, location, cause: error});
     }
   }
 
@@ -683,7 +706,7 @@ export class CompiledSchema
     }
     catch (error) {
       if (options?.strict) {
-        throw new SerializeError(fpvm('Unable to serialize', value, location), {cause: error})
+        throw new SerializeError('Unable to serialize', {value, location, cause: error})
       }
       else {
         return undefined;
@@ -709,7 +732,7 @@ export class CompiledSchema
         return true;
       }
       if (strict) {
-        throw new ValidationError(fpm('Schema does not accept an undefined input', location));
+        throw new ValidationError('Schema does not accept an undefined input', {location});
       }
       return false;
     }
@@ -742,7 +765,7 @@ export class CompiledSchema
     if (!found) {
       if (strict) {
         // todo - consider using valueDescription metadata
-        throw new ValidationError(fpm(`Invalid value: «${value}», expected one of {${this.values.join('|')}}`, location));
+        throw new ValidationError(`Invalid value: «${value}», expected one of {${this.values.join('|')}}`, {location});
       }
       return false;
     }
@@ -765,6 +788,7 @@ export class CompiledSchema
     if (!context) {
       context = new TraversalContext(location);
     }
+    context._debug('PRELOAD', {target})
     return await this.traverse(target, {hooks: preloadHooks, context});
   }
 
@@ -866,13 +890,15 @@ export class CompiledSchema
   async processAssignments(assignments, target, options = {}) {
     const location = options?.location ?? new SchemaLocation(this);
 
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep});
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep, debug: options?.debug});
 
     if (target !== undefined) {
       await this._preload(target, context);
     }
     const hooks = processingHooks;
     for (let [inputPath, input] of assignments) {
+      context._debug('processing assignment', {inputPath, input})
+
       await this.traverse(input, {inputPath, context, hooks});
     }
 
@@ -898,7 +924,7 @@ export class CompiledSchema
   async process(input, target, options = {}) {
     const location = options?.location ?? new SchemaLocation(this);
 
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep });
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep, debug: options?.debug });
     const hooks = processingHooks;
 
     if (target !== undefined) {
@@ -907,7 +933,9 @@ export class CompiledSchema
 
     const result = await this.traverseMultipass(input, {context, hooks});
 
-    return result;
+    return await this.traverse(result, {context, hooks: postProcessValidationHooks});
+
+    //return result;
   }
 
 
@@ -1085,6 +1113,7 @@ export class CompiledSchema
     const path = options?.path ?? '';
     const inputPath = options?.inputPath ?? '';  // the relative path from this schema to the input
     const isInputPath = (inputPath === '');
+    context._debug('traverse: starts', {path, inputPath})
 
     const target = options?.target;
     if (path === '' && target !== undefined) {
@@ -1095,6 +1124,8 @@ export class CompiledSchema
     const state = context.getState(path);
 
     const initialize = async() => {
+      context._debug('traverse: initialize', {path, inputPath})
+
       if (state.schema === undefined) {
         state.schema = this;
       }
@@ -1108,7 +1139,7 @@ export class CompiledSchema
         }
         else if (state.assignedInput !== undefined) {
           if (true || state.treatAsExplicit) {
-            state.isExplicit = true;
+            state.isMandatory = true;
           }
         }
       } else {
@@ -1118,12 +1149,13 @@ export class CompiledSchema
           inputState.assignedInput = input;
         }
         if (state.assignedInput === undefined) {
-          state.assignedInput = true;
+//          state.assignedInput = true;
         }
       }
       return TraversalControl.OK;
     }
     const startCurrent = async () => {
+      context._debug('traverse: startCurrent', {path, inputPath})
       return await hooks.startCurrent(state);
     }
 
@@ -1133,6 +1165,7 @@ export class CompiledSchema
       if (!this.hasChildren || isInputPath) {
         return TraversalControl.OK;
       }
+      context._debug('traverse: deepProperty', {path, inputPath})
 
       const [propertyKey, propertyInputPath] = behead(inputPath);
       const propertyState = state.relative(propertyKey);
@@ -1148,7 +1181,11 @@ export class CompiledSchema
       await propertyState.schema?.traverse(input, {context, hooks, path: propertyState.path, inputPath: propertyInputPath});
       if (propertyState.value !== undefined && state.pending === undefined && state.value === undefined) {
         // lazy container creation - todo - move into endProperty by passing hooks in?
-        state.isExplicit = true;
+        state.isMandatory = true;
+        if (state.assignedInput === undefined) {
+          state.assignedInput = true;
+        }
+
         await hooks.startCurrent(state);  // todo - check errors/result
       }
       await hooks.endProperty(state, propertyState);
@@ -1158,7 +1195,7 @@ export class CompiledSchema
       if (!this.hasChildren || !isInputPath) {
         return TraversalControl.OK;
       }
-      const propertyStates = state.activePropertyStates;
+      context._debug('traverse: handleProperties', {path, inputPath})
 
       async function handlePropertyStart(propertyState) {
         const startResult = await hooks.startProperty(state, propertyState);
@@ -1178,29 +1215,60 @@ export class CompiledSchema
         }
         return propertyState.value !== undefined && propertyState.value !== null;  // return true if the property has a value
       }
+      const propertyStates = state.getActivePropertyStates();
+
+      // FIXME - reenable when done debugging:
       // Process properties in parallel:
-      const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);
+      //const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);
+
+      let hasPropertyValue = false;
+      for (const propertyState of propertyStates) {
+        const result = await handlePropertyStart(propertyState);
+
+        hasPropertyValue ||= Boolean(result);
+      }
+
+
       if (state.pending === undefined && state.value === undefined && hasPropertyValue) {
         // Lazy-create container if any child property has a value
-        state.isExplicit = true;
+        state.isMandatory = true;
+        if (state.assignedInput === undefined) {
+          state.assignedInput = true; // this will get normalized to the appropriate container type
+        }
         await hooks.startCurrent(state);  // todo - check errors?
       }
-      await Promise.all(propertyStates.map(propertyState => hooks.endProperty(state, propertyState)))
+      // FIXME - reenable when done debugging
+      //await Promise.all(propertyStates.map(propertyState => hooks.endProperty(state, propertyState)))
+
+      for (const propertyState of propertyStates) {
+        await hooks.endProperty(state, propertyState);
+      }
 
       return TraversalControl.OK;
     }
     const endCurrent = async () => {
+      context._debug('traverse: endCurrent', {path, inputPath})
+
       return await hooks.endCurrent(state);
     }
 
     for (const phase of [initialize, startCurrent, isInputPath? handleProperties : deepProperty, endCurrent]) {
+      context._debug('traverse: phase', {path, inputPath, phase: phase.name})
+
       const result = await phase() ?? TraversalControl.OK;
       if (state.schema !== this) {
-        return state.schema?.traverse(input, options);
+        return await state.schema?.traverse(input, options);
       }
       if (result !== TraversalControl.OK || state.value === null) {
+        context._debug('traverse: post-phase break', {path, inputPath, phase: phase.name})
+
         break;
       }
+    }
+    context._debug('traverse: returns', {path, inputPath, value: state.value})
+
+    if (state.value !== undefined && state.path === '') {
+      state.isProcessed = true;  // root needs to mark itself as processed
     }
     return state.value;
   }
@@ -1228,6 +1296,7 @@ export class CompiledSchema
     // loop until context stabilizes
     while (!done) {
       let counter = context.counter;
+      context._debug(`****** MULTIPASS TRAVERSAL ${context.traversals} STARTS ******`)
 
       result = await this.traverse(input, options);
 
@@ -1246,6 +1315,7 @@ export class CompiledSchema
         // (footgun warning: interdependent unions or conditions could result in nondeterministic resolution!)
         context.final = false;
       }
+      context.traversals++;
     }
     return result;
   }

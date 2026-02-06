@@ -24,7 +24,7 @@ export async function simplePending(state) {
   }
   else {
     if (state.isContainer) {
-      state.pending = await state.schema._normalizeValue(true, state.context.getValue(), state.location);
+      state.pending = await state.schema._normalizeValue(true, state.context.getValue(), state.location, {traversalState: state});
     }
     else {
       state.pending = state.input;

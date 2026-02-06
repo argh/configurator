@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import { Schema, SchemaResolver } from '../src/index.js';
+import { Logger } from '../../logger/src/logger.js';
 
 const resolver = new SchemaResolver();
 
@@ -51,9 +52,13 @@ treeNodeSchema
 
 const schema = await resolver.compile(treeNodeSchema);
 
-const input = Array.from({length: 25}, () => Math.floor(Math.random() * 100)) ;
+const input = Array.from({length: 100}, () => Math.floor(Math.random() * 100)) ;
 
-const tree = await schema.process(input);
+const logger = new Logger('test', {global:true, level: 'debug'});
+const start = performance.now()
+const tree = await schema.process(input, undefined, {debug: process.env.DEBUG==='true'});
+const elapsed = performance.now() - start
+console.log(`took ${elapsed.toFixed(2)}ms`)
 
 // the sorted input array should be identical to a depth-first traversal of the tree:
 function dft(node, out = []) {

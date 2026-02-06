@@ -173,7 +173,7 @@ export function generateAutomaticDiscriminatorFunction(schema) {
           candidates.delete(schema);
 
           if (candidates.size === 0) {
-            throw new UnionResolutionError(fpm(`Union resolution conflict when setting ${property} to ${propertyValue}`, location));
+            throw new UnionResolutionError(`Union resolution conflict when setting ${property} to ${propertyValue}`, {location});
           }
         }
       }
@@ -183,20 +183,20 @@ export function generateAutomaticDiscriminatorFunction(schema) {
       if (!matched) {
         // didn't actually match, just accidentally ended up here (only one option?)
         if (options?.strict) {
-          throw new UnionResolutionError(fpm('Union resolution failure (no matches)', location));
+          throw new UnionResolutionError('Union resolution failure (no matches)', {location});
         }
         return undefined;
       }
       return Array.from(candidates)[0];
     }
     else if (candidates.size === 0) {
-      throw new UnionResolutionError(fpm('Union resolution failure (no matches)', location));
+      throw new UnionResolutionError('Union resolution failure (no matches)', {location});
     }
     else {
       if (options?.strict) {
         const keys = Array.from(candidates).map(s => schema.findUnionKey(s)).join('|')
 
-        throw new UnionResolutionError(fpm(`Union resolution ambiguity (could be ${keys})`, location));
+        throw new UnionResolutionError(`Union resolution ambiguity (could be ${keys})`, {location});
       }
       return undefined;
     }

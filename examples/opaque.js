@@ -104,3 +104,4 @@ catch (error) {
   assert(error instanceof SchemaError);
   // expected.
 }
+console.log('lgtm!');

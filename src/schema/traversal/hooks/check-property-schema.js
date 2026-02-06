@@ -19,7 +19,7 @@ export async function checkPropertySchema(state, propertyState) {
         // current schema may not be a union because we resolved successfully; check the path from the root.
         const pathExists = state.context.root.schema?.isValidPath(propertyState.path);
         const message = pathExists ? 'Unexpected property' : 'Unknown property';
-        throw new ValidationError(fpm(message, propertyState.path));
+        throw new ValidationError(message, {path: propertyState.path});
       }
       else {
         propertyState.value = null;

@@ -12,11 +12,12 @@ export async function resolveUnion(state) {
   const configuration = state.context.getValue();
   const value = state.pending ?? state.input ?? state.value;  // todo - think about this, it's pretty weird.
   const unionSchema = await state.schema._discriminateUnion(value, configuration, state.location,
-    {strict: state.context.final});
+    {strict: state.context.final, traversalState: state});
 
   if (unionSchema !== undefined) {
     state.unionKey = state.schema.findUnionKey(unionSchema);
     state.schema = unionSchema;
+    state.invalidate();
     state.invalidateChildren();  // yuck, but necessary...
     return TraversalControl.RESTART;
   }

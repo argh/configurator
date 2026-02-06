@@ -89,6 +89,10 @@ export class SchemaLocation {
       return this;
     }
 
+    if (path.charAt(0) === '^') {
+      return this.parent?.relative(path.slice(1));
+    }
+
     const [propertyName, remainingPath] = behead(path);
 
     let propertyLocation = this.#children.get(propertyName);

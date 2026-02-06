@@ -572,7 +572,7 @@ export class Schema
 
     this.condition(async (_, target, location) => {
       if (!location.schema.isSelection) {
-        throw new SchemaError(fpm(`Conditional expected a selection schema!`, location.path));
+        throw new SchemaError(`Conditional expected a selection schema!`, {location});
       }
 
       const selectionValue = (this.options.selection === true)? location.name : this.options.selection;
@@ -1085,6 +1085,10 @@ export class Schema
 
   static self() {
     return new Schema().meta('internal').meta('$SELF')
+  }
+
+  static instanceOf(clazz) {
+
   }
 }
 

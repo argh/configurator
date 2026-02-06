@@ -347,7 +347,7 @@ describe('Schema Compilation - Object Type', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'Configuration object');
-      assert.deepStrictEqual(compiled.metadata.example, { key: 'value' });
+      assert.deepStrictEqual(compiled.metadata.example, JSON.stringify({ key: 'value' }));
     });
 
     it('should have valueName set from base type', async function() {

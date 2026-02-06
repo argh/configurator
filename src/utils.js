@@ -366,3 +366,4 @@ export function propertyName(path) {
   }
   return path.slice(dot + 1);
 }
+

@@ -48,7 +48,8 @@
     "mocha": "^10.2.0",
     "typedoc": "^0.28.16",
     "typedoc-plugin-markdown": "^4.9.0",
-    "typescript": "~5.6.3"
+    "typescript": "~5.6.3",
+    "zod": "^4.3.6"
   },
   "optionalDependencies": {
     "@versionzero/logger": "file:../logger"

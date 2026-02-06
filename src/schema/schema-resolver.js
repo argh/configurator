@@ -1,5 +1,6 @@
 import { CompiledSchema } from './compiled-schema.js';
 import { Schema } from './schema.js';
+import { SchemaCompiler } from './schema-compiler.js';
 import {
   ConfiguratorError,
   SchemaError,
@@ -25,7 +26,6 @@ import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
 import { getBuiltinProcessors } from './builtin-processors/index.js';
 import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
-import { fpm, fpvm } from './helpers/fpm.js';
 import { formatArgumentType } from './helpers/format.js';
 
 /** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
@@ -185,9 +185,8 @@ export class SchemaResolver
    * Wrap or convert a user-provided processor specification into a processor function
    * @param {ProcessorSpec} spec - The processor specification
    * @returns {CompiledValueProcessorDefinition}
-   * @private
    */
-  _compileProcessorSpec(spec) {
+  compileProcessorSpec(spec) {
     if (spec === null || spec === '$null') {
       // special case: explicit prune
       return {
@@ -288,7 +287,7 @@ export class SchemaResolver
           }
           if (registered.builder) {
             // Parameterized validator - pass args and recursive compiler
-            def = registered.builder(args, (spec) => this._compileProcessorSpec(spec));
+            def = registered.builder(args, (spec) => this.compileProcessorSpec(spec));
             def.spec = spec;
             // Fall through;
           }
@@ -307,7 +306,7 @@ export class SchemaResolver
         return def;  // already compiled!
       }
 
-      const compiled = this._compileProcessorSpec(def.spec);
+      const compiled = this.compileProcessorSpec(def.spec);
       if (def.description) {
         compiled.description = `${def.description}`;
       }
@@ -323,12 +322,16 @@ export class SchemaResolver
       processor: async (value, target, location) => {
         // if the value passed in is undefined, we'll synthesize the passed value
         if (value !== undefined && value !== spec) {
-          throw new ConstraintError(fpvm('Must have exact', spec));
+          throw new ConstraintError('Must have exact', {value: spec, location});
         }
         return value;
       },
       description
     }
+  }
+
+  compiler() {
+    return new SchemaCompiler(this);
   }
 
 
@@ -341,6 +344,13 @@ export class SchemaResolver
     if (inputSchema instanceof CompiledSchema) {
       return inputSchema;
     }
+
+    if (true) {
+      const compiler = new SchemaCompiler(this);
+      return await compiler.compile(inputSchema);
+    }
+
+
     const compiledSchema = await this._compile(inputSchema);
     await this._finalize(compiledSchema);
     compiledSchema.freeze();
@@ -354,10 +364,13 @@ export class SchemaResolver
    * before the base class handlers.
    *
    * @param {Schema|CompiledSchema|SchemaData|string} inputSchema
-   * @returns {Schema}
+   * @param {boolean} [recursive]
+   * @returns {Schema|CompiledSchema}
    */
-  resolve(inputSchema) {
-
+  resolve(inputSchema, recursive = true) {
+    if (inputSchema instanceof CompiledSchema) {
+      return inputSchema;
+    }
     if (typeof inputSchema === 'string') {
       inputSchema = this.getSchema(inputSchema);
     }
@@ -379,7 +392,8 @@ export class SchemaResolver
     while (source !== undefined) {
       for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
         if (!outputSchema.properties.hasOwnProperty(propName)) {
-          outputSchema.properties[propName] = this.resolve(propSchema);
+          const needsResolve = recursive || !(propSchema instanceof Schema || propSchema instanceof CompiledSchema)
+          outputSchema.properties[propName] = needsResolve? this.resolve(propSchema) : propSchema;
         }
       }
       for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
@@ -389,7 +403,8 @@ export class SchemaResolver
       }
       for (const [discriminatorValue, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
         if (!outputSchema.unionSchemas.hasOwnProperty(discriminatorValue)) {
-          outputSchema.unionSchemas[discriminatorValue] = this.resolve(unionSchema);
+          const needsResolve = recursive || !(unionSchema instanceof Schema || unionSchema instanceof CompiledSchema)
+          outputSchema.unionSchemas[discriminatorValue] = needsResolve? this.resolve(unionSchema) : unionSchema;
         }
       }
       for (const [handlerName, handlerValues] of Object.entries(source.handlers ?? {})) {
@@ -430,8 +445,9 @@ export class SchemaResolver
             const base = `${source.base}`
 
             strictCompileError = new ResolverError(`Unable to resolve "${base}"`)
-            outputSchema.normalizer((value, config, location) => {
-              if (location.schema.strict !== false) {
+            outputSchema.normalizer((value, config, location, options) => {
+              const strict = location.schema?.strict ?? options?.strict;
+              if (strict !== false) {
                 throw strictCompileError;
               }
               return undefined;
@@ -533,7 +549,7 @@ export class SchemaResolver
       await this._finalize(propSchema, propPath, schema);
     }
     for (const unionSchema of Object.values(schema.unionSchemas)) {
-
+      // fixme - this isn't legal any more now that schema references are not unique
       const skipOptions = ['values', 'type', 'default'];
 
       for (const [optionName, optionValue] of Object.entries(schema.options ?? {})) {
@@ -552,19 +568,19 @@ export class SchemaResolver
     await this._finalizeMetadata(schema);
 
     if (schema.isUnion && !schema.handlers.discriminators) {
-      throw new SchemaError(fpm(`No discriminator defined for union`, path));
+      throw new SchemaError(`No discriminator defined for union`, {path});
     }
 
     if (schema.hasChildren && schema.options.type !== 'object' && schema.options.type !== 'array' && schema.options.type !== 'any') {
-      throw new SchemaError(fpm(`Schema defines child properties but does not identify as a container`, path));
+      throw new SchemaError(`Schema defines child properties but does not identify as a container`, {path});
     }
 
     if (schema.isUnion && schema.hasWildcard) {
-      throw new SchemaError(fpm(`Wildcard properties cannot be set on a union`, path));
+      throw new SchemaError(`Wildcard properties cannot be set on a union`, {path});
     }
 
     if (schema.hasChildSelector !== schema.hasChildSelection) {
-      throw new SchemaError(fpm(`Inconsistently defined selector/selections in properties`, path));
+      throw new SchemaError(`Inconsistently defined selector/selections in properties`, {path});
     }
 
     runCompileHook('finalize', schema, path);
@@ -621,7 +637,7 @@ export class SchemaResolver
       return;
     }
 
-    const compiledDefinition = this._compileProcessorSpec(specList);
+    const compiledDefinition = this.compileProcessorSpec(specList);
 
     dst.handlers[handlerName] = [compiledDefinition];
 
@@ -700,13 +716,13 @@ export class SchemaResolver
       // Note: it's ok to use a custom discriminator (above) even if there is a union key option,
       // as it also triggers population of allowed values for the property in _finalizeValues.
       dst.handlers.discriminators = [
-        this._compileProcessorSpec(generatePropertyValueDiscriminatorFunction(dst, unionKeyProperty[0]))
+        this.compileProcessorSpec(generatePropertyValueDiscriminatorFunction(dst, unionKeyProperty[0]))
       ];
     }
     else {
       await this._hoistDiscriminatorProperties(dst);
       dst.handlers.discriminators = [
-        this._compileProcessorSpec(generateAutomaticDiscriminatorFunction(dst))
+        this.compileProcessorSpec(generateAutomaticDiscriminatorFunction(dst))
       ];
     }
   }
@@ -890,6 +906,6 @@ function runCompileHook(hookName, schema, path) {
     hookFunction(hookName, schema);
   }
   catch (error) {
-    throw new SchemaError(fpm(`Compilation error: ${error.message}`, path));
+    throw new SchemaError(`Compilation error: ${error.message}`, {path});
   }
 }

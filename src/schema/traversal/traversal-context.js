@@ -2,11 +2,13 @@
  * @typedef {Object} TraversalContextOptions
  * @property {boolean} [strict]
  * @property {boolean} [deep]
+ * @property {boolean} [debug]
  */
 import { SchemaError } from '../../errors.js';
 import { SchemaLocation } from '../schema-location.js';
 
 import { TraversalState } from './traversal-state.js';
+import { debug } from '../helpers/debug-sink.js';
 
 export class TraversalContext
 {
@@ -20,15 +22,22 @@ export class TraversalContext
     this.strict = options?.strict ?? true;
     this.deep = options?.deep ?? false;
 
+    this.traversals = 0;
     this.counter = 0;
 
     /** @type {Map.<string,TraversalState>} */
     this.stateMap = new Map();
+    this._debugEnabled = options?.debug ?? false;
   }
+
+
+
 
   update() {
     this.counter++;
     this.final = false;
+
+    this._debug('update', {counter: this.counter, final: this.final})
   }
 
   _finalizeCount = 0;
@@ -53,9 +62,12 @@ export class TraversalContext
   get isComplete() {
     for (const state of this.stateMap.values()) {
       if (!state.isComplete) {
+        this._debug('not complete:', {incomplete: this.incomplete});
+
         return false;
       }
     }
+    this._debug('COMPLETE');
     return true;
   }
 
@@ -71,6 +83,7 @@ export class TraversalContext
 
   // override the "target" value
   setValue(value) {
+    this._debug('setting target value');
     this._value = value;
   }
 
@@ -103,7 +116,6 @@ export class TraversalContext
       if (context._value !== undefined) {
 //      state.value = path === ''? context._value : deepValue(context._value, path);
       }
-
       this.stateMap.set(path, state);
     }
 
@@ -125,4 +137,9 @@ export class TraversalContext
 
    */
 
+  _debug(...args) {
+    if (!this._debugEnabled) return;
+
+    debug({contextName: 'context'}, ...args);
+  }
 }

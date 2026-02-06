@@ -393,7 +393,7 @@ describe('Schema Compilation - Array Type', function() {
 
   describe('Array metadata', function() {
 
-    it('should preserve metadata during compilation', async function() {
+    it('should preserve stringified metadata during compilation', async function() {
       const schema = new Schema('array')
         .meta('description', 'List of items')
         .meta('minLength', 1)
@@ -402,8 +402,8 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'List of items');
-      assert.strictEqual(compiled.metadata.minLength, 1);
-      assert.strictEqual(compiled.metadata.maxLength, 10);
+      assert.strictEqual(compiled.metadata.minLength, '1');
+      assert.strictEqual(compiled.metadata.maxLength, '10');
     });
 
     it('should have valueName set from base type', async function() {

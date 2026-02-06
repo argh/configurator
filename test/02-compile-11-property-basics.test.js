@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
-import { ValidationError } from '../src/errors.js';
+import { assertErrorMessageInCauseChain, ValidationError } from '../src/errors.js';
 
 describe('Schema Compilation - Property Basics', function() {
   let resolver;
@@ -148,8 +148,8 @@ describe('Schema Compilation - Property Basics', function() {
       const compiled = await resolver.compile(schema);
 
       const wildcardProp = compiled.properties['*'];
-      assert.strictEqual(wildcardProp.metadata.minimum, 0);
-      assert.strictEqual(wildcardProp.metadata.maximum, 100);
+      assert.strictEqual(wildcardProp.metadata.minimum, '0');
+      assert.strictEqual(wildcardProp.metadata.maximum, '100');
     });
   });
 
@@ -323,9 +323,9 @@ describe('Schema Compilation - Property Basics', function() {
 
       await assert.rejects(
       async () => await resolver.compile(schema),
-        {
-          name: 'SchemaError'
-        })
+        (error) => assertErrorMessageInCauseChain(error, /child properties/)
+      )
+
     });
   });
 

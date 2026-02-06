@@ -684,7 +684,7 @@ class ParsingContext {
   setSelector(path, schema) {
     if (this.selector) {
       throw new CommandLineError(
-        `Selector "${path}" conflicts with existing selector`)
+        `Selector "${path}" conflicts with existing selector`)  // fixme - allow multiple selectors in the future?
     }
     else if (this.general) {
       throw new CommandLineError(

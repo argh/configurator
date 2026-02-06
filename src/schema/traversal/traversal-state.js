@@ -1,9 +1,8 @@
 import { CompiledSchema } from '../compiled-schema.js';
 import { SchemaLocation } from '../schema-location.js';
 import { TraversalContext } from './traversal-context.js';
-import { isPlainObject, isPrimitive } from '../../utils.js';
+import { deepEquals, isPlainObject, isPrimitive } from '../../utils.js';
 import { SchemaError } from '../../errors.js';
-import { fpm, fpvm } from '../helpers/fpm.js';
 
 export class TraversalState
 {
@@ -25,10 +24,21 @@ export class TraversalState
 
     /** @type {TraversalState | undefined } */
     this._parent = undefined;
-    if (this._path !== '') {
-      const dot = this._path.indexOf('.');
+
+    /** @type {Map<string,TraversalState>} */
+    this._children = new Map();
+
+    if (this._path === '') {
+      this._name = '';
+    }
+    else {
+      const dot = this._path.lastIndexOf('.');
       const parentPath = (dot === -1) ? '' : this._path.slice(0, dot);
       this._parent = this._context.getState(parentPath);
+      this._name = (dot === -1) ? this._path : this._path.slice(dot + 1);
+
+      this._parent._children.set(this._name, this);
+      this._parent.invalidateCompletion();
     }
 
     // state values
@@ -40,11 +50,14 @@ export class TraversalState
     this._condition = undefined;
     // explicit state flags
     this._processed = false;          // are we done with final value?
-    this._explicit = false;      // was the input explicit or implicit?
+    this._mandatory = false;      // was the input explicit or implicit?
     // implicit state flags
 
     /** @type {string|undefined} */
     this.unionKey = undefined;
+
+    /** @type {boolean|undefined} - cached completion status of this state and its children */
+    this._completed = undefined;
   }
 
   get context() {
@@ -63,6 +76,13 @@ export class TraversalState
     if (relativePath === '') {
       return this;
     }
+    if (relativePath.charAt(0) === '^') {
+      if (this.parent === undefined) {
+        throw new SchemaError(`Relative traversal state path ${relativePath} is above the root`);
+      }
+      return this.parent.relative(relativePath.slice(1));
+    }
+
     const propertyPath = this.path ? `${this.path}.${relativePath}` : `${relativePath}`;
     return this.context.getState(propertyPath);
   }
@@ -73,14 +93,7 @@ export class TraversalState
   }
 
   get name() {
-    const dot = this.path.lastIndexOf('.');
-
-    if (dot === -1) {
-      return this.path;
-    }
-    else {
-      return this.path.slice(dot + 1);
-    }
+    return this._name;
   }
 
   /** @type {SchemaLocation|undefined} */
@@ -91,6 +104,9 @@ export class TraversalState
     return this._location;
   }
   set location(location) {
+    if (location !== this._location) {
+      this._debug('setting location', location?.path);
+    }
     this._location = location;
   }
 
@@ -102,9 +118,10 @@ export class TraversalState
     if (this.location === undefined || schema === undefined) {
       // todo - This probably would indicate a library coding error.
       //        If user code triggers this exception, file a bug!
-      throw new SchemaError(fpm('Inconsistent traversal state', this.location));
+      throw new SchemaError('Inconsistent traversal state', {location: this.location});
     }
     if (this.schema !== schema) {
+      this._debug('updated schema')
       this.context.update();
     }
     this.location.schema = schema;
@@ -116,6 +133,10 @@ export class TraversalState
   }
   set condition(condition) {
     if (this._condition !== condition) {
+      if (condition === false && this._condition === true) {
+        return;  // FIXME
+      }
+      this._debug('updated condition', condition)
       this.context.update();
     }
     this._condition = condition;
@@ -124,14 +145,25 @@ export class TraversalState
   get assignedInput() {
     return this._assignedInput;
   }
-  set assignedInput(input) {
-    this._assignedInput = input;
+  set assignedInput(assignedInput) {
+    if (deepEquals(assignedInput, this._assignedInput)) {
+      return;
+    }
+    this._debug('updated assignedInput', assignedInput)
+    this._assignedInput = assignedInput;
   }
 
   get input() {
     return this._input;
   }
   set input(input) {
+    if (deepEquals(input, this._input)) {
+      return;
+    }
+    this._debug('updated input', input)
+    this.context.update();
+    this.invalidateCompletion();
+
     this._input = input;
 
     if (this.schema === undefined) {
@@ -139,7 +171,7 @@ export class TraversalState
       return;
     }
     if (!this.schema?.hasChildren && input !== undefined) {
-      this.isExplicit = true;
+      this.isMandatory = true;
     }
 
     if (this.schema?.hasChildren && !this.schema.isUnion) {
@@ -149,7 +181,7 @@ export class TraversalState
                       || (Array.isArray(input) && input.length === 0)
                       || (typeof input === 'object' && Object.keys(input).length === 0);
       if (!isEmpty) {
-        this.isExplicit = true;
+        this.isMandatory = true;
       }
     }
   }
@@ -163,6 +195,7 @@ export class TraversalState
       this.value = null;
       this._pending = undefined;
     }
+    this._debug('updated pending')
     this._pending = pending;
   }
 
@@ -170,35 +203,64 @@ export class TraversalState
     return this._value;
   }
   set value(value) {
-    if (isPrimitive(value) && this.schema?.hasChildren && !this.schema?.isImplicit && !this.schema?.isOpaque) {
-      throw new SchemaError(fpvm('Container processing resulted in unexpected primitive', value, this.location));
+    // use invalidate() to deliberately set value to undefined!
+    if (this._value !== undefined && value === undefined) {
+      throw new SchemaError('Cannot unset value', {location: this.location});
     }
+
     if (this._value === value) {
+      // todo - deepEquals?
       return;
     }
-    if (this._value === null) {
+    if (this.isPruned) {
       // todo - This likely indicates a library coding error.
       //        If user code triggers this exception, file a bug!
       throw new SchemaError(`Cannot set value at ${this._path} - node is pruned`);
     }
+    if (isPrimitive(value) && this.schema?.hasChildren && !this.schema?.isImplicit && !this.schema?.isOpaque) {
+      throw new SchemaError('Container processing resulted in unexpected primitive', {value, location: this.location});
+    }
 
     this._value = value;
+    this._debug('updated value')
+    this.context.update();
+
+    if (value === undefined) {
+      this.invalidateCompletion();
+    }
 
     if (value !== undefined) {
       this._inputs.add(this.assignedInput);
-      this.context.update();
     }
     if (value === null && !this.processed) {
       this.processed = true;
+      this._completed = true;
+    }
+  }
+  invalidate() {
+    this._condition = undefined;
+    this._value = undefined;
+    this._processed = false;
+    this._debug('invalidated value')
+    this.context.update();
+  }
+  invalidateCompletion() {
+    this._completed = undefined;
+    if (this._parent) {
+      this._parent.invalidateCompletion();
     }
   }
 
-
-  get isExplicit() {
-    return this._explicit;
+  // If the input came from the user (e.g. not synthesized as a mid-path container) it must be processed
+  get isMandatory() {
+    return this._mandatory;
   }
-  set isExplicit(value) {
-    this._explicit = Boolean(value);
+  set isMandatory(value) {
+    if (value !== this._mandatory) {
+      this._debug('setting mandatory', value);
+    }
+
+    this._mandatory = Boolean(value);
   }
 
 
@@ -206,6 +268,12 @@ export class TraversalState
     return this._processed;
   }
   set isProcessed(value) {
+    if (value !== this._processed) {
+      this._debug('setting processed', value);
+    }
+    if (!this.isContainer) {
+      this._completed = true;  // short-circuit completion when we know its safe
+    }
     this._processed = Boolean(value);
   }
 
@@ -215,8 +283,13 @@ export class TraversalState
   //        3. the z assignment wakes up; is there a way to absorb it? or does it turn into a new {z} object?
 
   get isComplete() {
-    if (this.value === null) {
-      // pruned!
+
+    if (this._completed !== undefined) {
+      return this._completed;
+    }
+
+    if (this.isPruned) {
+      this._completed = true;
       return true;
     }
     if (this.value === undefined) {
@@ -224,33 +297,51 @@ export class TraversalState
       if (this.schema?.required) {
         return false;
       }
-      // fixme - what about default functions?  it could return undefined.
-      //         (the existence of a function default is not indicative of being incomplete!)
-      if (this.schema?.default !== undefined) {
+      if (this.schema?.default !== undefined && (typeof this.schema.default !== 'function' || this.schema.options.dynamic === false)) {
         return false;
       }
+    }
+    if (this.hasIncompleteDescendents) {
+      return false;
     }
     if (this.hasWorkInProgress) {
       return false;
     }
-    if (this.hasPendingChildren) {
-      return false;
-    }
     if (this.isProcessed) {
+      // Normally, isProcessed would not be enough to imply isComplete; a container that allows incremental
+      // assignment may be processed before its children.  However, we've already checked hasWorkInProgress,
+      // which recursively checks for incomplete children!
+
+      this._completed = true;
       return true;
     }
-    if (this.isExplicit) {
+    if (this.isMandatory) {
+      // processing is mandatory!
       return false;
     }
-    if (typeof this.assignedInput === 'function' && this.input === undefined) {
-      return false;
+    if (typeof this.assignedInput === 'function' && this.schema?.options.dynamic !== false && this.input === undefined) {
+      // we have a dynamic input (default?), but it hasn't returned a value; this is ok when final
+
+      return this.context.final;
     }
     else if (this.assignedInput !== undefined && !this._inputs.has(this.assignedInput)) {
+      // the input does not seem to have been fully processed (nor discarded).
       return false;
     }
 
+    // fixme - experiment:
+    if (this.assignedInput === undefined && this.context.traversals > 0) {
+      this._completed = true;
+      return true;
+    }
+
+    if (this.assignedInput === undefined && this.context.final) {
+      return true;
+    }
+
+    return false;
     // We may not have a value, but nothing seems to indicate we need one.
-    return true;
+    //return this.context.final;
   }
 
 
@@ -263,7 +354,7 @@ export class TraversalState
     if (this.schema?.default !== undefined) {
       return false;
     }
-    return !this.isExplicit && /*this._path !== '' &&*/ this.value === undefined;
+    return !this.isMandatory && /*this._path !== '' &&*/ this.value === undefined;
   }
 
   get isContainer() {
@@ -271,7 +362,7 @@ export class TraversalState
   }
 
   get isPruned() {
-    return this._value === null;
+    return this._value === null || Boolean(this._parent?.isPruned);
   }
 
   get isDeep() {
@@ -290,6 +381,10 @@ export class TraversalState
       return false;
     }
     return this.isContainer && !this.schema.isOpaque;
+  }
+
+  get isStrict() {
+    return this.schema?.strict ?? this.context.strict;
   }
 
   get isUnion() {
@@ -312,29 +407,38 @@ export class TraversalState
     return !(this.isContainer && this.isIncremental);
   }
 
+  get hasDescendentStates() {
+    if (!this.isContainer) {
+      return false;
+    }
+    return this._children.size > 0;
+  }
+
+  get descendentStates() {
+    if (!this.isContainer) {
+      return [];
+    }
+    // Check for descendent states in the state map
+    const childPrefix = this._path ? `${this._path}.` : '';
+    return Array.from(this._context.stateMap.values())
+                .filter(s => s.path !== this._path && s.path.startsWith(childPrefix));
+  }
+
   get childStates() {
     if (!this.isContainer) {
       return [];
     }
-    // Check for child states in state map
-    const childPrefix = this._path ? `${this._path}.` : '';
-    return Array.from(this._context.stateMap.values())
-                .filter(s => s.path !== this._path && s.path.startsWith(childPrefix));
+    return [...this._children.values()];
   }
 
 
   /**
    * Are there child states or child properties to traverse?
    */
-  get hasChildrenToTraverse() {
+  get hasDescendentsToTraverse() {
     if (!this.isContainer) {
       return false;
     }
-
-    // Check for child states in state map
-    const childPrefix = this._path ? `${this._path}.` : '';
-    const hasChildStates = Array.from(this._context.stateMap.keys())
-                                .some(p => p !== this._path && p.startsWith(childPrefix));
 
     // Check for properties in input
     const hasInputProperties = typeof this._input === 'object'
@@ -343,50 +447,74 @@ export class TraversalState
 
 //    const hasDefaults = Object.values(this._schema?.properties).some(childSchema => childSchema.default !== undefined);
 
-    return hasChildStates || hasInputProperties;
+    return this.hasDescendentStates || hasInputProperties;
   }
 
   /**
-   * Are there unresolved children?
+   * Are there any descendent states that are not complete?
    */
-  get hasPendingChildren() {
+  get hasIncompleteDescendents() {
     if (!this.isContainer) {
       return false;
     }
 
+    return [...this._children.values()].some(childState => !childState.isComplete);
+  }
+  get incompleteDescendents() {
+    if (!this.isContainer) {
+      return [];
+    }
+
     const childPrefix = this.path ? `${this.path}.` : '';
     return Array.from(this._context.stateMap.values())
-                .some(childState =>
+                .filter(childState =>
                   childState.path !== this.path &&
                   childState.path.startsWith(childPrefix) &&
                   !childState.isComplete
                 );
   }
 
+  listIncompleteChildren() {
+    return [...this._children.values()].filter(childState => !childState.isComplete).map(childState => childState.name);
+  }
+
   listPendingChildren() {
+
+    return [...this._children.values()].filter(childState => childState.hasWorkInProgress || childState.needsInputProcessing).map(childState => childState.name);
+    /*
     const childPrefix = this.path ? `${this.path}.` : '';
 
     const pending = new Set([...this.context.stateMap]
       .filter(([path, state]) => (path !== this.path && path.startsWith(
-        childPrefix) && (state.isComplete || state.hasWorkInProgress || state.needsInputProcessing)))
+        childPrefix) && (state.hasWorkInProgress || state.needsInputProcessing)))
       .map(([path]) => {
         return path.slice(childPrefix.length).split('.')[0]
       }));
 
     return [...pending];
+
+     */
   }
 
   invalidateChildren() {
     // this is called after union resolution!
 
-    for (const childState of this.childStates) {
+    for (const childState of this._children.values()) {
       if (childState.value !== null) {
+        childState.invalidate();
+      }
+    }
+
+    /*
+    for (const childState of this.descendentStates) {
+      if (childState.value !== null) {
+        childState.invalidate();
 // fixme?        childState.schema = undefined;
-        childState.value = undefined;
         // todo - verify that this is unnecessary for sane schemas
         // childState.pending = undefined;
       }
     }
+     */
   }
 
   /**
@@ -410,7 +538,7 @@ export class TraversalState
       return false;
     }
 
-    return !this.hasChildrenToTraverse;
+    return !this.hasDescendentsToTraverse;
   }
 
   get needsInputProcessing() {
@@ -421,9 +549,12 @@ export class TraversalState
   }
 
   get hasWorkInProgress() {
-    if (this.value === null) {
+    if (this.isPruned) {
       return false;
     }
+//    if (this.hasIncompleteDescendents) {
+//      return true;
+//    }
     if (this.pending === undefined) {
       return false;
     }
@@ -431,9 +562,6 @@ export class TraversalState
       return false;
     }
     if (!this.isContainer) {
-      return true;
-    }
-    if (this.hasPendingChildren) {
       return true;
     }
 
@@ -445,14 +573,65 @@ export class TraversalState
       if (this.isProcessed) {
         return false;
       }
-      if (this.isExplicit) {
+      if (this.isMandatory) {
         return true;
       }
     }
     return true;
   }
 
+
   /**
+   *
+   */
+  getActivePropertyStates() {
+    if (this.schema === undefined) {
+      return [];
+    }
+    if (this.isOpaque && this.isProcessed) {
+      return [];
+    }
+    const propertyKeys = new Set();
+    const input = this.input ?? this.assignedInput;
+    if (isPlainObject(input) || Array.isArray(input) || (input && !this.isOpaque)) {
+      Object.keys(input).forEach(key => propertyKeys.add(key));
+    }
+
+    this.listIncompleteChildren().forEach(key => propertyKeys.add(key));
+
+    if (this.isIncremental || this.value === undefined) {
+      // If it is opaque and already has a value, it's too late to check the schema's properties
+      for (const [propertyKey, propertySchema] of Object.entries(this.schema.properties)) {
+        if (propertyKey === '*') {
+          continue;
+        }
+        if (this.context.final || propertySchema.required || propertySchema.default !== undefined) {
+          propertyKeys.add(propertyKey);
+        }
+      }
+    }
+
+    const container = this.pending ?? (this.isIncremental? this.value : undefined);
+
+    const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
+    if (!existingProperties && !this.isMandatory && this.input === undefined && !this.isDeep && !this.hasIncompleteDescendents) {
+      return [];
+    }
+    if (existingProperties && this.context.final) {
+      Object.keys(container).forEach(key => {
+        if (this.isStrict || this.schema?.getPropertySchema(key)) {
+          propertyKeys.add(key)
+        }
+      });
+    }
+    //return [...propertyKeys].map(propertyKey => this.relative(propertyKey)).filter(s => s?.isComplete === false);
+    return [...propertyKeys].map(propertyKey => this.relative(propertyKey));
+  }
+
+  /**
+   * Returns an array of TraversalState instances that are still active.
+   *
+   *
    * @returns {TraversalState[]}
    */
   get activePropertyStates() {
@@ -472,14 +651,15 @@ export class TraversalState
 //          state.listPendingChildren().forEach(path => propertyKeys.add(path));
       }
     }
-    // fixme - I hate this
-    this.listPendingChildren().forEach(path => propertyKeys.add(path));
-    // fixme
+    const pendingChildren = this.listPendingChildren();
+
+    pendingChildren.forEach(path => propertyKeys.add(path));      // fixme - I hate this
+
     const container = this.pending ?? this.value;
 
     const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
 // todo - think about this; state.input==undefined is an unreliable indicator of "no work to do" as we might have lingering conditions/etc for final pass
-    if (!existingProperties && !this.isExplicit && this.input === undefined && !this.isDeep) {
+    if (!pendingChildren.length && !existingProperties && !this.isMandatory && this.input === undefined && !this.isDeep) {
       return [];
     }
     const strict = this.schema?.strict ?? this.context.strict;
@@ -492,5 +672,13 @@ export class TraversalState
     }
 
     return [...propertyKeys].map(propertyKey => this.relative(propertyKey)).filter(Boolean);
+  }
+
+  /**
+   * @param {...any} args
+   * @internal
+   */
+  _debug(...args) {
+    this.context._debug({path: this.path}, {contextName: 'state'}, ...args);
   }
 }

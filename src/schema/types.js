@@ -76,6 +76,7 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
   * @property {boolean} [required] - flag indicating whether this field is required
   * @property {boolean} [literal] - flag indicating that this field always returns the option value
   * @property {boolean} [implicit] - flag indicating that this field exists implicitly in the post-transform value
+  * @property {boolean} [dynamic] - true/undefined means treat functional values as dynamic lookups; false means treat functions as values
   * @property {string} [context] - triggers value to be copied to the context field with this name
   * @property {any} [default] - default value
   * @property {Array<any>} [values] - list of legal input values for this field

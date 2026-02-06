@@ -304,7 +304,7 @@ describe('Schema Compilation - Number Type', function() {
 
   describe('Number metadata', function() {
 
-    it('should preserve metadata during compilation', async function() {
+    it('should preserve stringified metadata during compilation', async function() {
       const schema = new Schema('number')
         .meta('description', 'Port number')
         .meta('minimum', 1)
@@ -313,8 +313,8 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.metadata.description, 'Port number');
-      assert.strictEqual(compiled.metadata.minimum, 1);
-      assert.strictEqual(compiled.metadata.maximum, 65535);
+      assert.strictEqual(compiled.metadata.minimum, '1');
+      assert.strictEqual(compiled.metadata.maximum, '65535');
     });
 
     it('should have valueName set from base type', async function() {
