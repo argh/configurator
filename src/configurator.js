@@ -75,8 +75,7 @@ export class Configurator {
           if (this._schema instanceof CompiledSchema) {
             throw new ConfiguratorError(`Cannot add ${special} schema to a precompiled schema`);
           }
-          /** @type {() => Schema} */
-          const factory = Configurator[`create${toPascalCase(special)}Schema`]
+          const factory = /** @type {() => Schema} */ (Configurator[`create${toPascalCase(special)}Schema`])
           specialSchema = factory();
           this._schema.property(special, specialSchema);
         }
@@ -98,7 +97,19 @@ export class Configurator {
    * @private
    */
   _findSpecialConfiguratorSchema(metadataValue) {
-    return Object.values(this._schema.properties).find(schema => schema.metadata['configuratorSchema'] === metadataValue)
+
+    // fixme - this is gross...
+
+    const propertySchemas = (this._schema instanceof CompiledSchema)
+                            ? Array.from(this._schema.propertyEntries).map(e => e[1])
+                            : Object.values(this._schema.properties);
+
+    for (const schema of propertySchemas ) {
+      if (schema.metadata['configuratorSchema'] === metadataValue) {
+        return (schema instanceof Schema || schema instanceof CompiledSchema)? schema : new Schema(schema);
+      }
+    }
+    return undefined;
   }
 
   /**

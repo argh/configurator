@@ -474,6 +474,15 @@ export class TraversalState
                 );
   }
 
+  findIncompleteChildNames(incomplete = new Set()) {
+    for (const childState of this._children.values()) {
+      if (!childState.isComplete) {
+        incomplete.add(childState.name);
+      }
+    }
+    return incomplete;
+  }
+
   listIncompleteChildren() {
     return [...this._children.values()].filter(childState => !childState.isComplete).map(childState => childState.name);
   }
@@ -593,15 +602,17 @@ export class TraversalState
     }
     const propertyKeys = new Set();
     const input = this.input ?? this.assignedInput;
-    if (isPlainObject(input) || Array.isArray(input) || (input && !this.isOpaque)) {
+
+    // todo - block exploring input when processed + opaque?
+    if (isPlainObject(input) || Array.isArray(input) || (input && this.isIncremental)) {
       Object.keys(input).forEach(key => propertyKeys.add(key));
     }
 
-    this.listIncompleteChildren().forEach(key => propertyKeys.add(key));
+    this.findIncompleteChildNames(propertyKeys);
 
     if (this.isIncremental || this.value === undefined) {
       // If it is opaque and already has a value, it's too late to check the schema's properties
-      for (const [propertyKey, propertySchema] of Object.entries(this.schema.properties)) {
+      for (const [propertyKey, propertySchema] of this.schema.propertyEntries) {
         if (propertyKey === '*') {
           continue;
         }
@@ -628,57 +639,14 @@ export class TraversalState
     return [...propertyKeys].map(propertyKey => this.relative(propertyKey));
   }
 
-  /**
-   * Returns an array of TraversalState instances that are still active.
-   *
-   *
-   * @returns {TraversalState[]}
-   */
-  get activePropertyStates() {
-    if (this.schema === undefined) {
-      return [];
-    }
-    const propertyKeys = new Set();
-    const input = this.input ?? this.assignedInput;
-    if (isPlainObject(input) || Array.isArray(input) || (input && !this.isOpaque)) {
-      Object.keys(input).forEach(key => propertyKeys.add(key));
-    }
-    if (this.context.final) {
-      Object.keys(this.schema.properties).forEach(key => { if (key !== '*') { propertyKeys.add(key) } } );
-
-      if (this.schema.hasWildcard) {
-        // wildcard, so let's look for any interesting children in the state map
-//          state.listPendingChildren().forEach(path => propertyKeys.add(path));
-      }
-    }
-    const pendingChildren = this.listPendingChildren();
-
-    pendingChildren.forEach(path => propertyKeys.add(path));      // fixme - I hate this
-
-    const container = this.pending ?? this.value;
-
-    const existingProperties = (Array.isArray(container) && container.length) || (isPlainObject(container) && Object.keys(container).length);
-// todo - think about this; state.input==undefined is an unreliable indicator of "no work to do" as we might have lingering conditions/etc for final pass
-    if (!pendingChildren.length && !existingProperties && !this.isMandatory && this.input === undefined && !this.isDeep) {
-      return [];
-    }
-    const strict = this.schema?.strict ?? this.context.strict;
-    if (existingProperties && this.context.final) {
-      Object.keys(container).forEach(key => {
-        if (strict || this.schema?.getPropertySchema(key)) {
-          propertyKeys.add(key)
-        }
-      });
-    }
-
-    return [...propertyKeys].map(propertyKey => this.relative(propertyKey)).filter(Boolean);
-  }
 
   /**
    * @param {...any} args
    * @internal
    */
   _debug(...args) {
+    if (!this.context._debugEnabled) return;  // maybe save some argument nonsense below?
+
     this.context._debug({path: this.path}, {contextName: 'state'}, ...args);
   }
 }

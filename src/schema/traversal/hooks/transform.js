@@ -4,10 +4,11 @@ import { TraversalState } from '../traversal-state.js';
 
 /**
  * @param {TraversalState} state
+ * @param {any} _
  * @param {string} hookName
  * @returns {Promise<symbol|void>}
  */
-export async function transform(state, hookName) {
+export async function transform(state, _, hookName) {
 
 
   if (state.value !== undefined && ((state.value === state.pending)

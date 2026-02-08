@@ -89,7 +89,7 @@ const hybridColorSchema = await resolver.compile(
       new Schema('string').validator(/^#[a-f0-9]{6}$/i)
     )
     .unionDiscriminator((value, target, location) =>
-      location.schema.unionSchemas[`color-${typeof value}`]
+      location.schema.getUnionSchema(`color-${typeof value}`)
     )
 )
 

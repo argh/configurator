@@ -48,11 +48,11 @@ export class TraversalHooks
    *
    * @param {string} hookName
    * @param {TraversalState} state
-   * @param {...any} args
+   * @param {TraversalState} [propertyState]
    * @returns {Promise<symbol>}
    * @internal
    */
-  async callHooks(hookName, state, ...args) {
+  async callHooks(hookName, state, propertyState) {
     if (!state.location) {
       // coding error!  should never be here.
       throw new Error('Cannot call hooks when the schema location is unknown!');
@@ -62,17 +62,17 @@ export class TraversalHooks
         // explicitly pruned, processing stops
         return TraversalControl.SKIP;
       }
-      state._debug('hook', hookName, hook.name, args?.[0]?.path ?? '');
-      const result = await hook(state, ...args, hookName) ?? TraversalControl.OK;
+//      state._debug('hook', hookName, hook.name, args?.[0]?.path ?? '');
+      const result = await hook(state, propertyState, hookName) ?? TraversalControl.OK;
 
       // maybe should be skip?  (example use case: defer container)
       if (result === TraversalControl.STOP) {
-        state._debug('hook STOP', hookName, hook.name);
+//        state._debug('hook STOP', hookName, hook.name);
         return TraversalControl.OK;
       }
 
       if (result !== TraversalControl.OK) {
-        state._debug('hook SKIP(?)', hookName, hook.name);
+//        state._debug('hook SKIP(?)', hookName, hook.name);
         return result; // e.g. skip
       }
     }

@@ -6,12 +6,11 @@ import { deepValue } from '../utils.js';
 import { stringify } from './helpers/stringify.js';
 import {
   copyUnionOptions, synthesizeKeyDiscrimination, synthesizeAutoDiscrimination,
-} from './compilation/union-transformers.js';
+} from './compilation/union-compilation.js';
 import { SchemaLocation } from "./schema-location.js";
-import { populateChildSelectorValues } from './compilation/selection-transformers.js';
-import { formatArgumentType } from './helpers/format.js';
-import { populateMetadata } from './compilation/metadata-transformers.js';
-import { normalizeSchema } from './compilation/schema-normalizers.js';
+import { populateChildSelectorValues } from './compilation/selection-compilation.js';
+import { populateMetadata } from './compilation/metadata-compilation.js';
+import { normalizeSchema } from './compilation/schema-compilation.js';
 
 /** @typedef {(inputSchema:CompiledSchema|Schema, targetSchema:CompiledSchema, location:SchemaLocation, options?:Object) => Promise<Schema|CompiledSchema|import("./types.js").SchemaData|undefined>} InputSchemaProcessor */
 /** @typedef {(inputSchema:CompiledSchema, targetSchema:CompiledSchema, location:SchemaLocation, options?:Object) => Promise<CompiledSchema|undefined>} OutputSchemaProcessor */
@@ -21,6 +20,19 @@ import { normalizeSchema } from './compilation/schema-normalizers.js';
 
 // TODO - idea: broaden the concept of discriminators to "schemaResolvers" that can produce any replacement schema on demand.
 //        then, make circular schema references be a dynamic resolver concept?
+
+/**
+ * This is a marker class for type safety that is replaced before the schema is used.
+ */
+class CachedSchemaReference extends CompiledSchema {
+  /**
+   * @param {Schema} schema
+   */
+  constructor(schema) {
+    super(CompiledSchema.__TOKEN);
+    this.schema = schema;
+  }
+}
 
 /**
  * Top-level "Schema Schema" - takes a Schema as input, emits a CompiledSchema as output
@@ -81,7 +93,7 @@ export class SchemaCompiler extends CompiledSchema {
           if (!(s instanceof Schema)) {
             throw new SchemaCompilationError('Can only cache references to schemas')
           }
-          return s;
+          return new CachedSchemaReference(s);
         })
       )
 
@@ -119,8 +131,22 @@ export class SchemaCompiler extends CompiledSchema {
           const cs = CS();
           this.compileCache.set(o.traversalState.assignedInput, cs);
 
-          Object.assign(cs.properties, inputSchema.properties);
-          Object.assign(cs.unionSchemas, inputSchema.unionSchemas);
+          for (const [propertyName, propertySchema] of Object.entries(inputSchema.properties ?? {})) {
+            if (propertySchema instanceof CompiledSchema) {
+              cs._setPropertySchema(propertyName, propertySchema);
+            }
+            else {
+              throw new SchemaCompilationError(`Failed to compile property "${propertyName}" schema`, {location});
+            }
+          }
+          for (const [unionKey, unionSchema] of Object.entries(inputSchema.unionSchemas ?? {})) {
+            if (unionSchema instanceof CompiledSchema) {
+              cs._setUnionSchema(unionKey, unionSchema);
+            }
+            else {
+              throw new SchemaCompilationError(`Failed to compile union "${unionKey}" schema `, {location});
+            }
+          }
           Object.assign(cs.handlers, inputSchema.handlers);
           Object.assign(cs.metadata, inputSchema.metadata);
 
@@ -156,7 +182,7 @@ export class SchemaCompiler extends CompiledSchema {
           return inputSchema;
         }
         if (inputSchema instanceof CompiledSchema) {
-//          inputSchema.freeze();
+//          inputSchema._freeze();
           return inputSchema;
         }
         throw new SchemaError('Schema failed to compile!');
@@ -202,10 +228,17 @@ export class SchemaCompiler extends CompiledSchema {
 
     const convertCache = new Map();
 
-    const sc = this;
+    /**
+     * @param {Schema|CompiledSchema} src
+     * @param {CompiledSchema} [dst]
+     * @returns {CompiledSchema}
+     */
     function convert(src, dst) {
       if (convertCache.has(src)) {
         return convertCache.get(src);
+      }
+      if (src instanceof CompiledSchema) {
+        return src;
       }
       if (dst === undefined) {
         dst = CS();
@@ -220,10 +253,16 @@ export class SchemaCompiler extends CompiledSchema {
       }
 
       for (const [pk, pv] of Object.entries(src.properties)) {
-        dst.properties[pk] = convert(pv)
+        if (!(pv instanceof Schema || pv instanceof CompiledSchema)) {
+          continue;  // impossible
+        }
+        dst._setPropertySchema(pk, convert(pv));
       }
       for (const [uk, uv] of Object.entries(src.unionSchemas)) {
-        dst.unionSchemas[uk] = convert(uv)
+        if (!(uv instanceof Schema || uv instanceof CompiledSchema)) {
+          continue;  // impossible
+        }
+        dst._setUnionSchema(uk, convert(uv));
       }
       return dst;
     }
@@ -244,28 +283,28 @@ export class SchemaCompiler extends CompiledSchema {
     }
     seen.add(cs);
 
-    for (const [pk, pv] of Object.entries(cs.properties)) {
+    for (let [pk, pv] of cs.propertyEntries) {
       const propertyPath = path? `${path}.${pk}` : pk;
-      if (pv instanceof Schema) {
+      if (pv instanceof CachedSchemaReference) {
 
-        const cached = this.compileCache.get(pv);
-        if (cached === undefined) {
+        pv = this.compileCache.get(pv.schema);
+        if (pv === undefined) {
           throw new SchemaCompilationError('Unable to find cached CompiledSchema', {path: propertyPath})
         }
-        cs.properties[pk] = cached;
+        cs._setPropertySchema(pk, pv);
       }
-      this._replaceCachedReferences(cs.properties[pk], propertyPath, seen);
+      this._replaceCachedReferences(pv, propertyPath, seen);
     }
-    for (const [uk, uv] of Object.entries(cs.unionSchemas)) {
-      if (uv instanceof Schema) {
+    for (let [uk, uv] of cs.unionSchemaEntries) {
+      if (uv instanceof CachedSchemaReference) {
 
-        const cached = this.compileCache.get(uv);
-        if (cached === undefined) {
+        uv = this.compileCache.get(uv.schema);
+        if (uv === undefined) {
           throw new SchemaCompilationError(`Unable to find cached CompiledSchema for unionSchema "${uk}"`, {path})
         }
-        cs.unionSchemas[uk] = cached;
+        cs._setUnionSchema(uk, uv);
       }
-      this._replaceCachedReferences(cs.unionSchemas[uk], path, seen);
+      this._replaceCachedReferences(uv, path, seen);
     }
   }
 
@@ -279,7 +318,7 @@ export class SchemaCompiler extends CompiledSchema {
 
       this._replaceCachedReferences(compiledSchema);
 
-      compiledSchema.freeze();
+      compiledSchema._freeze();
 
       return compiledSchema;
     }

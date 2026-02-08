@@ -59,16 +59,23 @@ export class CompiledSchema
 {
   static __TOKEN = Symbol('CONSTRUCT_USING_RESOLVER')
 
-  /** @type {CompiledSchemaProperties} */
-  #properties = {};
+  /** @type {Map<string,CompiledSchema>} */
+  #propertiesMap = new Map();
+  /** @type {CompiledSchemaProperties|undefined} */
+  #properties;
+  /** @type {Map<string,CompiledSchema>} */
+  #unionSchemasMap = new Map();
+  /** @type {CompiledSchemaUnionSchemas|undefined} */
+  #unionSchemas;
+
   /** @type {CompiledSchemaHandlers} */
   #handlers = {};
   /** @type {CompiledSchemaOptions} */
   #options = {};
   /** @type {CompiledSchemaMetadata} */
   #metadata = {};
-  /** @type {CompiledSchemaUnionSchemas} */
-  #unionSchemas = {};
+  /** @type {boolean} */
+  #frozen = false;
 
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
@@ -102,10 +109,21 @@ export class CompiledSchema
   /**
    * Properties are named child schemas, defining a hierarchical schema structure.
    *
+   * This is an (inefficient) cache for compatibility with the ISchema "interface".
+   *
    * @type {CompiledSchemaProperties}
    */
   get properties() {
-    return this.#properties;
+    return this.#properties ??=
+      Object.freeze(Object.fromEntries(this.#propertiesMap));
+  }
+
+  /**
+   *
+   * @returns {IterableIterator<[string, CompiledSchema]>}
+   */
+  get propertyEntries() {
+    return this.#propertiesMap.entries();
   }
 
   /**
@@ -140,7 +158,16 @@ export class CompiledSchema
    * @type {CompiledSchemaUnionSchemas}
    */
   get unionSchemas() {
-    return this.#unionSchemas;
+    return this.#unionSchemas ??=
+      Object.freeze(Object.fromEntries(this.#unionSchemasMap));
+  }
+
+  /**
+   *
+   * @returns {IterableIterator<[string, CompiledSchema]>}
+   */
+  get unionSchemaEntries() {
+    return this.#unionSchemasMap.entries();
   }
 
   /**
@@ -157,14 +184,12 @@ export class CompiledSchema
   /**
    * Return true if this schema has any child schemas.
    *
+   * todo - several callers also check if it is a union and the unionSchemas have children; absorb that logic here?
+   *
    * @type {boolean}
    */
   get hasChildren() {
-    // noinspection LoopStatementThatDoesntLoopJS
-    for (const _ in this.properties) {
-      return true;
-    }
-    return false;
+    return this.#propertiesMap.size > 0;
   }
 
   /**
@@ -173,7 +198,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get hasWildcard() {
-    return this.properties['*'] !== undefined;
+    return this.#propertiesMap.has('*');
   }
 
   /**
@@ -207,11 +232,7 @@ export class CompiledSchema
    * @type {boolean}
    */
   get isUnion() {
-    // noinspection LoopStatementThatDoesntLoopJS
-    for (const _ in this.unionSchemas) {
-      return true;
-    }
-    return false;
+    return this.#unionSchemasMap.size > 0
   }
 
   /**
@@ -243,7 +264,12 @@ export class CompiledSchema
    * @type {boolean}
    */
   get hasChildSelector() {
-    return Object.values(this.properties).some(propertySchema => propertySchema.isSelector);
+    for (const propertySchema of this.#propertiesMap.values()) {
+      if (propertySchema.isSelector) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -260,7 +286,12 @@ export class CompiledSchema
    * @type {boolean}
    */
   get hasChildSelection() {
-    return Object.values(this.properties).some(propertySchema => propertySchema.isSelection);
+    for (const propertySchema of this.#propertiesMap.values()) {
+      if (propertySchema.isSelection) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -528,7 +559,8 @@ export class CompiledSchema
     }
     if (typeof discriminatorResult === 'string') {
       // String lookups (e.g., from property extraction) - return undefined if no match
-      return this.unionSchemas[discriminatorResult];
+
+      return this.#unionSchemasMap.get(discriminatorResult);
     }
     if (discriminatorResult instanceof CompiledSchema && this.findUnionKey(discriminatorResult)) {
       return discriminatorResult;
@@ -977,8 +1009,57 @@ export class CompiledSchema
    * @returns {string|undefined}
    */
   findUnionKey(unionSchema) {
-    return Object.keys(this.unionSchemas).find(key => this.unionSchemas[key] === unionSchema)
+    if (!this.isUnion) {
+      throw new SchemaError('Cannot find union key because schema is not a union');
+    }
+    for (const [k, s] of this.unionSchemaEntries) {
+      if (s === unionSchema) {
+        return k;
+      }
+    }
+    return undefined;
   }
+
+  /**
+   * Given a union key, retrieve the matching union schema, or undefined if it cannot be found
+   *
+   * @param {string} key
+   * @returns {CompiledSchema|undefined}
+   */
+  getUnionSchema(key) {
+    if (!key) {
+      throw new SchemaError('Unable to retrieve an unnamed union schema key');
+    }
+    if (!this.isUnion) {
+      throw new SchemaError(`Cannot get union schema with key "${key}" because schema is not a union`);
+    }
+    return this.#unionSchemasMap.get(key);
+  }
+
+  /**
+   * @param {string} key
+   * @param {CompiledSchema} unionSchema
+   * @returns {CompiledSchema}
+   * @internal
+   */
+  _setUnionSchema(key, unionSchema) {
+    if (!key) {
+      throw new SchemaError('Unable to set a union schema without a valid key');
+    }
+    if (!(unionSchema instanceof CompiledSchema)) {
+      throw new SchemaError('Union schema must be a CompiledSchema instance');
+    }
+    if (this.#frozen) {
+      throw new SchemaError(`Cannot add union schema "${key}" to a frozen CompiledSchema`);
+    }
+    // clear cache, if set
+    this.#unionSchemas = undefined;
+
+    this.#unionSchemasMap.set(key, unionSchema);
+
+    return unionSchema;
+  }
+
 
   /**
    * Find the schema at a given path, falling back to the wildcard schema if one exists.
@@ -999,7 +1080,7 @@ export class CompiledSchema
     let s = this;
 
     for (let pathComponent of pathComponents) {
-      s = s?.properties[pathComponent] ?? s?.properties['*'];
+      s = s?.getPropertySchema(pathComponent);
 
       if (!s) {
         return undefined;
@@ -1024,7 +1105,7 @@ export class CompiledSchema
 
     /**
      *
-     * @param {CompiledSchema} schema
+     * @param {CompiledSchema|undefined} schema
      * @param {any} current
      * @param {string} path
      */
@@ -1032,9 +1113,9 @@ export class CompiledSchema
       const isContainer = Array.isArray(current) || isPlainObject(current);
 
       const allowIncremental = schema?.allowIncremental ?? true;
-      const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
+      //const hasChildren = Boolean(schema?.hasChildren || schema?.isUnion && Object.values(schema.unionSchemas).find(s => s.hasChildren))
 
-      if (isContainer && hasChildren) {//} && allowIncremental) {
+      if (isContainer && schema?.hasChildren) {//} && allowIncremental) {
         const entries = Array.isArray(current)? current.entries() : Object.entries(current);
 
         for (const [key, value] of entries) {
@@ -1074,16 +1155,16 @@ export class CompiledSchema
         return false;
       }
       if (schema.hasChildren) {
-        for (const propName in schema.properties) {
+        for (const [propName, propSchema] of schema.propertyEntries) {
           const childPath = path ? `${path}.${propName}` : `${propName}`;
-          if (walk(schema.properties[propName], childPath) === false) {
+          if (walk(propSchema, childPath) === false) {
             return false;
           }
         }
       }
       if (schema.isUnion) {
-        for (const unionSchemaKey in schema.unionSchemas) {
-          if (walk(schema.unionSchemas[unionSchemaKey], path) === false) {
+        for (const [unionSchemaKey, unionSchema] of schema.unionSchemaEntries) {
+          if (walk(unionSchema, path) === false) {
             return false;
           }
         }
@@ -1124,7 +1205,7 @@ export class CompiledSchema
     const state = context.getState(path);
 
     const initialize = async() => {
-      context._debug('traverse: initialize', {path, inputPath})
+//      context._debug('traverse: initialize', {path, inputPath})
 
       if (state.schema === undefined) {
         state.schema = this;
@@ -1155,7 +1236,7 @@ export class CompiledSchema
       return TraversalControl.OK;
     }
     const startCurrent = async () => {
-      context._debug('traverse: startCurrent', {path, inputPath})
+//      context._debug('traverse: startCurrent', {path, inputPath})
       return await hooks.startCurrent(state);
     }
 
@@ -1165,7 +1246,7 @@ export class CompiledSchema
       if (!this.hasChildren || isInputPath) {
         return TraversalControl.OK;
       }
-      context._debug('traverse: deepProperty', {path, inputPath})
+//      context._debug('traverse: deepProperty', {path, inputPath})
 
       const [propertyKey, propertyInputPath] = behead(inputPath);
       const propertyState = state.relative(propertyKey);
@@ -1195,7 +1276,7 @@ export class CompiledSchema
       if (!this.hasChildren || !isInputPath) {
         return TraversalControl.OK;
       }
-      context._debug('traverse: handleProperties', {path, inputPath})
+//      context._debug('traverse: handleProperties', {path, inputPath})
 
       async function handlePropertyStart(propertyState) {
         const startResult = await hooks.startProperty(state, propertyState);
@@ -1219,14 +1300,14 @@ export class CompiledSchema
 
       // FIXME - reenable when done debugging:
       // Process properties in parallel:
-      //const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);
+      const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);
 
-      let hasPropertyValue = false;
-      for (const propertyState of propertyStates) {
-        const result = await handlePropertyStart(propertyState);
+      //let hasPropertyValue = false;
+      //for (const propertyState of propertyStates) {
+      //  const result = await handlePropertyStart(propertyState);
 
-        hasPropertyValue ||= Boolean(result);
-      }
+      //  hasPropertyValue ||= Boolean(result);
+      //}
 
 
       if (state.pending === undefined && state.value === undefined && hasPropertyValue) {
@@ -1238,34 +1319,34 @@ export class CompiledSchema
         await hooks.startCurrent(state);  // todo - check errors?
       }
       // FIXME - reenable when done debugging
-      //await Promise.all(propertyStates.map(propertyState => hooks.endProperty(state, propertyState)))
+      await Promise.all(propertyStates.map(propertyState => hooks.endProperty(state, propertyState)))
 
-      for (const propertyState of propertyStates) {
-        await hooks.endProperty(state, propertyState);
-      }
+      //for (const propertyState of propertyStates) {
+      //  await hooks.endProperty(state, propertyState);
+      //}
 
       return TraversalControl.OK;
     }
     const endCurrent = async () => {
-      context._debug('traverse: endCurrent', {path, inputPath})
+//      context._debug('traverse: endCurrent', {path, inputPath})
 
       return await hooks.endCurrent(state);
     }
 
     for (const phase of [initialize, startCurrent, isInputPath? handleProperties : deepProperty, endCurrent]) {
-      context._debug('traverse: phase', {path, inputPath, phase: phase.name})
+//      context._debug('traverse: phase', {path, inputPath, phase: phase.name})
 
       const result = await phase() ?? TraversalControl.OK;
       if (state.schema !== this) {
         return await state.schema?.traverse(input, options);
       }
       if (result !== TraversalControl.OK || state.value === null) {
-        context._debug('traverse: post-phase break', {path, inputPath, phase: phase.name})
+//        context._debug('traverse: post-phase break', {path, inputPath, phase: phase.name})
 
         break;
       }
     }
-    context._debug('traverse: returns', {path, inputPath, value: state.value})
+//    context._debug('traverse: returns', {path, inputPath, value: state.value})
 
     if (state.value !== undefined && state.path === '') {
       state.isProcessed = true;  // root needs to mark itself as processed
@@ -1340,19 +1421,39 @@ export class CompiledSchema
    * Return a named property schema (possibly via wildcard)
    *
    * @param {string} propertyName
-   * @param {string} [propertyUnionKey] union key in the child (not current)
-   * @returns {CompiledSchema}
+   * @returns {CompiledSchema|undefined}
    */
-  getPropertySchema(propertyName, propertyUnionKey) {
-    if (propertyName === undefined || propertyName === '') {
+  getPropertySchema(propertyName) {
+    if (!propertyName) {
       throw new SchemaError('Unable to retrieve an unnamed property');
     }
-    let schema = this.properties[propertyName] ?? this.properties['*'];
+    return this.#propertiesMap.get(propertyName) ?? this.#propertiesMap.get('*');
+  }
 
-    if (schema !== undefined && propertyUnionKey) {
-      schema = schema.unionSchemas?.[propertyUnionKey];
+  /**
+   * Associate a schema with a property name.  Only for use during compilation.
+   *
+   * @param {string} propertyName
+   * @param {CompiledSchema} propertySchema
+   *
+   * @internal
+   */
+  _setPropertySchema(propertyName, propertySchema) {
+    if (!propertyName) {
+      throw new SchemaError('Unable to set an unnamed property');
     }
-    return schema;
+    if (!(propertySchema instanceof CompiledSchema)) {
+      throw new SchemaError('Property schema must be a CompiledSchema instance');
+    }
+    if (this.#frozen) {
+      throw new SchemaError(`Cannot add property ${propertyName} to a frozen CompiledSchema`);
+    }
+    // clear cache, if set
+    this.#properties = undefined;
+
+    this.#propertiesMap.set(propertyName, propertySchema);
+
+    return propertySchema;
   }
 
   /**
@@ -1364,10 +1465,9 @@ export class CompiledSchema
    */
   getTagged(tag) {
     const schemas = [];
-    for (const propName in this.properties) {
-      const schema = this.getPropertySchema(propName);
-      if (schema.options[tag]) {
-        schemas.push(schema);
+    for (const propSchema of this.#propertiesMap.values()) {
+      if (propSchema.options[tag]) {
+        schemas.push(propSchema);
       }
     }
     return schemas;
@@ -1381,10 +1481,9 @@ export class CompiledSchema
    * @deprecated
    */
   getFirstTagged(tag) {
-    for (const propName in this.properties) {
-      const schema = this.getPropertySchema(propName);
-      if (schema.options[tag]) {
-        return schema;
+    for (const propSchema of this.#propertiesMap.values()) {
+      if (propSchema.options[tag]) {
+        return propSchema;
       }
     }
     return undefined;
@@ -1413,13 +1512,12 @@ export class CompiledSchema
       }
       const propertyName = parts[index];
 
-      if (schema.hasChildren && schema.getPropertySchema(propertyName)) {
-        return check(schema.getPropertySchema(propertyName), index + 1);
+      const propertySchema = schema.getPropertySchema(propertyName);
+      if (propertySchema) {
+        return check(propertySchema, index + 1);
       }
       else if (schema.isUnion) {
-        const unionSchemas = Object.values(schema.unionSchemas);
-
-        for (const unionSchema of unionSchemas) {
+        for (const unionSchema of schema.#unionSchemasMap.values()) {
           if (check(unionSchema, index)) {
             return true;
           }
@@ -1435,21 +1533,21 @@ export class CompiledSchema
    *
    * @internal
    */
-  freeze(seen = new Set()) {
-    if (seen.has(this)) {
+  _freeze(seen = new Set()) {
+    if (this.#frozen || seen.has(this)) {
       return;
     }
     seen.add(this);
-    for (const childSchema of Object.values(this.#properties)) {
-      childSchema.freeze(seen);
+    for (const childSchema of this.#propertiesMap.values()) {
+      childSchema._freeze(seen);
     }
-    Object.freeze(this.#properties);
+    Object.freeze(this.#propertiesMap);
+    for (const unionSchema of this.#unionSchemasMap.values()) {
+      unionSchema._freeze(seen);
+    }
+    Object.freeze(this.#unionSchemasMap);
     Object.freeze(this.#options);
     Object.freeze(this.#metadata);
-    for (const unionSchema of Object.values(this.#unionSchemas)) {
-      unionSchema.freeze(seen);
-    }
-    Object.freeze(this.#unionSchemas);
     Object.freeze(this);
   }
 }

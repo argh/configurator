@@ -3,16 +3,10 @@ import { Schema } from './schema.js';
 import { SchemaCompiler } from './schema-compiler.js';
 import {
   ConfiguratorError,
-  SchemaError,
   ConstraintError,
   ResolverError
 } from '../errors.js';
 import { toKebabCase } from '../utils.js';
-import {
-  findDiscriminatorProperties,
-  generateAutomaticDiscriminatorFunction,
-  generatePropertyValueDiscriminatorFunction
-} from './helpers/union-helpers.js';
 
 import { ANY_SCHEMA } from './builtin-schemas/any-schema.js';
 import { STRING_SCHEMA } from './builtin-schemas/string-schema.js';
@@ -100,7 +94,7 @@ export class SchemaResolver
    * @returns {SchemaResolver}
    */
   registerValueProcessorDefinition(definition) {
-    const { keyword, processor, description, builder } = definition;
+    const {keyword, processor, description, builder} = definition;
 
     if (!keyword) {
       throw new ResolverError('Processor definition must have a keyword');
@@ -344,17 +338,8 @@ export class SchemaResolver
     if (inputSchema instanceof CompiledSchema) {
       return inputSchema;
     }
-
-    if (true) {
-      const compiler = new SchemaCompiler(this);
-      return await compiler.compile(inputSchema);
-    }
-
-
-    const compiledSchema = await this._compile(inputSchema);
-    await this._finalize(compiledSchema);
-    compiledSchema.freeze();
-    return compiledSchema;
+    const compiler = new SchemaCompiler(this);
+    return await compiler.compile(inputSchema);
   }
 
   /**
@@ -393,7 +378,7 @@ export class SchemaResolver
       for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
         if (!outputSchema.properties.hasOwnProperty(propName)) {
           const needsResolve = recursive || !(propSchema instanceof Schema || propSchema instanceof CompiledSchema)
-          outputSchema.properties[propName] = needsResolve? this.resolve(propSchema) : propSchema;
+          outputSchema.properties[propName] = needsResolve ? this.resolve(propSchema) : propSchema;
         }
       }
       for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
@@ -404,7 +389,7 @@ export class SchemaResolver
       for (const [discriminatorValue, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
         if (!outputSchema.unionSchemas.hasOwnProperty(discriminatorValue)) {
           const needsResolve = recursive || !(unionSchema instanceof Schema || unionSchema instanceof CompiledSchema)
-          outputSchema.unionSchemas[discriminatorValue] = needsResolve? this.resolve(unionSchema) : unionSchema;
+          outputSchema.unionSchemas[discriminatorValue] = needsResolve ? this.resolve(unionSchema) : unionSchema;
         }
       }
       for (const [handlerName, handlerValues] of Object.entries(source.handlers ?? {})) {
@@ -416,10 +401,6 @@ export class SchemaResolver
       }
 
       for (const [optionName, optionValue] of Object.entries(source.options ?? {})) {
-        if (['normalizer', 'transformer', 'validator', 'serializer'].includes(optionName)) {
-          // todo - legacy, remove!
-          throw new Error('FIXME');
-        }
         if (!outputSchema.options.hasOwnProperty(optionName)) {
           outputSchema.options[optionName] = optionValue;
           if (optionName === 'type') {
@@ -470,123 +451,6 @@ export class SchemaResolver
     return outputSchema;
   }
 
-  /**
-   * @param {Schema|CompiledSchema|SchemaData} inputSchema
-   * @param {string} [path]
-   * @returns {Promise<CompiledSchema>}
-   * @private
-   */
-  async _compile(inputSchema, path = '') {
-
-    if (inputSchema instanceof CompiledSchema) {
-      return inputSchema;
-    }
-    if (this.#compilationCache.has(inputSchema)) {
-      return this.#compilationCache.get(inputSchema);
-    }
-
-    const outputSchema = new CompiledSchema(CompiledSchema.__TOKEN);
-
-    this.#compilationCache.set(inputSchema, outputSchema);
-
-    const source = this.resolve(inputSchema);
-
-    runCompileHook('resolve', source, path);
-
-    for (const [propName, propSchema] of Object.entries(source.properties ?? {})) {
-      const propertyPath = path? `${path}.${propName}` : propName;
-      outputSchema.properties[propName] = await this._compile(propSchema, propertyPath);
-    }
-    for (const [metaName, metaValue] of Object.entries(source.metadata ?? {})) {
-      outputSchema.metadata[metaName] = metaValue;
-    }
-    for (const [unionKey, unionSchema] of Object.entries(source.unionSchemas ?? {})) {
-      // todo - restore support for union-keyed path elements?
-      outputSchema.unionSchemas[unionKey] = await this._compile(unionSchema, path);
-    }
-
-    runCompileHook('link', source, path)
-
-    const specialOptions = ['values' /*, 'default'*/];
-
-    for (const [optionName, optionValue] of Object.entries(source.options ?? {})) {
-      if (specialOptions.includes(optionName)) {
-        continue;
-      }
-      outputSchema.options[optionName] = optionValue;
-    }
-
-    await this._compileNormalizers(source, outputSchema, path);
-    await this._compileValues(source, outputSchema, path);  // performs normalization!
-    await this._compileConditions(source, outputSchema, path);
-    await this._compileTransformers(source, outputSchema, path);
-    await this._compileValidators(source, outputSchema, path);
-    await this._compileSerializers(source, outputSchema, path);
-    await this._compileDiscriminator(source, outputSchema, path);
-
-    runCompileHook('compile', outputSchema, path);
-
-    return outputSchema;
-  }
-
-
-
-  /**
-   * @param {CompiledSchema} schema
-   * @param {string} [path]
-   * @param {CompiledSchema} [parent]
-   * @returns {Promise<CompiledSchema>}
-   * @private
-   */
-  async _finalize(schema, path = '', parent) {
-
-    if (this.#finalizationSet.has(schema)) {
-      return schema;
-    }
-    this.#finalizationSet.add(schema);
-    for (const [propName, propSchema] of Object.entries(schema.properties)) {
-      const propPath = path ? `${path}.${propName}` : propName;
-      await this._finalize(propSchema, propPath, schema);
-    }
-    for (const unionSchema of Object.values(schema.unionSchemas)) {
-      // fixme - this isn't legal any more now that schema references are not unique
-      const skipOptions = ['values', 'type', 'default'];
-
-      for (const [optionName, optionValue] of Object.entries(schema.options ?? {})) {
-        if (skipOptions.includes(optionName)) {
-          continue;
-        }
-        if (optionValue !== undefined && unionSchema.options[optionName] === undefined) {
-          // union schemas "inherit" options from their parent
-          unionSchema.options[optionName] = optionValue;
-        }
-      }
-
-      await this._finalize(unionSchema, path, parent);
-    }
-    await this._finalizeValues(schema, parent);
-    await this._finalizeMetadata(schema);
-
-    if (schema.isUnion && !schema.handlers.discriminators) {
-      throw new SchemaError(`No discriminator defined for union`, {path});
-    }
-
-    if (schema.hasChildren && schema.options.type !== 'object' && schema.options.type !== 'array' && schema.options.type !== 'any') {
-      throw new SchemaError(`Schema defines child properties but does not identify as a container`, {path});
-    }
-
-    if (schema.isUnion && schema.hasWildcard) {
-      throw new SchemaError(`Wildcard properties cannot be set on a union`, {path});
-    }
-
-    if (schema.hasChildSelector !== schema.hasChildSelection) {
-      throw new SchemaError(`Inconsistently defined selector/selections in properties`, {path});
-    }
-
-    runCompileHook('finalize', schema, path);
-
-    return schema;
-  }
 
   /**
    * @template TReturn
@@ -614,298 +478,4 @@ export class SchemaResolver
   }
 
 
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @param {string} handlerName
-   * @param {string} [descriptionMetadata];
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileHandler(src, dst, path, handlerName, descriptionMetadata) {
-    if (dst.handlers[handlerName] !== undefined) {
-      return;
-    }
-
-    const specList = src.handlers[handlerName] ?? [];
-
-    if (!Array.isArray(specList)) {
-      throw new SchemaError(`Invalid ${handlerName} definition in ${path ? path : 'root'} schema`);
-    }
-    if (specList.length === 0) {
-      return;
-    }
-
-    const compiledDefinition = this.compileProcessorSpec(specList);
-
-    dst.handlers[handlerName] = [compiledDefinition];
-
-    if (descriptionMetadata && !dst.metadata[descriptionMetadata] && compiledDefinition.description) {
-      dst.metadata[descriptionMetadata] = compiledDefinition.description;
-    }
-  }
-
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileNormalizers(src, dst, path) {
-    await this._compileHandler(src, dst, path, 'normalizers', 'normalizerDescription');
-  }
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileTransformers(src, dst, path) {
-    await this._compileHandler(src, dst, path, 'transformers', 'transformerDescription');
-  }
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileConditions(src, dst, path) {
-    await this._compileHandler(src, dst, path, 'conditions', 'conditionDescription');
-  }
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileValidators(src, dst, path) {
-    await this._compileHandler(src, dst, path, 'validators', 'validatorDescription');
-  }
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileSerializers(src, dst, path) {
-    await this._compileHandler(src, dst, path, 'serializers', 'serializerDescription');
-  }
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileDiscriminator(src, dst, path) {
-    if (!dst.isUnion || dst.handlers.discriminators) {
-      return;
-    }
-    if (src.handlers.discriminators) {
-      await this._compileHandler(src, dst, path, 'discriminators', 'discriminatorDescription');
-      return;
-    }
-    const unionKeyProperty = Object.entries(dst.properties).find(e => e[1].isUnionKey);
-    if (unionKeyProperty) {
-      // Note: it's ok to use a custom discriminator (above) even if there is a union key option,
-      // as it also triggers population of allowed values for the property in _finalizeValues.
-      dst.handlers.discriminators = [
-        this.compileProcessorSpec(generatePropertyValueDiscriminatorFunction(dst, unionKeyProperty[0]))
-      ];
-    }
-    else {
-      await this._hoistDiscriminatorProperties(dst);
-      dst.handlers.discriminators = [
-        this.compileProcessorSpec(generateAutomaticDiscriminatorFunction(dst))
-      ];
-    }
-  }
-  /**
-   * @param {Schema} src
-   * @param {CompiledSchema} dst
-   * @param {string} path
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _compileValues(src, dst, path) {
-    if (dst.options.values !== undefined || src.options.values === undefined) {
-      return;
-    }
-    if (!Array.isArray(src.options.values)) {
-      throw new SchemaError('Schema values option is not an array');
-    }
-    dst.options.values = [];
-    for (const value of src.options.values) {
-      dst.options.values.push(await dst._normalizeValue(value));
-    }
-  }
-
-  /**
-   *
-   * @param {CompiledSchema} dst
-   * @param {CompiledSchema} [parent]
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _finalizeValues(dst, parent) {
-    if (dst.options.values !== undefined) {
-      // todo - maybe throw an exception if we needed to synthesize values but it was already defined?
-      return;
-    }
-    if (dst.isSelector && dst.isUnionKey) {
-      throw new SchemaError('Cannot populate values for a schema that is both a selector and a union key')
-    }
-    const v = new Set();
-    if (dst.isUnionKey) {
-      if (!parent?.isUnion) {
-        throw new SchemaError('Cannot populate values for a union key property without a parent union')
-      }
-      for (const key in parent.unionSchemas) {
-        v.add(await dst._normalizeValue(key));
-      }
-    }
-    if (dst.isSelector) {
-      if (parent === undefined) {
-        throw new SchemaError(`Cannot populate values for a detached selector schema`);
-      }
-
-      if (!parent.hasChildSelection) {
-        throw new SchemaError(`Cannot populate values for a selector if the parent has no selections`);
-      }
-
-      for (const propName in parent.properties) {
-        const propSchema = parent.properties[propName];
-        if (propSchema.isSelection) {
-          const selectionValue = (propSchema.selection === true)? propName : propSchema.selection;
-          v.add(await dst._normalizeValue(selectionValue));
-        }
-      }
-    }
-    if (v.size > 0) {
-      // Only add a value constraint if we successfully determined some values.
-      dst.options.values = Array.from(v);
-    }
-  }
-  async _finalizeMetadata(schema) {
-    if (!schema.metadata.valueDescription) {
-      const valueDescription = formatArgumentType(schema);
-      schema.metadata.valueDescription = schema.required ? `<${valueDescription}>` : `[${valueDescription}]`;
-    }
-    if (!schema.metadata.valueName) {
-      schema.metadata.valueName = schema.metadata.parserTypeHint ?? 'value';
-    }
-  }
-
-  /**
-   *
-   * @param {CompiledSchema} schema
-   * @private
-   */
-  async _hoistDiscriminatorProperties(schema) {
-    if (!schema.isUnion) {
-      throw new ConfiguratorError('Can only hoist discriminator properties for a union');
-    }
-    const discriminatorPropertyMap = findDiscriminatorProperties(Object.values(schema.unionSchemas));
-
-    for (const [property, schemaSet] of discriminatorPropertyMap) {
-      if (schema.properties[property]) {
-        continue;
-      }
-
-      if (schemaSet.size === 1) {
-        const [unionSchema] = schemaSet;
-        const propertySchema = unionSchema.properties[property];
-        if (propertySchema) {
-          // this feels dangerous...
-          schema.properties[property] = propertySchema;
-        }
-        continue;
-      }
-
-      let base;
-      const values = new Set();
-
-      let normalizerCompatible = true;
-      let firstNormalizers;
-
-      for (const unionSchema of schemaSet) {
-        const propertySchema = unionSchema.properties[property];
-        if (!propertySchema) {
-          continue;
-        }
-        if (!firstNormalizers) {
-          firstNormalizers = propertySchema.handlers.normalizers;
-        }
-        if (propertySchema.metadata.parserTypeHint) {
-          if (base === undefined) {
-            base = propertySchema.metadata.parserTypeHint;
-          }
-          else if (base && base !== propertySchema.metadata.parserTypeHint) {
-            base = 'any';
-            normalizerCompatible = false;
-          }
-        }
-        if (!Array.isArray(propertySchema.values)) {
-          continue;
-        }
-        for (const v of propertySchema.values) {
-          const normalized = await propertySchema._normalizeValue(v);
-          if (normalizerCompatible && normalized !== v) {
-            normalizerCompatible = false;
-          }
-          values.add(normalized);
-          if (base === undefined) {
-            if (this.hasSchema(typeof v)) {
-              base = typeof v;
-            }
-          }
-        }
-
-      }
-
-      const useNormalizer = normalizerCompatible && firstNormalizers;
-
-      const hoisted = new Schema(base ?? 'any');
-      if (useNormalizer && firstNormalizers) {
-        for (const normalizer of firstNormalizers) {
-          hoisted.normalizer(normalizer);
-        }
-      }
-      if (values.size > 0) {
-        hoisted.values(Array.from(values))
-      }
-
-      const compiledHoisted = await this._compile(hoisted, property);
-      await this._finalize(compiledHoisted);
-
-      schema.properties[property] = compiledHoisted;
-    }
-
-  }
-}
-
-/**
- * @param {string} hookName
- * @param {import('./schema.js').ISchema} schema
- * @param {string} path
- * @private
- */
-function runCompileHook(hookName, schema, path) {
-  try {
-    const hookFunction = schema.options.compileHook;
-
-    if (typeof hookFunction !== 'function') {
-      return;
-    }
-    hookFunction(hookName, schema);
-  }
-  catch (error) {
-    throw new SchemaError(`Compilation error: ${error.message}`, {path});
-  }
 }

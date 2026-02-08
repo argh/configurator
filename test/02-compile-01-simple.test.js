@@ -150,7 +150,7 @@ describe('Schema Compilation - Simple', function() {
 
   describe('Compiled schema immutability', function() {
 
-    it('should freeze the compiled schema', async function() {
+    it('should _freeze the compiled schema', async function() {
       const schema = new Schema()
         .property('name', new Schema('string'));
 
@@ -159,7 +159,7 @@ describe('Schema Compilation - Simple', function() {
       assert.ok(Object.isFrozen(compiled));
     });
 
-    it('should freeze compiled properties', async function() {
+    it('should _freeze compiled properties', async function() {
       const schema = new Schema()
         .property('name', new Schema('string'));
 
@@ -168,7 +168,7 @@ describe('Schema Compilation - Simple', function() {
       assert.ok(Object.isFrozen(compiled.properties));
     });
 
-    it('should freeze compiled options', async function() {
+    it('should _freeze compiled options', async function() {
       const schema = new Schema()
         .property('name', new Schema('string'));
 
@@ -178,7 +178,7 @@ describe('Schema Compilation - Simple', function() {
       assert.ok(Object.isFrozen(compiled.properties.name.options));
     });
 
-    it('should freeze compiled metadata', async function() {
+    it('should _freeze compiled metadata', async function() {
       const schema = new Schema()
         .property('name', new Schema('string'));
 

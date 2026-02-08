@@ -331,7 +331,7 @@ describe('Schema Compilation - Property Basics', function() {
 
   describe('Property freezing', function() {
 
-    it('should freeze properties object', async function() {
+    it('should _freeze properties object', async function() {
       const schema = new Schema('object')
         .property('name', new Schema('string'));
 
@@ -340,7 +340,7 @@ describe('Schema Compilation - Property Basics', function() {
       assert.ok(Object.isFrozen(compiled.properties));
     });
 
-    it('should freeze each property schema', async function() {
+    it('should _freeze each property schema', async function() {
       const schema = new Schema('object')
         .property('field1', new Schema('string'))
         .property('field2', new Schema('number'));

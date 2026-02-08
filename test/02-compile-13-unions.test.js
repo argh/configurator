@@ -218,7 +218,7 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('Union schemas object structure', function() {
 
-    it('should freeze unionSchemas object after compilation', async function() {
+    it('should _freeze unionSchemas object after compilation', async function() {
       const schema = new Schema('object')
         .unionSchema('option', new Schema('object')
           .property('type', new Schema('string').values(['option'])));
@@ -228,7 +228,7 @@ describe('Schema Compilation - Union Structure', function() {
       assert.ok(Object.isFrozen(compiled.unionSchemas));
     });
 
-    it('should freeze each compiled union schema', async function() {
+    it('should _freeze each compiled union schema', async function() {
       const schema = new Schema('object')
         .unionSchema('a', new Schema('object').property('type', new Schema('string').values(['a'])))
         .unionSchema('b', new Schema('object').property('type', new Schema('string').values(['b'])));

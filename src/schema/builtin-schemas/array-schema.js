@@ -8,8 +8,8 @@ export const ARRAY_SCHEMA = new Schema()
     if (value === true) {
       value = [];
     }
-    else if (value === '*' && location.schema.properties['*']?.values?.length) {
-      value = [...location.schema.properties['*'].values];
+    else if (value === '*' && location.schema.getPropertySchema('*')?.values?.length) {
+      value = [...location.schema.getPropertySchema('*').values];
     }
     if (typeof value === 'string') {
       value = value.trim();
@@ -36,8 +36,8 @@ export const ARRAY_SCHEMA = new Schema()
     if (value === true) {
       value = [];
     }
-    else if (value === '*' && location.schema.properties['*']?.values?.length) {
-      value = [...location.schema.properties['*'].values];
+    else if (value === '*' && location.schema.getPropertySchema('*')?.values?.length) {
+      value = [...location.schema.getPropertySchema('*').values];
     }
     if (typeof value === 'string') {
       value = value.trim();

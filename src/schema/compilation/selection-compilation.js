@@ -15,8 +15,16 @@ export async function populateChildSelectorValues(inputSchema, _, location, opti
 //      return inputSchema;
 //    }
 
-  const selectorProperties = Object.entries(inputSchema.properties).filter(e => e[1].isSelector);
-  const selectionProperties = Object.entries(inputSchema.properties).filter(e => e[1].isSelection);
+  const selectorProperties = [];
+  const selectionProperties = [];
+  for (const e of inputSchema.propertyEntries) {
+    if (e[1].isSelector) {
+      selectorProperties.push(e);
+    }
+    if (e[1].isSelection) {
+      selectionProperties.push(e);
+    }
+  }
 
   if (selectorProperties.length === 0 && selectionProperties.length === 0) {
     return inputSchema;

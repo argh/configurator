@@ -79,8 +79,7 @@ export class CommandLineSource extends ConfigurationSource
       // command hierarchy explicit.
 
       if (schema.hasChildren && !schema.isArray) {
-        for (const propertyName in schema.properties) {
-          const childSchema = schema.properties[propertyName];
+        for (const [propertyName, childSchema] of schema.propertyEntries) {
           if (propertyName === '*') {
             continue;  // shouldn't happen; array elements are handled as an aggregated parsed value
           }

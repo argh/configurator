@@ -390,7 +390,7 @@ describe('Schema Compilation - Hierarchy', function() {
 
   describe('Hierarchy immutability', function() {
 
-    it('should freeze all levels of hierarchy', async function() {
+    it('should _freeze all levels of hierarchy', async function() {
       const schema = new Schema('object')
         .property('a', new Schema('object')
           .property('b', new Schema('object')
@@ -404,7 +404,7 @@ describe('Schema Compilation - Hierarchy', function() {
       assert.ok(Object.isFrozen(compiled.properties.a.properties.b.properties.c));
     });
 
-    it('should freeze properties at all levels', async function() {
+    it('should _freeze properties at all levels', async function() {
       const schema = new Schema('object')
         .property('outer', new Schema('object')
           .property('inner', new Schema('string')));

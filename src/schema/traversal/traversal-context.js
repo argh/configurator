@@ -37,7 +37,7 @@ export class TraversalContext
     this.counter++;
     this.final = false;
 
-    this._debug('update', {counter: this.counter, final: this.final})
+//    this._debug('update', {counter: this.counter, final: this.final})
   }
 
   _finalizeCount = 0;
@@ -62,12 +62,12 @@ export class TraversalContext
   get isComplete() {
     for (const state of this.stateMap.values()) {
       if (!state.isComplete) {
-        this._debug('not complete:', {incomplete: this.incomplete});
+//        this._debug('not complete:', {incomplete: this.incomplete});
 
         return false;
       }
     }
-    this._debug('COMPLETE');
+//    this._debug('COMPLETE');
     return true;
   }
 
@@ -83,7 +83,7 @@ export class TraversalContext
 
   // override the "target" value
   setValue(value) {
-    this._debug('setting target value');
+//    this._debug('setting target value');
     this._value = value;
   }
 

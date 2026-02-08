@@ -172,7 +172,7 @@ export class SchemaLocation {
     if (this.#schema === undefined) {
       return undefined;
     }
-    for (const propertyName of Object.keys(this.#schema.properties)) {
+    for (const [propertyName] of this.#schema.propertyEntries) {
       if (propertyName === '*') {
         continue;
       }

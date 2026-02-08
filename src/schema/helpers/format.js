@@ -14,13 +14,14 @@ export function formatArgumentType(schema) {
 
   let argumentTypeString;
   if (schema.isArray && schema.hasChildren) {
-    const props = Object.keys(schema.properties)
+    const props = Array.from(schema.propertyEntries)
                         .sort((a, b) => {
-                          if (a === '*') return 1;
-                          if (b === '*') return -1;
-                          return a.localeCompare(b, undefined, {numeric: true});
+                          if (a[0] === '*') return 1;
+                          if (b[0] === '*') return -1;
+                          return a[0].localeCompare(b[0], undefined, {numeric: true});
                         })
-                        .map(k => schema.properties[k]);
+                        .map(e => e[1]);
+
 
     argumentTypeString = props.map(s =>
     {
@@ -31,7 +32,7 @@ export function formatArgumentType(schema) {
       return propFormat;
     }).join(', ')
 
-    if (schema.properties['*']) {
+    if (schema.hasWildcard) {
       argumentTypeString += '...';
     }
 
