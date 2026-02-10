@@ -41,7 +41,7 @@ import { CompiledSchema } from '../schema/compiled-schema.js';
 export class CommandLineSource extends ConfigurationSource
 {
   /**
-   * @typedef {Object} CommandLineSourceOptions
+   * @typedef {object} CommandLineSourceOptions
    * @property {number} [sequence] - Sequence number of the source.  Defaults to ARGUMENTS (currently 500).
    * @property {string} [contextName] - Name of the property (default:"argv") in the context object that contains the command line arguments
    */
@@ -55,7 +55,8 @@ export class CommandLineSource extends ConfigurationSource
     this.contextName = options.contextName ?? 'argv'
   }
 
-  /** generate command line options, including flags and aliases
+  /**
+   * Generate command line options, including flags and aliases
    * @param {CompiledSchema} schema
    * @param {string} [appName] - name of the app
    * @returns {ParsingContext}
@@ -67,6 +68,7 @@ export class CommandLineSource extends ConfigurationSource
      * @param {CompiledSchema} schema
      * @param {string} path
      * @param {ParsingContext} ctx
+     * @returns {ParsingContext}
      */
     function walk(schema, path, ctx) {
       if (walked.has(schema)) {
@@ -124,7 +126,7 @@ export class CommandLineSource extends ConfigurationSource
 
   /**
    * @param {CompiledSchema} schema
-   * @param {Object} context
+   * @param {object} context
    * @param {{strict: [boolean]}} [loadOptions]
    * @returns {Promise<Map<string, any>>}
    */
@@ -542,11 +544,12 @@ export class CommandLineSource extends ConfigurationSource
     const columnWidth = (terminalWidth / 2) - 1;
     const lines = [];
 
-    for (let [c1='', c2=''] of entries) {
-      if (!c1 && !c2) {
+    for (const [c1='', rc2=''] of entries) {
+      if (!c1 && !rc2) {
         lines.push([]);
         continue;
       }
+      let c2 = rc2;
 
       // Chop down on alternatives if first column is long, or there's a description column.
       // It's pretty ugly either way.  :-(
@@ -683,7 +686,7 @@ class ParsingContext {
   setSelector(path, schema) {
     if (this.selector) {
       throw new CommandLineError(
-        `Selector "${path}" conflicts with existing selector`)  // fixme - allow multiple selectors in the future?
+        `Selector "${path}" conflicts with existing selector`)  // todo - allow multiple selectors in the future?
     }
     else if (this.general) {
       throw new CommandLineError(

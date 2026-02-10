@@ -58,22 +58,26 @@ describe('Schema Compilation - Selectors and Selections', function() {
     });
   });
 
-  describe.skip('Selection flag', function() {
+  describe('Selection flag', function() {
 
     it('should mark schema as selection when selection is true', async function() {
-      const schema = new Schema('object').selection();
+      const schema = new Schema('object')
+        .property('selection', new Schema('object').selection(true))
+        .property('selector', new Schema('string').selector())
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.isSelection, true);
+      assert.strictEqual(compiled.getPropertySchema('selection')?.isSelection, true);
     });
 
     it('should mark schema as selection when selection is a string', async function() {
-      const schema = new Schema('object').selection('custom-value');
+      const schema = new Schema('object')
+        .property('selector', new Schema('string').selector())
+        .property('selection', new Schema('object').selection('custom-value'))
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(compiled.isSelection, true);
+      assert.strictEqual(compiled.getPropertySchema('selection')?.isSelection, true);
     });
 
     it('should not mark schema as selection if selection is false', async function() {

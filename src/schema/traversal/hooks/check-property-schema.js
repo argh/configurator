@@ -1,5 +1,4 @@
 import { ValidationError } from '../../../errors.js';
-import { fpm } from '../../helpers/fpm.js';
 import { TraversalControl } from '../traversal-hooks.js';
 import { TraversalState } from '../traversal-state.js';
 

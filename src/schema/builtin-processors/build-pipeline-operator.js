@@ -77,7 +77,7 @@ export const PIPELINE_OPERATOR = {
 
         let v = value;
         for (const {processor} of compiled) {
-          if ((v === undefined && !allowUndefined) || v === null) {
+          if ((v === undefined /*&& !allowUndefined*/) || v === null) {
             return v;
           }
           v = await processor(v, configuration, location, options);

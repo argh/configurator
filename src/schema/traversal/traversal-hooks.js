@@ -17,7 +17,7 @@ export const TraversalControl = {
 export class TraversalHooks
 {
   constructor() {
-    /** @type {Object.<string,Array<TraversalHook>>} */
+    /** @type {{[key:string]:Array<TraversalHook>}} */
     this.hooks = {
       startCurrent: [],
       endCurrent: [],
@@ -57,7 +57,7 @@ export class TraversalHooks
       // coding error!  should never be here.
       throw new Error('Cannot call hooks when the schema location is unknown!');
     }
-    for (let hook of this.hooks[hookName] ?? []) {
+    for (const hook of this.hooks[hookName] ?? []) {
       if (state.value === null) {
         // explicitly pruned, processing stops
         return TraversalControl.SKIP;
@@ -99,7 +99,7 @@ export class TraversalHooks
   /**
    *
    * @param {TraversalState} state
-   * @returns {Promise<Symbol>}
+   * @returns {Promise<symbol>}
    * @internal
    */
   async endCurrent(state) {

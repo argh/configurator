@@ -24,8 +24,6 @@ export class SchemaLocation {
     if (parent !== undefined && propertyName !== undefined) {
       this.#parent = parent;
       this.#path = parent.path ? `${parent.path}.${propertyName}` : `${propertyName}`;
-
-
     }
     else {
       this.#path = '';

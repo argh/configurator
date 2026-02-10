@@ -1,19 +1,17 @@
-import { ConfiguratorError, SchemaError, ValidationError } from '../errors.js';
+import { SchemaError, ValidationError } from '../errors.js';
 import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
-import { deepEquals, deepValue } from '../utils.js';
-import { fpm } from './helpers/fpm.js';
-import { SchemaLocation } from './schema-location.js';
+import { deepValue } from '../utils.js';
 
 /** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec, AsyncSchemaValueProcessor } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
-// This is stupid, but my IDE keeps preferring a global Schema reference over the local one:
-/** @typedef {Object.<string, import("./types.js").ISchema>} SchemaProperties */
-/** @typedef {Object.<string, import("./types.js").ISchema>} SchemaUnionSchemas */
+/** @typedef {{[key:string]: ISchema}} SchemaProperties */
+/** @typedef {{[key:string]: ISchema}} SchemaUnionSchemas */
 
-/** @typedef {Object} SchemaHandlers
+/**
+ * @typedef {object} SchemaHandlers
  * @property {Array<ProcessorSpec>} [normalizers]
  * @property {Array<ProcessorSpec>} [transformers]
  * @property {Array<ProcessorSpec>} [validators]
@@ -25,7 +23,7 @@ import { SchemaLocation } from './schema-location.js';
 /**
  * Schema - defines a valid configuration
  *
- * Essentially acts as a fluent builder, must be compiled by SchemaResolver for use.
+ * Essentially acts as a fluent builder, must be compiled by SchemaCompiler for use.
  *
  * @typedef {import("./types.js").ISchema} ISchema
  * @implements {ISchema}
@@ -58,7 +56,7 @@ export class Schema
    * Prefer the fluent setters over passing in options/metadata or attributes.
    *
    * @param {string|ISchema|SchemaData} [base] - schema type or base to extend
-   * @param {Object} [options] - schema options (also supports "attribute" shorthand syntax, but prefer being explicit)
+   * @param {object} [options] - schema options (also supports "attribute" shorthand syntax, but prefer being explicit)
    * @param {ISchemaMetadata} [metadata] - schema metadata
    */
   constructor(base, options, metadata) {
@@ -214,7 +212,7 @@ export class Schema
    * Attributes were initially a convenient shorthand for constructing schemas, but now just add confusion.
    *
    * @deprecated
-   * @param {Object} attributes
+   * @param {object} attributes
    * @returns {Schema}
    * @internal
    */
@@ -315,7 +313,7 @@ export class Schema
   /**
    * Bulk add options
    *
-   * @param {Object} options
+   * @param {object} options
    * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
@@ -392,7 +390,7 @@ export class Schema
   /**
    * Bulk add handlers
    *
-   * @param {Object} handlers
+   * @param {object} handlers
    * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
@@ -412,7 +410,7 @@ export class Schema
    *
    * (Note: named "meta" instead of "metadata" to differentiate from the object getter)
    *
-   * @param {string|Object} meta - metadata key
+   * @param {string} meta - metadata key
    * @param {any} [value] - option value
    * @returns {Schema} - returns self for fluent chaining
    */
@@ -439,7 +437,7 @@ export class Schema
   /**
    * Bulk-add metadata
    *
-   * @param {Object} metadata
+   * @param {object} metadata
    * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
@@ -492,14 +490,6 @@ export class Schema
     if (!(unionSchema instanceof Schema || unionSchema instanceof CompiledSchema)) {
       throw new SchemaError(`Invalid schema for union member ${key}`);
     }
-
-    // fixme - defaulting the base should probably be deferred until compilation time!
-    // or maybe only if we are hoisting...?
-    // (if we have a custom discriminator function, we may prefer "any" over "object"!)
-    if ((this.base === undefined/* || this.base === 'any'*/) && Object.keys(unionSchema.properties).length > 0) {
-      this.base = (unionSchema.properties['*'] || unionSchema.properties['0']) ? 'array' : 'object';
-    }
-
     this.unionSchemas[key] = unionSchema;
 
     return this;
@@ -508,7 +498,7 @@ export class Schema
   /**
    * Bulk-add union schemas
    *
-   * @param {Object.<string,Schema>} unionSchemas
+   * @param {SchemaUnionSchemas} unionSchemas
    * @param {symbol} [policy]
    * @returns {Schema}
    * @internal
@@ -698,7 +688,7 @@ export class Schema
   /**
    * Syntactic sugar for the oppositive of strict
    *
-   * @param {boolean} [value];
+   * @param {boolean} [value]
    * @returns {Schema}
    */
   lax(value) {
@@ -938,7 +928,7 @@ export class Schema
    * Prefer using fluent setters over passing options/metadata to this call
    *
    * @param {string|ISchema|SchemaData|Schema|CompiledSchema} [base] - schema
-   * @param {Object} [options] - schema options
+   * @param {object} [options] - schema options
    * @param {ISchemaMetadata} [metadata] - schema metadata
    * @returns {Schema}
    */
@@ -951,8 +941,8 @@ export class Schema
    *
    * Prefer using fluent setters over passing options/metadata to this call
    *
-   * @param {NonNullable<any>} literalValue - the value this schema will always emit
-   * @param {Object} [options] - additional options
+   * @param {any} literalValue - the value this schema will always emit
+   * @param {object} [options] - additional options
    * @param {ISchemaMetadata} [metadata] - additional metadata
    * @returns {Schema}
    */
@@ -985,7 +975,10 @@ export class Schema
           }
         }
       })
-      .normalizer(input => input)
+      // Important note: we do *not* return the literal during normalization
+      // because hoisting union discriminators wants a compatible normalizer.
+      // The values option prevents assignment if the normalized input does not
+      // match the required literal value.
       .transformer(() => literalValue)
 
     if (options) {
@@ -1095,7 +1088,7 @@ export class Schema
 /**
  * Policies for fine-grained control of composite schema internals
  * @readonly
- * @enum {Symbol}
+ * @enum {symbol}
  */
 export const SchemaPolicy = Object.freeze({
   INITIALIZE: Symbol('INITIALIZE'),   // only set if not already set

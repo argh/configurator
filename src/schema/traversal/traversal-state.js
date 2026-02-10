@@ -134,7 +134,7 @@ export class TraversalState
   set condition(condition) {
     if (this._condition !== condition) {
       if (condition === false && this._condition === true) {
-        return;  // FIXME
+        return;  // currently disallowing changing a positive condition; todo - think about this
       }
       this._debug('updated condition', condition)
       this.context.update();
@@ -329,19 +329,14 @@ export class TraversalState
       return false;
     }
 
-    // fixme - experiment:
+    // todo - this is an experiment; is it safe to formalize checking traversals?
     if (this.assignedInput === undefined && this.context.traversals > 0) {
       this._completed = true;
       return true;
     }
 
-    if (this.assignedInput === undefined && this.context.final) {
-      return true;
-    }
-
-    return false;
-    // We may not have a value, but nothing seems to indicate we need one.
-    //return this.context.final;
+    // if we don't have an assignment and are on the final pass, we're complete.
+    return (this.assignedInput === undefined && this.context.final);
   }
 
 
@@ -414,27 +409,6 @@ export class TraversalState
     return this._children.size > 0;
   }
 
-  get descendentStates() {
-    if (!this.isContainer) {
-      return [];
-    }
-    // Check for descendent states in the state map
-    const childPrefix = this._path ? `${this._path}.` : '';
-    return Array.from(this._context.stateMap.values())
-                .filter(s => s.path !== this._path && s.path.startsWith(childPrefix));
-  }
-
-  get childStates() {
-    if (!this.isContainer) {
-      return [];
-    }
-    return [...this._children.values()];
-  }
-
-
-  /**
-   * Are there child states or child properties to traverse?
-   */
   get hasDescendentsToTraverse() {
     if (!this.isContainer) {
       return false;
@@ -450,9 +424,6 @@ export class TraversalState
     return this.hasDescendentStates || hasInputProperties;
   }
 
-  /**
-   * Are there any descendent states that are not complete?
-   */
   get hasIncompleteDescendents() {
     if (!this.isContainer) {
       return false;
@@ -513,36 +484,13 @@ export class TraversalState
         childState.invalidate();
       }
     }
-
-    /*
-    for (const childState of this.descendentStates) {
-      if (childState.value !== null) {
-        childState.invalidate();
-// fixme?        childState.schema = undefined;
-        // todo - verify that this is unnecessary for sane schemas
-        // childState.pending = undefined;
-      }
-    }
-     */
   }
 
-  /**
-   * Is this an empty placeholder (no children, no input)?
-   */
   get isEmptyPlaceholder() {
     if (!this.schema?.hasChildren) {
       // concrete schemas are never placeholders
       return false;
     }
-    /* note: old code in transform.. are we capturing this?
-  if (state.schema.hasChildren && !state.schema.opaque && state.input === undefined) {
-    if ((Array.isArray(state.pending) && state.pending.length === 0)
-        || (isPlainObject(state.pending) && Object.keys(state.pending).length === 0)) {
-      // implicitly created containers that remain empty shouldn't get transformed
-      return TraversalControl.OK;
-    }
-  }
-     */
     if (!this.isPlaceholder) {
       return false;
     }
@@ -591,9 +539,11 @@ export class TraversalState
 
 
   /**
+   * Retrieve all incomplete child property states
    *
+   * @type {Array<TraversalState>}
    */
-  getActivePropertyStates() {
+  get activePropertyStates() {
     if (this.schema === undefined) {
       return [];
     }

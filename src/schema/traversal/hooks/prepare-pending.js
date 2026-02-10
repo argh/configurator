@@ -1,7 +1,6 @@
 import { TraversalControl } from '../traversal-hooks.js';
 import { TraversalState } from '../traversal-state.js';
 import { SchemaError } from '../../../errors.js';
-import { fpm } from '../../helpers/fpm.js';
 
 /**
  * @param {TraversalState} state

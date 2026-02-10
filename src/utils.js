@@ -1,5 +1,10 @@
 
 // Utility function to normalize any case format to an array of words
+
+/**
+ * @param {string} str
+ * @returns {string[]}
+ */
 function normalizeToWords(str) {
   // Handle empty or non-string input
   if (!str || typeof str !== 'string') return [];
@@ -51,26 +56,52 @@ function wordsToKebabCase(words) {
 }
 
 // Main conversion functions
+
+/**
+ * @param {string} str
+ * @returns {string}
+ */
 export function toCamelCase(str) {
   return wordsToCamelCase(normalizeToWords(str));
 }
 
+/**
+ * @param {string} str
+ * @returns {string}
+ */
 export function toPascalCase(str) {
   return wordsToPascalCase(normalizeToWords(str));
 }
 
+/**
+ * @param {string} str
+ * @returns {string}
+ */
 export function toConstantCase(str) {
   return wordsToConstantCase(normalizeToWords(str));
 }
 
+/**
+ * @param {string} str
+ * @returns {string}
+ */
 export function toKebabCase(str) {
   return wordsToKebabCase(normalizeToWords(str));
 }
 
+
+/**
+ * @param {string} str
+ * @returns {string}
+ */
 export function toHeadline(str) {
   return wordsToHeadline(normalizeToWords(str));
 }
 
+/**
+ * @param {any} obj
+ * @returns {boolean}
+ */
 export function isPlainObject(obj) {
   if (obj == null || typeof obj !== 'object') return false;
 
@@ -78,11 +109,20 @@ export function isPlainObject(obj) {
   return proto === Object.prototype || proto === null;
 }
 
+
+/**
+ * @param {any} item
+ * @returns {boolean}
+ */
 export function isObject(item) {
   // todo - should we allow 'function'?
   return item && typeof item === 'object' && !Array.isArray(item);
 }
 
+/**
+ * @param {any} item
+ * @returns {boolean}
+ */
 export function isPrimitive(item) {
   if (item === undefined || item === null) {
     return false; // these values have special meaning for this library and are thus not assignable primitives!
@@ -91,6 +131,10 @@ export function isPrimitive(item) {
   return type !== 'object' && type !== 'function';
 }
 
+/**
+ * @param {any} f
+ * @returns {boolean}
+ */
 export function isConstructor(f) {
   if (typeof f !== 'function') {
     return false;
@@ -107,6 +151,11 @@ export function isConstructor(f) {
   return true;
 }
 
+/**
+ * @param {object} target
+ * @param {...object} sources
+ * @returns {object}
+ */
 export function deepMerge(target, ...sources) {
   if (!sources.length) return target;
 
@@ -159,6 +208,12 @@ export function deepEquals(a, b) {
   return false;
 }
 
+/**
+ * @param {object|undefined}target
+ * @param {string} path
+ * @param {any} value
+ * @returns {object}
+ */
 export function deepAssign(target, path, value) {
   if (path === '' && target) {
     throw new Error('Top level path but target is already set');
@@ -260,6 +315,12 @@ export function deepAssign(target, path, value) {
   return target;
 }
 
+/**
+ *
+ * @param {object} object
+ * @param {string} path
+ * @returns {undefined|any}
+ */
 export function deepValue(object, path) {
   if (path === '') {
     return object;
@@ -304,7 +365,10 @@ export function deepValue(object, path) {
   return current;
 }
 
-
+/**
+ * @param {any} value
+ * @returns {any}
+ */
 export function deepPrune(value) {
   if (value === null || value === undefined) {
     return undefined;
@@ -319,7 +383,7 @@ export function deepPrune(value) {
   }
   else if (Array.isArray(value)) {
     for (let i = value.length - 1; i >= 0; i--) {
-      let v = deepPrune(value[i]);
+      const v = deepPrune(value[i]);
       if (v === undefined) {
         if (i === value.length - 1) {
           value.pop();
@@ -357,6 +421,7 @@ export function behead(path) {
 /**
  * Extract the last part of the path
  * @param {string} path
+ * @returns {string}
  */
 export function propertyName(path) {
   const dot = path.lastIndexOf('.');

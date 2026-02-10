@@ -3,46 +3,9 @@ import { TraversalControl } from '../traversal-hooks.js';
 import { TraversalState } from '../traversal-state.js';
 
 /**
- *
  * @param {TraversalState} state
- * @returns {Promise<symbol|void>}
+ * @returns {Promise<symbol>}
  */
-export async function validate1(state) {
-
-  if (state.context.final) {
-    if (state.schema === undefined) {
-      throw new ValidationError('Unknown value', {path: state.path});
-    }
-    if (state.schema.isUnion) {
-      throw new ValidationError('Unable to resolve union', {location: state.location})
-    }
-
-    if (state.hasWorkInProgress) {
-      const foo = state.hasWorkInProgress;
-      throw new ValidationError(`Incomplete assignment`, {value: state.pending, location: state.location});
-    }
-
-  }
-  else if (state.value === undefined) {
-    // We won't complain about an undefined value until the final pass.
-    return TraversalControl.OK;
-  }
-
-  const configuration = state.context.getValue();
-  const validated = await state.schema?._validateValue(state.value, configuration, state.location, {traversalState: state});
-
-  if (validated !== state.value) {
-    state.value = validated;  // validation is allowed to tweak the value
-  }
-
-  // root path needs to mark itself done after validation
-  if (state.path === '') {
-    state.isProcessed = true;
-  }
-
-  return TraversalControl.OK;
-}
-
 export async function validate(state) {
 
   const doValidation = state.context.final || state.schema?.hasChildren === false;
@@ -59,7 +22,7 @@ export async function validate(state) {
   }
 
   if (state.hasWorkInProgress) {
-    const foo = state.hasWorkInProgress;
+    //const foo = state.hasWorkInProgress;
     throw new ValidationError(`Incomplete assignment`, {value: state.pending, path: state.path});
   }
   if (state.value === undefined) {

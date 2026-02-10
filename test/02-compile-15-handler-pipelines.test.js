@@ -327,7 +327,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       assert.strictEqual(result, undefined);
     });
 
-    it('should propagate undefined through pipeline in transformer', async function() {
+    it('should not propagate undefined through pipeline in transformer', async function() {
       const schema = new Schema('string')
         .transformer((value) => value.toUpperCase())
         .transformer((value) => undefined) // Returns undefined
@@ -337,8 +337,22 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const result = await compiled._transformValue('hello');
 
-      // undefined propagates through - third transformer receives undefined and returns its value
-      assert.strictEqual(result, 'third-transformer');
+      // undefined propagates through - third transformer is not executed
+      assert.strictEqual(result, undefined);
+    });
+
+    it('should not propagate null through pipeline in transformer', async function() {
+      const schema = new Schema('string')
+        .transformer((value) => value.toUpperCase())
+        .transformer((value) => null) // Returns null
+        .transformer((value) => 'third-transformer');
+
+      const compiled = await resolver.compile(schema);
+
+      const result = await compiled._transformValue('hello');
+
+      // undefined propagates through - third transformer is not executed
+      assert.strictEqual(result, null);
     });
 
     it('should handle undefined return in validator', async function() {

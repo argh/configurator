@@ -1,6 +1,5 @@
 import assert from 'node:assert';
 import { Schema, SchemaResolver } from '../src/index.js';
-import { Logger } from '../../logger/src/logger.js';
 
 const resolver = new SchemaResolver();
 
@@ -54,7 +53,6 @@ const schema = await resolver.compile(treeNodeSchema);
 
 const input = Array.from({length: 100}, () => Math.floor(Math.random() * 100)) ;
 
-const logger = new Logger('test', {global:true, level: 'debug'});
 const start = performance.now()
 const tree = await schema.process(input, undefined, {debug: process.env.DEBUG==='true'});
 const elapsed = performance.now() - start

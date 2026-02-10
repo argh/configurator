@@ -505,7 +505,7 @@ schema.property('profile', Configurator.createConfigSchema()
   .option('context', 'profilePath')
   .meta('flagHint', 'P')
 );
-/** @type {ConfiguratorOptions} */
+
 const configurator = new Configurator({ schema, resolver, sources });
 
 // Write a demo profile file for the example... (passing operations on the command line in JSON is ugly)

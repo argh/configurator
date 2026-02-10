@@ -28,8 +28,8 @@ export class JsonFileSource extends ObjectSource {
 
   /**
    * @param {CompiledSchema} schema
-   * @param {Object} context
-   * @param {Object} [options]
+   * @param {object} context
+   * @param {object} [options]
    * @returns {Promise<Map<string,any>>}
    */
   async load(schema, context, options) {

@@ -4,8 +4,6 @@ import { Schema, SchemaPolicy } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ValidationError } from '../src/errors.js';
 
-import { Logger } from '../../logger/src/logger.js'
-
 describe('Assignments - Incremental vs Staged Processing', function() {
   let resolver;
 
@@ -364,8 +362,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
       ['wrapper.child.b', 'world'],
       ['flag', () => { if (flag < 2) { flag++; return undefined } else { return true; }}]
     ]);
-    //const logger = new Logger('test', { global: true, level: 'debug' });
-    const result = await compiled.processAssignments(assignments, undefined, { debug: true });
+    const result = await compiled.processAssignments(assignments);
 
     // Child transformer called with normalized empty object (incremental)
     assert.strictEqual(childCalls.length, 1);

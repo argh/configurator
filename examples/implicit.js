@@ -30,7 +30,7 @@ class Thing {
     return `${this.stuff.firstName ?? "Unknown"} ${this.stuff.lastName ?? "Unknown"}`
   }
 
-  /** @type {Object.<string,string>} */
+  /** @type {{[key:string]: string}} */
   #stuff = {}
   // here's a getter for that private field
   get stuff() {

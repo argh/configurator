@@ -12,9 +12,8 @@ import { ConfiguratorError } from './errors.js';
 
 import { stringify } from './schema/helpers/stringify.js';
 import { existingAssignment } from './schema/helpers/assignments.js';
-import { deepAssign, toPascalCase } from './utils.js';
+import { toPascalCase } from './utils.js';
 
-/** @import {ISchema} from './schema/types.js' */
 
 const MODULE_INFO = {
   name: 'configurator',
@@ -22,8 +21,8 @@ const MODULE_INFO = {
 }
 
 /**
- * @typedef {Object} ConfiguratorOptions
- * @property {import('./schema/schema.js').Schema|CompiledSchema} [schema]
+ * @typedef {object} ConfiguratorOptions
+ * @property {Schema|CompiledSchema} [schema]
  * @property {SchemaResolver} [resolver]
  * @property {Array<ConfigurationSource>} [sources] - if not provided, uses default sources from getDefaultSources()
  * @property {boolean} [helpEnabled] - enable help option
@@ -97,11 +96,9 @@ export class Configurator {
    * @private
    */
   _findSpecialConfiguratorSchema(metadataValue) {
-
-    // fixme - this is gross...
-
+    // todo - this is gross, figure out a better approach?
     const propertySchemas = (this._schema instanceof CompiledSchema)
-                            ? Array.from(this._schema.propertyEntries).map(e => e[1])
+                            ? this._schema.propertyEntries.map(e => e[1])
                             : Object.values(this._schema.properties);
 
     for (const schema of propertySchemas ) {
@@ -110,6 +107,7 @@ export class Configurator {
       }
     }
     return undefined;
+
   }
 
   /**
@@ -137,7 +135,7 @@ export class Configurator {
    * sources.push(new MySecretsSource({sequence: 500}));
    * const configurator = new Configurator({schema, sources});
    *
-   * @param {Object} [options]
+   * @param {object} [options]
    * @param {string} [options.configContextName='config'] - context name for configuration file source
    * @returns {Array<ConfigurationSource>}
    */
@@ -156,6 +154,7 @@ export class Configurator {
   /**
    * Register a configuration source with this Configurator
    * @param {ConfigurationSource} source
+   * @returns {this}
    */
   registerConfigurationSource(source) {
     if (!(source instanceof ConfigurationSource)) {
@@ -199,9 +198,9 @@ export class Configurator {
    * and use the highest priority assignments to build a configuration object
    * based on the defined schema.
    *
-   * @param {Object} context - configuration context
+   * @param {object} context - configuration context
    * @param {ConfigureOptions} [options] - advanced configuration options
-   * @returns {Promise<Object>} - configuration results
+   * @returns {Promise<object>} - configuration results
    */
   async configure(context, options = {}) {
     const configurationContext = {...context};
@@ -226,7 +225,7 @@ export class Configurator {
    * Iterate over all sources and build a prioritized map of requested assignments
    *
    * @param {CompiledSchema} schema - the schema each ConfigurationSource should use to understand valid assignments
-   * @param {Object} context - configuration context
+   * @param {object} context - configuration context
    * @param {boolean} [strict] - whether to allow accept unexpected configuration inputs
    * @returns {Promise<Map<string, NonNullable<any>>>}
    */
@@ -280,7 +279,7 @@ export class Configurator {
    * Helper to propagate assignments related to schemas marked with "context" flag into the context
    * @param {CompiledSchema} schema
    * @param {Map<string,NonNullable<any>>} sourceAssignments
-   * @param {Object} configurationContext
+   * @param {object} configurationContext
    * @returns {Promise<void>}
    * @private
    */

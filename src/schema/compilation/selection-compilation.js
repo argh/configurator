@@ -2,15 +2,16 @@ import { CompiledSchema } from "../compiled-schema.js";
 import { SchemaLocation } from "../schema-location.js";
 import { SchemaCompilationError, SchemaError } from '../../errors.js';
 
+// TODO - Consider making selection values default to '$name' rather than using true as a signal.
+//        (This could enable making the synthesized condition be an arbitrary value processor pipeline!)
 
 /**
  * @param {CompiledSchema} inputSchema
  * @param {any} _
  * @param {SchemaLocation} location
- * @param {Object} options
  * @returns {Promise<CompiledSchema>}
  */
-export async function populateChildSelectorValues(inputSchema, _, location, options) {
+export async function populateChildSelectorValues(inputSchema, _, location) {
 //    if (!inputSchema.isSelector || inputSchema.hasValues) {
 //      return inputSchema;
 //    }
@@ -46,8 +47,8 @@ export async function populateChildSelectorValues(inputSchema, _, location, opti
       `Schema has selector at property ${selectorPropertyName} but no selections`, {location});
   }
 
-  let existingSelectorValueSet = new Set([...selectorPropertySchema.values ?? []]);
-  let selectionValueSet = new Set();
+  const existingSelectorValueSet = new Set([...selectorPropertySchema.values ?? []]);
+  const selectionValueSet = new Set();
 
   for (const selectionProperty of selectionProperties) {
     const selectionPropertyName = selectionProperty[0];

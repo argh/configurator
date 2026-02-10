@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es2022",
+    "target": "es2023",
+    "lib": ["es2023", "esnext.iterator"],
     "checkJs": true,
     "allowJs": true,
     "resolveJsonModule": true,
@@ -20,6 +21,7 @@
     "coverage",
     "docs-output",
     "docs-output-contributors",
-    ".c8"
+    ".c8",
+    "benchmark"
   ]
 }

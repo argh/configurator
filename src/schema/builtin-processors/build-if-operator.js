@@ -7,14 +7,12 @@ import { ResolverError } from '../../errors.js';
 /**
  * **Processor**: `if`
  *
-
- *
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const IF_OPERATOR = {
   keyword: 'if',
   /**
-   * @param {Array<ProcessorSpec>|Object<string,ProcessorSpec>} args
+   * @param {Array<ProcessorSpec>|{[key:string]:ProcessorSpec}} args
    * @param {ProcessorSpecCompiler} compileSpec
    * @returns {CompiledValueProcessorDefinition}
    */

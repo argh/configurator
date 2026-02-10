@@ -1,5 +1,10 @@
 import { TraversalControl } from '../traversal-hooks.js';
+import { TraversalState } from "../traversal-state.js";
 
+/**
+ * @param {TraversalState} state
+ * @returns {Promise<symbol|void>}
+ */
 export async function simplePending(state) {
 
   if (state.assignedInput === null || state.assignedInput === undefined || typeof state.assignedInput === 'function') {

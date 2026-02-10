@@ -19,8 +19,8 @@ export class ConfigurationSource {
   /**
    * Parse configuration from this source
    * @param {CompiledSchema} schema -
-   * @param {Object} context - collection of source-specific fields (argv, env, etc.)
-   * @param {Object} [options] - options for parsing
+   * @param {object} context - collection of source-specific fields (argv, env, etc.)
+   * @param {object} [options] - options for parsing
    * @returns {Promise<Map<string,any>>} Parsed configuration object
    */
   async load(schema, context, options) {

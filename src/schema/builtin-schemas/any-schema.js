@@ -1,32 +1,17 @@
-import { CompiledSchema } from "../compiled-schema.js";
 import { SchemaLocation } from "../schema-location.js";
 import { Schema } from '../schema.js';
-
-const IMPLIES_ARRAY = /^[\d*]/
-/**
- * @param {CompiledSchema} schema
- * @returns {boolean}
- */
-function hasStringProps(schema) {
-  for (const [k] of schema.propertyEntries) {
-    if (!IMPLIES_ARRAY.test(k)) {
-      return true;
-    }
-  }
-  return false;
-}
+import { hasStringProperties } from '../helpers/has-string-properties.js';
 
 /**
  * @param {any} value
  * @param {any} _
  * @param {SchemaLocation} location
- * @param {Object} options
+ * @returns {any}
  */
-function anyValueProcessor(value, _, location, options) {
+function anyValueProcessor(value, _, location) {
   const schema = location.schema;
   if (value === true && schema.hasChildren) {
-    const unionSchemas = Array.from(schema.unionSchemaEntries).map(e => e[1]);
-    return [schema, ...unionSchemas].some(hasStringProps) ? {} : [];
+    return hasStringProperties(schema)? {} : [];
   }
   return value;
 }

@@ -3,13 +3,13 @@ import { randomUUID } from 'node:crypto';
 /**
  * Deterministic stringifier with support for extended types and deserialization.
  * @package
- * @param {*} value - Value to stringify
- * @param {Object} [options] - Stringification options
+ * @param {any} value - Value to stringify
+ * @param {object} [options] - Stringification options
  * @param {number} [options.space] - Indentation for pretty printing (default: 0)
- * @param {number} [options.maxDepth=100] - Maximum recursion depth
- * @param {boolean} [options.useDelimiters=true] - Use <<Type>> markers for extended types
- * @param {string} [options.delimiterOpen='<<'] - Opening delimiter for type markers
- * @param {string} [options.delimiterClose='>>'] - Closing delimiter for type markers
+ * @param {number} [options.maxDepth] - Maximum recursion depth (default: 100)
+ * @param {boolean} [options.useDelimiters] - Use <<Type>> markers for extended types (default: true)
+ * @param {string} [options.delimiterOpen] - Opening delimiter for type markers (default: '<<')
+ * @param {string} [options.delimiterClose] - Closing delimiter for type markers (default: '>>')
  * @returns {string} Deterministic JSON string with optional type markers
  */
 export function stringify(value, options = {}) {
@@ -135,10 +135,10 @@ export function stringify(value, options = {}) {
  * Handles both plain JSON and extended format with type markers.
  * @package
  * @param {string} text - JSON string to parse
- * @param {Object} [options] - Parse options
- * @param {string} [options.delimiterOpen='<<'] - Opening delimiter for type markers
- * @param {string} [options.delimiterClose='>>'] - Closing delimiter for type markers
- * @returns {*} Parsed value with extended types and circular references restored
+ * @param {object} [options] - Parse options
+ * @param {string} [options.delimiterOpen] - Opening delimiter for type markers (default '<<')
+ * @param {string} [options.delimiterClose] - Closing delimiter for type markers (default '>>')
+ * @returns {any} Parsed value with extended types and circular references restored
  */
 export function parse(text, options = {}) {
   const {

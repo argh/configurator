@@ -5,21 +5,9 @@ import { formatArgumentType } from '../helpers/format.js';
 
 /**
  * @param {CompiledSchema} schema
- * @param {any} _
- * @param {SchemaLocation} location
- * @param {Object} options
- * @returns {Promise<CompiledSchema>}
+ * @returns {CompiledSchema}
  */
-export async function populateMetadata(schema, _, location, options) {
-
-  /*
-  dst.handlers[handlerName] = [compiledDefinition];
-
-  if (descriptionMetadata && !dst.metadata[descriptionMetadata] && compiledDefinition.description) {
-    dst.metadata[descriptionMetadata] = compiledDefinition.description;
-  }
-  */
-
+export function populateMetadata(schema) {
   if (!schema.metadata.validatorDescription && schema.handlers.validators?.length) {
     const descriptions = schema.handlers.validators.map(vd => vd.description ?? '').filter(Boolean);
     // this is used below in formatArgumentType...

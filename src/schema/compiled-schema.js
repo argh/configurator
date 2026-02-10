@@ -1,5 +1,5 @@
 import {
-  NormalizeError, ProcessorError,
+  NormalizeError,
   SchemaError,
   SerializeError,
   TransformError,
@@ -11,14 +11,14 @@ import { toData } from './helpers/to-data.js';
 import { SchemaLocation } from './schema-location.js';
 import {
   TraversalContext,
+  TraversalHooks,
+  TraversalControl,
   processingHooks,
   preloadHooks,
   serializationHooks,
   normalizationHooks,
   transformationHooks,
   validationHooks,
-  TraversalHooks,
-  TraversalControl,
   postProcessValidationHooks
 } from './traversal/index.js';
 
@@ -29,7 +29,8 @@ import {
 /** @typedef {ISchemaMetadata} CompiledSchemaMetadata */
 /** @typedef {ISchemaOptions} CompiledSchemaOptions */
 
-/** @typedef {Object} CompiledSchemaHandlers
+/**
+ * @typedef {object} CompiledSchemaHandlers
  * @property {Array<CompiledValueProcessorDefinition>} [normalizers]
  * @property {Array<CompiledValueProcessorDefinition>} [conditions]
  * @property {Array<CompiledValueProcessorDefinition>} [transformers]
@@ -38,8 +39,8 @@ import {
  * @property {Array<CompiledValueProcessorDefinition>} [discriminators]
  */
 
-/** @typedef {Object.<string, import('./compiled-schema.js').CompiledSchema>} CompiledSchemaProperties */
-/** @typedef {Object.<string, import('./compiled-schema.js').CompiledSchema>} CompiledSchemaUnionSchemas */
+/** @typedef {{[key:string]:CompiledSchema}} CompiledSchemaProperties */
+/** @typedef {{[key:string]:CompiledSchema}} CompiledSchemaUnionSchemas */
 
 /**
  * CompiledSchema - the resolved version of a schema usable for processing input values into output values
@@ -53,11 +54,12 @@ import {
  * - Errors are thrown if the input Schema is invalid, inconsistent, or missing required data.
  *
  * @class
- * @implements ISchema
+ * @implements {ISchema}
  */
 export class CompiledSchema
 {
-  static __TOKEN = Symbol('CONSTRUCT_USING_RESOLVER')
+  /** @internal */
+  static __TOKEN = Symbol('CONSTRUCT_USING_COMPILER')
 
   /** @type {Map<string,CompiledSchema>} */
   #propertiesMap = new Map();
@@ -80,7 +82,7 @@ export class CompiledSchema
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
    *
-   * @param {Symbol} token - magic to reduce shenanigans
+   * @param {symbol} token - magic to reduce shenanigans
    */
   constructor(token) {
     if (token !== CompiledSchema.__TOKEN) {
@@ -120,7 +122,7 @@ export class CompiledSchema
 
   /**
    *
-   * @returns {IterableIterator<[string, CompiledSchema]>}
+   * @type {IteratorObject<[string, CompiledSchema]>}
    */
   get propertyEntries() {
     return this.#propertiesMap.entries();
@@ -164,7 +166,7 @@ export class CompiledSchema
 
   /**
    *
-   * @returns {IterableIterator<[string, CompiledSchema]>}
+   * @type {IteratorObject<[string, CompiledSchema]>}
    */
   get unionSchemaEntries() {
     return this.#unionSchemasMap.entries();
@@ -462,12 +464,15 @@ export class CompiledSchema
    * @param {any} value - value to normalize
    * @param {any} target - top level output target being built (avoid using for normalizers!)
    * @param {SchemaLocation} location - path to this value in the output target
-   * @param {Object} [options] - optional tweaks to processor behavior
+   * @param {object} [options] - optional tweaks to processor behavior
    * @returns {Promise<any>}
    */
   async _executeProcessorPipeline(processorDefinitions = [], value, target, location, options) {
     if (location.schema !== this) {
       throw new SchemaError('Inconsistent schema location', {location});
+    }
+    if (value === undefined) {
+      return undefined;
     }
     for (const def of processorDefinitions) {
       if (typeof def.processor !== 'function') {
@@ -476,6 +481,9 @@ export class CompiledSchema
       value = await def.processor(value, target, location, options);
       if (value === null) {
         return null;
+      }
+      if (value === undefined) {
+        return undefined;
       }
     }
     return value;
@@ -489,7 +497,7 @@ export class CompiledSchema
    * @param {any} value
    * @param {any} [target]
    * @param {SchemaLocation} [location]
-   * @param {Object} [options]
+   * @param {object} [options]
    * @returns {Promise<boolean>}
    * @internal
    */
@@ -592,7 +600,7 @@ export class CompiledSchema
    * @param {any} value - value to normalize
    * @param {any} [target] - top level output target being built (avoid using for normalizers!)
    * @param {SchemaLocation} [location] - path to this value in the output target
-   * @param {Object} [options] - optional tweaks to normalizer behavior
+   * @param {object} [options] - optional tweaks to normalizer behavior
    * @returns {Promise<any>}
    * @internal
    */
@@ -649,7 +657,7 @@ export class CompiledSchema
    * @param {any} value - input value to transform
    * @param {any} [target] - global target in case the transformer depends on it
    * @param {SchemaLocation} [location] - the traversal location of the schema
-   * @param {Object} [options] - any tweaks to the transformer behavior
+   * @param {object} [options] - any tweaks to the transformer behavior
    * @returns {Promise<any>} - transformed value
    * @internal
    */
@@ -692,7 +700,7 @@ export class CompiledSchema
    * @param {any} value - value to validate
    * @param {any} [target] - complete output target
    * @param {SchemaLocation} [location] - traversal location of this schema
-   * @param {Object} [options] - options to tweak validation behavior
+   * @param {object} [options] - options to tweak validation behavior
    * @returns {Promise<any>}
    * @internal
    */
@@ -719,7 +727,7 @@ export class CompiledSchema
    * @param {any} value - value to serialize
    * @param {any} [target] - entire output being serialized
    * @param {SchemaLocation} [location] - traversal location to current schema
-   * @param {Object} [options] - options to tweak serialization behavior
+   * @param {object} [options] - options to tweak serialization behavior
    * @returns {Promise<any>}
    * @internal
    */
@@ -928,7 +936,7 @@ export class CompiledSchema
       await this._preload(target, context);
     }
     const hooks = processingHooks;
-    for (let [inputPath, input] of assignments) {
+    for (const [inputPath, input] of assignments) {
       context._debug('processing assignment', {inputPath, input})
 
       await this.traverse(input, {inputPath, context, hooks});
@@ -1079,7 +1087,7 @@ export class CompiledSchema
     /** @type {CompiledSchema|undefined} */
     let s = this;
 
-    for (let pathComponent of pathComponents) {
+    for (const pathComponent of pathComponents) {
       s = s?.getPropertySchema(pathComponent);
 
       if (!s) {
@@ -1296,19 +1304,9 @@ export class CompiledSchema
         }
         return propertyState.value !== undefined && propertyState.value !== null;  // return true if the property has a value
       }
-      const propertyStates = state.getActivePropertyStates();
+      const propertyStates = state.activePropertyStates;
 
-      // FIXME - reenable when done debugging:
-      // Process properties in parallel:
       const hasPropertyValue = (await Promise.all(propertyStates.map(propertyState => handlePropertyStart(propertyState)))).some(Boolean);
-
-      //let hasPropertyValue = false;
-      //for (const propertyState of propertyStates) {
-      //  const result = await handlePropertyStart(propertyState);
-
-      //  hasPropertyValue ||= Boolean(result);
-      //}
-
 
       if (state.pending === undefined && state.value === undefined && hasPropertyValue) {
         // Lazy-create container if any child property has a value
@@ -1318,12 +1316,7 @@ export class CompiledSchema
         }
         await hooks.startCurrent(state);  // todo - check errors?
       }
-      // FIXME - reenable when done debugging
       await Promise.all(propertyStates.map(propertyState => hooks.endProperty(state, propertyState)))
-
-      //for (const propertyState of propertyStates) {
-      //  await hooks.endProperty(state, propertyState);
-      //}
 
       return TraversalControl.OK;
     }
@@ -1360,7 +1353,7 @@ export class CompiledSchema
    * See traverse() for more details.
    *
    * @param {any} input
-   * @param {Object} [options]
+   * @param {object} [options]
    * @returns {Promise<any>}
    * @internal
    */
@@ -1376,7 +1369,7 @@ export class CompiledSchema
 
     // loop until context stabilizes
     while (!done) {
-      let counter = context.counter;
+      const counter = context.counter;
       context._debug(`****** MULTIPASS TRAVERSAL ${context.traversals} STARTS ******`)
 
       result = await this.traverse(input, options);

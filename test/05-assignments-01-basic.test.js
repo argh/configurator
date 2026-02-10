@@ -5,7 +5,6 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ConstraintError, NormalizeError, SchemaError, TransformError, ValidationError } from '../src/errors.js';
 import { deepAssign, deepValue } from '../src/utils.js';
 import { CompiledSchema } from '../src/index.js';
-import { Logger } from '../../logger/src/logger.js';
 
 describe('Assignments - Basic Processing', function() {
   let resolver;
@@ -730,7 +729,6 @@ describe('Assignments - Basic Processing', function() {
     });
 
     it('should not include properties with undefined values', async function() {
-      const logger = new Logger('test', {global: true, level: 'debug'})
       const schema = new Schema('object')
         .property('random', new Schema('number'))
         .property('value', new Schema('string', {
@@ -744,11 +742,11 @@ describe('Assignments - Basic Processing', function() {
         ['value', 'undefined']
       ]);
 
-      const result = await compiled.processAssignments(assignments, undefined, {debug: true});
+      const result = await compiled.processAssignments(assignments);
 
       // Undefined values are not assigned
       assert.strictEqual(result.value, undefined);
-      await verify(compiled, result, assignments, undefined, {debug: true});
+      await verify(compiled, result, assignments);
     });
   });
 

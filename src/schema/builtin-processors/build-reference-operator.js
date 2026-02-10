@@ -18,13 +18,14 @@ import { deepValue } from '../../utils.js';
  *     .property('reset', new Schema('boolean')
  *       .condition({$pipeline: [{$reference: 'app.devMode'}, true]})
  *   )
- * })
-
+ * )
+ * ```
+ *
  * **Parameters**:
  * - `path` (string, required): The path in the schema hierarchy; must be defined.
  *
  *
- * @type {import("../types.js").ValueProcessorDefinition}
+ * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const REFERENCE_OPERATOR = {
   keyword: 'reference',

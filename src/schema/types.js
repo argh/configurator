@@ -1,5 +1,5 @@
 /**
- * @typedef {Object} ISchema
+ * @typedef {object} ISchema
  * @property {string} [base] - Base schema name for extension
  * @property {ISchemaProperties} properties - Schema properties
  * @property {ISchemaOptions} options - Schema options
@@ -18,10 +18,10 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
  * @template TReturn
  * @template TSchema
  * @callback SchemaValueProcessorBase
- * @param {any} value
- * @param {Object|Array<any>} configuration
+ * @param {!*} value
+ * @param {object|Array<any>} configuration
  * @param {SchemaLocation} location
- * @param {Object} [options]
+ * @param {object} [options]
  * @returns {TReturn}
  */
 
@@ -41,7 +41,7 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 
 
 /**
- * @typedef {Object} ISchemaMetadataCommon
+ * @typedef {object} ISchemaMetadataCommon
  * @property {string} [description] - help text description of the property; used by CommandLineSource
  * @property {string} [valueName] - help text type name of the property value; used by CommandLineSource
  * @property {string} [valueDescription] - help text description of the property value; used by CommandLineSource
@@ -58,10 +58,10 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 
 ///** @typedef {ISchemaMetadataCommon & {[key:string]: any}} ISchemaMetadata1 */
 
-/** @typedef {"any"|"string"|"number"|"boolean"|"bigint"|"symbol"|"object"|"array"|"function"|"null"} SchemaFundamentalType */
+/** @typedef {"any"|"string"|"number"|"boolean"|"bigint"|"symbol"|"object"|"array"|"function"|"buffer"|"null"} SchemaFundamentalType */
 
  /**
-  * @typedef {Object} ISchemaOptionsCommon
+  * @typedef {object} ISchemaOptionsCommon
   * @property {SchemaFundamentalType} [type] - should only be set on the core types supported by the schema
   * @property {SchemaValueProcessor<any>} [normalizer] - ensure value is of correct shape.
   * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>} [transformer] - value resolver - map input value to output value.
@@ -87,7 +87,7 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 /** @typedef {ISchemaOptionsCommon & {[key:string]: any}} ISchemaOptions */
 
 /**
- * @typedef {Object} ISchemaHandlers
+ * @typedef {object} ISchemaHandlers
  * @property {Array<ProcessorSpec>} [normalizers]
  * @property {Array<ProcessorSpec>} [conditions]
  * @property {Array<ProcessorSpec>} [transformers]
@@ -97,7 +97,8 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 
 
 
-/** @typedef {Object} ISchemaMetadataAttributesCommon
+/**
+ * @typedef {object} ISchemaMetadataAttributesCommon
  * @property {string} [_description] - help text description of the property; used by CommandLineSource
  * @property {string} [_valueName] - help text type name of the property value; used by CommandLineSource
  * @property {string} [_valueDescription] - help text description of the property value; used by CommandLineSource
@@ -110,52 +111,56 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
  * @deprecated
  */
 
-/** @typedef {ISchemaOptionsCommon & ISchemaMetadataAttributesCommon & {[key:string]: any}} ISchemaAttributes
+/**
+ * @typedef {ISchemaOptionsCommon & ISchemaMetadataAttributesCommon & {[key:string]: any}} ISchemaAttributes
  * @deprecated
  */
 
 /**
- * @typedef {Object.<string, ISchema>} ISchemaProperties
+ * @typedef {{[key:string]: ISchema}} ISchemaProperties
  */
 
 /**
- * @typedef {Object.<any, ISchema>} ISchemaUnion
+ * @typedef {{[key:string]: ISchema}} ISchemaUnion
  */
 
 /**
- * @typedef {Object} SchemaData
+ * @typedef {object} SchemaData
  * @property {string} [base]
- * @property {Object.<string,SchemaData>} [properties]
- * @property {Object.<string,any>} [handlers]
- * @property {Object.<string,any>} [metadata]
- * @property {Object.<string,any>} [options]
- * @property {Object.<any,SchemaData>} [unionSchemas]
+ * @property {{[key:string]: SchemaData}} [properties]
+ * @property {{[key:string]: any}} [handlers]
+ * @property {{[key:string]: string}} [metadata]
+ * @property {{[key:string]: any}} [options]
+ * @property {{[key:string]: SchemaData}} [unionSchemas]
  */
 
 
-/** @typedef {ValueProcessorDefinition|Object|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
+/** @typedef {ValueProcessorDefinition|object|null|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
 
 
-/** @typedef {Object} CompiledSpec
+/**
+ * @typedef {object} CompiledSpec
  * @property {ProcessorSpec} spec
  * @property {AsyncSchemaValueProcessor<any>} processor
  * @property {string} [description]
  */
 
 
-/** @callback ProcessorSpecCompiler
+/**
+ * @callback ProcessorSpecCompiler
  * @param {ProcessorSpec} spec
  * @returns {CompiledSpec}
  */
 
-/** @callback ValueProcessorBuilder
+/**
+ * @callback ValueProcessorBuilder
  * @param {ProcessorSpec|Array<ProcessorSpec>|undefined} args
  * @param {ProcessorSpecCompiler} specCompiler
  * @returns CompiledValueProcessorDefinition
  */
 
 /**
- * @typedef {Object} ValueProcessorDefinition
+ * @typedef {object} ValueProcessorDefinition
  * @property {string} [keyword]
  * @property {SchemaValueProcessor<any>} [processor]
  * @property {string} [description]
@@ -163,7 +168,7 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
  */
 
 /**
- * @typedef {Object} CompiledValueProcessorDefinition
+ * @typedef {object} CompiledValueProcessorDefinition
  * @property {ProcessorSpec} spec
  * @property {SchemaValueProcessor<any>} processor
  * @property {string} [description]
@@ -171,7 +176,7 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 
 
 /**
- * @typedef {Object} TraversalOptions
+ * @typedef {object} TraversalOptions
  * @property {boolean} [strict]
  * @property {boolean} [deep]
  * @property {TraversalContext} [context]
@@ -187,7 +192,8 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 /** @typedef {TraversalOptions & {[key:string]: any}} ConfigureOptions */
 /** @typedef {TraversalOptions & {[key:string]: any}} ValidateOptions */
 
-/** @typedef {Object} ProcessOptions
+/**
+ * @typedef {object} ProcessOptions
  * @property {TraversalContext|TraversalOptions} [context]
  */
 

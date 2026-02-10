@@ -1,6 +1,5 @@
 import { TraversalControl } from '../traversal-hooks.js';
 import { SchemaError } from '../../../errors.js';
-import { fpm } from '../../helpers/fpm.js';
 import { TraversalState } from '../traversal-state.js';
 
 /**
@@ -12,7 +11,7 @@ export async function propertyEnd(state, propertyState) {
   if (propertyState.value === undefined || propertyState.value === null) {
     return;
   }
-  let parentContainer = state.pending ?? state.value;
+  const parentContainer = state.pending ?? state.value;
 
   if (parentContainer === null) {
     // oops, we shouldn't even be here!

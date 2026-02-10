@@ -9,11 +9,10 @@ import { deepEquals } from '../../utils.js';
  * @param {CompiledSchema} inputSchema
  * @param {any} _
  * @param {SchemaLocation} location
- * @param {Object} options
  * @returns {Promise<CompiledSchema>}
  * @this {SchemaCompiler}
  */
-export async function synthesizeKeyDiscrimination(inputSchema, _, location, options) {
+export async function synthesizeKeyDiscrimination(inputSchema, _, location) {
   if (!inputSchema.isUnion) {
     return inputSchema;
   }
@@ -76,13 +75,10 @@ export async function synthesizeKeyDiscrimination(inputSchema, _, location, opti
 
 /**
  * @param {CompiledSchema} inputSchema
- * @param {any} _
- * @param {SchemaLocation} location
- * @param {Object} options
  * @returns {Promise<CompiledSchema>}
  * @this {SchemaCompiler}
  */
-export async function synthesizeAutoDiscrimination(inputSchema, _, location, options) {
+export async function synthesizeAutoDiscrimination(inputSchema) {
   if (!inputSchema.isUnion) {
     return inputSchema;
   }
@@ -184,12 +180,9 @@ export async function synthesizeAutoDiscrimination(inputSchema, _, location, opt
 
 /**
  * @param {CompiledSchema} inputSchema
- * @param {any} _
- * @param {SchemaLocation} location
- * @param {Object} options
  * @returns {Promise<CompiledSchema>}
  */
-export async function copyUnionOptions(inputSchema, _, location, options) {
+export async function copyUnionOptions(inputSchema) {
   if (!inputSchema.isUnion) {
     return inputSchema;
   }
@@ -338,7 +331,7 @@ function generateAutomaticDiscriminatorFunction(schema) {
    * @param {any} inputObject
    * @param {any} configuration
    * @param {SchemaLocation} location
-   * @param {Object} [options]
+   * @param {object} [options]
    * @returns {Promise<CompiledSchema|undefined>}
    */
   async function discriminator(inputObject, configuration, location, options) {

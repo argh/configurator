@@ -25,7 +25,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20.9.0",
+    "node": ">=22.22.0",
     "tsc": ">=5.5"
   },
   "scripts": {
@@ -41,17 +41,14 @@
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.6.1",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^24.7.2",
+    "@types/node": "^22.19.10",
     "c8": "^8.0.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsdoc": "^62.5.4",
     "mocha": "^10.2.0",
     "typedoc": "^0.28.16",
     "typedoc-plugin-markdown": "^4.9.0",
-    "typescript": "~5.6.3",
-    "zod": "^4.3.6"
-  },
-  "optionalDependencies": {
-    "@versionzero/logger": "file:../logger"
+    "typescript": "~5.8"
   }
 }

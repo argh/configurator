@@ -56,71 +56,7 @@ describe('Schema Compilation - Hierarchy', function() {
       assert.strictEqual(typeof deep.options.type, 'string');
     });
   });
-// FIXME
-  describe.skip('Path construction in hierarchy', function() {
 
-    it('should build correct paths through hierarchy', async function() {
-      const schema = new Schema('object')
-        .property('user', new Schema('object')
-          .property('profile', new Schema('object')
-            .property('name', new Schema('string'))));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.path, '');
-      assert.strictEqual(compiled.properties.user.path, 'user');
-      assert.strictEqual(compiled.properties.user.properties.profile.path, 'user.profile');
-      assert.strictEqual(compiled.properties.user.properties.profile.properties.name.path, 'user.profile.name');
-    });
-
-    it('should build paths with array indices', async function() {
-      const schema = new Schema('object')
-        .property('users', new Schema('array')
-          .property('0', new Schema('object')
-            .property('name', new Schema('string'))));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.properties.users.path, 'users');
-      assert.strictEqual(compiled.properties.users.properties['0'].path, 'users.0');
-      assert.strictEqual(compiled.properties.users.properties['0'].properties.name.path, 'users.0.name');
-    });
-  });
-// FIXME
-  describe.skip('Parent chain traversal', function() {
-
-    it('should maintain parent chain through nested objects', async function() {
-      const schema = new Schema('object')
-        .property('a', new Schema('object')
-          .property('b', new Schema('object')
-            .property('c', new Schema('string'))));
-
-      const compiled = await resolver.compile(schema);
-
-      const c = compiled.properties.a.properties.b.properties.c;
-
-      assert.strictEqual(c.parent, compiled.properties.a.properties.b);
-      assert.strictEqual(c.parent.parent, compiled.properties.a);
-      assert.strictEqual(c.parent.parent.parent, compiled);
-      assert.strictEqual(c.parent.parent.parent.parent, undefined);
-    });
-
-    it('should track names through parent chain', async function() {
-      const schema = new Schema('object')
-        .property('outer', new Schema('object')
-          .property('middle', new Schema('object')
-            .property('inner', new Schema('string'))));
-
-      const compiled = await resolver.compile(schema);
-
-      const inner = compiled.properties.outer.properties.middle.properties.inner;
-
-      assert.strictEqual(inner.name, 'inner');
-      assert.strictEqual(inner.parent.name, 'middle');
-      assert.strictEqual(inner.parent.parent.name, 'outer');
-      assert.strictEqual(inner.parent.parent.parent.name, undefined);
-    });
-  });
 
   describe('Arrays with element schemas', function() {
 

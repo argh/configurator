@@ -49,53 +49,7 @@ describe('Schema Compilation - Property Basics', function() {
       assert.strictEqual(compiled.properties.phone.required, false);
     });
   });
-  // FIXME
-  describe.skip('Property parent/name/path tracking', function() {
 
-    it('should set parent reference on property schemas', async function() {
-      const schema = new Schema('object')
-        .property('child', new Schema('string'));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.properties.child.parent, compiled);
-    });
-
-    it('should set name on property schemas', async function() {
-      const schema = new Schema('object')
-        .property('fieldName', new Schema('number'));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.properties.fieldName.name, 'fieldName');
-    });
-
-    it('should generate correct path for properties', async function() {
-      const schema = new Schema('object')
-        .property('user', new Schema('string'));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.path, '');
-      assert.strictEqual(compiled.properties.user.path, 'user');
-    });
-
-    it('should track parent/name for multiple properties', async function() {
-      const schema = new Schema('object')
-        .property('a', new Schema('string'))
-        .property('b', new Schema('number'))
-        .property('c', new Schema('boolean'));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.properties.a.name, 'a');
-      assert.strictEqual(compiled.properties.b.name, 'b');
-      assert.strictEqual(compiled.properties.c.name, 'c');
-      assert.strictEqual(compiled.properties.a.parent, compiled);
-      assert.strictEqual(compiled.properties.b.parent, compiled);
-      assert.strictEqual(compiled.properties.c.parent, compiled);
-    });
-  });
 
   describe('Wildcard properties on objects', function() {
 

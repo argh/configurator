@@ -17,8 +17,8 @@ import { ConstraintError } from '../../errors.js';
  * ```javascript
  * // Basic usage
  * Schema.create('number').validator('$truthy')
+ * ```
  *
-
  * @type {import('../types.js').ValueProcessorDefinition}
  */
 export const TRUTHY_CONSTRAINT = {

@@ -20,15 +20,13 @@ import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
 import { getBuiltinProcessors } from './builtin-processors/index.js';
 import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
-import { formatArgumentType } from './helpers/format.js';
 
 /** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
 
 /**
- * The SchemaResolver class is used to compile a Schema into a CompiledSchema.
- *
- * It also defines a registry of named schemas, and a registry of keywords that correspond to value processors.
-  */
+ * The SchemaResolver uses its internal registries of named schemas and value processor keywords to
+ * convert Schemas containing unresolved references into resolved Schemas that are fully self-contained.
+ */
 export class SchemaResolver
 {
   /**

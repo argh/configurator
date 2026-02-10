@@ -1,5 +1,5 @@
 /**
- * @typedef {Object} TraversalContextOptions
+ * @typedef {object} TraversalContextOptions
  * @property {boolean} [strict]
  * @property {boolean} [deep]
  * @property {boolean} [debug]

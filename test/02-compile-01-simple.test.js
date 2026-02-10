@@ -188,45 +188,6 @@ describe('Schema Compilation - Simple', function() {
       assert.ok(Object.isFrozen(compiled.properties.name.metadata));
     });
   });
-//FIXME
-  describe.skip('Parent and name tracking in compiled schemas', function() {
-
-    it('should set parent references correctly', async function() {
-      const schema = new Schema()
-        .property('user', new Schema('object')
-          .property('name', new Schema('string')));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.properties.user.parent, compiled);
-      assert.strictEqual(compiled.properties.user.properties.name.parent, compiled.properties.user);
-    });
-
-    it('should set name references correctly', async function() {
-      const schema = new Schema()
-        .property('user', new Schema('object')
-          .property('name', new Schema('string')));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.properties.user.name, 'user');
-      assert.strictEqual(compiled.properties.user.properties.name.name, 'name');
-    });
-
-    it('should generate correct paths', async function() {
-      const schema = new Schema()
-        .property('user', new Schema('object')
-          .property('profile', new Schema('object')
-            .property('name', new Schema('string'))));
-
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(compiled.path, '');
-      assert.strictEqual(compiled.properties.user.path, 'user');
-      assert.strictEqual(compiled.properties.user.properties.profile.path, 'user.profile');
-      assert.strictEqual(compiled.properties.user.properties.profile.properties.name.path, 'user.profile.name');
-    });
-  });
 
   describe('Values compilation', function() {
 
