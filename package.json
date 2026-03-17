@@ -30,7 +30,7 @@
   },
   "scripts": {
     "test": "mocha --timeout 0 --ui bdd --recursive --exit",
-    "test:coverage": "c8 mocha --timeout 0 --ui bdd --recursive --exit",
+    "test:coverage": "c8 mocha --timeout 0 --ui bdd --recursive --exit --ignore 'test/99-*.test.js'",
     "docs:api": "typedoc",
     "docs:api:json": "typedoc --json docs-output/api.json",
     "docs:api:contributors": "typedoc --excludeInternal false --excludePrivate false --out docs-output-contributors",
@@ -46,9 +46,13 @@
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^62.5.4",
-    "mocha": "^10.2.0",
+    "mocha": "^11.7.4",
     "typedoc": "^0.28.16",
     "typedoc-plugin-markdown": "^4.9.0",
+    "typedoc-plugin-missing-exports": "^4.1.2",
     "typescript": "~5.8"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }

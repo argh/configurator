@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { ConstraintError } from '../../errors.js';
+
+import { ConstraintError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$writable` (async)
@@ -9,23 +10,6 @@ import { ConstraintError } from '../../errors.js';
  * If the path does not exist, validates that the parent directory exists and is writable.
  *
  * This is an asynchronous processor that performs file system permission checks.
- *
- * @example
- * ```javascript
- * // Basic usage - validate output file path
- * Schema.create('string').validator('$writable')
- *
- * // Configuration file that must be writable
- * Schema.create('object', {
- *   outputFile: Schema.create('string').validator('$writable'),
- *   logFile: Schema.create('string').validator('$writable')
- * })
- *
- * // Combined with other validators
- * Schema.create('string')
- *   .validator('$file')      // Must be a file
- *   .validator('$writable')  // And must be writable
- * ```
  *
  * **Valid values**:
  * - Existing files with write permissions: `/tmp/output.log`, `./config.json`
@@ -36,11 +20,11 @@ import { ConstraintError } from '../../errors.js';
  * - Paths in non-existent parent directories: `/nonexistent/dir/file.txt`
  * - Paths in read-only directories: `/read-only-mount/file.txt`
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const WRITABLE_CONSTRAINT = {
   keyword: 'writable',
-  processor: async (value) => {
+  process: async (value) => {
     try {
       // Try to access the file
       await fs.access(value, constants.W_OK);

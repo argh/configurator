@@ -2,11 +2,18 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ConstraintError, NormalizeError, SchemaError, TransformError, ValidationError } from '../src/errors.js';
 import { deepAssign, deepValue } from '../src/utils.js';
 import { CompiledSchema } from '../src/index.js';
+import {
+  ConstraintError,
+  NormalizeError,
+  SchemaError,
+  TransformError,
+  ValidationError
+} from '../src/schema/schema-errors.js';
 
 describe('Assignments - Basic Processing', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   /**
@@ -15,7 +22,7 @@ describe('Assignments - Basic Processing', function() {
    * @param {any} result
    * @param {Map<string,any>} assignments
    * @param {any} [configuration]
-   * @param {Object} [options]
+   * @param {object} [options]
    * @returns {Promise<void>}
    */
   async function verify(compiled, result, assignments, configuration, options) {
@@ -1043,6 +1050,10 @@ describe('Assignments - Basic Processing', function() {
 
 
       ]);
+
+      // note - if we were to traverse these assignments individually ahead of time,
+      // the default for "display" would get populated too early. Since it never gets overwritten,
+      // it would have the wrong value for the "display" (the one captured at first traversal).
 
       const result = await compiled.processAssignments(assignments);
 

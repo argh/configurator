@@ -1,4 +1,4 @@
-import { ConstraintError } from '../../errors.js';
+import { ConstraintError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$base64`
@@ -8,27 +8,14 @@ import { ConstraintError } from '../../errors.js';
  * padding with equals signs. If padding is present, the total length must
  * be a multiple of 4.
  *
- * @example
- * ```javascript
- * // Basic usage
- * Schema.create('string').validator('$base64')
- *
- * // In a schema property
- * Schema.create('object', {
- *   encodedData: Schema.create('string').validator('$base64'),
- *   apiKey: Schema.create('string').validator('$base64')
- * })
- * ```
- *
  * **Valid values**: `SGVsbG8gV29ybGQ=`, `YWJjMTIz`, `dGVzdA==`, `QUJDREVGR0hJSg==`
  *
  * **Invalid values**: `Hello World!` (not encoded), `SGVsbG8=` (invalid padding), `SGVs#bG8=` (invalid character)
- *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const BASE64_CONSTRAINT = {
   keyword: 'base64',
-  processor: (value) => {
+  process: (value) => {
     const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
     if (!base64Regex.test(value)) {
       throw new ConstraintError('Invalid base64 format');

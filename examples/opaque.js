@@ -2,7 +2,7 @@ import { Schema, SchemaResolver } from '../src/index.js';
 import { SchemaPolicy } from '../src/schema/schema.js';
 
 import assert from 'node:assert/strict';
-import { NormalizeError, SchemaError } from '../src/errors.js';
+import { NormalizeError, SchemaError } from '../src/schema/schema-errors.js';
 
 // Opaque Schemas
 //
@@ -27,7 +27,7 @@ const resolver = new SchemaResolver();
 // to enforce our rules early.
 const hexByteSchema = resolver.resolve(new Schema('number'))
                               .normalizers([
-                                  {$or: ['$integer', '$hex']},
+                                  {$any: ['$integer', '$hex']},
                                   (input => (typeof input === 'string')? parseInt(input, 16) : input)
                                 ],
                                 SchemaPolicy.PREPEND
@@ -44,11 +44,12 @@ const colorComponentSchema = new Schema(hexByteSchema)
   .transformer(value => Number(value).toString(16).padStart(2, '0'))
   .validators([/[0-9a-f]{2}/i, '$lowercase'], SchemaPolicy.OVERWRITE)
 
-// This schema is where it gets interesting; we're changing from a container (object)
-// to a primitive, so we need to mark it as opaque.
+// This schema is where it gets interesting; we're changing from a container (with properties)
+// to a primitive, so we need to mark it as opaque so that we don't try to assign the colors
+// incrementally.
 
 const colorObjectSchema = await resolver.compile(
-  new Schema('object')
+  new Schema('any')
     .property('red', colorComponentSchema)
     .property('green', colorComponentSchema)
     .property('blue', colorComponentSchema)

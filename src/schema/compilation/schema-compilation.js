@@ -1,31 +1,36 @@
-import { SchemaCompilationError, SchemaError } from '../../errors.js';
 import { CompiledSchema } from '../compiled-schema.js';
-import { SchemaCompiler } from "../schema-compiler.js";
+import { CachedSchemaReference, SchemaCompiler } from "../schema-compiler.js";
 import { SchemaLocation } from "../schema-location.js";
 import { Schema } from '../schema.js';
+import { SchemaCompilationError, SchemaError } from '../schema-errors.js';
 
 /**
  * Convert a schema to a simple object form compatible with the SchemaCompiler SchemaSchema assumptions
  *
- * @param {Schema|CompiledSchema} schema
+ * @param {any} schema
  * @param {any} _
  * @param {SchemaLocation} location
  * @returns {import("../types.js").SchemaData}
+ * @this {SchemaCompiler}
  */
 export function normalizeSchema(schema, _, location) {
+  if (schema === true) {
+    return {};
+  }
+
   if (schema instanceof CompiledSchema) {
     return schema;
   }
-  if (!(schema instanceof Schema)) {
-    throw new SchemaCompilationError('Normalization input is not a schema', {location})
+  if (this.normalizeCache.has(schema)) {
+    //return new CachedSchemaReference(schema);
+    return this.normalizeCache.get(schema);
   }
-  if (schema.base) {
-    throw new SchemaCompilationError(`Cannot normalize schema with unresolved base`, {location, value: schema.base});
-  }
-
   const data = {};
+  this.normalizeCache.set(schema, data);
 
-  // sloppy copy so that we can also load dumb data
+  schema = this.resolver.resolve(schema, false);
+
+  // todo - why are we not using schema.toData()?
   for (const group of ['properties', 'unionSchemas', 'metadata', 'options', 'handlers']) {
     if (!schema[group]) {
       continue;
@@ -51,16 +56,16 @@ export function normalizeSchema(schema, _, location) {
  * @param {any} _
  * @param {SchemaLocation} location
  * @param {object} transformOptions
- * @returns {Promise<CompiledSchema>}
+ * @returns {CompiledSchema}
  * @this {SchemaCompiler}
  */
-export async function transformSchema(inputSchema, _, location, transformOptions) {
+export function transformSchema(inputSchema, _, location, transformOptions) {
   if (inputSchema instanceof CompiledSchema) {
     return inputSchema;
   }
   const cs = new CompiledSchema(CompiledSchema.__TOKEN);
 
-  this.compileCache.set(transformOptions.traversalState.assignedInput, cs);
+  this.compileCache.set(transformOptions.state.assignedInput, cs);
 
   for (const [propertyName, propertySchema] of Object.entries(inputSchema.properties ?? {})) {
     if (propertySchema instanceof CompiledSchema) {
@@ -80,20 +85,7 @@ export async function transformSchema(inputSchema, _, location, transformOptions
   }
   Object.assign(cs.handlers, inputSchema.handlers);
   Object.assign(cs.metadata, inputSchema.metadata);
-
-  const {values, ...options} = inputSchema.options;
-  Object.assign(cs.options, options);
-  const valueSet = new Set();
-  for (const value of values ?? []) {
-    const normalizedValue = await cs._normalizeValue(value);
-    if (normalizedValue === undefined) {
-      throw new SchemaCompilationError(`Undefined after normalizing`, {value, location});
-    }
-    valueSet.add(normalizedValue);
-  }
-  if (valueSet.size) {
-    cs.options.values = [...valueSet];
-  }
+  Object.assign(cs.options, inputSchema.options);  // options.values will get re-written later
 
   return cs;
 }

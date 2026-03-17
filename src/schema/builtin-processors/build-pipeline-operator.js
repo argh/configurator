@@ -1,7 +1,11 @@
-import { ResolverError } from '../../errors.js';
+import { ResolverError } from '../schema-errors.js';
+import { PipelineExecutor } from '../executor/pipeline-executor.js';
+
+import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
+import { map } from '../../utils.js';
 
 /**
- * @import {ValueProcessorDefinition, ProcessorSpec, CompiledSpec, ProcessorSpecCompiler, SchemaValueProcessor, CompiledValueProcessorDefinition} from '../types.js'
+ * @import {ValueProcessorDefinition} from '../value-processor/value-processor.js'
  */
 
 /**
@@ -14,30 +18,6 @@ import { ResolverError } from '../../errors.js';
  * so this processor is rarely used directly. It's primarily used internally by the
  * schema compiler to aggregate handler arrays into single compiled processors.
  *
- * @example
- * ```javascript
- * // Explicit pipeline (rarely needed - prefer handler arrays)
- * Schema.create('string').validator({
- *   $pipeline: ['$trim', '$lowercase', {$length: {min: 3}}]
- * })
- *
- * // Preferred: Use handler arrays (creates implicit pipeline)
- * Schema.create('string')
- *   .validator('$trim')
- *   .validator('$lowercase')
- *   .validator({$length: {min: 3}})
- *
- * // Normalize phase pipeline (trim then convert case)
- * Schema.create('string').normalizer({
- *   $pipeline: ['$trim', '$lowercase']
- * })
- *
- * // Transform pipeline with multiple operations
- * Schema.create('number').transformer({
- *   $pipeline: [{$round: {precision: 2}}, {$range: {min: 0, max: 100}}]
- * })
- * ```
- *
  * **Parameters**:
  * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications to execute in sequence.
  *   Each element can be a string keyword (e.g., `'$trim'`), a parameterized processor object
@@ -47,46 +27,23 @@ import { ResolverError } from '../../errors.js';
  * stops and the error propagates. Each processor receives the output of the previous processor
  * as its input value.
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {ValueProcessorDefinition}
  */
 export const PIPELINE_OPERATOR = {
   keyword: 'pipeline',
-  /**
-   * @param {Array<ProcessorSpec>} args
-   * @param {ProcessorSpecCompiler} compileSpec
-   * @returns {CompiledValueProcessorDefinition}
-   */
-  builder: (args, compileSpec) => {
+  build: (args) => {
     if (!Array.isArray(args)) {
       throw new ResolverError('$pipeline requires an array of processors');
     }
 
-    /** @type {Array<ProcessorSpec>} */
-    const processors = args;
+    const descriptions = args.map(arg => arg.description ?? '').filter(Boolean);
+    const description = descriptions.length > 1
+                        ? descriptions.map(d => (d.includes('|') || d.includes('&')) ? `(${d})` : d).join(' >> ')
+                        : descriptions[0]
+    const spec = {$pipeline: map(args, arg => arg.spec)}
 
-    const compiled = processors.map(spec => compileSpec(spec));
-
-    const descriptions = compiled.map(c => c.description ?? '').filter(Boolean);
-
-    return ({
-      spec: processors,
-
-      processor: /** @type {import('../types.js').SchemaValueProcessor<any>} */
-        (async (value, configuration, location, options) => {
-        const allowUndefined = location.schema?.options.allowUndefined ?? options?.allowUndefined ?? false;
-
-        let v = value;
-        for (const {processor} of compiled) {
-          if ((v === undefined /*&& !allowUndefined*/) || v === null) {
-            return v;
-          }
-          v = await processor(v, configuration, location, options);
-        }
-        return v;
-      }),
-      description: descriptions.length > 1
-                   ? descriptions.map(d => (d.includes('|') || d.includes('&')) ? `(${d})` : d).join(' >> ')
-                   : descriptions[0]
-    });
+    return new ComposedValueProcessor(new PipelineExecutor(args), spec, description);
   }
-};
+}
+
+

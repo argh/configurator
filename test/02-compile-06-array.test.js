@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, NormalizeError, TransformError, ConstraintError } from '../src/errors.js';
+import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Array Type', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -18,7 +19,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [1, 2, 3];
-      const normalized = await compiled._normalizeValue(arr);
+      const normalized = await compiled.normalizeValue(arr);
       assert.deepStrictEqual(normalized, arr);
     });
 
@@ -27,7 +28,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [];
-      const normalized = await compiled._normalizeValue(arr);
+      const normalized = await compiled.normalizeValue(arr);
       assert.deepStrictEqual(normalized, arr);
     });
 
@@ -35,7 +36,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue(true);
+      const normalized = await compiled.normalizeValue(true);
       assert.deepStrictEqual(normalized, []);
     });
 
@@ -43,7 +44,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('[1,2,3]');
+      const normalized = await compiled.normalizeValue('[1,2,3]');
       assert.deepStrictEqual(normalized, [1, 2, 3]);
     });
 
@@ -51,7 +52,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('["a","b","c"]');
+      const normalized = await compiled.normalizeValue('["a","b","c"]');
       assert.deepStrictEqual(normalized, ['a', 'b', 'c']);
     });
 
@@ -59,7 +60,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('apple,banana,cherry');
+      const normalized = await compiled.normalizeValue('apple,banana,cherry');
       assert.deepStrictEqual(normalized, ['apple', 'banana', 'cherry']);
     });
 
@@ -67,7 +68,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('one, two, three');
+      const normalized = await compiled.normalizeValue('one, two, three');
       assert.deepStrictEqual(normalized, ['one', 'two', 'three']);
     });
 
@@ -75,7 +76,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('a,,b,,c');
+      const normalized = await compiled.normalizeValue('a,,b,,c');
       assert.deepStrictEqual(normalized, ['a', 'b', 'c']);
     });
 
@@ -83,7 +84,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('');
+      const normalized = await compiled.normalizeValue('');
       assert.deepStrictEqual(normalized, []);
     });
 
@@ -91,7 +92,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('   ');
+      const normalized = await compiled.normalizeValue('   ');
       assert.deepStrictEqual(normalized, []);
     });
 
@@ -100,7 +101,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-      async () => await compiled._normalizeValue('[invalid-json]'), NormalizeError);
+      async () => await compiled.normalizeValue('[invalid-json]'), NormalizeError);
     });
 
     it('should throw NormalizeError for non-array values', async function() {
@@ -108,11 +109,11 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-      async () => await compiled._normalizeValue(123), NormalizeError);
+      async () => await compiled.normalizeValue(123), NormalizeError);
       await assert.rejects(
-      async () => await compiled._normalizeValue(false), NormalizeError);
+      async () => await compiled.normalizeValue(false), NormalizeError);
       await assert.rejects(
-      async () => await compiled._normalizeValue({ a: 1 }), NormalizeError);
+      async () => await compiled.normalizeValue({ a: 1 }), NormalizeError);
     });
 
     it('should normalize array to string when values constraint exists', async function() {
@@ -121,7 +122,7 @@ describe('Schema Compilation - Array Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue([1, 2]);
+      const normalized = await compiled.normalizeValue([1, 2]);
       assert.deepStrictEqual(normalized, [1,2]);
     });
   });
@@ -133,7 +134,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [1, 2, 3];
-      const transformed = await compiled._transformValue(arr);
+      const transformed = await compiled.transformValue(arr);
       assert.deepStrictEqual(transformed, arr);
     });
 
@@ -141,7 +142,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled._transformValue([]);
+      const transformed = await compiled.transformValue([]);
       assert.deepStrictEqual(transformed, []);
     });
 
@@ -149,7 +150,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled._transformValue(true);
+      const transformed = await compiled.transformValue(true);
       assert.deepStrictEqual(transformed, []);
     });
 
@@ -157,7 +158,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled._transformValue('[10,20,30]');
+      const transformed = await compiled.transformValue('[10,20,30]');
       assert.deepStrictEqual(transformed, [10, 20, 30]);
     });
 
@@ -165,7 +166,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const transformed = await compiled._transformValue('  ["x","y","z"]  ');
+      const transformed = await compiled.transformValue('  ["x","y","z"]  ');
       assert.deepStrictEqual(transformed, ['x', 'y', 'z']);
     });
 
@@ -174,7 +175,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._transformValue('[not-valid-json]'),
+        () => compiled.transformValue('[not-valid-json]'),
         TransformError
       );
     });
@@ -184,12 +185,12 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._transformValue(123),
+        () => compiled.transformValue(123),
         TransformError
       );
 
       await assert.rejects(
-        () => compiled._transformValue({ a: 1 }),
+        () => compiled.transformValue({ a: 1 }),
         TransformError
       );
     });
@@ -202,7 +203,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [1, 2, 3];
-      const validated = await compiled._validateValue(arr);
+      const validated = await compiled.validateValue(arr);
       assert.deepStrictEqual(validated, arr);
     });
 
@@ -210,7 +211,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const validated = await compiled._validateValue([]);
+      const validated = await compiled.validateValue([]);
       assert.deepStrictEqual(validated, []);
     });
 
@@ -219,7 +220,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [1, 'two', true, null];
-      const validated = await compiled._validateValue(arr);
+      const validated = await compiled.validateValue(arr);
       assert.deepStrictEqual(validated, arr);
     });
 
@@ -228,22 +229,22 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._validateValue('string'),
+        () => compiled.validateValue('string'),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue(123),
+        () => compiled.validateValue(123),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue(true),
+        () => compiled.validateValue(true),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue({ length: 3 }),
+        () => compiled.validateValue({ length: 3 }),
         ValidationError
       );
     });
@@ -251,7 +252,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._validateValue(null), null);
+      assert.strictEqual(await compiled.validateValue(null), null);
     });
   });
 
@@ -262,7 +263,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [10, 20, 30];
-      const serialized = await compiled._serializeValue(arr);
+      const serialized = await compiled.serializeValue(arr);
       assert.deepStrictEqual(serialized, arr);
     });
 
@@ -270,7 +271,7 @@ describe('Schema Compilation - Array Type', function() {
       const schema = new Schema('array');
       const compiled = await resolver.compile(schema);
 
-      const serialized = await compiled._serializeValue([]);
+      const serialized = await compiled.serializeValue([]);
       assert.deepStrictEqual(serialized, []);
     });
 
@@ -279,7 +280,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = ['a', 1, true];
-      const serialized = await compiled._serializeValue(arr);
+      const serialized = await compiled.serializeValue(arr);
       assert.deepStrictEqual(serialized, arr);
     });
   });
@@ -304,7 +305,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._transformValue(['x', 'y']),
+        () => compiled.transformValue(['x', 'y']),
         TransformError
       );
     });
@@ -330,7 +331,7 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       const arr = [1, 2, 3];
-      const validated = await compiled._validateValue(arr);
+      const validated = await compiled.validateValue(arr);
       assert.deepStrictEqual(validated, arr);
     });
   });
@@ -428,15 +429,15 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue('[1,2,3]');
+      const normalized = await compiled.normalizeValue('[1,2,3]');
       assert.deepStrictEqual(normalized, [1, 2, 3]);
 
       // Transform
-      const transformed = await compiled._transformValue(normalized);
+      const transformed = await compiled.transformValue(normalized);
       assert.deepStrictEqual(transformed, [1, 2, 3]);
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.deepStrictEqual(validated, [1, 2, 3]);
     });
 
@@ -445,15 +446,15 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue('red,green,blue');
+      const normalized = await compiled.normalizeValue('red,green,blue');
       assert.deepStrictEqual(normalized, ['red', 'green', 'blue']);
 
       // Transform (needs JSON format for transformer)
-      const transformed = await compiled._transformValue(['red', 'green', 'blue']);
+      const transformed = await compiled.transformValue(['red', 'green', 'blue']);
       assert.deepStrictEqual(transformed, ['red', 'green', 'blue']);
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.deepStrictEqual(validated, ['red', 'green', 'blue']);
     });
 
@@ -462,15 +463,15 @@ describe('Schema Compilation - Array Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue(true);
+      const normalized = await compiled.normalizeValue(true);
       assert.deepStrictEqual(normalized, []);
 
       // Transform
-      const transformed = await compiled._transformValue(true);
+      const transformed = await compiled.transformValue(true);
       assert.deepStrictEqual(transformed, []);
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.deepStrictEqual(validated, []);
     });
 
@@ -480,15 +481,15 @@ describe('Schema Compilation - Array Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('[10, 20]');
+      const normalized = await compiled.normalizeValue('[10, 20]');
       assert.deepStrictEqual(normalized, [10,20]);
 
       // Transform from string (normalized form) back to array
-      const transformed = await compiled._transformValue([10, 20]);
+      const transformed = await compiled.transformValue([10, 20]);
       assert.deepStrictEqual(transformed, [10, 20]);
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.deepStrictEqual(validated, [10, 20]);
     });
   });

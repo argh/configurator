@@ -12,7 +12,12 @@
     "skipLibCheck": true,
     "noImplicitAny": false,
     "types": ["node", "mocha"],
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+
+    //"declaration": true,
+    //"emitDeclarationOnly": true,
+    //"outDir": "types",
+    //"declarationMap": true
   },
   "exclude": [
     "node_modules",

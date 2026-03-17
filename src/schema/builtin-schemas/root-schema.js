@@ -16,6 +16,6 @@ export const ROOT_SCHEMA = new Schema()
     while (location?.parent) {
       location = location.parent;
     }
-    return location?.toData();
+    return location?.schema.toData();
   })
 

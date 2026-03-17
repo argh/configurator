@@ -1,7 +1,8 @@
 import assert from 'node:assert';
 import { Schema, SchemaResolver } from '../src/index.js';
 import { AssertionError } from 'node:assert/strict';
-import { ValidationError } from '../src/errors.js';
+
+import { ValidationError } from '../src/schema/schema-errors.js';
 
 const resolver = new SchemaResolver();
 
@@ -81,15 +82,22 @@ testThing.stuff.data = 12345;  // allowed, but yields a type warning
 
 const inadequateThingSchema = await resolver.compile(
   new Schema('object')
-    .transformer(_ => new Thing())
+    .transformer(input => {
+      if (input instanceof Thing) {
+        return input;
+      }
+      const thing = new Thing();
+      Object.assign(thing.stuff, input?.stuff);
+      return thing;
+    })
     .property('type', new Schema('string')
       // Requiring assignment values to exactly match the existing value cause them to be skipped.
       .normalizer('$lowercase')
-      .validator('thing')
+      .validator({$eq: 'thing'})
     )
     .property('name', new Schema('string')
       // We can ignore attempts to assign "name" by explicitly pruning it
-      .normalizer(null))
+      .normalizer('$null'))
     .property('stuff',
       // Here's where it will fall apart...
       new Schema('object')
@@ -131,21 +139,6 @@ catch (error) {
   if (!(error instanceof TypeError)) { throw error }
 }
 
-// This also means we can't even handle an actual Thing instance:
-
-try {
-  const testThing = new Thing();
-  testThing.stuff.x = 10;
-  testThing.stuff.y = 20;
-  await inadequateThingSchema.process(testThing)
-  assert(false, 'Should should have thrown an error!');
-}
-catch (error) {
-  // expected...
-  if (!(error instanceof TypeError)) { throw error }
-}
-
-
 
 // Let's fix all these issues.
 // 1. Mark "type" as literal to simplify value checking.
@@ -185,6 +178,10 @@ for (const goodInput of [
   assert(goodThing.type === 'thing');
 
   for (const [k,v] of Object.entries(goodInput.stuff ?? {})) {
+    if (goodThing.stuff[k] !== `${v}`) {
+      console.log('oops');
+    }
+
     assert(goodThing.stuff[k] === `${v}`);
 
   }

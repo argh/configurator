@@ -1,7 +1,6 @@
 import { CompiledSchema } from './compiled-schema.js';
 import { SchemaResolver } from './schema-resolver.js';
-import { Schema } from './schema.js';
-import { NormalizeError, SchemaCompilationError, SchemaError, TransformError } from '../errors.js';
+import { Schema, SchemaPolicy } from './schema.js';
 
 import {
   copyUnionOptions, synthesizeKeyDiscrimination, synthesizeAutoDiscrimination,
@@ -10,6 +9,13 @@ import { SchemaLocation } from "./schema-location.js";
 import { populateChildSelectorValues } from './compilation/selection-compilation.js';
 import { populateMetadata } from './compilation/metadata-compilation.js';
 import { normalizeSchema, transformSchema, validateSchema } from './compilation/schema-compilation.js';
+import { TraversalContext } from './traversal/index.js';
+import { NormalizeError, SchemaCompilationError, SchemaError, TransformError } from './schema-errors.js';
+import { isKeywordValueProcessorSpec } from './value-processor/spec.js';
+import { isEmpty, isPlainObject } from '../utils.js';
+import { ValueProcessor } from './value-processor/value-processor.js';
+import { compileHandlers } from './compilation/handler-compilation.js';
+import { normalizeValues } from './compilation/values-compilation.js';
 
 /** @typedef {(inputSchema:CompiledSchema|Schema, targetSchema:CompiledSchema, location:SchemaLocation, options?:object) => Promise<Schema|CompiledSchema|import("./types.js").SchemaData|undefined>} InputSchemaProcessor */
 /** @typedef {(inputSchema:CompiledSchema, targetSchema:CompiledSchema, location:SchemaLocation, options?:object) => Promise<CompiledSchema|undefined>} OutputSchemaProcessor */
@@ -21,7 +27,7 @@ import { normalizeSchema, transformSchema, validateSchema } from './compilation/
 /**
  * This is a marker class for type safety that is replaced before the schema is used.
  */
-class CachedSchemaReference extends CompiledSchema {
+export class CachedSchemaReference extends CompiledSchema {
   /**
    * @param {Schema} schema
    */
@@ -43,69 +49,120 @@ export class SchemaCompiler extends CompiledSchema {
 
     this.resolver = resolver;
 
-    this.compileSeen = new Set();
+    this.normalizeCache = new Map();
+
+    this.compileSeen = new Map();
     this.compileCache = new Map();
 
     // We'll use Schema's fluent setters to carefully define a "Schema Schema", and then extract its guts.
 
-    const processorListSchema = new Schema('array')
-      .property('*', new Schema('any')
-        .option('type', '__compilerSpec')
-        .option('dynamic', false)
-        .transformer(async (spec) => {
-          return resolver.compileProcessorSpec(spec);
-        })
-        .opaque()
-      )
 
-    const schemaCompilerSchema = new Schema()
-      .unionDiscriminator((s, _, location, options) => {
-        if (this.compileSeen.has(s)) {
-          return 'cache';
+    const simpleKeywordSpecSchema = new Schema('any')
+      .option('dynamic', false)
+      .opaque()
+      .transformer(spec => {
+        return resolver.compileKeywordValueProcessorSpec(spec)
+      })
+      .validator((p, _target, location) => {
+        if (!(p instanceof ValueProcessor)) {
+          throw new SchemaCompilationError('Failed to compile to a value processor', {location});
         }
-        else if (s instanceof CompiledSchema) {
-          return 'reference';
-        }
-        else if (typeof s === 'object') {
-          this.compileSeen.add(s);
-          return 'schema';
-        }
-        else {
-          return undefined;
-        }
+        return p;
       })
 
-      .unionSchema('reference', new Schema()
-        .required()
-        .normalizer(s => {
-          if (!(s instanceof CompiledSchema)) {
-            throw new SchemaCompilationError('Not a CompiledSchema reference!');
-          }
-          return s;
-        })
-      )
-      .unionSchema('cache', new Schema()
-        .required()
-        .normalizer(s => {
-          if (!(s instanceof Schema)) {
-            throw new SchemaCompilationError('Can only cache references to schemas')
-          }
-          return new CachedSchemaReference(s);
-        })
-      )
-
-    // The schema needs to be opaque right now because it contains internals that have a complex
-    // resolution dependency chain that cannot (yet) be expressed in the schema itself:
-    //
-    // values depends on normalizers
-    // discriminators is a default, but depends on checking values
-    // selector and selection depend on condition and values
-    //
-    // validation depends on everything being configured properly as it checks options/children
-
-    const schemaSchema = new Schema('object')
-//      .option('type', 'object')
+    const verboseKeywordSpecSchema = new Schema('object')
+      .property('$literal', new Schema('any'))
+      .option('dynamic', false)
       .opaque()
+      .transformer(spec => {
+        return resolver.compileKeywordValueProcessorSpec(spec)
+      })
+
+    const generalSpecSchema = new Schema('any')
+      .option('dynamic', false)
+      .transformer(spec => {
+        return resolver.compileValueProcessorSpec(spec)
+      })
+
+    const specSchema = new Schema('any')
+      .normalizer((spec) => {
+        if (spec === null) {
+          return '$null';
+        }
+        return spec;
+      })
+      .option('dynamic', false)
+// union - never transformed
+//      .transformer(spec => {
+//        return resolver.compileKeywordValueProcessorSpec(spec)
+//      })
+      .unionDiscriminator(spec => {
+        if (spec instanceof ValueProcessor) {
+          return 'general';
+        }
+        if (spec === null || spec === undefined) {
+          return 'general';
+        }
+        if (isEmpty(spec)) {
+          // todo - can $literal be used to allow deliberately empty specs?
+          return undefined;
+        }
+        if (isKeywordValueProcessorSpec(spec)) {
+          return typeof spec === 'string' ? 'keyword' : 'keyword+args';
+        }
+        return 'general';
+      })
+      .unionSchema('keyword', simpleKeywordSpecSchema)
+      .unionSchema('keyword+args', verboseKeywordSpecSchema)
+      .unionSchema('general', generalSpecSchema)
+
+    const keywordArgumentsSchema = new Schema('any')
+      .option('dynamic', false)
+      .unionDiscriminator(spec => {
+        if (Array.isArray(spec)) { return 'array'}           // array for arguments is always parameters
+
+        if (isKeywordValueProcessorSpec(spec)) { return 'spec' }
+        if (isEmpty(spec)) { return undefined; }  // might be a keyword once filled in
+        if (isPlainObject(spec)) { return 'object'}
+        return 'spec';
+      })
+      .unionSchema('spec', specSchema)
+      .unionSchema('array', new Schema('array')
+        .opaque()
+        .transformer(pa => {
+          return pa; // todo - verify parameters
+        })
+        .property('*', specSchema))
+      .unionSchema('object', new Schema('object')
+        .opaque()
+        .transformer(po => {
+          return po;  // todo - verify parameters
+        })
+        .property('*', specSchema))
+
+    verboseKeywordSpecSchema.property('*', keywordArgumentsSchema)
+
+
+    const pipelineSchema = new Schema('array')
+      .property('*', specSchema)
+//      .transformer(speclist => {
+//        return resolver.compileProcessorPipeline(speclist);
+//      })
+
+    // fixme - well, mostly fixed now, but here's the former comment:
+    // the problem is that this schema is an "any", so it doesn't normalize the input schema at all,
+    // ...it makes it all the way to the resolver phase, gets resolved, but then it won't iterate
+    // the children because it isn't a "simple object".
+    //
+    // the other compiler presumably fixed this by doing a full restart of the traversal with the new schema.
+    // we don't have a good mechanism for that yet.  :-/
+    //
+    // otherwise we need a compatible normalizer, which I'm not sure is possible.
+
+
+    const schemaCompilerSchema = new Schema()
+      .meta('compiler', 'root')
+/*
       .normalizer(
         async (inputSchema) => {
           if (inputSchema instanceof CompiledSchema) {
@@ -119,17 +176,131 @@ export class SchemaCompiler extends CompiledSchema {
           }
         }
       )
+ */
+      .normalizer((inputSchema, _, location) => {
+        if (this.compileSeen.has(inputSchema) && this.compileSeen.get(inputSchema) !== location.path) {
+          return new CachedSchemaReference(inputSchema);
+        }
+        if (inputSchema instanceof CompiledSchema) {
+          return inputSchema;
+        }
+        this.compileSeen.set(inputSchema, location.path);
+        return inputSchema
+      })
       .normalizer(normalizeSchema.bind(this))
+
+      // note: we need to only return strings while compiling to prevent dogfood confusion about union schemas!
+      .unionDiscriminator((s, _, location, options) => {
+        if (s instanceof CachedSchemaReference) {
+          return 'cache';
+        }
+        if (this.compileSeen.has(s)) {
+          return 'cache';
+        }
+        else if (s instanceof CompiledSchema) {
+          return 'reference';
+        }
+        else if (typeof s === 'object') {
+//          this.compileSeen.add(s);
+          return 'schema';
+        }
+        else {
+          return undefined;
+        }
+      })
+
+      .unionSchema('reference', new Schema()
+        .meta('compiler', 'reference')
+        .required()
+        .normalizer(s => {
+          if (!(s instanceof CompiledSchema)) {
+            throw new SchemaCompilationError('Not a CompiledSchema reference!');
+          }
+          return s;
+        })
+      )
+      .unionSchema('cache', new Schema()
+        .meta('compiler', 'cache')
+        .required()
+        .normalizer(s => {
+          if (s instanceof CachedSchemaReference) {
+            return s;
+          }
+          if (!(s instanceof Schema)) {
+            throw new SchemaCompilationError('Can only cache references to schemas')
+          }
+          return new CachedSchemaReference(s);   // fixme gahhhhhh we never get here, only normalized via main union
+        })
+        /* note to self: can't have a transformer find the completed schema in the cache because
+           there's a chicken and egg problem; opaque schema won't transform without all properties complete,
+           but a property that depends on the parent schema can't complete!  revisit if we ever make the schema incremental.
+        .transformer(s => {
+          if (!(s instanceof CachedSchemaReference)) {
+            throw new SchemaCompilationError('not a cached schema');
+          }
+          const compiledSchema = this.compileCache.get(s.schema);
+          return compiledSchema;
+        })
+
+         */
+      )
+
+    // The schema needs to be opaque right now because it contains internals that have a complex
+    // resolution dependency chain that cannot (yet) be expressed in the schema itself:
+    //
+    // values depends on normalizers
+    // discriminators is a default, but depends on checking values
+    // selector and selection depend on condition and values
+    //
+    // validation depends on everything being configured properly as it checks options/children
+    //
+    // note that by the time this schema has been resolved, we're beyond normalizing inputs, and only
+    // normalizing a new empty schema data being built
+
+    const schemaSchema = new Schema('object')
+      .meta('compiler', 'schema')
+      .opaque()
+      .normalizer(normalizeSchema.bind(this))  // if we traverse again, we should get the cached version
+
+      .normalizer(
+         (inputSchema, _target, _location, _options) => {
+          if (inputSchema instanceof CompiledSchema) {
+            return inputSchema;
+          }
+          else if (typeof inputSchema === 'object') {
+            if (inputSchema instanceof Schema) {
+              throw new SchemaCompilationError('Internal compiler error');
+              //return resolver.resolve(inputSchema, false);  // this should never happen!  should have been normalized to {}
+            }
+            else {
+              return inputSchema;
+            }
+          }
+          else {
+            throw new SchemaError('not a schema');
+          }
+        }
+      )
+//      .normalizer(normalizeSchema.bind(this))
       .transformer(transformSchema.bind(this))
 
       .transformer({$if: [
           (inputSchema => inputSchema.isUnion),
-          [synthesizeKeyDiscrimination, synthesizeAutoDiscrimination, copyUnionOptions].map(p => p.bind(this))
+          {$pipeline: [synthesizeKeyDiscrimination, synthesizeAutoDiscrimination, copyUnionOptions].map(p => p.bind(this))},
+          '$defined'
+        ]
+      })
+      .transformer(compileHandlers.bind(this))  // needs to be after discriminator synthesis
+      .transformer({$if: [
+          (compiledSchema => !isEmpty(compiledSchema.options.values)),
+          normalizeValues.bind(this),  // requires handlers; conditional to avoid async when not needed
+          '$defined'
         ]
       })
       .transformer( {$if: [
           (inputSchema => inputSchema.hasChildSelector || inputSchema.hasChildSelection),
-          populateChildSelectorValues
+          populateChildSelectorValues,
+          '$defined'
         ]})
       .transformer(populateMetadata)
       .transformer(/** @type {OutputSchemaProcessor} */ async (inputSchema, _, location) => {
@@ -156,7 +327,7 @@ export class SchemaCompiler extends CompiledSchema {
       .property('metadata',
         new Schema('object')
 //          .implicit()
-          .property('*', new Schema('string'))
+          .property('*', new Schema('string'))  // FIXME - CommandLineSource interprets some metadata as booleans!
       )
       .property('options',
         new Schema('object')
@@ -171,12 +342,12 @@ export class SchemaCompiler extends CompiledSchema {
       .property('handlers',
         new Schema('object')
 //          .implicit()
-          .property('normalizers', processorListSchema)
-          .property('transformers', processorListSchema)
-          .property('validators', processorListSchema)
-          .property('serializers', processorListSchema)
-          .property('conditions', processorListSchema)
-          .property('discriminators', processorListSchema)
+          .property('normalizers', pipelineSchema)
+          .property('transformers', pipelineSchema)
+          .property('validators', pipelineSchema)
+          .property('serializers', pipelineSchema)
+          .property('conditions', pipelineSchema)
+          .property('discriminators', pipelineSchema)
       );
 
     schemaCompilerSchema.unionSchema('schema', schemaSchema)
@@ -204,7 +375,9 @@ export class SchemaCompiler extends CompiledSchema {
       Object.assign(dst.options, src.options);
       Object.assign(dst.metadata, src.metadata);
       for (const [handler, processorSpecList] of Object.entries(src.handlers)) {
-        dst.handlers[handler] = [resolver.compileProcessorSpec(processorSpecList)];
+//        dst.handlers[handler] = [resolver.compileProcessorSpec(processorSpecList)];
+        dst.handlers[handler] = processorSpecList.map(spec => resolver.compileValueProcessorSpec(spec, true));
+        dst._setValueProcessor(handler, resolver.compileValueProcessorSpec({$pipeline: dst.handlers[handler]}));
       }
 
       for (const [pk, pv] of Object.entries(src.properties)) {
@@ -244,6 +417,10 @@ export class SchemaCompiler extends CompiledSchema {
       if (pv === undefined) {
         throw new SchemaCompilationError('Unable to find cached CompiledSchema', {path: propertyPath})
       }
+      if (pv !== pvr) {
+        pv.metadata.references ??= '';
+        pv.metadata.references += `[${propertyPath}]`
+      }
       cs._setPropertySchema(pk, pv);
       this._replaceCachedReferences(pv, propertyPath, seen);
     }
@@ -251,6 +428,10 @@ export class SchemaCompiler extends CompiledSchema {
       const uv = (uvr instanceof CachedSchemaReference)? this.compileCache.get(uvr.schema) : uvr;
       if (uv === undefined) {
         throw new SchemaCompilationError(`Unable to find cached CompiledSchema for unionSchema "${uk}"`, {path})
+      }
+      if (uv !== uvr) {
+        uv.metadata.references ??= '';
+        uv.metadata.references += `[${path}:${uk}]`;
       }
       cs._setUnionSchema(uk, uv);
       this._replaceCachedReferences(uv, path, seen);
@@ -263,7 +444,9 @@ export class SchemaCompiler extends CompiledSchema {
    */
   async compile(inputSchema) {
     try {
-      const compiledSchema = await this.process(inputSchema);
+      const context = new TraversalContext(new SchemaLocation(this));
+      context.compiling = true;
+      const compiledSchema = await this.process(inputSchema, undefined, {context});
 
       this._replaceCachedReferences(compiledSchema);
 
@@ -286,15 +469,5 @@ export class SchemaCompiler extends CompiledSchema {
   }
 }
 
-
-
-
-
-const passthrough = {
-  spec: '__passthrough',
-  processor: async (input) => {
-    return input;
-  }
-}
 
 

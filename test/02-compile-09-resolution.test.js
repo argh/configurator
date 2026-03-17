@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { assertErrorMessageInCauseChain, SchemaError } from '../src/errors.js';
+import { assertErrorMessageInCauseChain } from '../src/errors.js';
+import { SchemaError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Base Type Resolution', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -138,7 +140,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have inherited the normalizer from string base type
-      assert.strictEqual(await compiled._normalizeValue(123), '123');
+      assert.strictEqual(await compiled.normalizeValue(123), '123');
     });
 
     it('should resolve base type and inherit validator', async function() {
@@ -146,7 +148,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have inherited the validator from number base type
-      const result = await compiled._validateValue(42);
+      const result = await compiled.validateValue(42);
       assert.strictEqual(result, 42);
     });
 
@@ -155,7 +157,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have inherited transformer
-      const result = await compiled._transformValue(true);
+      const result = await compiled.transformValue(true);
       assert.strictEqual(result, true);
     });
 
@@ -228,7 +230,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Local normalizer should take precedence
-      assert.strictEqual(await compiled._normalizeValue('test'), 'custom-test');
+      assert.strictEqual(await compiled.normalizeValue('test'), 'custom-test');
     });
   });
 
@@ -242,8 +244,8 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(schema);
 
       // Nested schemas should have resolved their base types
-      assert.strictEqual(await compiled.properties.name._normalizeValue(123), '123');
-      assert.strictEqual(await compiled.properties.age._normalizeValue('456'), 456);
+      assert.strictEqual(await compiled.properties.name.normalizeValue(123), '123');
+      assert.strictEqual(await compiled.properties.age.normalizeValue('456'), 456);
     });
 
     it('should resolve base types at multiple levels of nesting', async function() {
@@ -258,8 +260,8 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const nameSchema = compiled.properties.user.properties.name;
       const activeSchema = compiled.properties.user.properties.active;
 
-      assert.strictEqual(await nameSchema._normalizeValue(123), '123');
-      assert.strictEqual(await activeSchema._normalizeValue('true'), true);
+      assert.strictEqual(await nameSchema.normalizeValue(123), '123');
+      assert.strictEqual(await activeSchema.normalizeValue('true'), true);
     });
   });
 
@@ -288,7 +290,7 @@ describe('Schema Compilation - Base Type Resolution', function() {
       const compiled = await resolver.compile(level3);
 
       // Should resolve through all layers to number base type
-      assert.strictEqual(await compiled._normalizeValue('42'), 42);
+      assert.strictEqual(await compiled.normalizeValue('42'), 42);
       // Local metadata should win
       assert.strictEqual(compiled.metadata.level, '3');
     });

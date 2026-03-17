@@ -152,7 +152,7 @@ describe('Configurator - Special Options', function() {
 
       assert.strictEqual(configSchema.options.context, 'config');
       // fixme - probably shouldn't look at handler internals like this
-      assert.deepStrictEqual(configSchema.handlers.validators, [{spec: {$or: ['-', '$file']}}]);
+      assert.deepStrictEqual(configSchema.handlers.validators, [{$or: ['-', '$file']}]);
       assert.strictEqual(configSchema.metadata.flagHint, 'C');
       assert.strictEqual(configSchema.metadata.configuratorSchema, 'config');
       assert.strictEqual(configSchema.metadata.omitFromSerialize, true);
@@ -279,7 +279,7 @@ describe('Configurator - Special Options', function() {
       const dumpSchema = Configurator.createDumpSchema();
 
       assert.strictEqual(dumpSchema.options.context, 'dump');
-      assert.deepStrictEqual(dumpSchema.handlers.validators, [{spec: '$writable'}]);
+      assert.deepStrictEqual(dumpSchema.handlers.validators, ['$writable']);
       assert.strictEqual(dumpSchema.metadata.configuratorSchema, 'dump');
       assert.strictEqual(dumpSchema.metadata.advanced, true);
       assert.strictEqual(dumpSchema.metadata.omitFromSerialize, true);
@@ -439,7 +439,7 @@ describe('Configurator - Special Options', function() {
       const validators = configSchema.handlers.validators;
 
       // Schema should allow "-" as a valid value
-      assert.ok(validators?.[0].spec?.$or.includes('-'), 'Config schema should support "-" for stdin');
+      assert.ok(validators?.[0].$or.includes('-'), 'Config schema should support "-" for stdin');
     });
 
     it('should handle deeply nested config file data', async function() {

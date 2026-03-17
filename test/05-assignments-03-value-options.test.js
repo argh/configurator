@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+
+import { ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Assignments - Value Options (default, required)', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {

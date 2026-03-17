@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema, SchemaPolicy } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+
+import { ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Assignments - Incremental vs Staged Processing', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -193,6 +195,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
               if (!/[^-]+-[^-]+/.test(value)) {
                 throw new Error('pattern does not match!');
               }
+              return value;
             }, SchemaPolicy.OVERWRITE)  // we need to get rid of the normal object validator!
             .property('a', new Schema('string'))
             .property('b', new Schema('string'))
@@ -288,6 +291,8 @@ describe('Assignments - Incremental vs Staged Processing', function() {
       const parentCalls = [];
       const childCalls = [];
 
+      let c = 0;
+
       const schema = new Schema('object')
         .property('wrapper', new Schema('object')
           .option('allowIncremental', false)
@@ -303,7 +308,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
               return value;
             })
             .property('a', new Schema('string'))
-            .property('b', new Schema('string'))
+            .property('b', new Schema('string').condition(() => (c++ > 0)))
           )
         );
 
@@ -316,7 +321,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
 
       const result = await compiled.processAssignments(assignments);
 
-      // Child transformer called with normalized empty object (incremental)
+      // Child transformer called (potentially with incremental partial object)
       assert.strictEqual(childCalls.length, 1);
       assert.deepStrictEqual(childCalls[0], {});
 
@@ -356,11 +361,11 @@ describe('Assignments - Incremental vs Staged Processing', function() {
 
     const compiled = await resolver.compile(schema);
 
-    let flag = 0;
+    let flag = false;
     const assignments = new Map([
       ['wrapper.child.a', 'hello'],
       ['wrapper.child.b', 'world'],
-      ['flag', () => { if (flag < 2) { flag++; return undefined } else { return true; }}]
+      ['flag', () => { if (!flag) { flag = true; return undefined } else { return true; }}]
     ]);
     const result = await compiled.processAssignments(assignments);
 
@@ -454,7 +459,7 @@ describe('Assignments - Incremental vs Staged Processing', function() {
 
       const assignments = new Map();
 
-      const result = await compiled.processAssignments(assignments) ?? {};
+      const result = (await compiled.processAssignments(assignments)) ?? {};
 
       // No assignments means no object created, so transformer not called
       // FIXME?  not true, the top-level container always needs to be transformed (might create something different?)

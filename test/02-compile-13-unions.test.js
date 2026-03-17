@@ -5,6 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
 
 describe('Schema Compilation - Union Structure', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -102,8 +103,8 @@ describe('Schema Compilation - Union Structure', function() {
 
       // Should have number base type normalizer
       const valueSchema = compiled.unionSchemas.typed.properties.value;
-      assert.strictEqual(typeof valueSchema._normalizeValue, 'function');
-      assert.strictEqual(await valueSchema._normalizeValue('42'), 42);
+      assert.strictEqual(typeof valueSchema.normalizeValue, 'function');
+      assert.strictEqual(await valueSchema.normalizeValue('42'), 42);
     });
   });
 
@@ -158,7 +159,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled._discriminateUnion({type: 'A'}, {});
+      const discriminated = await compiled.discriminateUnion({type: 'A'}, {});
       assert.ok(discriminated);
     });
 
@@ -171,7 +172,7 @@ describe('Schema Compilation - Union Structure', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const discriminated = await compiled._discriminateUnion({kind: 'a'}, {});
+      const discriminated = await compiled.discriminateUnion({kind: 'a'}, {});
       assert.ok(discriminated);
     });
 
@@ -186,7 +187,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled._discriminateUnion({type: 'A'}, {});
+      const discriminated = await compiled.discriminateUnion({type: 'A'}, {});
       assert.ok(discriminated);
     });
 
@@ -201,7 +202,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       assert.strictEqual(compiled.isUnion, true);
-      const discriminated = await compiled._discriminateUnion({type: 'B'}, {});
+      const discriminated = await compiled.discriminateUnion({type: 'B'}, {});
       assert.ok(discriminated);
       assert.strictEqual(compiled.findUnionKey(discriminated), 'optionB');
     });
@@ -449,7 +450,7 @@ describe('Schema Compilation - Union Structure', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have number base type normalizer
-      assert.strictEqual(await compiled.unionSchemas.typed.properties.count._normalizeValue('42'), 42);
+      assert.strictEqual(await compiled.unionSchemas.typed.properties.count.normalizeValue('42'), 42);
     });
   });
 
@@ -484,7 +485,7 @@ describe('Schema Compilation - Union Structure', function() {
 
       await assert.rejects(
       async () => await resolver.compile(schema),
-        /Schema needs at least one property with constrained values/
+        /needs at least one property with constrained values/
       );
     });
 

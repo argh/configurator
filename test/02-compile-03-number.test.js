@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, NormalizeError, ConstraintError, TransformError } from '../src/errors.js';
+import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Number Type', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -17,29 +18,29 @@ describe('Schema Compilation - Number Type', function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(42), 42);
-      assert.strictEqual(await compiled._normalizeValue(0), 0);
-      assert.strictEqual(await compiled._normalizeValue(-10), -10);
-      assert.strictEqual(await compiled._normalizeValue(3.14), 3.14);
+      assert.strictEqual(await compiled.normalizeValue(42), 42);
+      assert.strictEqual(await compiled.normalizeValue(0), 0);
+      assert.strictEqual(await compiled.normalizeValue(-10), -10);
+      assert.strictEqual(await compiled.normalizeValue(3.14), 3.14);
     });
 
     it('should normalize numeric strings to numbers', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue('123'), 123);
-      assert.strictEqual(await compiled._normalizeValue('0'), 0);
-      assert.strictEqual(await compiled._normalizeValue('-42'), -42);
-      assert.strictEqual(await compiled._normalizeValue('3.14159'), 3.14159);
+      assert.strictEqual(await compiled.normalizeValue('123'), 123);
+      assert.strictEqual(await compiled.normalizeValue('0'), 0);
+      assert.strictEqual(await compiled.normalizeValue('-42'), -42);
+      assert.strictEqual(await compiled.normalizeValue('3.14159'), 3.14159);
     });
 
     it('should normalize string zero variations', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue('0'), 0);
-      assert.strictEqual(await compiled._normalizeValue('0.0'), 0);
-      assert.strictEqual(await compiled._normalizeValue('-0'), -0);
+      assert.strictEqual(await compiled.normalizeValue('0'), 0);
+      assert.strictEqual(await compiled.normalizeValue('0.0'), 0);
+      assert.strictEqual(await compiled.normalizeValue('-0'), -0);
     });
 
     it('should throw NormalizeError for invalid number strings', async function() {
@@ -47,28 +48,27 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-      async () => await compiled._normalizeValue('not-a-number'), NormalizeError);
+      async () => await compiled.normalizeValue('not-a-number'), NormalizeError);
       await assert.rejects(
-      async () => await compiled._normalizeValue('12.34.56'), NormalizeError);
+      async () => await compiled.normalizeValue('12.34.56'), NormalizeError);
       await assert.rejects(
-      async () => await compiled._normalizeValue('abc'), NormalizeError);
+      async () => await compiled.normalizeValue('abc'), NormalizeError);
     });
 
-    it('should handle NaN by converting to NaN', async function() {
+    it('should refuse to handle NaN', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
       // NaN normalizes to NaN (it's a number type)
-      const result = await compiled._normalizeValue(NaN);
-      assert.ok(Number.isNaN(result));
+      await assert.rejects(compiled.normalizeValue(NaN), NormalizeError);
     });
 
-    it('should handle special numeric values', async function() {
+    it('should refuse to handle infinity', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(Infinity), Infinity);
-      assert.strictEqual(await compiled._normalizeValue(-Infinity), -Infinity);
+      await assert.rejects(compiled.normalizeValue(Infinity), NormalizeError);
+      await assert.rejects(compiled.normalizeValue(-Infinity), NormalizeError);
     });
   });
 
@@ -78,17 +78,17 @@ describe('Schema Compilation - Number Type', function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._transformValue(42), 42);
-      assert.strictEqual(await compiled._transformValue(0), 0);
-      assert.strictEqual(await compiled._transformValue(-100), -100);
+      assert.strictEqual(await compiled.transformValue(42), 42);
+      assert.strictEqual(await compiled.transformValue(0), 0);
+      assert.strictEqual(await compiled.transformValue(-100), -100);
     });
 
     it('should transform floating point numbers', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._transformValue(3.14), 3.14);
-      assert.strictEqual(await compiled._transformValue(0.001), 0.001);
+      assert.strictEqual(await compiled.transformValue(3.14), 3.14);
+      assert.strictEqual(await compiled.transformValue(0.001), 0.001);
     });
   });
 
@@ -98,18 +98,18 @@ describe('Schema Compilation - Number Type', function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._validateValue(42), 42);
-      assert.strictEqual(await compiled._validateValue(0), 0);
-      assert.strictEqual(await compiled._validateValue(-10), -10);
-      assert.strictEqual(await compiled._validateValue(3.14), 3.14);
+      assert.strictEqual(await compiled.validateValue(42), 42);
+      assert.strictEqual(await compiled.validateValue(0), 0);
+      assert.strictEqual(await compiled.validateValue(-10), -10);
+      assert.strictEqual(await compiled.validateValue(3.14), 3.14);
     });
 
     it('should validate integer values', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._validateValue(100), 100);
-      assert.strictEqual(await compiled._validateValue(-50), -50);
+      assert.strictEqual(await compiled.validateValue(100), 100);
+      assert.strictEqual(await compiled.validateValue(-50), -50);
     });
 
     it('should reject non-number values during validation', async function() {
@@ -117,17 +117,17 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._validateValue('123'),
+        () => compiled.validateValue('123'),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue(true),
+        () => compiled.validateValue(true),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue({}),
+        () => compiled.validateValue({}),
         ValidationError
       );
     });
@@ -137,7 +137,7 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._validateValue(NaN),
+        () => compiled.validateValue(NaN),
         ValidationError
       );
     });
@@ -147,12 +147,12 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._validateValue(Infinity),
+        () => compiled.validateValue(Infinity),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue(-Infinity),
+        () => compiled.validateValue(-Infinity),
         ValidationError
       );
     });
@@ -205,8 +205,8 @@ describe('Schema Compilation - Number Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(200), 200);
-      const validated = await compiled._validateValue(200);
+      assert.strictEqual(await compiled.normalizeValue(200), 200);
+      const validated = await compiled.validateValue(200);
       assert.strictEqual(validated, 200);
     });
 
@@ -217,7 +217,7 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._transformValue(99),
+        () => compiled.transformValue(99),
         TransformError
       );
     });
@@ -249,7 +249,7 @@ describe('Schema Compilation - Number Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const validated = await compiled._validateValue(100);
+      const validated = await compiled.validateValue(100);
       assert.strictEqual(validated, 100);
     });
 
@@ -332,15 +332,15 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue('456');
+      const normalized = await compiled.normalizeValue('456');
       assert.strictEqual(normalized, 456);
 
       // Transform
-      const transformed = await compiled._transformValue(normalized);
+      const transformed = await compiled.transformValue(normalized);
       assert.strictEqual(transformed, 456);
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.strictEqual(validated, 456);
     });
 
@@ -351,15 +351,15 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue('20');
+      const normalized = await compiled.normalizeValue('20');
       assert.strictEqual(normalized, 20);
 
       // Transform (should check against values)
-      const transformed = await compiled._transformValue(normalized);
+      const transformed = await compiled.transformValue(normalized);
       assert.strictEqual(transformed, 20);
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.strictEqual(validated, 20);
     });
 
@@ -370,12 +370,12 @@ describe('Schema Compilation - Number Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize should work
-      const normalized = await compiled._normalizeValue('7');
+      const normalized = await compiled.normalizeValue('7');
       assert.strictEqual(normalized, 7);
 
       // Transform should fail due to values constraint
       await assert.rejects(
-        () => compiled._transformValue(normalized),
+        () => compiled.transformValue(normalized),
         TransformError
       );
     });

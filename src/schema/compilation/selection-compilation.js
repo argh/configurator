@@ -1,6 +1,6 @@
 import { CompiledSchema } from "../compiled-schema.js";
 import { SchemaLocation } from "../schema-location.js";
-import { SchemaCompilationError, SchemaError } from '../../errors.js';
+import { SchemaCompilationError, SchemaError } from '../schema-errors.js';
 
 // TODO - Consider making selection values default to '$name' rather than using true as a signal.
 //        (This could enable making the synthesized condition be an arbitrary value processor pipeline!)
@@ -66,7 +66,7 @@ export async function populateChildSelectorValues(inputSchema, _, location) {
           location: selectorPropertyLocation});
     }
 
-    const selectorValue = await selectorPropertySchema._normalizeValue(selectionValue);
+    const selectorValue = await selectorPropertySchema.normalizeValue(selectionValue);
     selectionValueSet.add(selectorValue);
   }
 

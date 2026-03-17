@@ -1,6 +1,9 @@
 import { promises as fs } from 'fs';
 
-import { Schema, CompiledSchema, SchemaResolver, SchemaLocation } from './index.js';
+import { Schema } from './schema/schema.js';
+import { CompiledSchema } from './schema/compiled-schema.js';
+import { SchemaResolver } from './schema/schema-resolver.js';
+import { SchemaLocation } from './schema/schema-location.js';
 import {
   ConfigurationSource,
   CommandLineSource,
@@ -296,7 +299,7 @@ export class Configurator {
         if (contextName) {
           let resolvedValue = assignedValue;
           try {
-            resolvedValue = await s._normalizeValue(assignedValue, undefined, undefined, {strict: false});
+            resolvedValue = await s.normalizeValue(assignedValue, undefined, undefined, {strict: false});
           }
           catch (_) {
             // ignore, just use original value

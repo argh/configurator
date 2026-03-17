@@ -5,6 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CommandLineSource, CommandLineError } from '../src/configuration-sources/command-line-source.js';
 
 describe('Sources - CommandLineSource', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {

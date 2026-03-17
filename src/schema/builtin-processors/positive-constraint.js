@@ -1,41 +1,23 @@
-import { ConstraintError } from '../../errors.js';
+import { ConstraintError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$positive`
  *
  * Validates that a numeric value is positive (greater than 0).
- * The value is coerced to a number before validation.
+ * Input must already be a number; use `$number` in a prior normalizer if coercion from string is needed.
  *
- * @example
- * ```javascript
- * // Basic usage
- * Schema.create('number').validator('$positive')
+ * **Valid values**: `1`, `0.1`, `42`, `3.14159`
  *
- * // In a schema property
- * Schema.create('object', {
- *   quantity: Schema.create('number').validator('$positive'),
- *   price: Schema.create('number').validator('$positive')
- * })
+ * **Invalid values**: `0`, `-1`, `-42.5`, `NaN`, `Infinity`, any non-number type
  *
- * // Combined with range validation
- * Schema.create('number')
- *   .validator('$positive')
- *   .validator({$range: {max: 100}})
- * ```
- *
- * **Valid values**: `1`, `0.1`, `42`, `3.14159`, `"5"` (coerced to 5)
- *
- * **Invalid values**: `0`, `-1`, `-42.5`, `"0"`, `"-10"`, `NaN`, `Infinity`
- *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const POSITIVE_CONSTRAINT = {
   keyword: 'positive',
-  processor: (value) => {
-    const num = Number(value);
-    if (!(Number.isFinite(num) && num > 0)) {
+  process: (value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
       throw new ConstraintError('Must be a positive number');
     }
-    return num;
+    return value;
   }
 };

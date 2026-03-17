@@ -1,4 +1,4 @@
-import { ConstraintError } from '../../errors.js';
+import { ConstraintError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$url`
@@ -6,23 +6,6 @@ import { ConstraintError } from '../../errors.js';
  * Validates that a string is a valid URL and normalizes it to canonical form.
  * Uses the WHATWG URL Standard for validation and normalization. The normalized
  * URL includes explicit protocol, properly encoded characters, and standardized formatting.
- *
- * @example
- * ```javascript
- * // Basic usage
- * Schema.create('string').validator('$url')
- *
- * // In a schema property
- * Schema.create('object', {
- *   apiEndpoint: Schema.create('string').validator('$url'),
- *   websiteUrl: Schema.create('string').validator('$url')
- * })
- *
- * // Use as normalizer to canonicalize URLs early in the pipeline
- * Schema.create('string')
- *   .normalizer('$url')
- *   .transformer((url) => new URL(url)) // Convert to URL object
- * ```
  *
  * **Valid values**:
  * - `https://example.com` → `https://example.com/`
@@ -36,11 +19,11 @@ import { ConstraintError } from '../../errors.js';
  * - `example.com` (missing protocol)
  * - `http://` (missing host)
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const URL_CONSTRAINT = {
   keyword: 'url',
-  processor: (value) => {
+  process: (value) => {
     try {
       return new URL(value).toString();
     } catch {

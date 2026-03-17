@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema, SchemaResolver } from '../src/index.js';
 
 describe('Assignments - Existing Results (current parameter)', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -38,13 +39,9 @@ describe('Assignments - Existing Results (current parameter)', function() {
       assert.deepStrictEqual(result3, { x: 10, y: 20, z: 30 });
 
       // Transformer only called on first call (when no current provided)
-      // FIXME - this doesn't seem like a reasonable assumption anymore;
-      //         parent containers are always going to exist in subsequent calls,
-      //         if you can't reprocess a (potentially different) value, then
-      //         you can't reassign a primitive to a new value either, it just
-      //         gets skipped as "already exists in output"
+
       assert.strictEqual(transformCalls.length, 1);
-      assert.deepStrictEqual(transformCalls[0], {});
+      assert.deepStrictEqual(transformCalls[0], {x:10});
     });
 
     it('should allow chained calls with primitive schema', async function() {

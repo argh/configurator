@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+
+import { ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Assignments - Advanced Options', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -165,7 +167,7 @@ describe('Assignments - Advanced Options', function() {
       const result = {};
 
       // No error with shallow validation
-      const validated = await compiled._validateValue(result);
+      const validated = await compiled.validateValue(result);
 
       assert.deepStrictEqual(validated, {});
     });

@@ -2,11 +2,9 @@ import { CompiledSchema } from './compiled-schema.js';
 import { Schema } from './schema.js';
 import { SchemaCompiler } from './schema-compiler.js';
 import {
-  ConfiguratorError,
-  ConstraintError,
-  ResolverError
+  ConfiguratorError, formatValue
 } from '../errors.js';
-import { toKebabCase } from '../utils.js';
+import { isEmpty, isPlainObject, map, toKebabCase } from '../utils.js';
 
 import { ANY_SCHEMA } from './builtin-schemas/any-schema.js';
 import { STRING_SCHEMA } from './builtin-schemas/string-schema.js';
@@ -20,8 +18,32 @@ import { FUNCTION_SCHEMA } from './builtin-schemas/function-schema.js';
 import { getBuiltinProcessors } from './builtin-processors/index.js';
 import { ROOT_SCHEMA } from './builtin-schemas/root-schema.js';
 import { stringify } from './helpers/stringify.js';
+import { ConstraintError, ResolverError, SchemaError } from './schema-errors.js';
+import { PipelineExecutor } from './executor/pipeline-executor.js';
+import {
+  ConstantExecutor,
+  Executor, FALSE_EXECUTOR,
+  FunctionExecutor,
+  NULL_EXECUTOR,
+  toExecutor, TRUE_EXECUTOR,
+  UNDEFINED_EXECUTOR
+} from './executor/executor.js';
+import { FunctionValueProcessor } from './value-processor/function-value-processor.js';
+import { RegExpValueProcessor } from './value-processor/regexp-value-processor.js';
+import {
+  extractKeywordValueProcessorSpec,
+  isKeywordValueProcessorSpec,
+  isLegalValueProcessorSpec
+} from './value-processor/spec.js';
+import { ComposedValueProcessor } from './value-processor/composed-value-processor.js';
+import { ValueProcessor } from './value-processor/value-processor.js';
+import { ObjectExecutor } from './executor/object-executor.js';
+import { ArrayExecutor } from './executor/array-executor.js';
+import { ParametersValueProcessor } from './value-processor/parameters-value-processor.js';
+import { DefinedValueProcessor } from './value-processor/defined-value-processor.js';
 
-/** @import { SchemaData, SchemaValueProcessor, AsyncSchemaValueProcessor, ValueProcessorDefinition, ProcessorSpecCompiler, CompiledSpec, CompiledValueProcessorDefinition, ProcessorSpec, ValueProcessorBuilder } from './types.js' */
+/** @import { SchemaData } from './types.js' */
+/** @import { ValueProcessorDefinition, ValueProcessorSpec, ValueProcessorBuilder, ValueProcessorFunction, ValueProcessorArgs, ValueProcessorParameter, KeywordValueProcessorSpec } from './value-processor/value-processor.js' */
 
 /**
  * The SchemaResolver uses its internal registries of named schemas and value processor keywords to
@@ -92,22 +114,22 @@ export class SchemaResolver
    * @returns {SchemaResolver}
    */
   registerValueProcessorDefinition(definition) {
-    const {keyword, processor, description, builder} = definition;
+    const {keyword, process, description, build} = definition;
 
     if (!keyword) {
       throw new ResolverError('Processor definition must have a keyword');
     }
 
-    if (processor && builder) {
-      throw new ResolverError(`Processor '${keyword}' cannot have both processor and builder`);
+    if (process && build) {
+      throw new ResolverError(`Processor definition for '${keyword}' cannot define both process and build functions`);
     }
 
-    if (!processor && !builder) {
-      throw new ResolverError(`Processor '${keyword}' must have processor or builder`);
+    if (!process && !build) {
+      throw new ResolverError(`Processor definition for '${keyword}' must have define a process or build function`);
     }
 
     if (description && typeof description !== 'string') {
-      throw new ResolverError(`Processor description must be a string`);
+      throw new ResolverError(`Processor definition description for '${keyword}' must be a string`);
     }
 
     this.#processorMap.set(keyword, definition);
@@ -117,17 +139,18 @@ export class SchemaResolver
   /**
    * register a named "simple" ValueProcessor
    * @param {string} keyword
-   * @param {SchemaValueProcessor<any>} processor
+   * @param {ValueProcessorFunction} process
    * @param {string} [description]
    * @returns {SchemaResolver}
    */
-  registerValueProcessor(keyword, processor, description) {
-    if (typeof processor !== 'function') {
+  registerValueProcessor(keyword, process, description) {
+    if (typeof process !== 'function') {
       throw new ResolverError(`Processor for keyword '${keyword}' must be a function`);
     }
     return this.registerValueProcessorDefinition({
       keyword,
-      processor,
+      parameters: [],
+      process,
       description: description ?? keyword
     });
   }
@@ -135,16 +158,16 @@ export class SchemaResolver
   /**
    * register a complex ValueProcessor that needs to be built based on schema processor spec
    * @param {string} keyword
-   * @param {ValueProcessorBuilder} builder
+   * @param {ValueProcessorBuilder} build
    * @returns {SchemaResolver}
    */
-  registerParameterizedValueProcessor(keyword, builder) {
-    if (typeof builder !== 'function') {
+  registerValueProcessorBuilder(keyword, build) {
+    if (typeof build !== 'function') {
       throw new ResolverError(`Processor builder for keyword '${keyword}' must be a function`);
     }
     return this.registerValueProcessorDefinition({
       keyword,
-      builder
+      build
     });
   }
 
@@ -173,153 +196,214 @@ export class SchemaResolver
     }
   }
 
+  _constantKeywords = {
+    $null: NULL_EXECUTOR,
+    $undefined: UNDEFINED_EXECUTOR,
+    $true: TRUE_EXECUTOR,
+    $false: FALSE_EXECUTOR
+  }
+
   /**
-   * Wrap or convert a user-provided processor specification into a processor function
-   * @param {ProcessorSpec} spec - The processor specification
-   * @returns {CompiledValueProcessorDefinition}
+   *
+   * @param {KeywordValueProcessorSpec} spec
+   * @param {boolean} [recursive]
+   * @returns {ValueProcessor}
    */
-  compileProcessorSpec(spec) {
-    if (spec === null || spec === '$null') {
-      // special case: explicit prune
-      return {
-        spec: '$null',
-        processor: async _ => null,
-        description: 'null'
-      }
+  compileKeywordValueProcessorSpec(spec, recursive) {
+    if (!isKeywordValueProcessorSpec(spec)) {
+      throw new ResolverError('Not a keyword processor spec');
     }
-    if (spec === undefined || (Array.isArray(spec) && spec.length === 0)) {
-      return {
-        spec: [],
-        processor: async (value) => value,
-//        description: 'any'
-      }
-    }
-    if (Array.isArray(spec)) {
-      if (spec.length === 1) {
-        spec = spec[0];
-      }
-      else {
-        spec = {$pipeline: spec};
-      }
+    const [keyword, rawArgs] = extractKeywordValueProcessorSpec(spec);
+
+    if (this._constantKeywords[spec]) {
+      return new ComposedValueProcessor(this._constantKeywords[spec], spec);
     }
 
-    if (typeof spec === 'function') {
-      return {
-        spec,
-        processor: this._asyncifySVP(spec),  // wrap in async to ensure we can manage exceptions
-        description: undefined
-      }
+    if (keyword === 'literal') {
+      // note that in the semantically odd case where a user didn't provide args, the literal will be an empty array!
+      return new ComposedValueProcessor(new ConstantExecutor(rawArgs), spec);
     }
 
-    if (typeof spec === 'string' && spec.startsWith('/') && spec.lastIndexOf('/') > 0) {
-      // String regex pattern "/pattern/flags" - parse and fall through to the regex rule
-      const lastSlash = spec.lastIndexOf('/');
-      const pattern = spec.slice(1, lastSlash);
-      const flags = spec.slice(lastSlash + 1);
+    const definition = this.#processorMap.get(keyword);
 
-      try {
-        spec = new RegExp(pattern, flags);
+    if (!definition) {
+      throw new ResolverError(`Unknown processor keyword: $${keyword}`);
+    }
+    // This "map" call will wrap any non-collection as an array:
+    const args = map(rawArgs, arg => this.compileValueProcessorSpec(arg, recursive));
+
+    if (definition.build) {
+      const processor = definition.build(args);
+      if (processor?.['process']) {
+        return this.compileValueProcessorSpec(processor, recursive);
       }
-      catch (error) {
-        throw new ResolverError(`Invalid regex pattern: ${spec}`);
+      if (!(processor instanceof ValueProcessor)) {
+        throw new SchemaError(`ValueProcessor builder for $${keyword} returned invalid`, {value:processor});
       }
+      return processor;
+    }
+    return new DefinedValueProcessor(definition, args);
+  }
+
+
+  /**
+   * Convert a processor specification into an executor
+   * @param {ValueProcessorSpec} spec - The processor specification
+   * @param {boolean} [recursive]
+   * @returns {ValueProcessor}
+   */
+  compileValueProcessorSpecObject(spec, recursive = false) {
+
+    if (typeof spec !== 'object') {
+      throw new ResolverError('not a spec object');
     }
 
-    // Regular expression object
-    if (spec instanceof RegExp) {
-      return {
-        spec,
-        processor: async (value) => {
-          if (!spec.test(String(value))) {
-            throw new ConstraintError(`Value does not match pattern ${spec}`);
-          }
-          return value;
-        },
-        description: spec.toString()
-      };
+    /** @type {{[key:string]:ValueProcessor}} */
+    const out = {};
+    for (const [key, value] of Object.entries(spec)) {
+      out[key] = this.compileValueProcessorSpec(value, recursive);
     }
+    return new ComposedValueProcessor(new ObjectExecutor(out), map(out, p => p.spec));
+  }
 
-    // Simple keyword handling
-    if (typeof spec === 'string' && spec.startsWith('$')) {
-      const keyword = spec.slice(1);
-      const registered = this.#processorMap.get(keyword);
+  /**
+   * Convert a processor specification into an executor
+   * @param {ValueProcessorSpec} spec - The processor specification
+   * @param {boolean} [recursive]
+   * @returns {ValueProcessor}
+   */
+  compileValueProcessorSpecArray(spec, recursive = false) {
 
-      if (!registered) {
-        throw new ResolverError(`Unknown processor keyword: ${spec}`);
-      }
-      if (registered.builder) {
-        throw new ResolverError(`Processor keyword ${spec} requires arguments`);
-      }
-      if (typeof registered.processor !== 'function') {
-        throw new ResolverError(`No processor function defined for keyword: ${spec}`);
-      }
-
-      return {
-        spec,
-        processor: this._asyncifySVP(registered.processor),
-        description: registered.description // ?? keyword - todo - check if keyword is already added elsewhere
-      }
+    if (!Array.isArray(spec)) {
+      throw new ResolverError('not a spec array');
     }
+    /** @type {ValueProcessor[]} */
+    const out = [];
+    for (let i = 0; i < spec.length; ++i) {
+      out[i] = this.compileValueProcessorSpec(spec[i], recursive);
+    }
+    return new ComposedValueProcessor(new ArrayExecutor(out), map(out, p => p.spec));
+  }
 
-    // Might be a parameterized keyword, might be a processor definition
-    if (typeof spec === 'object') {
-      let def = spec;
+  /**
+   * WIP - ignore!
+   * Convert a processor specification into an executor
+   * @param {ValueProcessorSpec[]} pipeline - The processor specification
+   * @returns {Executor}
+   */
 
-      const keys = Object.keys(spec);
-      if (keys.length === 1) {
-        const [keyword] = keys;
-        if (keyword.startsWith('$')) {
-          const keywordName = keyword.startsWith('$') ? keyword.slice(1) : keyword;
-          const args = spec[keyword];
+  compileProcessorPipeline(pipeline) {
 
-          const registered = this.#processorMap.get(keywordName);
+    if (!Array.isArray(pipeline)) {
+      throw new ResolverError('not a spec pipeline');
+    }
+    return new PipelineExecutor(pipeline);
+  }
 
-          if (!registered) {
-            throw new ResolverError(`Unknown processor keyword: ${keyword}`);
-          }
-          if (registered.builder) {
-            // Parameterized validator - pass args and recursive compiler
-            def = registered.builder(args, (spec) => this.compileProcessorSpec(spec));
-            def.spec = spec;
-            // Fall through;
-          }
-          else {
-            throw new ResolverError(`Processor ${keyword} does not accept arguments`);
-          }
+  /**
+   * Validate that argument executors exist for each defined parameter.
+   *
+   * @param {ValueProcessorArgs} inputArgs
+   * @param {ValueProcessorParameter[]} params
+   * @returns {{[param:string]:ValueProcessor}}}
+   */
+  parameterizeArgs(inputArgs, params) {
+
+    /** @type {{[param:string]:ValueProcessor}} */
+    const outputArgs = {};
+
+    if (Array.isArray(inputArgs)) {
+      for (let a = 0; a < inputArgs.length; ++a) {
+        if (params[a]) {
+          outputArgs[params[a].parameter] = inputArgs[a];
         }
-        // not a keyword, fall through and interpret as a processor definition;
-      }
-
-      if (def.spec === undefined) {
-        throw new ResolverError('Invalid processor definition (no spec or keyword)');
-      }
-
-      if (def.processor) {
-        return def;  // already compiled!
-      }
-
-      const compiled = this.compileProcessorSpec(def.spec);
-      if (def.description) {
-        compiled.description = `${def.description}`;
-      }
-      return compiled;
-    }
-
-//    throw new ResolverError(`Invalid processor specification: ${spec}`);
-
-    // anything else: it's essentially a constant
-    const description = stringify(spec);
-    return {
-      spec,
-      processor: async (value, target, location) => {
-        // if the value passed in is undefined, we'll synthesize the passed value
-        if (value !== undefined && value !== spec) {
-          throw new ConstraintError('Must have exact', {value: spec, location});
+        else {
+          throw new SchemaError(`Only expected ${a - 1} arguments`);
         }
-        return value;
-      },
-      description
+      }
     }
+    else if (typeof inputArgs === 'object' && inputArgs !== null) {
+      for (const [k,v] of Object.entries(inputArgs)) {
+        const param = params.find(p => p.parameter === k);
+
+        if (!param) {
+          throw new SchemaError(`Unknown parameter ${k}`);
+        }
+        outputArgs[k] = v;
+      }
+    }
+
+    for (const p of params) {
+      if (outputArgs[p.parameter] === undefined) {
+        if (p.default !== undefined) {
+          outputArgs[p.parameter] = this.compileValueProcessorSpec(p.default);  // should just be a constant
+        }
+        else if (p.required) {
+          throw new SchemaError(`No argument supplied for ${p.parameter}`)
+        }
+      }
+    }
+    return outputArgs;
+}
+
+
+  /**
+   * Convert a value processor specification into a value processor executor
+   *
+   * @param {ValueProcessorSpec} spec - The processor specification
+   * @param {boolean} [recursive]
+   * @returns {ValueProcessor}
+   */
+  compileValueProcessorSpec(spec, recursive = false) {
+
+    if (!isLegalValueProcessorSpec(spec)) {
+      throw new SchemaError(`Invalid value processor specification`, {value: spec});
+    }
+
+    /** @type {ValueProcessor} */
+    let valueProcessor;
+
+    if (spec === undefined) {
+      valueProcessor = new ValueProcessor(); // passthrough
+    }
+    else if (spec === null) {
+      spec = '$null';
+      valueProcessor = new ComposedValueProcessor(NULL_EXECUTOR, '$null');
+    }
+    else if (spec instanceof ValueProcessor) {
+      valueProcessor = spec;
+    }
+    else if (isKeywordValueProcessorSpec(spec)) {
+      valueProcessor = this.compileKeywordValueProcessorSpec(spec, recursive);
+    }
+    else if (spec instanceof Executor) {
+      valueProcessor = new ComposedValueProcessor(spec, spec);
+    }
+    else if (spec instanceof RegExp
+             || (typeof spec === 'string' && spec.startsWith('/') && spec.lastIndexOf('/') > 0))
+    {
+      valueProcessor = new RegExpValueProcessor(spec);
+    }
+    else if (typeof spec === 'object' && typeof spec.process === 'function') {
+      valueProcessor = new DefinedValueProcessor(spec);
+    }
+    else if (typeof spec === 'function') {
+      valueProcessor = new FunctionValueProcessor(spec);
+    }
+    else if (Array.isArray(spec)) {
+      valueProcessor = this.compileValueProcessorSpecArray(spec, recursive);
+    }
+    else if (typeof spec === 'object') {
+      valueProcessor = this.compileValueProcessorSpecObject(spec, recursive);
+    }
+    else {
+      valueProcessor = new ComposedValueProcessor(toExecutor(spec), spec)
+    }
+    if (valueProcessor.spec === undefined) {
+      valueProcessor.spec = spec;
+    }
+
+    return valueProcessor;
   }
 
   compiler() {
@@ -447,32 +531,6 @@ export class SchemaResolver
       throw strictCompileError;
     }
     return outputSchema;
-  }
-
-
-  /**
-   * @template TReturn
-   * @param {SchemaValueProcessor<TReturn>|TReturn} fn
-   * @param {TReturn} [d]
-   * @returns {AsyncSchemaValueProcessor<TReturn>}
-   * @private
-   */
-  _asyncifySVP(fn, d) {
-    return async (value, target, location, options) => {
-
-      if (!location) {
-        throw new ConfiguratorError('Invalid call to schema value function');  // developer error
-      }
-
-      if (!fn) {
-        return value ?? d
-      }
-      if (typeof fn === 'function') {
-        // @ts-ignore
-        return fn(value, target, location, options);
-      }
-      return fn;
-    }
   }
 
 

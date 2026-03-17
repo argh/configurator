@@ -4,6 +4,7 @@ import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
 describe('Serialize - Basic Serialization', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {

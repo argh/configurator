@@ -1,6 +1,7 @@
 import { CompiledSchema } from '../compiled-schema.js';
 import { Schema } from '../schema.js';
-import { SchemaError } from '../../errors.js';
+
+import { SchemaError } from '../schema-errors.js';
 /** @import {SchemaData} from '../types.js' */
 /**
  * Common implementation shared by both Schema and CompiledSchema

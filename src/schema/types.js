@@ -9,35 +9,13 @@
  * @property {(schema:ISchema) => SchemaData|undefined} toData - Serialize schema to plain object
  */
 
-import { TraversalContext, TraversalHooks } from './traversal/index.js';
+import { TraversalContext, TraversalState } from './traversal/index.js';
 
-/** @import { CompiledSchema } from "./compiled-schema.js" */
-/** @import { SchemaLocation } from "./schema-location.js" */
+import { Executor } from './executor/executor.js';
 
-/**
- * @template TReturn
- * @template TSchema
- * @callback SchemaValueProcessorBase
- * @param {!*} value
- * @param {object|Array<any>} configuration
- * @param {SchemaLocation} location
- * @param {object} [options]
- * @returns {TReturn}
- */
-
-/**
- * @template TReturn
- * @typedef {SchemaValueProcessorBase<TReturn,CompiledSchema>} SchemaValueProcessor
- */
-
-/**
- * @template TReturn
- * @typedef {SchemaValueProcessorBase<Promise<TReturn>,CompiledSchema>} AsyncSchemaValueProcessor
- */
-
-/**
- * @typedef {SchemaValueProcessorBase<Promise<any>,CompiledSchema|undefined>} AsyncSchemaValueVisitorFunction
- */
+/** @import { CompiledSchema } from './compiled-schema.js' */
+/** @import { SchemaLocation } from './schema-location.js' */
+/** @import { ValueProcessorSpec } from './value-processor/value-processor.js' */
 
 
 /**
@@ -63,16 +41,10 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
  /**
   * @typedef {object} ISchemaOptionsCommon
   * @property {SchemaFundamentalType} [type] - should only be set on the core types supported by the schema
-  * @property {SchemaValueProcessor<any>} [normalizer] - ensure value is of correct shape.
-  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>} [transformer] - value resolver - map input value to output value.
-  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>|string|RegExp|object} [validator] - validator specification.
-  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>} [serializer] - convert a validated input to serialized form
-  * @property {SchemaValueProcessor<boolean>|AsyncSchemaValueProcessor<any>|boolean} [condition] - conditional check whether to process this schema
-  * @property {SchemaValueProcessor<any>|AsyncSchemaValueProcessor<any>|string} [discriminator] - function or property name that returns a union discriminator
   * @property {function(string,ISchema):void} [compileHook] - a function called during schema compilation
   * @property {boolean} [allowEmpty] - whether an array type or string type can be empty
   * @property {boolean} [strict] - whether to do strict typechecking (defaults to true; must be explicitly false to be "lax")
-  * @property {boolean} [inherit] - disallow direct assignment; value will be inherited from a parent
+  * @property {boolean} [reference] - disallow direct assignment; value will be inherited from a parent
   * @property {boolean} [required] - flag indicating whether this field is required
   * @property {boolean} [literal] - flag indicating that this field always returns the option value
   * @property {boolean} [implicit] - flag indicating that this field exists implicitly in the post-transform value
@@ -88,11 +60,11 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
 
 /**
  * @typedef {object} ISchemaHandlers
- * @property {Array<ProcessorSpec>} [normalizers]
- * @property {Array<ProcessorSpec>} [conditions]
- * @property {Array<ProcessorSpec>} [transformers]
- * @property {Array<ProcessorSpec>} [serializers]
- * @property {ProcessorSpec} [unionDiscriminator]
+ * @property {Array<ValueProcessorSpec>} [normalizers]
+ * @property {Array<ValueProcessorSpec>} [conditions]
+ * @property {Array<ValueProcessorSpec>} [transformers]
+ * @property {Array<ValueProcessorSpec>} [serializers]
+ * @property {ValueProcessorSpec} [unionDiscriminator]
  */
 
 
@@ -134,53 +106,13 @@ import { TraversalContext, TraversalHooks } from './traversal/index.js';
  * @property {{[key:string]: SchemaData}} [unionSchemas]
  */
 
-
-/** @typedef {ValueProcessorDefinition|object|null|string|RegExp|SchemaValueProcessor<any>} ProcessorSpec */
-
-
-/**
- * @typedef {object} CompiledSpec
- * @property {ProcessorSpec} spec
- * @property {AsyncSchemaValueProcessor<any>} processor
- * @property {string} [description]
- */
-
-
-/**
- * @callback ProcessorSpecCompiler
- * @param {ProcessorSpec} spec
- * @returns {CompiledSpec}
- */
-
-/**
- * @callback ValueProcessorBuilder
- * @param {ProcessorSpec|Array<ProcessorSpec>|undefined} args
- * @param {ProcessorSpecCompiler} specCompiler
- * @returns CompiledValueProcessorDefinition
- */
-
-/**
- * @typedef {object} ValueProcessorDefinition
- * @property {string} [keyword]
- * @property {SchemaValueProcessor<any>} [processor]
- * @property {string} [description]
- * @property {ValueProcessorBuilder} [builder]
- */
-
-/**
- * @typedef {object} CompiledValueProcessorDefinition
- * @property {ProcessorSpec} spec
- * @property {SchemaValueProcessor<any>} processor
- * @property {string} [description]
- */
-
-
 /**
  * @typedef {object} TraversalOptions
  * @property {boolean} [strict]
  * @property {boolean} [deep]
  * @property {TraversalContext} [context]
- * @property {TraversalHooks} [hooks]
+ * @property {Executor<TraversalState>} [enterExecutor]
+ * @property {Executor<TraversalState>} [exitExecutor]
  * @property {SchemaLocation} [location]
  * @property {string} [path]
  * @property {string} [inputPath]

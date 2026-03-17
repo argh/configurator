@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema, SchemaPolicy } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, TransformError, ConstraintError, NormalizeError } from '../src/errors.js';
+import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Handler Pipelines', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -35,7 +36,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('  hello  ');
+      const result = await compiled.normalizeValue('  hello  ');
       assert.strictEqual(result, 'hello');
     });
 
@@ -47,7 +48,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('  Hello  World  ');
+      const result = await compiled.normalizeValue('  Hello  World  ');
       assert.strictEqual(result, 'hello-world');
     });
 
@@ -65,7 +66,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(derivedSchema);
 
       // Base normalizer (uppercase) should run first, then derived (trim)
-      const result = await compiled._normalizeValue('  hello  ');
+      const result = await compiled.normalizeValue('  hello  ');
       assert.strictEqual(result, 'HELLO');
     });
 
@@ -75,7 +76,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('  unchanged  ');
+      const result = await compiled.normalizeValue('  unchanged  ');
       assert.strictEqual(result, '  unchanged  ');
     });
 
@@ -91,7 +92,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       await assertWrappedError(
-        async () => await compiled._normalizeValue('bad'),
+        async () => await compiled.normalizeValue('bad'),
         NormalizeError,
         ConstraintError,
         'Invalid value'
@@ -113,7 +114,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       await assertWrappedError(
-        async () => await compiled._normalizeValue('test'),
+        async () => await compiled.normalizeValue('test'),
         NormalizeError,
         ConstraintError,
         'First normalizer fails'
@@ -140,13 +141,13 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       // First call with string - should normalize
-      const result1 = await compiled._normalizeValue('42');
+      const result1 = await compiled.normalizeValue('42');
       assert.strictEqual(result1, 42);
       assert.strictEqual(normalizerCalled, true);
 
       // Second call with number - should pass through
       normalizerCalled = false;
-      const result2 = await compiled._normalizeValue(42);
+      const result2 = await compiled.normalizeValue(42);
       assert.strictEqual(result2, 42);
       assert.strictEqual(normalizerCalled, true); // Still called, but returns value unchanged
     });
@@ -158,8 +159,8 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue('hello');
-      const transformed = await compiled._transformValue(normalized);
+      const normalized = await compiled.normalizeValue('hello');
+      const transformed = await compiled.transformValue(normalized);
 
       assert.deepStrictEqual(transformed, { wrapped: 'hello' });
     });
@@ -172,7 +173,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._transformValue(5);
+      const result = await compiled.transformValue(5);
       assert.deepStrictEqual(result, { result: 20 }); // (5 * 2) + 10 = 20
     });
 
@@ -184,7 +185,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       const transformed = { wrapped: 'hello' };
-      const serialized = await compiled._serializeValue(transformed);
+      const serialized = await compiled.serializeValue(transformed);
 
       assert.strictEqual(serialized, 'hello');
     });
@@ -205,7 +206,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
         }
       };
 
-      const result = await compiled._serializeValue(nested);
+      const result = await compiled.serializeValue(nested);
       assert.strictEqual(result, 'extracted');
     });
   });
@@ -219,7 +220,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('x');
+      const result = await compiled.normalizeValue('x');
       assert.strictEqual(result, 'x-a-b');
     });
 
@@ -232,7 +233,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('x');
+      const result = await compiled.normalizeValue('x');
       assert.strictEqual(result, 'x-a-b');
     });
 
@@ -251,7 +252,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(derivedSchema);
 
       // Base handlers always prepended during compilation, then derived1 (prepended), then derived2
-      const result = await compiled._normalizeValue('x');
+      const result = await compiled.normalizeValue('x');
       assert.strictEqual(result, 'x-base-derived1-derived2');
     });
 
@@ -270,7 +271,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(derivedSchema);
 
       // OVERWRITE replaces derived handlers, but base handlers still prepended during compilation
-      const result = await compiled._normalizeValue('x');
+      const result = await compiled.normalizeValue('x');
       assert.strictEqual(result, 'x-base-override');
     });
 
@@ -284,7 +285,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       // INITIALIZE ignored because derived schema already has handlers
-      const result = await compiled._normalizeValue('x');
+      const result = await compiled.normalizeValue('x');
       assert.strictEqual(result, 'x-existing');
     });
 
@@ -303,7 +304,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(derivedSchema);
 
       // INITIALIZE succeeds because derived schema has no handlers (base handlers added during compilation)
-      const result = await compiled._normalizeValue('x');
+      const result = await compiled.normalizeValue('x');
       assert.strictEqual(result, 'x-base-init');
     });
   });
@@ -322,12 +323,12 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('test');
+      const result = await compiled.normalizeValue('test');
 
       assert.strictEqual(result, undefined);
     });
 
-    it('should not propagate undefined through pipeline in transformer', async function() {
+    it('should propagate undefined through pipeline in transformer', async function() {
       const schema = new Schema('string')
         .transformer((value) => value.toUpperCase())
         .transformer((value) => undefined) // Returns undefined
@@ -335,13 +336,13 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._transformValue('hello');
+      const result = await compiled.transformValue('hello');
 
-      // undefined propagates through - third transformer is not executed
-      assert.strictEqual(result, undefined);
+      // undefined propagates through - third transformer is still executed
+      assert.strictEqual(result, 'third-transformer');
     });
 
-    it('should not propagate null through pipeline in transformer', async function() {
+    it('should propagate null through pipeline in transformer', async function() {
       const schema = new Schema('string')
         .transformer((value) => value.toUpperCase())
         .transformer((value) => null) // Returns null
@@ -349,10 +350,10 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._transformValue('hello');
+      const result = await compiled.transformValue('hello');
 
-      // undefined propagates through - third transformer is not executed
-      assert.strictEqual(result, null);
+      // null propagates through - third transformer is still executed
+      assert.strictEqual(result, 'third-transformer');
     });
 
     it('should handle undefined return in validator', async function() {
@@ -364,7 +365,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._validateValue('test');
+      const result = await compiled.validateValue('test');
       assert.strictEqual(result, 'test');
     });
   });
@@ -380,7 +381,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       await assertWrappedError(
-        async () => await compiled._normalizeValue('test'),
+        async () => await compiled.normalizeValue('test'),
         NormalizeError,
         ConstraintError,
         'Normalizer error'
@@ -396,7 +397,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        async () => await compiled._transformValue('test'),
+        async () => await compiled.transformValue('test'),
         TransformError
       );
     });
@@ -410,7 +411,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        async () => await compiled._validateValue('test'),
+        async () => await compiled.validateValue('test'),
         ValidationError
       );
     });
@@ -424,7 +425,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       // Should not throw - errors are discarded, returns undefined
-      const result = await compiled._serializeValue('test');
+      const result = await compiled.serializeValue('test');
       assert.strictEqual(result, undefined);
     });
 
@@ -437,7 +438,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        async () => await compiled._serializeValue('test', undefined, '', { strict: true }),
+        async () => await compiled.serializeValue('test', undefined, '', { strict: true }),
         Error // Wrapped in SerializeError
       );
     });
@@ -457,7 +458,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('test');
+      const result = await compiled.normalizeValue('test');
       assert.strictEqual(result, 'TEST-PROCESSED');
     });
 
@@ -467,7 +468,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('  HELLO  ');
+      const result = await compiled.normalizeValue('  HELLO  ');
       assert.strictEqual(result, 'hello');
     });
 
@@ -484,7 +485,7 @@ describe('Schema Compilation - Handler Pipelines', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._normalizeValue('  x  ');
+      const result = await compiled.normalizeValue('  x  ');
       assert.strictEqual(result, 'XX');
     });
   });

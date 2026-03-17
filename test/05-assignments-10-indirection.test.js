@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { SchemaError, ValidationError } from '../src/errors.js';
+import { SchemaError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Assignments - Indirection (inherit, reference)', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -163,6 +164,7 @@ describe('Assignments - Indirection (inherit, reference)', function() {
 
       it('should populate inherited value when parent has deep() option', async function() {
         const schema = new Schema('object')
+          .deep()
           .property('env', new Schema('string'))
           .property('database', new Schema('object')
             .deep()
@@ -407,6 +409,7 @@ describe('Assignments - Indirection (inherit, reference)', function() {
 
       it('should populate reference when parent has deep() option', async function() {
         const schema = new Schema('object')
+          .deep()
           .property('baseUrl', new Schema('string'))
           .property('api', new Schema('object')
             .deep()

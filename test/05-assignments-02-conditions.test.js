@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+
+import { ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Assignments - Conditional Processing', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -259,7 +261,7 @@ describe('Assignments - Conditional Processing', function() {
         ['b', 'valueB']
       ]);
 
-      const result = await compiled.processAssignments(assignments, {}) ?? {};
+      const result = (await compiled.processAssignments(assignments, {})) ?? {};
 
       // Both should be suppressed due to circular dependency
       assert.deepStrictEqual(result, {});

@@ -5,6 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ObjectSource } from '../src/configuration-sources/object-source.js';
 
 describe('Sources - ObjectSource', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {

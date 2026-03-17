@@ -1,13 +1,33 @@
 import assert from "node:assert";
-import { SchemaLocation } from "./schema/schema-location.js";
+//import { SchemaLocation } from "./schema/schema-location.js";
 import { stringify } from './schema/helpers/stringify.js';
 
-
+/**
+ * @param {any} value
+ * @returns {string}
+ */
+export function formatValue(value) {
+  const vsd = typeof value === 'string'? '"' : '«';
+  const ved = typeof value === 'string'? '"' : '»'
+  try {
+    if (typeof value === 'object' && value !== null ) {
+      value = stringify(value);
+    }
+    let valueString = `${value}`;
+    if (valueString.length > 40) {
+      valueString = valueString.slice(0, 40) + '...';
+    }
+    return (valueString?.length)? `${vsd}${valueString}${ved}`: ''
+  }
+  catch (error) {
+    return '�'
+  }
+}
 /**
  * Format a location/path (possibly with property), typically for error messages.
  *
  * @param {string} message
- * @param {string|SchemaLocation|undefined} where - path or location
+ * @param {string|undefined} where - path
  * @param {string|number} [property]
  * @param {string} [prep]
  * @returns {string}
@@ -15,14 +35,19 @@ import { stringify } from './schema/helpers/stringify.js';
  */
 function fpm(message, where, property, prep = 'at') {
 
-  if (where instanceof SchemaLocation) {
-    where = `${where}`;
+  if (where === '') {
+    where = '(root)'
   }
-  let m = message;
+  else if (where){
+    where = `"${where}"`
+  }
 
   if (property) {
-    m += ` property ${property}`
+    where = where? `${where} property "${property}"` : `property "${property}"`;
   }
+
+  let m = message;
+
   if (where) {
     m += ` ${prep} ${where}`;
   }
@@ -33,7 +58,7 @@ function fpm(message, where, property, prep = 'at') {
 /**
  * @param {string} message
  * @param {any} value
- * @param {SchemaLocation|string|undefined} where
+ * @param {string|undefined} where
  * @param {string|number} [property]
  * @param {string} [prep]
  * @returns {string}
@@ -41,27 +66,10 @@ function fpm(message, where, property, prep = 'at') {
  */
 function fpvm(message, value, where, property, prep) {
   /** @type {string|undefined} */
-  let valueString;
-  const vsd = typeof value === 'string'? '"' : '«';
-  const ved = typeof value === 'string'? '"' : '»'
-  try {
-    if (typeof value === 'string') {
+  const valueString = formatValue(value);
 
-    }
-    if (typeof value === 'object' && value !== null ) {
-      value = stringify(value);
-    }
-    valueString = `${value}`;
-    if (valueString.length > 20) {
-      valueString = valueString.slice(0, 20) + '...';
-    }
-  }
-  catch (error) {
-    // ignore
-  }
   if (valueString?.length) {
-    message = `${message} value ${vsd}${valueString}${ved}`
-
+    message = `${message} with value ${valueString}`;
   }
   return fpm(message, where, property,  prep);
 }
@@ -71,8 +79,8 @@ export class ConfiguratorError extends Error {
    * @param {string} message
    * @param {object} [data]
    * @param {Error|any} [data.cause]
-   * @param {SchemaLocation} [data.location]
    * @param {string} [data.path]
+   * @param {string|number} [data.property]
    * @param {any} [data.value]
    * @param {number} [data.code]
    * @param {Array<Error>} [data.errors]
@@ -88,14 +96,15 @@ export class ConfiguratorError extends Error {
         : new ConfiguratorError(data.cause, undefined, false)
       : undefined;
 
-    const path = data?.path ?? data?.location?.path;
+    const path = data?.path ?? data?.cause?.path;
+    const property = data?.property;
 
     if (!path || message.indexOf(path) === -1) {
       if (data?.hasOwnProperty('value')) {
-        message = fpvm(message, data?.value, path);
+        message = fpvm(message, data?.value, path, property);
       }
       else {
-        message = fpm(message, path);
+        message = fpm(message, path, property);
       }
     }
 
@@ -125,6 +134,7 @@ export class ConfiguratorError extends Error {
       this.cause = data.cause;
     }
   }
+
   get name() {
     return this.constructor.name;
   }
@@ -152,17 +162,6 @@ export class ConfiguratorError extends Error {
     }
   }
 }
-
-export class SchemaError extends ConfiguratorError {}
-export class ConstraintError extends SchemaError {}
-export class ProcessorError extends SchemaError {}
-export class ValidationError extends SchemaError {}
-export class NormalizeError extends SchemaError {}
-export class TransformError extends SchemaError {}
-export class SerializeError extends SchemaError {}
-export class UnionResolutionError extends SchemaError {}
-export class ResolverError extends ConfiguratorError {}
-export class SchemaCompilationError extends SchemaError {}
 
 /**
  * @param {Error} error

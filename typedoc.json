@@ -5,7 +5,8 @@
     "src/configuration-sources/index.js",
     "src/utils.js",
     "src/schema/builtin-processors/index.js",
-    "src/schema/builtin-schemas/**"
+    "src/schema/builtin-schemas/**",
+    "src/schema/types.js"
   ],
   "entryPointStrategy": "expand",
   "out": "docs-output",
@@ -35,5 +36,6 @@
     "Property",
     "Method",
     "Function"
-  ]
+  ],
+  "plugin": ["typedoc-plugin-missing-exports"]
 }

@@ -492,11 +492,11 @@ describe('Configurator - Basic Integration', function() {
 
       const configurator = new Configurator({ schema });
 
-      const config = await configurator.configure({
+      const config = (await configurator.configure({
         appName: 'app',
         argv: [],
         env: {}
-      }) ?? {};
+      })) ?? {};
 
       assert.ok(config);
       assert.strictEqual(config.optional, undefined);

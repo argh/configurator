@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
-import { ConstraintError } from '../../errors.js';
+
+import { ConstraintError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$directory`
@@ -12,37 +13,15 @@ import { ConstraintError } from '../../errors.js';
  * - Path exists but is a file, symlink, or other non-directory type
  * - Path is inaccessible due to permissions or other filesystem errors
  *
- * @example
- * ```javascript
- * // Basic usage
- * Schema.create('string').validator('$directory')
- *
- * // Configuration directory example
- * Schema.create('object', {
- *   configDir: Schema.create('string')
- *     .validator('$directory')
- *     .metadata({ description: 'Configuration directory path' }),
- *   dataDir: Schema.create('string')
- *     .validator('$directory')
- *     .default('/var/lib/myapp')
- * })
- *
- * // Combined with other processors
- * Schema.create('string')
- *   .normalizer('$trim')
- *   .validator('$nonempty')
- *   .validator('$directory')
- * ```
- *
  * **Valid values**: `/tmp`, `/etc`, `./node_modules`, `../src`, `/Users/username/Documents`
  *
  * **Invalid values**: `/etc/hosts` (file), `/nonexistent/path`, `` (empty string)
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const DIRECTORY_CONSTRAINT = {
   keyword: 'directory',
-  processor: async (value) => {
+  process: async (value) => {
     try {
       const stat = await fs.stat(value);
       if (!stat.isDirectory()) {

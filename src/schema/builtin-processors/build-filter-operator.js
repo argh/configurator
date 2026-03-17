@@ -1,64 +1,54 @@
-import { ConstraintError, ResolverError } from '../../errors.js';
+import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
+import { ConditionalExecutor } from '../executor/conditional-executor.js';
+import { FunctionValueProcessor } from '../value-processor/function-value-processor.js';
+import { EachExecutor } from '../executor/each-executor.js';
+import { SchemaError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$filter`
  *
- * Wraps a processor and returns `undefined` if it throws an error, otherwise returns
- * the processed value. This is primarily used with `$each` to filter array elements
- * based on whether they satisfy a condition.
- *
- * When a processor wrapped in `$filter` throws an error (e.g., validation fails),
- * the error is caught and `undefined` is returned instead. This allows array processing
- * with `$each` to silently remove elements that don't match the criteria.
- *
- * @example
- * ```javascript
- * // Filter array to only include valid email addresses
- * Schema.create('array')
- *   .normalizer({$each: {$filter: '$email'}})
- *
- * // Filter array to only include numbers in a specific range
- * Schema.create('array')
- *   .normalizer({$each: {$filter: {$range: {min: 0, max: 100}}}})
- *
- * // Filter array to only include valid hostnames, trimmed and lowercased
- * Schema.create('array')
- *   .normalizer({$each: {$filter: {$pipeline: ['$trim', '$lowercase', '$hostname']}}})
- *
- * // Complex filtering with multiple criteria
- * Schema.create('object', {
- *   validPorts: Schema.create('array')
- *     .normalizer({$each: {$filter: {$and: ['$integer', {$range: {min: 1, max: 65535}}]}}})
- *     .metadata({description: 'List of valid port numbers'})
- * })
- * ```
- *
  * **Parameters**:
- * - `processor` (string | object | function, required): A processor specification to apply.
- *   Can be any valid processor spec: keyword string, parameterized object, function, or RegExp.
- *   If the processor throws an error, `undefined` is returned; otherwise the processed value is returned.
+ * - `processor` (any valid processor spec, optional): The processor to apply to each element.
  *
- * **Note**: When used with `$each`, array elements that result in `undefined` are typically
- * removed from the array. This makes `$filter` ideal for normalizing arrays by removing invalid
- * or unwanted elements during the normalization phase.
+ * Runs a processor on each element of the input array, keeping elements for which the processor
+ * succeeds and returning the processor's output value (consistent with standard processor semantics).
+ * Elements are filtered out if the processor throws or returns undefined.
+ * (Note that processor results are not checked for truthiness — only for definedness.)
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * Non-arrays are "filtered" as an empty array.
+ *
+ * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const FILTER_OPERATOR = {
   keyword: 'filter',
-  builder: (args, compileSpec) => {
-    const compiled = compileSpec(args);
-
-    return {
-      /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (...params) => {
-        try {
-          return await compiled.processor(...params);
-        }
-        catch (error) {
-          return undefined;
-        }
+  parameters: [{parameter: 'processor', required: false}],
+  build: (args) => {
+    let processor;
+    if (Array.isArray(args)) {
+      if (args.length > 1) {
+        throw new SchemaError('Expected exactly one argument for $filter operator');
       }
-    };
+      processor = args[0];
+    }
+    else if (typeof args === 'object') {
+      if (Object.keys(args).length !== 1) {
+        throw new SchemaError('Expected only "processor" argument for $filter operator');
+      }
+      processor = args.processor;
+    }
+    processor ??= new FunctionValueProcessor(v => (v === undefined || v === null)? undefined : v);
+
+    return new ComposedValueProcessor(
+      new EachExecutor(
+        new ConditionalExecutor(processor, {}, [ConditionalExecutor.CHECK_DEFINED, ConditionalExecutor.PASS_RESULT]),
+        (inputs) => {
+          if (!Array.isArray(inputs)) {
+            return [];
+          }
+          return inputs;
+        },
+        (results) => (Array.isArray(results)? results.filter(r => r !== undefined) : [])
+      ),
+      {$filter: processor.spec});
   }
 };

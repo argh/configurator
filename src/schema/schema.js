@@ -1,9 +1,10 @@
-import { SchemaError, ValidationError } from '../errors.js';
 import { toData } from './helpers/to-data.js';
 import { CompiledSchema } from './compiled-schema.js';
 import { deepValue } from '../utils.js';
+import { SchemaError, ValidationError } from './schema-errors.js';
 
-/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaValueProcessor, SchemaData, ISchema, ProcessorSpec, AsyncSchemaValueProcessor } from './types.js' */
+/** @import { ValueProcessor, ValueProcessorFunction, ValueProcessorSpec } from './value-processor/value-processor.js' */
+/** @import { ISchemaProperties, ISchemaMetadata, ISchemaOptions, SchemaData, ISchema, } from './types.js' */
 
 /** @typedef {ISchemaOptions} SchemaOptions */
 /** @typedef {ISchemaMetadata} SchemaMetadata */
@@ -12,12 +13,12 @@ import { deepValue } from '../utils.js';
 
 /**
  * @typedef {object} SchemaHandlers
- * @property {Array<ProcessorSpec>} [normalizers]
- * @property {Array<ProcessorSpec>} [transformers]
- * @property {Array<ProcessorSpec>} [validators]
- * @property {Array<ProcessorSpec>} [serializers]
- * @property {Array<ProcessorSpec>} [conditions]
- * @property {Array<ProcessorSpec>} [discriminators]
+ * @property {Array<ValueProcessorSpec>} [normalizers]
+ * @property {Array<ValueProcessorSpec>} [transformers]
+ * @property {Array<ValueProcessorSpec>} [validators]
+ * @property {Array<ValueProcessorSpec>} [serializers]
+ * @property {Array<ValueProcessorSpec>} [conditions]
+ * @property {Array<ValueProcessorSpec>} [discriminators]
  */
 
 /**
@@ -26,7 +27,7 @@ import { deepValue } from '../utils.js';
  * Essentially acts as a fluent builder, must be compiled by SchemaCompiler for use.
  *
  * @typedef {import("./types.js").ISchema} ISchema
- * @implements {ISchema}
+ * @augments {ISchema}
  */
 export class Schema
 {
@@ -189,7 +190,7 @@ export class Schema
     }
     else if (Object.getPrototypeOf(this)?.hasOwnProperty(attributeName)) {
       if (!(typeof this[attributeName] === 'function')) {
-        throw new Error('Unknown attribute!')
+        throw new SchemaError('Unknown attribute!')
       }
       try {
         return this[attributeName].call(this, attributeValue);
@@ -338,8 +339,9 @@ export class Schema
    * Helper function for the fluent handler api calls
    *
    * @param {string} handlerName
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
+   * @returns {Schema}
    * @private
    */
   handler(handlerName, specs = [], policy = SchemaPolicy.APPEND) {
@@ -361,28 +363,18 @@ export class Schema
     if (policy === SchemaPolicy.INITIALIZE && Array.isArray(this.handlers[handlerName])) {
       return this;
     }
-
-    const processorDefinitions = specs.map(spec => {
-      if (typeof spec === 'object' && spec !== null && spec.processor) {
-        return {...spec, spec};
-      }
-      else {
-        return {spec}
-      }
-    });
-
     if (policy === SchemaPolicy.OVERWRITE || policy === SchemaPolicy.INITIALIZE) {
-      this.handlers[handlerName] = processorDefinitions;
+      this.handlers[handlerName] = specs;
       return this;
     }
     if (!Array.isArray(this.handlers[handlerName])) {
       this.handlers[handlerName] = [];
     }
     if (policy === SchemaPolicy.PREPEND) {
-      this.handlers[handlerName].unshift(...processorDefinitions);
+      this.handlers[handlerName].unshift(...specs);
     }
     else {
-      this.handlers[handlerName].push(...processorDefinitions);
+      this.handlers[handlerName].push(...specs);
     }
     return this;
   }
@@ -458,7 +450,7 @@ export class Schema
    * The discriminator handler returns the key or schema of the union member that should be used
    * This function appends a single value processor to the handler pipeline.
    *
-   * @param {ProcessorSpec} spec
+   * @param {ValueProcessorSpec} spec
    * @returns {Schema} - returns self for fluent chaining
    */
   unionDiscriminator(spec) {
@@ -470,7 +462,7 @@ export class Schema
    * This function applies multiple value processors to the handler pipeline.
    * (Note that it would be highly unusual to want more than one!)
    *
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
    * @returns {Schema} - returns self for fluent chaining
    */
@@ -559,7 +551,7 @@ export class Schema
    */
   selection(value) {
     this.options.selection = value ?? true;
-
+    // fixme
     this.condition(async (_, target, location) => {
       if (!location.schema.isSelection) {
         throw new SchemaError(`Conditional expected a selection schema!`, {location});
@@ -572,7 +564,7 @@ export class Schema
       if (selectorLocation) {
         const ss = selectorLocation.schema;
         const selectorValue = deepValue(target, selectorLocation.path);
-        return (await ss._normalizeValue(selectorValue, target, selectorLocation) === (await ss._normalizeValue(selectionValue, target, selectorLocation)));
+        return (await ss.normalizeValue(selectorValue, target, selectorLocation) === (await ss.normalizeValue(selectionValue, target, selectorLocation)));
       }
       return false;
     })
@@ -601,7 +593,8 @@ export class Schema
    * Defaults are shallow and will not cause children of undefined inputs to populate;
    * this can be changed via the deep() option.
    *
-   * @param {NonNullable<any>|SchemaValueProcessor<any>} value
+   * @param {NonNullable<any>|ValueProcessorFunction|ValueProcessor} value
+   * @returns {Schema}
    */
   default(value) {
     this.options.default = value;
@@ -663,6 +656,7 @@ export class Schema
    * Opaque schemas thus generally require custom validators that know how to properly handle the value.
    *
    * @param {boolean} [value]
+   * @returns {Schema}
    */
   opaque(value = true) {
     this.options.allowIncremental = !value;
@@ -753,7 +747,7 @@ export class Schema
    * The condition handler determines if the schema should be processed at all.
    * This function appends a single value processor to the handler pipeline
    *
-   * @param {ProcessorSpec} spec
+   * @param {ValueProcessorSpec} spec
    * @returns {Schema}
    */
   condition(spec) {
@@ -764,7 +758,7 @@ export class Schema
    * The condition handler determines if the schema should be processed at all.
    * This call applies one or more value processors to the handler pipeline (default policy = append)
    *
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
    * @returns {Schema}
    */
@@ -776,7 +770,7 @@ export class Schema
    * The normalizer handler ensures input is in a format that the transformer can handle.
    * This call appends a single value processor to the handler pipeline.
    *
-   * @param {ProcessorSpec} spec
+   * @param {ValueProcessorSpec} spec
    * @returns {Schema}
    */
   normalizer(spec) {
@@ -787,7 +781,7 @@ export class Schema
    * The normalizer handler ensures input is in a format that the transformer can handle.
    * This call applies one or more value processors to the handler pipeline.
    *
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
    * @returns {Schema}
    */
@@ -799,7 +793,7 @@ export class Schema
    * The transformer handler converts an input value into the output value used in the final configuration.
    * This call appends a single value processor to the handler pipeline.
    *
-   * @param {ProcessorSpec} spec
+   * @param {ValueProcessorSpec} spec
    * @returns {Schema}
    */
   transformer(spec) {
@@ -810,7 +804,7 @@ export class Schema
    * The transformer handler converts an input value into the output value used in the final configuration.
    * This call applies one or more value processors to the handler pipeline.
    *
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
    * @returns {Schema}
    */
@@ -822,7 +816,7 @@ export class Schema
    * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
    * This call appends a single value processor to the handler pipeline.
    *
-   * @param {ProcessorSpec} spec
+   * @param {ValueProcessorSpec} spec
    * @returns {Schema}
    */
   validator(spec) {
@@ -833,7 +827,7 @@ export class Schema
    * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
    * This call applies one or more value processors to the handler pipeline.
    *
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
    * @returns {Schema}
    */
@@ -845,7 +839,7 @@ export class Schema
    * The serialize handler restores a configuration value to its pre-transform normalized form.
    * This call appends a single value processor to the handler pipeline.
    *
-   * @param {ProcessorSpec} spec
+   * @param {ValueProcessorSpec} spec
    * @returns {Schema}
    */
   serializer(spec) {
@@ -856,7 +850,7 @@ export class Schema
    * The serialize handler restores a configuration value to its pre-transform normalized form.
    * This call applies one or more value processors to the handler pipeline.
    *
-   * @param {Array<ProcessorSpec>} specs
+   * @param {Array<ValueProcessorSpec>} specs
    * @param {symbol} [policy]
    * @returns {Schema}
    */
@@ -869,9 +863,10 @@ export class Schema
    * Use another schema to extend the current one without overwriting.
    *
    * @param {ISchema|SchemaData} otherSchema - source schema
+   * @param {Map<any,any>} [seen]
    * @returns {Schema} - returns self
    */
-  extend(otherSchema) {
+  extend(otherSchema, seen = new Map()) {
     if (typeof otherSchema !== 'object') {
       throw new SchemaError(`Invalid schema to extend`)
     }
@@ -883,10 +878,10 @@ export class Schema
 
     this.addProperties(Object.fromEntries(
       Object.entries(otherSchema.properties ?? {})
-            .map(([propertyName, propertySchema]) => [propertyName, Schema.createFromModel(propertySchema)])));
+            .map(([propertyName, propertySchema]) => [propertyName, Schema.createFromModel(propertySchema, seen)])));
     this.addUnionSchemas(Object.fromEntries(
       Object.entries(otherSchema.unionSchemas ?? {})
-            .map(([unionKey, unionSchema]) => [unionKey, Schema.createFromModel(unionSchema)])));
+            .map(([unionKey, unionSchema]) => [unionKey, Schema.createFromModel(unionSchema, seen)])));
 
     this.addOptions(otherSchema.options ?? {});
     this.addMetadata(otherSchema.metadata ?? {});
@@ -908,19 +903,25 @@ export class Schema
    * Create a new Schema from something schema-shaped
    *
    * @param {ISchema|SchemaData|string} model
+   * @param {Map<any,any>} [seen]
    * @returns {Schema}
    */
-  static createFromModel(model) {
+  static createFromModel(model, seen = new Map()) {
     if (typeof model === 'string') {
       return new Schema(model);
     }
 
+    if (seen.has(model)) {
+      return seen.get(model);
+    }
+
     const schema = new Schema();
+    seen.set(model, schema);
 
     if (model.base) {
       schema.base = model.base;
     }
-    return schema.extend(model);
+    return schema.extend(model, seen);
   }
   /**
    * Static schema factory (useful for aliasing to reduce typing!)
@@ -996,6 +997,8 @@ export class Schema
    * If no property name is provided, the inherit schema's property name is used, so it will look for the same name
    * higher in the schema hierarchy.
    *
+   * TODO - restore compilation hook for checking whether this is a legal setup
+   *
    * @returns {Schema}
    * @param {string} [propertyName]
    * @internal
@@ -1003,7 +1006,8 @@ export class Schema
   static inherit(propertyName) {
 
     return new Schema()
-      .normalizer(/** @type {SchemaValueProcessor<any>} */ (_value, config, location) => {
+      .option('reference', true)
+      .transformer(/** @type {ValueProcessorFunction} */ (_value, config, location) => {
         const name = propertyName ?? location.name;
         if (location.parent === undefined) {
           throw new SchemaError('A top-level schema cannot have an inherited value');
@@ -1023,7 +1027,8 @@ export class Schema
       })
 
       .serializer(() => undefined)
-      .default(/** @type {SchemaValueProcessor<any>} */ (_value, config, location) => {
+      .default(/** @type {ValueProcessorFunction} */ (_value, config, location) => {
+        // todo - check for dynamic=false during compilation!
         return propertyName ?? location.name;
       })
       .meta('omitFromSerialize')
@@ -1033,20 +1038,27 @@ export class Schema
   /**
    * Static schema factory for creating a schema that gets its value from another location based on a path.
    *
+   * TODO - restore compilation hook for checking whether the provided path is known
+   *
    * @param {string} path
    * @returns {Schema}
    * @internal
    */
   static reference(path) {
     return new Schema()
+      .option('reference', true)
+      .default(path)
       .normalizer((_, config, location) => {
+        // I think this acts as if the input value is a path (based on the default below)
+
+        // todo - maybe defer this until transform, and make it opaque?
         const referenceSchema = location.absolute(path)?.schema;
         if (referenceSchema === undefined) {
           throw new SchemaError(`Reference path ${path} not found`);
         }
         return deepValue(config, path);
       })
-      .validator(/** @type {SchemaValueProcessor<any>} */ (value, config, location) => {
+      .validator(/** @type {ValueProcessorFunction} */ (value, config, location) => {
 
         const referenceSchema = location.absolute(path)?.schema;
         if (referenceSchema === undefined) {
@@ -1069,13 +1081,11 @@ export class Schema
 
       })
       .serializer(() => undefined)
-      .default(() => {
-        return path;
-      })
       .meta('omitFromSerialize')
       .meta('internal')
   }
 
+  // FIXME - random WIP stuff below, finish or remove:
   static self() {
     return new Schema().meta('internal').meta('$SELF')
   }

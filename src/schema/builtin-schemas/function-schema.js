@@ -1,6 +1,7 @@
 import { Schema } from '../schema.js';
 import { deepValue } from '../../utils.js';
-import { ConstraintError } from '../../errors.js';
+
+import { ConstraintError } from '../schema-errors.js';
 
 export const FUNCTION_SCHEMA = new Schema()
   .option('type', 'function')
@@ -13,7 +14,7 @@ export const FUNCTION_SCHEMA = new Schema()
     if (typeof value === 'function' || typeof value === 'string') {
       return value;
     }
-    throw new ConstraintError(`Invalid input for function: ${value}`)
+    throw new ConstraintError('Invalid function', {value})
   })
   .transformer((value, result) => {
     if (typeof value === 'string') {
@@ -22,17 +23,17 @@ export const FUNCTION_SCHEMA = new Schema()
     if (typeof value === 'function') {
       return value;
     }
-    throw new ConstraintError(`Invalid function: ${value}`)
+    throw new ConstraintError('Invalid function', {value});
   })
   .validator(value => {
     if (typeof value === 'function') {
       return value;
     }
-    throw new ConstraintError(`Invalid function: ${value}`);
+    throw new ConstraintError('Invalid function', {value});
   })
   .serializer((value) => {
     if (typeof value === 'function') {
       return value.name;
     }
-    throw new ConstraintError(`Invalid function: ${value}`)
+    throw new ConstraintError('Invalid function', {value})
   })

@@ -7,10 +7,11 @@ export default [
   {
     ignores: [
       "**/node_modules/",
-      "test/",
+      //"test/",
       "docs-output/",
       "benchmark/",
-      "coverage/"
+      "coverage/",
+      "dev-scripts/"
     ],
   },
   {
@@ -32,7 +33,7 @@ export default [
       "jsdoc/require-param-description": 0,
       "jsdoc/require-property-description": 0,
       "jsdoc/require-returns-description": 0,
-      "jsdoc/no-undefined-types": ["error", {"definedTypes": ["IteratorObject"]}],
+      "jsdoc/no-undefined-types": ["error", {"definedTypes": ["IteratorObject", "PromiseLike"]}],
       "jsdoc/require-jsdoc": [1, {publicOnly: true, minLineCount: 2}],
       "jsdoc/no-defaults": 0
     },

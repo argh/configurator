@@ -1,5 +1,6 @@
 import { Schema } from '../schema.js';
-import { ConstraintError } from '../../errors.js';
+
+import { ConstraintError } from '../schema-errors.js';
 
 export const BUFFER_SCHEMA = new Schema()
   .option('type', 'buffer')
@@ -45,9 +46,12 @@ export const BUFFER_SCHEMA = new Schema()
     }
     throw new ConstraintError(`Invalid buffer: ${value}`);
   })
-  .serializer((value) => {
+  .serializer((value, _target, _location, options) => {
     if (Buffer.isBuffer(value)) {
       return value.toString('base64');
     }
-    throw new ConstraintError(`Invalid buffer: ${value}`)
+    if (options?.strict) {
+      throw new ConstraintError(`Invalid buffer: ${value}`)
+    }
+    return undefined;
   })

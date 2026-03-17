@@ -8,33 +8,17 @@ import { toCamelCase } from '../../utils.js';
  * subsequent words are capitalized with no separators.
  * Safe to use in normalize phase (non-throwing).
  *
- * @example
- * ```javascript
- * // Basic usage
- * Schema.create('string').normalizer('$camelcase')
- *
- * // Combined with trim in a pipeline
- * Schema.create('string')
- *   .normalizer('$trim')
- *   .normalizer('$camelcase')
- *
- * // In a configuration schema
- * Schema.create('object', {
- *   apiMethod: Schema.create('string').normalizer('$camelcase')
- * })
- * ```
- *
  * **Input examples**:
  * - `"hello world"` → **Output**: `"helloWorld"`
  * - `"foo-bar-baz"` → **Output**: `"fooBarBaz"`
  * - `"user_name_id"` → **Output**: `"userNameId"`
  * - `"HTTPSConnection"` → **Output**: `"httpsConnection"`
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const CAMELCASE_OPERATOR = {
   keyword: 'camelcase',
-  processor: (value) => {
+  process: (value) => {
     return toCamelCase(String(value));
   }
 };

@@ -4,6 +4,7 @@ import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
 describe('Assignments - Selectors', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {

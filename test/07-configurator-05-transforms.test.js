@@ -482,7 +482,7 @@ describe('Configurator - Transforms Integration', function() {
         }),
         {
           name: 'TransformError',
-          message: /Unable to transform value/
+          message: /Unable to transform/
         }
       );
     });
@@ -571,11 +571,11 @@ describe('Configurator - Transforms Integration', function() {
             if (!value) return undefined;
             if (value.startsWith('/')) return value; // Already absolute
 
-            if (!config.baseDir) {
+            if (!config?.baseDir) {
               return undefined; // Wait for baseDir
             }
 
-            return `${config.baseDir}/${value}`;
+            return `${config?.baseDir}/${value}`;
           }
         }))
         .property('dataDir', new Schema('string', {
@@ -583,11 +583,11 @@ describe('Configurator - Transforms Integration', function() {
             if (!value) return undefined;
             if (value.startsWith('/')) return value;
 
-            if (!config.baseDir) {
+            if (!config?.baseDir) {
               return undefined;
             }
 
-            return `${config.baseDir}/${value}`;
+            return `${config?.baseDir}/${value}`;
           }
         }));
 

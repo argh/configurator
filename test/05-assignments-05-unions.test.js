@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { SchemaError, UnionResolutionError } from '../src/errors.js';
+import { assertErrorMessageInCauseChain } from '../src/errors.js';
+import { SchemaError, UnionResolutionError } from '../src/schema/schema-errors.js';
 
 describe('Assignments - Unions', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -251,7 +253,7 @@ describe('Assignments - Unions', function() {
 
       await assert.rejects(
         () => compiled.processAssignments(assignments),
-        /Unexpected property/
+        (error) => assertErrorMessageInCauseChain(error,/Union resolution conflict/)
       );
     });
 
@@ -418,7 +420,7 @@ describe('Assignments - Unions', function() {
             .property('data', new Schema('number'))
             .property('doubled', new Schema('number')
               .transformer((value, config) => {
-                if (config.value?.data === undefined) {
+                if (config?.value?.data === undefined) {
                   return undefined;  // compute later
                 }
                 return config.value.data * 2;

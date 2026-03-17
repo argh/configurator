@@ -26,7 +26,7 @@ const resolver = new SchemaResolver();
 //
 // Value processors in all the handler pipelines all share the the same call signature:
 //
-//   output = await processor(input, target, location, options)
+//   output = processor(input, target, location, options)
 //
 // where "input" is the value being specified in the assignment, "target" is
 // the current value of the entire configuration object being built, "location" contains the
@@ -34,15 +34,19 @@ const resolver = new SchemaResolver();
 // where the value will eventually be written within the target.  Options are passed through
 // from the top-level call that invoked the processor.  (Many handlers only need the first argument!)
 //
+// Processors may be synchronous (return value directly) or asynchronous (return a Promise that resolves to the value).
+// The schema internals attempt to maintain fully synchronous processor call chains until a Promise is returned,
+// at which point they switch to async processing.
+//
 // Normalizers, transformers, validators, and serializers must either:
 // 1. Return a (potentially altered) value
-// 2. Return undefined if the value cannot currently be provided
+// 2. Return undefined if the value cannot (currently) be provided
 // 3. Throw an error if there is a fundamental problem with the provided value or the current state.
-// (Conditions should return true if the schema should be processed, false otherwise.)
+//    (Conditions should return true if the schema should be processed, false otherwise.)
 //
-// In most cases, handler calls that return undefined will be retried until a value is resolved
-// or the configuration has stabilized.  This allows types to be defined where their value
-// is dynamic or depends on other aspects of the configuration state.
+// In most cases, handler calls that return undefined (and conditions that return false) will be retried
+// until a value is resolved or the configuration has stabilized.  This allows types to be defined where
+// their value is dynamic or depends on other aspects of the configuration state.
 
 // Here is an example of a schema that can accept either a positive number,
 // an ISO string, or the string "now" to indicate the current time should be used:
@@ -467,7 +471,7 @@ class FakeSecretsSource extends ConfigurationSource {
       // Value resolver functions are called late in the assignment process.
 
       assignments.set(path, async (_, configuration) => {
-        if (typeof configuration.app?.fakeSecretDelay !== 'number') {
+        if (typeof configuration?.app?.fakeSecretDelay !== 'number') {
           // pretend we can't resolve until we have a delay value
           // (will continue to re-resolve until success or the configuration
           // has stabilized)

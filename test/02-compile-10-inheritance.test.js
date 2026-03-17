@@ -2,9 +2,11 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError } from '../src/errors.js';
+
+import { ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Inheritance', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -17,15 +19,15 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(42), '42');
-      assert.strictEqual(await compiled._normalizeValue(true), 'true');
+      assert.strictEqual(await compiled.normalizeValue(42), '42');
+      assert.strictEqual(await compiled.normalizeValue(true), 'true');
     });
 
     it('should inherit validator from number base', async function() {
       const schema = new Schema('number');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._validateValue(42);
+      const result = await compiled.validateValue(42);
       assert.strictEqual(result, 42);
     });
 
@@ -33,7 +35,7 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('boolean');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._transformValue(true);
+      const result = await compiled.transformValue(true);
       assert.strictEqual(result, true);
     });
 
@@ -41,9 +43,9 @@ describe('Schema Compilation - Inheritance', function() {
       const schema = new Schema('object');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled._normalizeValue({});
-      const transformed = await compiled._transformValue({});
-      const validated = await compiled._validateValue({});
+      const normalized = await compiled.normalizeValue({});
+      const transformed = await compiled.transformValue({});
+      const validated = await compiled.validateValue({});
       assert.deepStrictEqual(normalized, {});
       assert.deepStrictEqual(transformed, {});
       assert.deepStrictEqual(validated, {});
@@ -59,7 +61,7 @@ describe('Schema Compilation - Inheritance', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue('test'), 'CUSTOM:test');
+      assert.strictEqual(await compiled.normalizeValue('test'), 'CUSTOM:test');
     });
 
     it('should use local validator over base validator', async function() {
@@ -73,11 +75,11 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._validateValue('invalid'),
+        () => compiled.validateValue('invalid'),
         ValidationError
       );
 
-      const result = await compiled._validateValue('valid');
+      const result = await compiled.validateValue('valid');
       assert.strictEqual(result, 'valid');
     });
 
@@ -88,7 +90,7 @@ describe('Schema Compilation - Inheritance', function() {
 
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._transformValue('input');
+      const result = await compiled.transformValue('input');
       assert.strictEqual(result, 'transformed-input');
     });
 
@@ -231,7 +233,7 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(level3);
 
       // Should resolve to number base type
-      assert.strictEqual(await compiled._normalizeValue('42'), 42);
+      assert.strictEqual(await compiled.normalizeValue('42'), 42);
 
       // Local metadata should win
       assert.strictEqual(compiled.metadata.level, '3');
@@ -296,7 +298,7 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(schema);
 
       // Should inherit email normalizer
-      assert.strictEqual(await compiled._normalizeValue('  TEST@EXAMPLE.COM  '), 'test@example.com');
+      assert.strictEqual(await compiled.normalizeValue('  TEST@EXAMPLE.COM  '), 'test@example.com');
     });
 
     it('should extend custom base type with additional constraints', async function() {
@@ -315,7 +317,7 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have both number normalizer and positive validator
-      assert.strictEqual(await compiled._normalizeValue('42'), 42);
+      assert.strictEqual(await compiled.normalizeValue('42'), 42);
       assert.strictEqual(compiled.default, 1);
     });
   });
@@ -329,7 +331,7 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(schema);
 
       // Should have string normalizer from base
-      assert.strictEqual(await compiled._normalizeValue(123), '123');
+      assert.strictEqual(await compiled.normalizeValue(123), '123');
       // Should have values from schema
       assert.deepStrictEqual(compiled.values, ['red', 'green', 'blue']);
     });
@@ -407,7 +409,7 @@ describe('Schema Compilation - Inheritance', function() {
       assert.strictEqual(compiled.options.baseOption, 'from-schema');
       assert.strictEqual(compiled.options.localOption, 'from-local');
       // Local normalizer wins
-      assert.strictEqual(await compiled._normalizeValue('test'), 'local:test');
+      assert.strictEqual(await compiled.normalizeValue('test'), 'local:test');
     });
 
     it('should demonstrate full inheritance chain', async function() {
@@ -434,7 +436,7 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(local);
 
       // Type base provides normalizer (not overridden)
-      assert.strictEqual(await compiled._normalizeValue(42), '42');
+      assert.strictEqual(await compiled.normalizeValue(42), '42');
 
       // Local metadata wins
       assert.strictEqual(compiled.metadata.layer, 'local');

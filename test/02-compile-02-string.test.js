@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, NormalizeError, ConstraintError, TransformError } from '../src/errors.js';
+import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - String Type', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -17,33 +18,33 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue('hello'), 'hello');
-      assert.strictEqual(await compiled._normalizeValue(''), '');
+      assert.strictEqual(await compiled.normalizeValue('hello'), 'hello');
+      assert.strictEqual(await compiled.normalizeValue(''), '');
     });
 
     it('should normalize numbers to strings', async function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(123), '123');
-      assert.strictEqual(await compiled._normalizeValue(0), '0');
-      assert.strictEqual(await compiled._normalizeValue(-42), '-42');
-      assert.strictEqual(await compiled._normalizeValue(3.14), '3.14');
+      assert.strictEqual(await compiled.normalizeValue(123), '123');
+      assert.strictEqual(await compiled.normalizeValue(0), '0');
+      assert.strictEqual(await compiled.normalizeValue(-42), '-42');
+      assert.strictEqual(await compiled.normalizeValue(3.14), '3.14');
     });
 
     it('should normalize booleans to strings', async function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(true), 'true');
-      assert.strictEqual(await compiled._normalizeValue(false), 'false');
+      assert.strictEqual(await compiled.normalizeValue(true), 'true');
+      assert.strictEqual(await compiled.normalizeValue(false), 'false');
     });
 
     it('should normalize null to null', async function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(null), null);
+      assert.strictEqual(await compiled.normalizeValue(null), null);
     });
 
     it('should normalize undefined to undefined', async function() {
@@ -51,7 +52,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue(undefined), undefined);
+      assert.strictEqual(await compiled.normalizeValue(undefined), undefined);
     });
   });
 
@@ -61,8 +62,8 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._transformValue('test'), 'test');
-      assert.strictEqual(await compiled._transformValue(''), '');
+      assert.strictEqual(await compiled.transformValue('test'), 'test');
+      assert.strictEqual(await compiled.transformValue(''), '');
     });
 
     it('should use the inherited transformer from base type', async function() {
@@ -70,7 +71,7 @@ describe('Schema Compilation - String Type', function() {
       const compiled = await resolver.compile(schema);
 
       // String base type doesn't have a custom transformer, so it should pass through
-      assert.strictEqual(await compiled._transformValue('hello'), 'hello');
+      assert.strictEqual(await compiled.transformValue('hello'), 'hello');
     });
   });
 
@@ -80,7 +81,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._validateValue('test');
+      const result = await compiled.validateValue('test');
       assert.strictEqual(result, 'test');
     });
 
@@ -88,7 +89,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._validateValue('');
+      const result = await compiled.validateValue('');
       assert.strictEqual(result, '');
     });
 
@@ -96,10 +97,10 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      let result = await compiled._validateValue(null);
+      let result = await compiled.validateValue(null);
       assert.strictEqual(result, null);
 
-      result = await compiled._validateValue(undefined);
+      result = await compiled.validateValue(undefined);
       assert.strictEqual(result, undefined);
     });
 
@@ -109,17 +110,17 @@ describe('Schema Compilation - String Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._validateValue(123),
+        () => compiled.validateValue(123),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue(true),
+        () => compiled.validateValue(true),
         ValidationError
       );
 
       await assert.rejects(
-        () => compiled._validateValue({}),
+        () => compiled.validateValue({}),
         ValidationError
       );
     });
@@ -131,7 +132,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._serializeValue('test value');
+      const result = await compiled.serializeValue('test value');
       assert.strictEqual(result, 'test value');
     });
 
@@ -139,7 +140,7 @@ describe('Schema Compilation - String Type', function() {
       const schema = new Schema('string');
       const compiled = await resolver.compile(schema);
 
-      const result = await compiled._serializeValue('');
+      const result = await compiled.serializeValue('');
       assert.strictEqual(result, '');
     });
   });
@@ -161,8 +162,8 @@ describe('Schema Compilation - String Type', function() {
 
       const compiled = await resolver.compile(schema);
 
-      assert.strictEqual(await compiled._normalizeValue('active'), 'active');
-      const validated = await compiled._validateValue('active');
+      assert.strictEqual(await compiled.normalizeValue('active'), 'active');
+      const validated = await compiled.validateValue('active');
       assert.strictEqual(validated, 'active');
     });
 
@@ -173,7 +174,7 @@ describe('Schema Compilation - String Type', function() {
       const compiled = await resolver.compile(schema);
 
       await assert.rejects(
-        () => compiled._transformValue('maybe'),
+        () => compiled.transformValue('maybe'),
         TransformError
       );
     });
@@ -207,7 +208,7 @@ describe('Schema Compilation - String Type', function() {
       const compiled = await resolver.compile(schema);
 
       // The default itself should be a valid string
-      const validated = await compiled._validateValue('hello');
+      const validated = await compiled.validateValue('hello');
       assert.strictEqual(validated, 'hello');
     });
   });
@@ -270,15 +271,15 @@ describe('Schema Compilation - String Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue(123);
+      const normalized = await compiled.normalizeValue(123);
       assert.strictEqual(normalized, '123');
 
       // Transform
-      const transformed = await compiled._transformValue(normalized);
+      const transformed = await compiled.transformValue(normalized);
       assert.strictEqual(transformed, '123');
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.strictEqual(validated, '123');
     });
 
@@ -289,15 +290,15 @@ describe('Schema Compilation - String Type', function() {
       const compiled = await resolver.compile(schema);
 
       // Normalize
-      const normalized = await compiled._normalizeValue('medium');
+      const normalized = await compiled.normalizeValue('medium');
       assert.strictEqual(normalized, 'medium');
 
       // Transform (should check against values)
-      const transformed = await compiled._transformValue(normalized);
+      const transformed = await compiled.transformValue(normalized);
       assert.strictEqual(transformed, 'medium');
 
       // Validate
-      const validated = await compiled._validateValue(transformed);
+      const validated = await compiled.validateValue(transformed);
       assert.strictEqual(validated, 'medium');
     });
   });

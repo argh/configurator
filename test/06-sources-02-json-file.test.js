@@ -13,6 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('Sources - JsonFileSource', function() {
+  /** @type {SchemaResolver} */
   let resolver;
   let tempFiles = [];
 

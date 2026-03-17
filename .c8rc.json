@@ -2,11 +2,14 @@
   "reporter": ["text", "html"],
   "exclude": [
     "test/**",
+    "benchmark/**",
+    "dev-scripts/**",
     "coverage/**",
     "examples/**",
     "src/schema/types.js",
     "eslint.config.js",
-    "docs-output/*"
+    "docs-output/*",
+    "src/schema/builtin-processors/PROCESSORS_CATALOG.js"
   ],
   "all": true,
   "check-coverage": true,

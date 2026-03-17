@@ -5,6 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
 
 describe('Schema Compilation - Hierarchy', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
@@ -209,7 +210,7 @@ describe('Schema Compilation - Hierarchy', function() {
 
       // config.* should be string
       const configValue = compiled.properties.config.getPropertySchema('anything');
-      assert.strictEqual(typeof configValue._normalizeValue, 'function');
+      assert.strictEqual(typeof configValue.normalizeValue, 'function');
 
       // other.* should be number
       const otherValue = compiled.getPropertySchema('other');
@@ -318,9 +319,9 @@ describe('Schema Compilation - Hierarchy', function() {
       const boolVal = compiled.properties.level1.properties.level2.properties.level3.properties.boolVal;
 
       // Each should have its base type's normalizer
-      assert.strictEqual(await stringVal._normalizeValue(123), '123');
-      assert.strictEqual(await numberVal._normalizeValue('456'), 456);
-      assert.strictEqual(await boolVal._normalizeValue('yes'), true);
+      assert.strictEqual(await stringVal.normalizeValue(123), '123');
+      assert.strictEqual(await numberVal.normalizeValue('456'), 456);
+      assert.strictEqual(await boolVal.normalizeValue('yes'), true);
     });
   });
 

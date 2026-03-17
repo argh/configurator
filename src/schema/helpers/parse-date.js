@@ -1,4 +1,4 @@
-import { TransformError } from '../../errors.js';
+import { TransformError } from '../schema-errors.js';
 
 /**
  * @package

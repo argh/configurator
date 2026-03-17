@@ -1,4 +1,4 @@
-import { toCamelCase, toKebabCase } from '../utils.js';
+import { isFalseyKeyword, isTruthy, isTruthyKeyword, toCamelCase, toKebabCase } from '../utils.js';
 import { ConfigurationSource } from './configuration-source.js';
 import { ConfiguratorError } from '../errors.js';
 import { CompiledSchema } from '../schema/compiled-schema.js';
@@ -85,7 +85,7 @@ export class CommandLineSource extends ConfigurationSource
           if (propertyName === '*') {
             continue;  // shouldn't happen; array elements are handled as an aggregated parsed value
           }
-          if (childSchema.isInherited || childSchema.metadata.internal) {
+          if (childSchema.isReference || isTruthy(childSchema.metadata.internal)) {
             continue;
           }
 
@@ -109,7 +109,7 @@ export class CommandLineSource extends ConfigurationSource
         if (schema.options.selector) {
           ctx.setSelector(path, schema);
         }
-        else if (schema.metadata.general) {
+        else if (isTruthy(schema.metadata.general)) {
           ctx.setGeneral(path, schema);
         }
         else {
@@ -219,7 +219,7 @@ export class CommandLineSource extends ConfigurationSource
         if (inlineValue !== undefined) {
           value = inlineValue;
         }
-        else if (checkArguments && (peekArgumentValue() === 'true' || peekArgumentValue() === 'false')) {
+        else if (checkArguments && (isTruthyKeyword(peekArgumentValue()) || isFalseyKeyword(peekArgumentValue()))) {
           value = getArgument();
         }
         else {
@@ -480,10 +480,11 @@ export class CommandLineSource extends ConfigurationSource
         let foundAdvanced = false;
         for (const clOptionData of sortedOptions) {
           // Skip hidden options and handle advanced options based on showAdvanced flag
-          const m = clOptionData.schema.metadata;
-          const o = clOptionData.schema.options;
-          if (m.internal || m.system || m.hidden || o.isInherited) continue;
-          if (m.advanced) {
+
+          const {isInternal, isAdvanced, isSystem, isHidden, isInherited} = clOptionData;
+
+          if (isInternal || isSystem || isHidden || isInherited) continue;
+          if (isAdvanced) {
             foundAdvanced = true;
             if (!showAdvanced) continue;
           }
@@ -503,7 +504,7 @@ export class CommandLineSource extends ConfigurationSource
           const description = (clOptionData.description || '').trim();
 
           const markers = [];
-          if (clOptionData.schema.metadata.advanced) {
+          if (isAdvanced) {
             markers.push('advanced');
           }
           if (clOptionData.schema.options.required) {
@@ -736,10 +737,10 @@ class ParsingContext {
     const isDump = configuratorSchemaMetadata === 'dump';
     const isSetPropertyValue = configuratorSchemaMetadata === 'setPropertyValue';
 
-    const isAdvanced = !!schema.metadata['advanced']
-    const isHidden = !!schema.metadata['hidden'];
-    const isSystem = !!schema.metadata['system']
-    const isInternal = !!schema.metadata['internal'];
+    const isAdvanced = isTruthy(schema.metadata['advanced']);
+    const isHidden = isTruthy(schema.metadata['hidden']);
+    const isSystem = isTruthy(schema.metadata['system']);
+    const isInternal = isTruthy(schema.metadata['internal']);
 
     this.clOptions.set(longOption, {path, schema, typeHint, description, valueDescription, longOption, isTopLevel, isHelp, isConfig, isDump, isSetPropertyValue, isAdvanced, isHidden, isSystem, isInternal})
 
@@ -754,8 +755,8 @@ class ParsingContext {
       }
     }
     for (const [longOption, clOptionData] of this.clOptions) {
-      const m = clOptionData.schema.metadata;
-      if (clOptionData.flag || m.internal || m.system || m.advanced || m.hidden) {
+      const m = clOptionData.schema.metadata;  // todo - shouldn't we check the flags set in addLongOption?
+      if (clOptionData.flag || isTruthy(m.internal) || isTruthy(m.system) || isTruthy(m.advanced) || isTruthy(m.hidden)) {
         continue;
       }
 
@@ -787,5 +788,4 @@ class ParsingContext {
       }
     }
   }
-
 }

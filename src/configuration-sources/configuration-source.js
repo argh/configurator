@@ -24,7 +24,7 @@ export class ConfigurationSource {
    * @returns {Promise<Map<string,any>>} Parsed configuration object
    */
   async load(schema, context, options) {
-    throw new Error(`ConfigurationSource.load() in ${this.name} must be implemented by subclass`);
+    throw new ConfiguratorError(`ConfigurationSource.load() in ${this.name} must be implemented by subclass`);
   }
 
   /**

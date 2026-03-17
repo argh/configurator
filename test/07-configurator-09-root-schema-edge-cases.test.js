@@ -360,7 +360,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
           return value;
         })
         .property('name', new Schema('string'))
-        .property('value', new Schema('number'));
+        .property('value', new Schema('number').condition((_, config) => { return config?.name }));
 
       const context = {
         overrides: { name: 'test', value: 42 }
@@ -377,7 +377,7 @@ describe('Configurator - Root Schema Edge Cases', function() {
 
       assert.deepStrictEqual(config, { name: 'test', value: 42 });
       assert.strictEqual(transformCalls.length, 1);
-      assert.deepStrictEqual(transformCalls[0], {}); // Called with empty object
+      assert.deepStrictEqual(transformCalls[0], {name:'test'}); // Called with initial object value
     });
 
     it('should call root normalizer before transformer', async function() {

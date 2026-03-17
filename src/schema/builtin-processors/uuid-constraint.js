@@ -1,4 +1,4 @@
-import { ConstraintError } from '../../errors.js';
+import { ConstraintError } from '../schema-errors.js';
 
 /**
  * **Processor**: `$uuid`
@@ -6,23 +6,6 @@ import { ConstraintError } from '../../errors.js';
  * Validates that a string matches valid UUID format (versions 1-5).
  * UUIDs must follow RFC 4122 format: 8-4-4-4-12 hexadecimal digits
  * separated by hyphens.
- *
- * @example
- * ```javascript
- * // Basic usage
- * Schema.create('string').validator('$uuid')
- *
- * // In a schema property
- * Schema.create('object', {
- *   requestId: Schema.create('string').validator('$uuid'),
- *   sessionToken: Schema.create('string').validator('$uuid')
- * })
- *
- * // Combined with other validation
- * Schema.create('string')
- *   .validator('$nonempty')
- *   .validator('$uuid')
- * ```
  *
  * **Valid values**:
  * - `550e8400-e29b-41d4-a716-446655440000` (v4)
@@ -36,11 +19,11 @@ import { ConstraintError } from '../../errors.js';
  * - `550e8400-e29b-61d4-a716-446655440000` (invalid version digit)
  * - `not-a-valid-uuid-string`
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const UUID_CONSTRAINT = {
   keyword: 'uuid',
-  processor: (value) => {
+  process: (value) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(value)) {
       throw new ConstraintError('Invalid UUID format');

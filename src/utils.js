@@ -120,6 +120,16 @@ export function isObject(item) {
 }
 
 /**
+ * @param {any} value
+ * @returns {boolean}
+ */
+export function isEmpty(value) {
+  return value === undefined || value === null
+         || (Array.isArray(value) && value.length === 0)
+         || (isPlainObject(value) && Object.keys(value).length === 0)
+}
+
+/**
  * @param {any} item
  * @returns {boolean}
  */
@@ -134,6 +144,7 @@ export function isPrimitive(item) {
 /**
  * @param {any} f
  * @returns {boolean}
+ * @deprecated - usually want isConstructible instead
  */
 export function isConstructor(f) {
   if (typeof f !== 'function') {
@@ -143,12 +154,74 @@ export function isConstructor(f) {
     return true;
   }
   try {
-    class test extends f {}
+    class test extends f {}    // oops, turns out that simple functions can be extended (!)
   }
   catch (err) {
     return false;
   }
   return true;
+}
+
+/**
+ * @param {any} f
+ * @returns {boolean}
+ */
+export function isConstructible(f) {
+  if (typeof f !== 'function') {
+    return false;
+  }
+
+  try {
+    Reflect.construct(Function, [], f);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {any} f
+ * @returns {boolean}
+ */
+export function isNativeClass(f) {
+  return typeof f === 'function' &&
+         /^class\s/.test(Function.prototype.toString.call(f));
+}
+
+
+/**
+ * Return true if the provided value is one of the magic truthy keywords
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isTruthyKeyword(value) {
+  return (value === 'true' || value === '1' || value === 'yes' || value === 'enabled' || value === 'active' || value === 'on');
+}
+
+/**
+ * Return true if the provided value is one of the magic falsey keywords
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isFalseyKeyword(value) {
+  return (value === 'false' || value === '0' || value === 'no' || value === 'disabled' || value === 'inactive' || value === 'off' || value === '' || value === 'undefined' || value === 'null');
+}
+
+/**
+ * This library has a slightly extended notion of truthiness that includes human-friendly string representations
+ *
+ * @param {any} value
+ * @returns {boolean}
+ */
+export function isTruthy(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase().trim();
+    if (isTruthyKeyword(lower)) { return true }
+    if (isFalseyKeyword(lower)) { return false }
+  }
+  if (value instanceof Error) { return false }
+  return Boolean(value);
 }
 
 /**
@@ -432,3 +505,20 @@ export function propertyName(path) {
   return path.slice(dot + 1);
 }
 
+/**
+ *
+ * @param {object|any[]|any} collection
+ * @param {(value:any) => any} callback
+ * @returns {object|any[]}
+ */
+export function map(collection, callback) {
+  if (Array.isArray(collection)) {
+    return collection.map(callback);
+  }
+  else if (isPlainObject(collection)) {
+    return Object.fromEntries(Object.entries(collection).map(([k,v]) => [k,callback(v)]))
+  }
+  else {
+    return [callback(collection)];
+  }
+}

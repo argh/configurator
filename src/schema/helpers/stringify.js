@@ -17,8 +17,8 @@ export function stringify(value, options = {}) {
     space = 0,
     maxDepth = 100,
     useDelimiters = true,
-    delimiterOpen = '<<',
-    delimiterClose = '>>'
+    delimiterOpen = '«',
+    delimiterClose = '»'
   } = options;
 
   const seen = new WeakMap();
@@ -142,8 +142,8 @@ export function stringify(value, options = {}) {
  */
 export function parse(text, options = {}) {
   const {
-    delimiterOpen = '<<',
-    delimiterClose = '>>'
+    delimiterOpen = '«',
+    delimiterClose = '»'
   } = options;
 
   const parsed = JSON.parse(text);

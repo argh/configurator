@@ -108,9 +108,9 @@ Also see the [examples directory](https://github.com/argh/configurator/tree/main
 **Schema-First Design with Fluent API**
 
 : Define your configuration structure declaratively using composable `Schema` objects. The fluent API makes
-complex nested and variant structures intuitive to build, and dynamic resolution lets you handle different configuration shapes
-based on runtime conditions. Unlike command-line-focused libraries, your schema becomes the single source of
-truth for structure, validation, and transformation.
+complex nested and variant structures intuitive to build, and dynamic resolution lets you handle different 
+configuration shapes based on runtime conditions. Unlike command-line-focused libraries, your schema becomes 
+the single source of truth for structure, validation, and transformation.
 
 **Composable Configuration Sources**
 
@@ -124,9 +124,9 @@ sources straightforward.
 
 : Get started quickly with "batteries included" - command line parsing, environment variables, config files, and a rich
 validator library (`$positive`, `$alphanum`, `$directory`, etc.). As your needs grow, add custom types, 
-validators, and sources. The asynchronous normalization, transformation, and validation pipeline supports 
-complex scenarios like lazy evaluation, async validation, and dynamic value resolution. The architecture 
-scales from simple apps to complex enterprise systems with secrets management, feature flags, and 
+value processors, and sources. The normalization, transformation, and validation pipelines support both sync and async
+processing, enabling complex scenarios like lazy evaluation, async validation, and dynamic value resolution. 
+The architecture scales from simple apps to complex enterprise systems with secrets management, feature flags, and 
 multi-environment deployments.
 
 **Union Types and Selectors for Dynamic Configuration**

@@ -1,4 +1,6 @@
-import { ConstraintError } from '../../errors.js';
+import { EachExecutor } from "../executor/each-executor.js";
+import { ConstraintError } from '../schema-errors.js';
+import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
 
 /**
  * **Processor**: `$each`
@@ -10,30 +12,6 @@ import { ConstraintError } from '../../errors.js';
  * This operator is useful for applying consistent validation or transformation rules
  * across all array elements without requiring explicit array element schemas.
  *
- * @example
- * ```javascript
- * // Validate each element matches a pattern
- * Schema.create('array').validator({$each: /^\d+$/})
- *
- * // Apply a registered processor to each element
- * Schema.create('array').validator({$each: '$numeric'})
- *
- * // Transform each element with a function
- * Schema.create('array').normalizer({$each: (v) => v.trim()})
- *
- * // Combine with other processors using $and
- * Schema.create('array').validator({
- *   $each: {$and: [/^test/, {$length: {min: 5}}]}
- * })
- *
- * // Real-world example: array of valid port numbers
- * Schema.create('object', {
- *   ports: Schema.create('array').validator({
- *     $each: {$range: {min: 1, max: 65535}}
- *   })
- * })
- * ```
- *
  * **Parameters**:
  * - `processor` (any valid processor spec, required): The processor to apply to each element.
  *   Can be a RegExp, function, string keyword (e.g., `'$numeric'`), or parameterized processor object.
@@ -42,32 +20,20 @@ import { ConstraintError } from '../../errors.js';
  *
  * **Invalid values**: Non-array values, or arrays where any element fails the processor
  *
- * @type {import('../types.js').ValueProcessorDefinition}
+ * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const EACH_OPERATOR = {
   keyword: 'each',
-  builder: (args, compileSpec) => {
-    const compiled = compileSpec(args);
+  parameters: [{parameter: 'processor', required: true}],
+  build: (args) => {
+    const processor = Array.isArray(args)? args[0] : args.processor;
 
-    return {
-      /** @type {import('../types.js').SchemaValueProcessor<any>} */
-      processor: async (value, configuration, location, options) => {
-        if (!Array.isArray(value)) {
-          throw new ConstraintError('Value must be an array');
-        }
-        const ret = [];
-        // try to return original if possible...
-        let same = true;
-        for (const item of value) {
-          const processed = await compiled.processor(item, configuration, location, options);
-          if (processed !== item) {
-            same = false;
-          }
-          ret.push(processed);
-        }
-        return same ? value : ret;
-      },
-      description: compiled.description !== undefined ? `[${compiled.description}]...` : 'values...'
-    };
+    const spec = {$each: processor.spec};
+    const description = processor.description ? `[${processor.description}]...` : 'values...';
+
+    return new ComposedValueProcessor(new EachExecutor(processor), spec, description);
   }
 };
+
+
+

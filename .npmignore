@@ -13,3 +13,4 @@ yarn-error.log*
 .c8rc.json
 example-profile.json
 tsconfig.json
+dev-scripts/

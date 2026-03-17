@@ -1,0 +1,75 @@
+
+import { strict as assert } from 'assert';
+import { Schema } from '../src/schema/schema.js';
+import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ValidationError } from '../src/schema/schema-errors.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+describe('Processor: executable', function() {
+  /** @type {SchemaResolver} */
+  let resolver;
+  let testFile;
+
+  beforeEach(async function() {
+    resolver = new SchemaResolver();
+    testFile = path.join(__dirname, 'test-executable-validator.sh');
+    await fs.writeFile(testFile, '#!/bin/bash\necho test');
+    await fs.chmod(testFile, 0o755); // Make executable
+  });
+
+  afterEach(async function() {
+    try {
+      await fs.unlink(testFile);
+    } catch (err) {
+      // Ignore
+    }
+  });
+
+  it('should accept executable file', async function() {
+    const schema = new Schema('string').validator('$executable');
+    const compiled = await resolver.compile(schema);
+
+    const result = await compiled.validateValue(testFile);
+    assert.strictEqual(result, testFile);
+  });
+
+  it('should reject non-executable file', async function() {
+    const nonExec = path.join(__dirname, 'test-non-exec.txt');
+    await fs.writeFile(nonExec, 'test');
+    await fs.chmod(nonExec, 0o644); // Not executable
+
+    const schema = new Schema('string').validator('$executable');
+    const compiled = await resolver.compile(schema);
+
+    try {
+      await assert.rejects(
+        () => compiled.validateValue(nonExec),
+        ValidationError
+      );
+    } finally {
+      await fs.unlink(nonExec);
+    }
+  });
+
+  it('should reject non-existent file', async function() {
+    const schema = new Schema('string').validator('$executable');
+    const compiled = await resolver.compile(schema);
+
+    await assert.rejects(
+      () => compiled.validateValue('/nonexistent/file'),
+      ValidationError
+    );
+  });
+
+  it('should have path description', async function() {
+    const schema = new Schema('string').validator('$executable');
+    const compiled = await resolver.compile(schema);
+
+    assert.strictEqual(compiled.metadata.valueDescription, '[path]');
+  });
+});

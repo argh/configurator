@@ -1,5 +1,4 @@
-import { Configurator, ConfiguratorError, Schema, SchemaResolver } from '../src/index.js';
-import { toHeadline } from '../src/utils.js';
+import { Configurator, ConfiguratorError, Schema } from '../src/index.js';
 
 const appName = 'cheese';
 
@@ -34,7 +33,11 @@ const cheeses = [
  * @returns {string}
  */
 function sanitize(s) {
-  return s?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() ?? '_invalid_';
+  const result = s?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() ?? '_invalid_';
+  if (result === '_invalid_') {
+    console.log('whoops');
+  }
+  return result;
 }
 
 // For comparison, let's make a property that only holds an object from the cheese database.
@@ -66,7 +69,9 @@ function sanitize(s) {
       .normalizer(sanitize)
       .values(Object.values(cheeses).map(c => c.name))
     )
-    .unionDiscriminator((value) => sanitize(value.name));
+    .unionDiscriminator((value) => {
+      return value?.name !== undefined ? sanitize(value.name) : undefined
+    });
 
   for (const cheese of cheeses) {
     unionSchemaOne

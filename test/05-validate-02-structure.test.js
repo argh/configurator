@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, UnionResolutionError } from '../src/errors.js';
+import { UnionResolutionError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Validate - Structure and Control Flow', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {

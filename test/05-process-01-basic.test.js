@@ -2,9 +2,10 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ValidationError, NormalizeError } from '../src/errors.js';
+import { NormalizeError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Process - Basic Value Processing', function() {
+  /** @type {SchemaResolver} */
   let resolver;
 
   beforeEach(function() {
