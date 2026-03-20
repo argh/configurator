@@ -26,6 +26,7 @@ export function resolveUnion(state) {
   const handleUnionSchema = (unionSchema) => {
     if (unionSchema) {
       state.schema = unionSchema;
+      //return undefined;  // consider forcing a loop so that we re-normalize with the new schema?
     }
     else {
       if (state.context.final) {

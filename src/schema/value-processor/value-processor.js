@@ -21,6 +21,7 @@ import { SchemaLocation } from '../schema-location.js';
 /**
  * @callback ValueProcessorBuilder
  * @param {ValueProcessorArgs} args
+ * @param {object} [options]
  * @returns {ValueProcessor}
  */
 

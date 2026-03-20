@@ -4,6 +4,6 @@ export const NUMBER_SCHEMA = new Schema()
   .option('type', 'number')
   .meta('valueName', 'number')
   .normalizer('$number')
-  .transformer('$number')
+  //.transformer('$number')
   .validator('$is-number')
 

@@ -54,6 +54,8 @@ export class SchemaCompiler extends CompiledSchema {
     this.compileSeen = new Map();
     this.compileCache = new Map();
 
+    const compiler = this;
+
     // We'll use Schema's fluent setters to carefully define a "Schema Schema", and then extract its guts.
 
 
@@ -61,7 +63,7 @@ export class SchemaCompiler extends CompiledSchema {
       .option('dynamic', false)
       .opaque()
       .transformer(spec => {
-        return resolver.compileKeywordValueProcessorSpec(spec)
+        return resolver.compileKeywordValueProcessorSpec(this, spec)
       })
       .validator((p, _target, location) => {
         if (!(p instanceof ValueProcessor)) {
@@ -75,13 +77,13 @@ export class SchemaCompiler extends CompiledSchema {
       .option('dynamic', false)
       .opaque()
       .transformer(spec => {
-        return resolver.compileKeywordValueProcessorSpec(spec)
+        return resolver.compileKeywordValueProcessorSpec(this, spec)
       })
 
     const generalSpecSchema = new Schema('any')
       .option('dynamic', false)
       .transformer(spec => {
-        return resolver.compileValueProcessorSpec(spec)
+        return resolver.compileValueProcessorSpec(this, spec)
       })
 
     const specSchema = new Schema('any')
@@ -154,7 +156,7 @@ export class SchemaCompiler extends CompiledSchema {
     // ...it makes it all the way to the resolver phase, gets resolved, but then it won't iterate
     // the children because it isn't a "simple object".
     //
-    // the other compiler presumably fixed this by doing a full restart of the traversal with the new schema.
+    // the old compiler presumably fixed this by doing a full restart of the traversal with the new schema.
     // we don't have a good mechanism for that yet.  :-/
     //
     // otherwise we need a compatible normalizer, which I'm not sure is possible.
@@ -189,7 +191,7 @@ export class SchemaCompiler extends CompiledSchema {
       })
       .normalizer(normalizeSchema.bind(this))
 
-      // note: we need to only return strings while compiling to prevent dogfood confusion about union schemas!
+      // note: we must only return strings while compiling to prevent dogfood confusion about union schemas!
       .unionDiscriminator((s, _, location, options) => {
         if (s instanceof CachedSchemaReference) {
           return 'cache';
@@ -303,7 +305,7 @@ export class SchemaCompiler extends CompiledSchema {
           '$defined'
         ]})
       .transformer(populateMetadata)
-      .transformer(/** @type {OutputSchemaProcessor} */ async (inputSchema, _, location) => {
+      .transformer(/** @type {OutputSchemaProcessor} */ async (inputSchema, _, location) => {  // FIXME - fix signature, remove async
         if (location.path !== '') {
           return inputSchema;
         }
@@ -355,11 +357,16 @@ export class SchemaCompiler extends CompiledSchema {
     const convertCache = new Map();
 
     /**
+     * This function acts as the primordial "compiler" that builds the actual SchemaCompiler.
+     *
+     * The Schema that defines Schemas is deliberately constrained in the features it uses.
+     * This allows us to "compile it" without requiring the full complexity of the full compilation process.
+     *
      * @param {Schema|CompiledSchema} src
      * @param {CompiledSchema} [dst]
      * @returns {CompiledSchema}
      */
-    function convert(src, dst) {
+    function compileSchemaCompiler(src, dst) {
       if (convertCache.has(src)) {
         return convertCache.get(src);
       }
@@ -376,26 +383,26 @@ export class SchemaCompiler extends CompiledSchema {
       Object.assign(dst.metadata, src.metadata);
       for (const [handler, processorSpecList] of Object.entries(src.handlers)) {
 //        dst.handlers[handler] = [resolver.compileProcessorSpec(processorSpecList)];
-        dst.handlers[handler] = processorSpecList.map(spec => resolver.compileValueProcessorSpec(spec, true));
-        dst._setValueProcessor(handler, resolver.compileValueProcessorSpec({$pipeline: dst.handlers[handler]}));
+        dst.handlers[handler] = processorSpecList.map(spec => resolver.compileValueProcessorSpec(compiler, spec, true));
+        dst._setValueProcessor(handler, resolver.compileValueProcessorSpec(compiler,{$pipeline: dst.handlers[handler]}));
       }
 
       for (const [pk, pv] of Object.entries(src.properties)) {
         if (!(pv instanceof Schema || pv instanceof CompiledSchema)) {
           continue;  // impossible
         }
-        dst._setPropertySchema(pk, convert(pv));
+        dst._setPropertySchema(pk, compileSchemaCompiler(pv));
       }
       for (const [uk, uv] of Object.entries(src.unionSchemas)) {
         if (!(uv instanceof Schema || uv instanceof CompiledSchema)) {
           continue;  // impossible
         }
-        dst._setUnionSchema(uk, convert(uv));
+        dst._setUnionSchema(uk, compileSchemaCompiler(uv));
       }
       return dst;
     }
 
-    convert(resolver.resolve(schemaCompilerSchema), this);
+    compileSchemaCompiler(resolver.resolve(schemaCompilerSchema), this);
   }
 
   /**
@@ -448,6 +455,7 @@ export class SchemaCompiler extends CompiledSchema {
       context.compiling = true;
       const compiledSchema = await this.process(inputSchema, undefined, {context});
 
+      // Replace placeholders (marking circular references) with their final compiled versions.
       this._replaceCachedReferences(compiledSchema);
 
       compiledSchema._freeze();

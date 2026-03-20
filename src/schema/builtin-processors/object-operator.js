@@ -26,6 +26,9 @@ export const OBJECT_OPERATOR = {
         throw new ConstraintError(`Invalid input string for object: ${formatValue(value)}`, {cause: error});
       }
     }
+    if (Array.isArray(value) && value.every(e => Array.isArray(e) && e.length === 2)) {
+      return Object.fromEntries(value);
+    }
     if (typeof value === 'object') {
       return value;
     }

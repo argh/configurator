@@ -22,7 +22,7 @@ import { serialize } from './serialize.js';
 
 
 export const PROCESS_ENTER = /** @type {Executor<TraversalState>} */ (new StepExecutor([enter, checkSchema, defaults, normalize, checkInput, resolveUnion, checkCondition, preparePending, transformEarly]));
-export const PROCESS_EXIT = /** @type {Executor<TraversalState>} */ (new StepExecutor([transform, resolveUnion, checkRequired, validate, exit]));
+export const PROCESS_EXIT = /** @type {Executor<TraversalState>} */ (new StepExecutor([transform,  checkRequired, validate, exit]));
 
 export const VALIDATE_ENTER = /** @type {Executor<TraversalState>} */ (new StepExecutor([enterExisting, resolveUnion, checkCondition, prepareExisting]));
 export const VALIDATE_EXIT = /** @type {Executor<TraversalState>} */ (new StepExecutor([checkRequired, validate, exit]));

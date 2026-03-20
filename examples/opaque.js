@@ -32,7 +32,7 @@ const hexByteSchema = resolver.resolve(new Schema('number'))
                                 ],
                                 SchemaPolicy.PREPEND
                               )
-                              .validator({$and: ['$integer', {$range: {min:0, max:255}}]})
+                              .validator({$all: ['$integer', {$range: {min:0, max:255}}]})
 
 // And then mangle that into a schema that transforms to the hex string.
 // (Yes, we could have combined these rules into a single schema up front!)

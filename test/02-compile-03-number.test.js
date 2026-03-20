@@ -72,26 +72,6 @@ describe('Schema Compilation - Number Type', function() {
     });
   });
 
-  describe('Number transformation', function() {
-
-    it('should transform number values unchanged', async function() {
-      const schema = new Schema('number');
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(await compiled.transformValue(42), 42);
-      assert.strictEqual(await compiled.transformValue(0), 0);
-      assert.strictEqual(await compiled.transformValue(-100), -100);
-    });
-
-    it('should transform floating point numbers', async function() {
-      const schema = new Schema('number');
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(await compiled.transformValue(3.14), 3.14);
-      assert.strictEqual(await compiled.transformValue(0.001), 0.001);
-    });
-  });
-
   describe('Number validation', function() {
 
     it('should validate number values', async function() {

@@ -8,15 +8,23 @@ import { SchemaError } from '../schema-errors.js';
  * (which only share a "fake" jsdoc interface to define their shape)
  * @package
  * @param {Schema|CompiledSchema|SchemaData} schema
+ * @param {WeakMap<object,object>} [seen] - cycle-detection map; shared across recursive calls
  * @returns {SchemaData}
  */
-export function toData(schema) {
+export function toData(schema, seen = new WeakMap()) {
 
   if (typeof schema !== 'object') {
     throw new SchemaError('Not a schema!')
   }
+
+  if (seen.has(schema)) {
+    return seen.get(schema);
+  }
+
   /** @type {SchemaData} */
   const data = {};
+  seen.set(schema, data);
+
   if (!(schema instanceof CompiledSchema) && schema.base) {
     data.base = schema.base;
   }
@@ -34,11 +42,18 @@ export function toData(schema) {
 
       let v = value;
       if (isSchema) {
-        v = value.toData();
+        v = toData(value, seen);
       }
       else if (group === 'handlers') {
         if (Array.isArray(value)) {
-          v = value.map(p => ((p.spec !== undefined)? p.spec : p));
+          v = value.map(p => {
+            if (p === null) { return '$null' }
+            if (p === undefined) { return '$undefined' }
+            if (typeof p === 'object' && p.spec !== undefined) {
+              return p.spec;
+            }
+            return p;
+          });
         }
       }
       (data[group])[key] = v;

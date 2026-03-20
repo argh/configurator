@@ -12,8 +12,9 @@ import { SchemaLocation } from "../schema-location.js";
  * @this {SchemaCompiler}
  */
 export function compileHandlers(cs, _, location, transformOptions) {
+  const compiler = this;
   for (const handler of Object.keys(cs.handlers)) {
-    cs._setValueProcessor(handler, this.resolver.compileValueProcessorSpec({$pipeline: cs.handlers[handler]}, true));
+    cs._setValueProcessor(handler, this.resolver.compileValueProcessorSpec(compiler, {$pipeline: cs.handlers[handler]}, true));
   }
   return cs;
 }

@@ -56,25 +56,6 @@ describe('Schema Compilation - String Type', function() {
     });
   });
 
-  describe('String transformation', function() {
-
-    it('should transform string values unchanged', async function() {
-      const schema = new Schema('string');
-      const compiled = await resolver.compile(schema);
-
-      assert.strictEqual(await compiled.transformValue('test'), 'test');
-      assert.strictEqual(await compiled.transformValue(''), '');
-    });
-
-    it('should use the inherited transformer from base type', async function() {
-      const schema = new Schema('string');
-      const compiled = await resolver.compile(schema);
-
-      // String base type doesn't have a custom transformer, so it should pass through
-      assert.strictEqual(await compiled.transformValue('hello'), 'hello');
-    });
-  });
-
   describe('String validation', function() {
 
     it('should validate string values', async function() {

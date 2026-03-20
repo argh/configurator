@@ -3,7 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
-import { ValidationError } from '../src/schema/schema-errors.js';
+import { ValidationError, SchemaCompilationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Inheritance', function() {
   /** @type {SchemaResolver} */
@@ -384,6 +384,43 @@ describe('Schema Compilation - Inheritance', function() {
       const compiled = await resolver.compile(derivedSchema);
 
       assert.strictEqual(compiled.default, 42);
+    });
+  });
+
+  describe('Inheriting from a CompiledSchema instance', function() {
+
+    it('should inherit handlers from a CompiledSchema base', async function() {
+      const base = await resolver.compile(
+        new Schema('string').normalizer(v => `base(${v})`)
+      );
+      const derived = await resolver.compile(new Schema(base).normalizer(v => `derived(${v})`));
+      // derived normalizer runs first (prepended), then base normalizer
+      assert.strictEqual(await derived.normalizeValue('fig'), 'derived(base(fig))');
+    });
+
+    it('should not walk further up the chain beyond a CompiledSchema base', async function() {
+      // A CompiledSchema already has its chain fully resolved; no further traversal needed.
+      const base = await resolver.compile(new Schema('number'));
+      const derived = await resolver.compile(new Schema(base));
+      // number normalizer is inherited via the compiled base
+      assert.strictEqual(await derived.normalizeValue('42'), 42);
+    });
+  });
+
+  describe('Unknown base schema', function() {
+
+    it('should throw SchemaCompilationError at compile time for an unknown base type', async function() {
+      await assert.rejects(
+        () => resolver.compile(new Schema('no-such-type')),
+        SchemaCompilationError
+      );
+    });
+
+    it('should compile and return undefined from normalizer when strict is false and base is unknown', async function() {
+      // strict: false defers the error; the lax normalizer returns undefined (no base handler to coerce)
+      const schema = await resolver.compile(new Schema('no-such-type').option('strict', false));
+      assert.strictEqual(await schema.normalizeValue('apricot'), undefined);
+      assert.strictEqual(await schema.normalizeValue(42), undefined);
     });
   });
 

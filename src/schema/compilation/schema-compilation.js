@@ -1,5 +1,5 @@
 import { CompiledSchema } from '../compiled-schema.js';
-import { CachedSchemaReference, SchemaCompiler } from "../schema-compiler.js";
+import { SchemaCompiler } from "../schema-compiler.js";
 import { SchemaLocation } from "../schema-location.js";
 import { Schema } from '../schema.js';
 import { SchemaCompilationError, SchemaError } from '../schema-errors.js';
@@ -30,7 +30,9 @@ export function normalizeSchema(schema, _, location) {
 
   schema = this.resolver.resolve(schema, false);
 
-  // todo - why are we not using schema.toData()?
+//  return toData(schema);
+
+  // todo - Q: why are we not using schema.toData()?  A: because it's recursive, and has its own cache that behaves differently
   for (const group of ['properties', 'unionSchemas', 'metadata', 'options', 'handlers']) {
     if (!schema[group]) {
       continue;
@@ -43,7 +45,13 @@ export function normalizeSchema(schema, _, location) {
       if (data[group] === undefined) {
         data[group] = {};
       }
-      (data[group])[key] = value;
+      let v = value;
+      if (group === 'handlers') {
+        if (value === null) {
+          v = '$null'
+        }
+      }
+      (data[group])[key] = v;
     }
   }
   return data;

@@ -72,6 +72,7 @@ export async function synthesizeKeyDiscrimination(inputSchema, _, location) {
   // as it also triggers population of allowed values for the property in _finalizeValues.
   inputSchema.handlers.discriminators = [
     compiler.resolver.compileValueProcessorSpec(
+      compiler,
       generatePropertyValueDiscriminatorFunction(inputSchema, unionKeyPropertyName))
   ];
   return inputSchema;
@@ -182,7 +183,7 @@ export async function synthesizeAutoDiscrimination(inputSchema, _target, _locati
     inputSchema._setPropertySchema(property, await compiler.process(hoisted, undefined, {context}));
   }
   inputSchema.handlers.discriminators = [
-    compiler.resolver.compileValueProcessorSpec(generateAutomaticDiscriminatorFunction(inputSchema))
+    compiler.resolver.compileValueProcessorSpec(compiler, generateAutomaticDiscriminatorFunction(inputSchema))
   ];
 
   return inputSchema;

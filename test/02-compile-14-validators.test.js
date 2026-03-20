@@ -557,14 +557,14 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const result = await compiled.validateValue('anything');
       assert.strictEqual(result, null);
     });
-    it('should handle null validator spec as pass-through', async function() {
+    it('should handle null validator spec as pruning the value', async function() {
       const schema = new Schema('string')
         .validator(null);
 
       const compiled = await resolver.compile(schema);
 
       const result = await compiled.validateValue('anything');
-      assert.strictEqual(result, 'anything');
+      assert.strictEqual(result, null);
     });
 
     it('should handle undefined validator spec as pass-through', async function() {

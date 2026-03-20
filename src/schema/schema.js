@@ -360,6 +360,16 @@ export class Schema
     if (!Array.isArray(specs)) {
       specs = [specs];
     }
+    // sanitize values that lead to weird schema parsing issues
+    specs = specs.map(spec => {
+      if (spec === undefined) {
+        return '$undefined';
+      }
+      else if (spec === null) {
+        return '$null';
+      }
+      return spec;
+    })
     if (policy === SchemaPolicy.INITIALIZE && Array.isArray(this.handlers[handlerName])) {
       return this;
     }

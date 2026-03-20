@@ -529,4 +529,18 @@ describe('Schema Compilation - Union Structure', function() {
       assert.strictEqual(compiled.isUnion, true);
     });
   });
+
+  describe('any schema container construction with union members', function() {
+
+    it('should construct {} for true when a union member has string-keyed properties', async function() {
+      // hasStringProperties recurses into unionSchemaEntries on the compiled schema
+      const unionMember = new Schema('any')
+        .property('type', new Schema('string').values(['server']))
+        .property('host', new Schema('string'));
+      const schema = await resolver.compile(
+        new Schema('any').unionSchema('server', unionMember)
+      );
+      assert.deepStrictEqual(await schema.normalizeValue(true), {});
+    });
+  });
 });

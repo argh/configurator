@@ -81,6 +81,16 @@ import { NEVER_CONSTRAINT } from './build-never-constraint.js';
 import { JOIN_OPERATOR } from './join-operator.js';
 import { SPLIT_OPERATOR } from './split-operator.js';
 import { PARALLEL_OPERATOR } from './build-parallel-operator.js';
+import { PROCESS_OPERATOR } from './process-operator.js';
+import { COMPILE_OPERATOR } from './build-compile-operator.js';
+import { KEYS_OPERATOR } from './keys-operator.js';
+import { VALUES_OPERATOR } from './values-operator.js';
+import { ENTRIES_OPERATOR } from './entries-operator.js';
+import { PICK_OPERATOR } from './pick-operator.js';
+import { OMIT_OPERATOR } from './omit-operator.js';
+import { MERGE_OPERATOR } from './merge-operator.js';
+import { GET_OPERATOR } from './get-operator.js';
+import { LOOKUP_OPERATOR } from './lookup-operator.js';
 
 
 /** @import { ValueProcessorDefinition } from '../value-processor/value-processor.js'; */
@@ -172,7 +182,17 @@ export function getBuiltinProcessors() {
     NEVER_CONSTRAINT,
     SPLIT_OPERATOR,
     JOIN_OPERATOR,
-    PARALLEL_OPERATOR
+    PARALLEL_OPERATOR,
+    PROCESS_OPERATOR,
+    COMPILE_OPERATOR,
+    KEYS_OPERATOR,
+    VALUES_OPERATOR,
+    ENTRIES_OPERATOR,
+    PICK_OPERATOR,
+    OMIT_OPERATOR,
+    MERGE_OPERATOR,
+    GET_OPERATOR,
+    LOOKUP_OPERATOR,
   ];
 }
 
@@ -261,5 +281,15 @@ export {
   NEVER_CONSTRAINT,
   SPLIT_OPERATOR,
   JOIN_OPERATOR,
-  PARALLEL_OPERATOR
+  PARALLEL_OPERATOR,
+  PROCESS_OPERATOR,
+  COMPILE_OPERATOR,
+  KEYS_OPERATOR,
+  VALUES_OPERATOR,
+  ENTRIES_OPERATOR,
+  PICK_OPERATOR,
+  OMIT_OPERATOR,
+  MERGE_OPERATOR,
+  GET_OPERATOR,
+  LOOKUP_OPERATOR,
 };

@@ -204,12 +204,12 @@ export class SchemaResolver
   }
 
   /**
-   *
+   * @param {SchemaCompiler} compiler
    * @param {KeywordValueProcessorSpec} spec
    * @param {boolean} [recursive]
    * @returns {ValueProcessor}
    */
-  compileKeywordValueProcessorSpec(spec, recursive) {
+  compileKeywordValueProcessorSpec(compiler, spec, recursive) {
     if (!isKeywordValueProcessorSpec(spec)) {
       throw new ResolverError('Not a keyword processor spec');
     }
@@ -230,12 +230,12 @@ export class SchemaResolver
       throw new ResolverError(`Unknown processor keyword: $${keyword}`);
     }
     // This "map" call will wrap any non-collection as an array:
-    const args = map(rawArgs, arg => this.compileValueProcessorSpec(arg, recursive));
+    const args = map(rawArgs, arg => this.compileValueProcessorSpec(compiler, arg, recursive));
 
     if (definition.build) {
-      const processor = definition.build(args);
+      const processor = definition.build(args, {compiler});
       if (processor?.['process']) {
-        return this.compileValueProcessorSpec(processor, recursive);
+        return this.compileValueProcessorSpec(compiler, processor, recursive);
       }
       if (!(processor instanceof ValueProcessor)) {
         throw new SchemaError(`ValueProcessor builder for $${keyword} returned invalid`, {value:processor});
@@ -246,13 +246,25 @@ export class SchemaResolver
   }
 
 
+  compileSchemaValueProcessorSpec(compiler, spec) {
+    let compiledSchema;
+    return new ComposedValueProcessor(
+      new FunctionExecutor(
+        async () => {
+          compiledSchema ??= (spec instanceof CompiledSchema)? spec : await compiler.compile(spec);
+          return compiledSchema;
+        }
+      ), spec);
+  }
+
   /**
    * Convert a processor specification into an executor
+   * @param {SchemaCompiler} compiler
    * @param {ValueProcessorSpec} spec - The processor specification
    * @param {boolean} [recursive]
    * @returns {ValueProcessor}
    */
-  compileValueProcessorSpecObject(spec, recursive = false) {
+  compileValueProcessorSpecObject(compiler, spec, recursive = false) {
 
     if (typeof spec !== 'object') {
       throw new ResolverError('not a spec object');
@@ -261,18 +273,19 @@ export class SchemaResolver
     /** @type {{[key:string]:ValueProcessor}} */
     const out = {};
     for (const [key, value] of Object.entries(spec)) {
-      out[key] = this.compileValueProcessorSpec(value, recursive);
+      out[key] = this.compileValueProcessorSpec(compiler, value, recursive);
     }
     return new ComposedValueProcessor(new ObjectExecutor(out), map(out, p => p.spec));
   }
 
   /**
    * Convert a processor specification into an executor
+   * @param {SchemaCompiler} compiler
    * @param {ValueProcessorSpec} spec - The processor specification
    * @param {boolean} [recursive]
    * @returns {ValueProcessor}
    */
-  compileValueProcessorSpecArray(spec, recursive = false) {
+  compileValueProcessorSpecArray(compiler, spec, recursive = false) {
 
     if (!Array.isArray(spec)) {
       throw new ResolverError('not a spec array');
@@ -280,81 +293,21 @@ export class SchemaResolver
     /** @type {ValueProcessor[]} */
     const out = [];
     for (let i = 0; i < spec.length; ++i) {
-      out[i] = this.compileValueProcessorSpec(spec[i], recursive);
+      out[i] = this.compileValueProcessorSpec(compiler, spec[i], recursive);
     }
     return new ComposedValueProcessor(new ArrayExecutor(out), map(out, p => p.spec));
   }
-
-  /**
-   * WIP - ignore!
-   * Convert a processor specification into an executor
-   * @param {ValueProcessorSpec[]} pipeline - The processor specification
-   * @returns {Executor}
-   */
-
-  compileProcessorPipeline(pipeline) {
-
-    if (!Array.isArray(pipeline)) {
-      throw new ResolverError('not a spec pipeline');
-    }
-    return new PipelineExecutor(pipeline);
-  }
-
-  /**
-   * Validate that argument executors exist for each defined parameter.
-   *
-   * @param {ValueProcessorArgs} inputArgs
-   * @param {ValueProcessorParameter[]} params
-   * @returns {{[param:string]:ValueProcessor}}}
-   */
-  parameterizeArgs(inputArgs, params) {
-
-    /** @type {{[param:string]:ValueProcessor}} */
-    const outputArgs = {};
-
-    if (Array.isArray(inputArgs)) {
-      for (let a = 0; a < inputArgs.length; ++a) {
-        if (params[a]) {
-          outputArgs[params[a].parameter] = inputArgs[a];
-        }
-        else {
-          throw new SchemaError(`Only expected ${a - 1} arguments`);
-        }
-      }
-    }
-    else if (typeof inputArgs === 'object' && inputArgs !== null) {
-      for (const [k,v] of Object.entries(inputArgs)) {
-        const param = params.find(p => p.parameter === k);
-
-        if (!param) {
-          throw new SchemaError(`Unknown parameter ${k}`);
-        }
-        outputArgs[k] = v;
-      }
-    }
-
-    for (const p of params) {
-      if (outputArgs[p.parameter] === undefined) {
-        if (p.default !== undefined) {
-          outputArgs[p.parameter] = this.compileValueProcessorSpec(p.default);  // should just be a constant
-        }
-        else if (p.required) {
-          throw new SchemaError(`No argument supplied for ${p.parameter}`)
-        }
-      }
-    }
-    return outputArgs;
-}
 
 
   /**
    * Convert a value processor specification into a value processor executor
    *
+   * @param {SchemaCompiler} compiler
    * @param {ValueProcessorSpec} spec - The processor specification
    * @param {boolean} [recursive]
    * @returns {ValueProcessor}
    */
-  compileValueProcessorSpec(spec, recursive = false) {
+  compileValueProcessorSpec(compiler, spec, recursive = false) {
 
     if (!isLegalValueProcessorSpec(spec)) {
       throw new SchemaError(`Invalid value processor specification`, {value: spec});
@@ -370,11 +323,20 @@ export class SchemaResolver
       spec = '$null';
       valueProcessor = new ComposedValueProcessor(NULL_EXECUTOR, '$null');
     }
+    else if (spec === '$resolver') {
+      valueProcessor = new ComposedValueProcessor(new ConstantExecutor(this), spec);
+    }
+    else if (spec === '$compiler') {
+      valueProcessor = new ComposedValueProcessor(new ConstantExecutor(compiler), spec);
+    }
     else if (spec instanceof ValueProcessor) {
       valueProcessor = spec;
     }
+    else if (spec instanceof Schema) {
+      valueProcessor = this.compileSchemaValueProcessorSpec(compiler, spec);
+    }
     else if (isKeywordValueProcessorSpec(spec)) {
-      valueProcessor = this.compileKeywordValueProcessorSpec(spec, recursive);
+      valueProcessor = this.compileKeywordValueProcessorSpec(compiler, spec, recursive);
     }
     else if (spec instanceof Executor) {
       valueProcessor = new ComposedValueProcessor(spec, spec);
@@ -391,10 +353,10 @@ export class SchemaResolver
       valueProcessor = new FunctionValueProcessor(spec);
     }
     else if (Array.isArray(spec)) {
-      valueProcessor = this.compileValueProcessorSpecArray(spec, recursive);
+      valueProcessor = this.compileValueProcessorSpecArray(compiler, spec, recursive);
     }
     else if (typeof spec === 'object') {
-      valueProcessor = this.compileValueProcessorSpecObject(spec, recursive);
+      valueProcessor = this.compileValueProcessorSpecObject(compiler, spec, recursive);
     }
     else {
       valueProcessor = new ComposedValueProcessor(toExecutor(spec), spec)
@@ -430,16 +392,13 @@ export class SchemaResolver
    * This can be useful if you need to make changes to the full schema, e.g. prepending processors
    * before the base class handlers.
    *
-   * @param {Schema|CompiledSchema|SchemaData|string} inputSchema
+   * @param {Schema|CompiledSchema|SchemaData} inputSchema
    * @param {boolean} [recursive]
    * @returns {Schema|CompiledSchema}
    */
   resolve(inputSchema, recursive = true) {
     if (inputSchema instanceof CompiledSchema) {
       return inputSchema;
-    }
-    if (typeof inputSchema === 'string') {
-      inputSchema = this.getSchema(inputSchema);
     }
     if (this.#resolveCache.has(inputSchema)) {
       return this.#resolveCache.get(inputSchema);

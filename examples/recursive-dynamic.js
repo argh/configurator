@@ -14,7 +14,7 @@ const resolver = new SchemaResolver();
 // is traversed to populate child properties; here we leverage this to generate
 // the entire child hierarchy dynamically.
 //
-// (This is a contrived example that is very slow due to every step of the process being async!)
+// (This is a contrived and highly inefficient example!)
 
 const treeNodeSchema = new Schema('any')
   .property('value', new Schema('number').required())
@@ -51,7 +51,7 @@ treeNodeSchema
 
 const schema = await resolver.compile(treeNodeSchema);
 
-const input = Array.from({length: 100}, () => Math.floor(Math.random() * 100)) ;
+const input = Array.from({length: 1000}, () => Math.floor(Math.random() * 1000)) ;
 
 const start = performance.now()
 const tree = await schema.process(input, undefined, {debug: process.env.DEBUG==='true'});
