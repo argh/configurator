@@ -1361,11 +1361,11 @@ export class CompiledSchema
      */
     function walk(schema, path) {
       if (walked.has(schema)) {
-        return false;
+        return;
       }
       walked.add(schema);
       if (schema.metadata.omitFromSerialize && onlySerializable) {
-        return false;
+        return;
       }
       if (schema.hasChildren) {
         for (const [propName, propSchema] of schema.propertyEntries) {
@@ -1378,7 +1378,7 @@ export class CompiledSchema
       if (schema.isUnion) {
         for (const [unionSchemaKey, unionSchema] of schema.unionSchemaEntries) {
           if (walk(unionSchema, path) === false) {
-            return false;
+            return;
           }
         }
       }

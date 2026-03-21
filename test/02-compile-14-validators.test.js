@@ -216,7 +216,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should invoke RegExp validator correctly', async function() {
       const schema = new Schema('string')
-        .validator(/^\d{3}-\d{4}$/);
+        .validator({$matches: /^\d{3}-\d{4}$/});
 
       const compiled = await resolver.compile(schema);
 
@@ -232,7 +232,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should set description from RegExp toString', async function() {
       const schema = new Schema('string')
-        .validator(/^test$/i);
+        .validator({$matches: /^test$/i});
 
       const compiled = await resolver.compile(schema);
 
@@ -241,7 +241,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should convert value to string before testing', async function() {
       const schema = new Schema('string')
-        .validator(/^123$/);
+        .validator({$matches: /^123$/});
 
       const compiled = await resolver.compile(schema);
 
@@ -254,7 +254,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should invoke string RegExp validator correctly', async function() {
       const schema = new Schema('string')
-        .validator('/^\\d+$/');
+        .validator({$matches: '/^\\d+$/'});
 
       const compiled = await resolver.compile(schema);
 
@@ -268,7 +268,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should handle regex with case-insensitive flag', async function() {
       const schema = new Schema('string')
-        .validator('/^hello$/i');
+        .validator({$matches: '/^hello$/i'});
 
       const compiled = await resolver.compile(schema);
 
@@ -288,7 +288,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should set description from string pattern', async function() {
       const schema = new Schema('string')
-        .validator('/^\\w+$/g');
+        .validator({$matches: '/^\\w+$/g'});
 
       const compiled = await resolver.compile(schema);
 
@@ -340,7 +340,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
     it('should distinguish $ prefix from literal string', async function() {
       // Literal string starting with $ requires regex to match
       const schema = new Schema('string')
-        .validator('/^\\$price$/');
+        .validator({$matches: /^\$price$/});
 
       const compiled = await resolver.compile(schema);
 
@@ -461,7 +461,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       });
 
       const schema = new Schema('object')
-        .property('name', new Schema('string').validator(/^[A-Z]/))
+        .property('name', new Schema('string').validator({$matches: /^[A-Z]/}))
         .property('age', new Schema('number').validator('$positive'))
         .property('status', new Schema('string').validator('active'))
         .property('email', new Schema('string').validator((v) => {
@@ -479,8 +479,8 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
 
     it('should invoke validators independently for each property', async function() {
       const schema = new Schema('object')
-        .property('a', new Schema('string').validator(/^a/))
-        .property('b', new Schema('string').validator(/^b/));
+        .property('a', new Schema('string').validator({$matches: /^a/}))
+        .property('b', new Schema('string').validator({$matches: /^b/}));
 
       const compiled = await resolver.compile(schema);
 
@@ -518,7 +518,7 @@ describe('Schema Compilation - Validator Registration and Resolution', function(
       const schema = new Schema('string')
         .validator({
           $allOf: [
-            /^test/,
+            {$matches: /^test/},
             (v) => {
               if (v.length < 5) throw new Error('Too short');
               return v;

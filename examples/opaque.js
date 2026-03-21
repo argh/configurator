@@ -42,7 +42,7 @@ const hexByteSchema = resolver.resolve(new Schema('number'))
 const colorComponentSchema = new Schema(hexByteSchema)
   .default(0)
   .transformer(value => Number(value).toString(16).padStart(2, '0'))
-  .validators([/[0-9a-f]{2}/i, '$lowercase'], SchemaPolicy.OVERWRITE)
+  .validators([{$matches: /[0-9a-f]{2}/i}, '$lowercase'], SchemaPolicy.OVERWRITE)
 
 // This schema is where it gets interesting; we're changing from a container (with properties)
 // to a primitive, so we need to mark it as opaque so that we don't try to assign the colors
@@ -60,7 +60,7 @@ const colorObjectSchema = await resolver.compile(
       }
       return `#${input.red}${input.green}${input.blue}`;
     })
-    .validator(/^#[a-f0-9]{6}$/i)
+    .validator({$matches: /^#[a-f0-9]{6}$/i})
     .opaque()  // if you comment this line out, the above transform will throw!
 );
 
@@ -87,7 +87,7 @@ const hybridColorSchema = await resolver.compile(
   new Schema('any')
     .unionSchema('color-object', colorObjectSchema)
     .unionSchema('color-string',
-      new Schema('string').validator(/^#[a-f0-9]{6}$/i)
+      new Schema('string').validator({$matches: /^#[a-f0-9]{6}$/i})
     )
     .unionDiscriminator((value, target, location) =>
       location.schema.getUnionSchema(`color-${typeof value}`)

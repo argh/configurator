@@ -14,14 +14,14 @@ describe('Processor: each', function() {
   });
 
   it('should validate each array element', async function() {
-    const schema = new Schema('array').validator({$each: /^\d+$/});
+    const schema = new Schema('array').validator({$each: {$matches: /^\d+$/}});
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue(['123', '456', '789']);
   });
 
   it('should reject if any element fails', async function() {
-    const schema = new Schema('array').validator({$each: /^\d+$/});
+    const schema = new Schema('array').validator({$each: {$matches: /^\d+$/}});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
@@ -40,7 +40,7 @@ describe('Processor: each', function() {
 
   it('should work with nested validators', async function() {
     const schema = new Schema('array').validator({
-      $each: {$all: [/^test/, {$length: {min: 5}}]}
+      $each: {$all: [{$matches: /^test/}, {$length: {min: 5}}]}
     });
     const compiled = await resolver.compile(schema);
 
@@ -73,7 +73,7 @@ describe('Processor: each', function() {
   });
 
   it('should generate description', async function() {
-    const schema = new Schema('array').validator({$each: /^\d+$/});
+    const schema = new Schema('array').validator({$each: {$matches: /^\d+$/}});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[[/^\\d+$/]...]');

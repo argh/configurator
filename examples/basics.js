@@ -43,7 +43,7 @@ schema.property(appName,
     .property('codes', // accept magic codes that don't contain "q"
       new Schema('array')
         .required()
-        .property('*', new Schema('MagicCode').validator(/^[^q]+$/))
+        .property('*', new Schema('MagicCode').validator({$matches: /^[^q]+$/}))
         .meta('description', 'magic secret codes')
         .validator({'$length': {min: 2}})
     )

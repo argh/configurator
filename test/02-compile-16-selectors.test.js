@@ -547,7 +547,7 @@ describe('Schema Compilation - Selectors and Selections', function() {
 
     it('should work with validators', async function() {
       const schema = new Schema('object')
-        .property('command', new Schema('string').selector().validator(/^[a-z]+$/))
+        .property('command', new Schema('string').selector().validator({$matches: /^[a-z]+$/}))
         .property('option', new Schema('object').selection());
 
       const compiled = await resolver.compile(schema);

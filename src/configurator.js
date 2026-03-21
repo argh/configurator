@@ -349,7 +349,7 @@ export class Configurator {
 
   static createConfigSchema() {
     return new Schema('string')
-      .validator({$or: ['-', '$file']})
+      .validator({$or: [{$eq:'-'}, '$file']})
       .option('context', 'config')
       .meta('flagHint', 'C')
       .meta('description', 'load configuration from file (or - for stdin)')

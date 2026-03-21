@@ -33,7 +33,7 @@ describe('Processor: never', function() {
     assert.strictEqual(await schema.validateValue('12.34'), '12.34');  // has decimal → not numeric
 
     // $never with regex: input must NOT match the pattern
-    const noTest = await resolver.compile(new Schema('any').validator({$never: /^test/}));
+    const noTest = await resolver.compile(new Schema('any').validator({$never: {$matches: /^test/}}));
     assert.strictEqual(await noTest.validateValue('other'), 'other');
     assert.strictEqual(await noTest.validateValue('something'), 'something');
   });
@@ -47,7 +47,7 @@ describe('Processor: never', function() {
     await assert.rejects(() => schema.validateValue('999'), ValidationError);
 
     // regex form: must NOT start with 'test'
-    const noTest = await resolver.compile(new Schema('any').validator({$never: /^test/}));
+    const noTest = await resolver.compile(new Schema('any').validator({$never: {$matches: /^test/}}));
     await assert.rejects(() => noTest.validateValue('test123'), ValidationError);
     await assert.rejects(() => noTest.validateValue('testing'), ValidationError);
   });

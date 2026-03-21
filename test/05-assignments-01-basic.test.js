@@ -680,7 +680,7 @@ describe('Assignments - Basic Processing', function() {
     it('should pass validation with valid values', async function() {
       const schema = new Schema('object')
         .property('email', new Schema('string', {
-          validator: /@/
+          validator: {$matches: /@/}
         }));
 
       const compiled = await resolver.compile(schema);

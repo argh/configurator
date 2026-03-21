@@ -548,7 +548,7 @@ describe('Schema Compilation - Conditionals', function() {
 
     it('should work with validators', async function() {
       const schema = new Schema('string')
-        .validator(/^\d+$/)
+        .validator({$matches: /^\d+$/})
         .condition((value) => value && value.length > 0);
 
       const compiled = await resolver.compile(schema);

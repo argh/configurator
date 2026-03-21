@@ -15,7 +15,7 @@ describe('Processor: not', function() {
 
   it('should accept value that fails inner validator', async function() {
     const schema = new Schema('string').validator({
-      $assert: {$not: /^test/}
+      $assert: {$not: {$matches: /^test/}}
     });
     const compiled = await resolver.compile(schema);
 
@@ -25,7 +25,7 @@ describe('Processor: not', function() {
 
   it('should reject value that passes inner validator', async function() {
     const schema = new Schema('string').validator({
-      $assert: {$not: /^test/}
+      $assert: {$not: {$matches: /^test/}}
     });
     const compiled = await resolver.compile(schema);
 
@@ -47,7 +47,7 @@ describe('Processor: not', function() {
 
   it('should generate negated description', async function() {
     const schema = new Schema('string').validator({
-      $assert: {$not: /^test/}
+      $assert: {$not: {$matches: /^test/}}
     });
     const compiled = await resolver.compile(schema);
 
@@ -56,7 +56,7 @@ describe('Processor: not', function() {
 
   it('should add parentheses for complex descriptions', async function() {
     const schema = new Schema('string').validator({
-      $assert:{$not: {$and: [/^a/, /b$/]}}
+      $assert:{$not: {$and: [{$matches: /^a/}, {$matches: /b$/}]}}
     });
     const compiled = await resolver.compile(schema);
 

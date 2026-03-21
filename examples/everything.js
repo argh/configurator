@@ -3,7 +3,7 @@ import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
 import { Configurator, SchemaResolver, Schema, ConfiguratorError } from '../src/index.js';
 import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
-import { isConstructor, toConstantCase } from '../src/utils.js';
+import { isConstructor, isTruthy, toConstantCase } from '../src/utils.js';
 
 // This example aggregates (almost) everything you can do with Configurator into one
 // extremely contrived demo.
@@ -384,12 +384,12 @@ const schema = new Schema('object')
   .property('user', new Schema('object')
     .property('nickname', new Schema('string')
       .required()
-      .validator(/[a-z]{3,}/i)
+      .validator({$matches: /[a-z]{3,}/i})
       .meta('description', 'user doing work')
     )
     .property('token', new Schema('string')
       .required()
-      .validator(/[0-9|a-f]{12}/i)
+      .validator({$matches: /[0-9|a-f]{12}/i})
       .meta('description', 'user credentials')
       .meta('secret', true)  // this is a private metadata value that we use in the source below
     )
@@ -448,7 +448,7 @@ class FakeSecretsSource extends ConfigurationSource {
 
     schema.visitSchema((schema, path) => {
       // check for the existence of our custom schema option from above...
-      if (!schema.metadata.secret) {
+      if (!isTruthy(schema.metadata.secret)) {
         return;
       }
       const suffix = toConstantCase(path);

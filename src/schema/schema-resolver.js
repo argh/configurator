@@ -29,7 +29,6 @@ import {
   UNDEFINED_EXECUTOR
 } from './executor/executor.js';
 import { FunctionValueProcessor } from './value-processor/function-value-processor.js';
-import { RegExpValueProcessor } from './value-processor/regexp-value-processor.js';
 import {
   extractKeywordValueProcessorSpec,
   isKeywordValueProcessorSpec,
@@ -341,10 +340,18 @@ export class SchemaResolver
     else if (spec instanceof Executor) {
       valueProcessor = new ComposedValueProcessor(spec, spec);
     }
-    else if (spec instanceof RegExp
-             || (typeof spec === 'string' && spec.startsWith('/') && spec.lastIndexOf('/') > 0))
-    {
-      valueProcessor = new RegExpValueProcessor(spec);
+    else if (spec instanceof RegExp) {
+      valueProcessor = new ComposedValueProcessor(new ConstantExecutor(spec), spec, `${spec}`);
+    }
+    else if (typeof spec === 'string' && spec.startsWith('/') && spec.lastIndexOf('/') > 0) {
+      const lastSlash = spec.lastIndexOf('/');
+      try {
+        const regex = new RegExp(spec.slice(1, lastSlash), spec.slice(lastSlash + 1));
+        valueProcessor = new ComposedValueProcessor(new ConstantExecutor(regex), regex, `${regex}`);
+      }
+      catch {
+        throw new SchemaError(`Invalid regex pattern`, {value: spec});
+      }
     }
     else if (typeof spec === 'object' && typeof spec.process === 'function') {
       valueProcessor = new DefinedValueProcessor(spec);
