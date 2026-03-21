@@ -11,7 +11,7 @@ export const BUFFER_SCHEMA = new Schema()
     }
     try {
       if (typeof value === 'string') {
-        return Buffer.from(value,'base64');
+        return Buffer.from(value, 'base64');
       }
       if (typeof value === 'object' && Number.isInteger(value.size)) {
         return Buffer.alloc(value.size, value.fill ?? 0, value.encoding ?? 'utf8');
@@ -32,7 +32,7 @@ export const BUFFER_SCHEMA = new Schema()
     try {
       // we prefer to already have a buffer, but allow anything we can easily convert
       if (typeof value === 'string') {
-        return Buffer.from(value,'base64');
+        return Buffer.from(value, 'base64');
       }
       return Buffer.from(value);
     }
@@ -48,6 +48,7 @@ export const BUFFER_SCHEMA = new Schema()
   })
   .serializer((value, _target, _location, options) => {
     if (Buffer.isBuffer(value)) {
+      // delegates to $base64-encode semantics
       return value.toString('base64');
     }
     if (options?.strict) {

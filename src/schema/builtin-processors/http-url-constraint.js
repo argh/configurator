@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$httpurl`
+ * **Processor**: `$http-url`
  *
  * Validates that a string is a valid HTTP or HTTPS URL. Uses the URL Web API for
  * validation and specifically requires the protocol to be either `http:` or `https:`.
@@ -12,8 +12,8 @@ import { ConstraintError } from '../schema-errors.js';
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
-export const HTTPURL_CONSTRAINT = {
-  keyword: 'httpurl',
+export const HTTP_URL_CONSTRAINT = {
+  keyword: 'http-url',
   process: (value) => {
     try {
       const url = new URL(value);

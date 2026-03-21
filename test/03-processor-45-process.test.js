@@ -41,7 +41,7 @@ describe('Processor: $process', function() {
     // The combined pattern: compile a schema inline, then apply it — the core use case
     const schema = await resolver.compile(
       new Schema('any').transformer(
-        {$process: {schema: {$compile: [{$literal: new Schema('string').transformer('$kebabcase')}]}}}
+        {$process: {schema: {$compile: [{$literal: new Schema('string').transformer('$kebab-case')}]}}}
       )
     );
     assert.strictEqual(await schema.transformValue('Hello World'), 'hello-world');

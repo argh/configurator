@@ -1,7 +1,7 @@
 import { toConstantCase } from '../../utils.js';
 
 /**
- * **Processor**: `$constantcase`
+ * **Processor**: `$constant-case`
  *
  * Converts a string to CONSTANT_CASE format (uppercase letters with underscores).
  * Safe to use in normalize phase (non-throwing).
@@ -14,8 +14,8 @@ import { toConstantCase } from '../../utils.js';
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
-export const CONSTANTCASE_OPERATOR = {
-  keyword: 'constantcase',
+export const CONSTANT_CASE_OPERATOR = {
+  keyword: 'constant-case',
   process: (value) => {
     return toConstantCase(String(value));
   }

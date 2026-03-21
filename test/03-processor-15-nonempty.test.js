@@ -5,7 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
 import { ValidationError } from '../src/schema/schema-errors.js';
 
-describe('Processor: nonempty', function() {
+describe('Processor: $non-empty', function() {
   /** @type {SchemaResolver} */
   let resolver;
 
@@ -14,7 +14,7 @@ describe('Processor: nonempty', function() {
   });
 
   it('should accept non-empty string', async function() {
-    const schema = new Schema('string').validator('$nonempty');
+    const schema = new Schema('string').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     const result = await compiled.validateValue('hello');
@@ -22,7 +22,7 @@ describe('Processor: nonempty', function() {
   });
 
   it('should accept string with only spaces if not trimmed to empty', async function() {
-    const schema = new Schema('string').validator('$nonempty');
+    const schema = new Schema('string').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     // nonempty trims and checks, so only spaces will fail
@@ -30,14 +30,14 @@ describe('Processor: nonempty', function() {
   });
 
   it('should accept string with content and spaces', async function() {
-    const schema = new Schema('string').validator('$nonempty');
+    const schema = new Schema('string').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue('  hello  ');
   });
 
   it('should accept numbers as strings', async function() {
-    const schema = new Schema('string').validator('$nonempty');
+    const schema = new Schema('string').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue('123');
@@ -45,14 +45,14 @@ describe('Processor: nonempty', function() {
   });
 
   it('should reject empty string', async function() {
-    const schema = new Schema('string').validator('$nonempty');
+    const schema = new Schema('string').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validateValue(''), ValidationError);
   });
 
   it('should reject whitespace-only string', async function() {
-    const schema = new Schema('string').validator('$nonempty');
+    const schema = new Schema('string').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validateValue('   '), ValidationError);
@@ -60,7 +60,7 @@ describe('Processor: nonempty', function() {
   });
 
   it('should accept non-empty arrays', async function() {
-    const schema = new Schema('any').validator('$nonempty');
+    const schema = new Schema('any').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     const result = await compiled.validateValue([1, 2, 3]);
@@ -72,14 +72,14 @@ describe('Processor: nonempty', function() {
   });
 
   it('should reject empty arrays', async function() {
-    const schema = new Schema('any').validator('$nonempty');
+    const schema = new Schema('any').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validateValue([]), ValidationError);
   });
 
   it('should accept non-empty objects', async function() {
-    const schema = new Schema('any').validator('$nonempty');
+    const schema = new Schema('any').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     const result = await compiled.validateValue({ hello: 'world' });
@@ -89,14 +89,14 @@ describe('Processor: nonempty', function() {
   });
 
   it('should reject empty objects', async function() {
-    const schema = new Schema('any').validator('$nonempty');
+    const schema = new Schema('any').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validateValue({}), ValidationError);
   });
 
   it('should pass through other primitive values unchanged', async function() {
-    const schema = new Schema('any').validator('$nonempty');
+    const schema = new Schema('any').validator('$non-empty');
     const compiled = await resolver.compile(schema);
 
     // Numbers, booleans — not string/array/object, not null/undefined, so passed through

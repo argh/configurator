@@ -10,7 +10,7 @@ import { ValidationError } from '../src/schema/schema-errors.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('Processor: filesize', function() {
+describe('Processor: $file-size', function() {
   /** @type {SchemaResolver} */
   let resolver;
   let testFile;
@@ -31,56 +31,56 @@ describe('Processor: filesize', function() {
   });
 
   it('should accept file within size range', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 50, max: 150}});
+    const schema = new Schema('string').validator({'$file-size': {min: 50, max: 150}});
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue(testFile);
   });
 
   it('should accept file at min boundary', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 100, max: 150}});
+    const schema = new Schema('string').validator({'$file-size': {min: 100, max: 150}});
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue(testFile);
   });
 
   it('should accept file at max boundary', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 50, max: 100}});
+    const schema = new Schema('string').validator({'$file-size': {min: 50, max: 100}});
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue(testFile);
   });
 
   it('should reject file too small', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 200}});
+    const schema = new Schema('string').validator({'$file-size': {min: 200}});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validateValue(testFile), ValidationError);
   });
 
   it('should reject file too large', async function() {
-    const schema = new Schema('string').validator({$filesize: {max: 50}});
+    const schema = new Schema('string').validator({'$file-size': {max: 50}});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(() => compiled.validateValue(testFile), ValidationError);
   });
 
   it('should accept file with min only', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 50}});
+    const schema = new Schema('string').validator({'$file-size': {min: 50}});
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue(testFile);
   });
 
   it('should accept file with max only', async function() {
-    const schema = new Schema('string').validator({$filesize: {max: 150}});
+    const schema = new Schema('string').validator({'$file-size': {max: 150}});
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue(testFile);
   });
 
   it('should reject non-existent file', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 0, max: 1000}});
+    const schema = new Schema('string').validator({'$file-size': {min: 0, max: 1000}});
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
@@ -90,21 +90,21 @@ describe('Processor: filesize', function() {
   });
 
   it('should generate description for both bounds', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 100, max: 1000}});
+    const schema = new Schema('string').validator({'$file-size': {min: 100, max: 1000}});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[100-1000B]');
   });
 
   it('should generate description for min only', async function() {
-    const schema = new Schema('string').validator({$filesize: {min: 100}});
+    const schema = new Schema('string').validator({'$file-size': {min: 100}});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[≥100B]');
   });
 
   it('should generate description for max only', async function() {
-    const schema = new Schema('string').validator({$filesize: {max: 1000}});
+    const schema = new Schema('string').validator({'$file-size': {max: 1000}});
     const compiled = await resolver.compile(schema);
 
     assert.strictEqual(compiled.metadata.valueDescription, '[≤1000B]');

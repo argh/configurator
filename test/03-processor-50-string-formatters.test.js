@@ -61,58 +61,58 @@ describe('Processor: string formatter operators', function() {
     });
   });
 
-  describe('$camelcase', function() {
+  describe('$camel-case', function() {
     it('should convert word sequences to camelCase', async function() {
-      const schema = await compile(resolver, '$camelcase');
+      const schema = await compile(resolver, '$camel-case');
       assert.strictEqual(await schema.transformValue('hello world'), 'helloWorld');
       assert.strictEqual(await schema.transformValue('foo-bar-baz'), 'fooBarBaz');
       assert.strictEqual(await schema.transformValue('FOO_BAR'), 'fooBar');
     });
 
     it('should coerce non-strings', async function() {
-      const schema = await compile(resolver, '$camelcase');
+      const schema = await compile(resolver, '$camel-case');
       assert.strictEqual(await schema.transformValue(42), '42');
     });
   });
 
-  describe('$pascalcase', function() {
+  describe('$pascal-case', function() {
     it('should convert word sequences to PascalCase', async function() {
-      const schema = await compile(resolver, '$pascalcase');
+      const schema = await compile(resolver, '$pascal-case');
       assert.strictEqual(await schema.transformValue('hello world'), 'HelloWorld');
       assert.strictEqual(await schema.transformValue('foo-bar-baz'), 'FooBarBaz');
       assert.strictEqual(await schema.transformValue('FOO_BAR'), 'FooBar');
     });
 
     it('should coerce non-strings', async function() {
-      const schema = await compile(resolver, '$pascalcase');
+      const schema = await compile(resolver, '$pascal-case');
       assert.strictEqual(await schema.transformValue(42), '42');
     });
   });
 
-  describe('$kebabcase', function() {
+  describe('$kebab-case', function() {
     it('should convert word sequences to kebab-case', async function() {
-      const schema = await compile(resolver, '$kebabcase');
+      const schema = await compile(resolver, '$kebab-case');
       assert.strictEqual(await schema.transformValue('hello world'), 'hello-world');
       assert.strictEqual(await schema.transformValue('fooBarBaz'), 'foo-bar-baz');
       assert.strictEqual(await schema.transformValue('FOO_BAR'), 'foo-bar');
     });
 
     it('should coerce non-strings', async function() {
-      const schema = await compile(resolver, '$kebabcase');
+      const schema = await compile(resolver, '$kebab-case');
       assert.strictEqual(await schema.transformValue(42), '42');
     });
   });
 
-  describe('$constantcase', function() {
+  describe('$constant-case', function() {
     it('should convert word sequences to CONSTANT_CASE', async function() {
-      const schema = await compile(resolver, '$constantcase');
+      const schema = await compile(resolver, '$constant-case');
       assert.strictEqual(await schema.transformValue('hello world'), 'HELLO_WORLD');
       assert.strictEqual(await schema.transformValue('fooBarBaz'), 'FOO_BAR_BAZ');
       assert.strictEqual(await schema.transformValue('foo-bar'), 'FOO_BAR');
     });
 
     it('should coerce non-strings', async function() {
-      const schema = await compile(resolver, '$constantcase');
+      const schema = await compile(resolver, '$constant-case');
       assert.strictEqual(await schema.transformValue(42), '42');
     });
   });

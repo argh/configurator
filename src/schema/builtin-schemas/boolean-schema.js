@@ -5,7 +5,6 @@ export const BOOLEAN_SCHEMA = new Schema()
   .option('type', 'boolean')
   .meta('valueName', 'boolean')
   .normalizer(isTruthy)
-  .transformer(isTruthy)
   .validator({$in: [true, false]})
 
 

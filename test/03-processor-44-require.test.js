@@ -35,7 +35,7 @@ describe('Processor: require', function() {
 
     // $require passes through the original input, not the processed value
     const trimSchema = await resolver.compile(
-      new Schema('any').validator({$require: {$pipeline: ['$trim', '$nonempty']}})
+      new Schema('any').validator({$require: {$pipeline: ['$trim', '$non-empty']}})
     );
     assert.strictEqual(await trimSchema.validateValue('  hello  '), '  hello  ');
   });

@@ -1,7 +1,7 @@
 import { toKebabCase } from '../../utils.js';
 
 /**
- * **Processor**: `$kebabcase`
+ * **Processor**: `$kebab-case`
  *
  * Converts a string to kebab-case format (lowercase words separated by hyphens).
  * Safe to use in normalize phase (non-throwing).
@@ -15,8 +15,8 @@ import { toKebabCase } from '../../utils.js';
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
-export const KEBABCASE_OPERATOR = {
-  keyword: 'kebabcase',
+export const KEBAB_CASE_OPERATOR = {
+  keyword: 'kebab-case',
   process: (value) => {
     return toKebabCase(String(value));
   }

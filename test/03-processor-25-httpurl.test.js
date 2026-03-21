@@ -5,7 +5,7 @@ import { SchemaResolver } from '../src/schema/schema-resolver.js';
 
 import { ValidationError } from '../src/schema/schema-errors.js';
 
-describe('Processor: httpurl', function() {
+describe('Processor: $http-url', function() {
   /** @type {SchemaResolver} */
   let resolver;
 
@@ -14,7 +14,7 @@ describe('Processor: httpurl', function() {
   });
 
   it('should accept HTTP URL', async function() {
-    const schema = new Schema('string').validator('$httpurl');
+    const schema = new Schema('string').validator('$http-url');
     const compiled = await resolver.compile(schema);
 
     const result = await compiled.validateValue('http://example.com');
@@ -22,7 +22,7 @@ describe('Processor: httpurl', function() {
   });
 
   it('should accept HTTPS URL', async function() {
-    const schema = new Schema('string').validator('$httpurl');
+    const schema = new Schema('string').validator('$http-url');
     const compiled = await resolver.compile(schema);
 
     await compiled.validateValue('https://example.com');
@@ -31,7 +31,7 @@ describe('Processor: httpurl', function() {
   });
 
   it('should reject FTP URL', async function() {
-    const schema = new Schema('string').validator('$httpurl');
+    const schema = new Schema('string').validator('$http-url');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
@@ -41,7 +41,7 @@ describe('Processor: httpurl', function() {
   });
 
   it('should reject file URL', async function() {
-    const schema = new Schema('string').validator('$httpurl');
+    const schema = new Schema('string').validator('$http-url');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
@@ -51,7 +51,7 @@ describe('Processor: httpurl', function() {
   });
 
   it('should reject URL without protocol', async function() {
-    const schema = new Schema('string').validator('$httpurl');
+    const schema = new Schema('string').validator('$http-url');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(
@@ -61,7 +61,7 @@ describe('Processor: httpurl', function() {
   });
 
   it('should reject malformed URL', async function() {
-    const schema = new Schema('string').validator('$httpurl');
+    const schema = new Schema('string').validator('$http-url');
     const compiled = await resolver.compile(schema);
 
     await assert.rejects(

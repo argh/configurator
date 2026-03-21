@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import { ConstraintError, ResolverError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$filesize` (async, parameterized)
+ * **Processor**: `$file-size` (async, parameterized)
  *
  * Validates that a file's size falls within the specified range. Accepts size constraints
  * in bytes and checks the file's metadata without loading the entire file into memory.
@@ -29,8 +29,8 @@ import { ConstraintError, ResolverError } from '../schema-errors.js';
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
-export const FILESIZE_CONSTRAINT = {
-  keyword: 'filesize',
+export const FILE_SIZE_CONSTRAINT = {
+  keyword: 'file-size',
   parameters: [ { parameter: 'min' }, { parameter: 'max' } ],
 
   process: async (value, _target, _location, options) => {

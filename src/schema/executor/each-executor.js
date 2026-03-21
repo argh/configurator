@@ -12,13 +12,13 @@ export class EachExecutor extends Executor {
   /** @type {((value:T|null|undefined)=>(E|null|undefined)[])|undefined} */
   #toValues;
 
-  /** @type {((values:(E|null|undefined)[])=>T|null|undefined)|undefined} */
+  /** @type {((values:(E|null|undefined)[], input:T|null|undefined)=>T|null|undefined)|undefined} */
   #fromValues;
 
   /**
    * @param {Executor<E>|any} each - executor to apply to each value during execute
    * @param {(value:T|null|undefined)=>(E|null|undefined)[]} [toValues] - optional value factory
-   * @param {((values:(E|null|undefined)[])=>T|null|undefined)} [fromValues]
+   * @param {((values:(E|null|undefined)[],input:T|null|undefined)=>T|null|undefined)} [fromValues]
    */
   constructor(each, toValues, fromValues) {
     super();
@@ -56,11 +56,12 @@ export class EachExecutor extends Executor {
 
     if (sync) {
       // @ts-ignore
-      return this.#fromValues? this.#fromValues(results) : results;
+      return this.#fromValues? this.#fromValues(results, input) : results;
     }
     else {
+      // @ts-ignore - just make sure T is E[]
       return Promise.all(results).then(resolved => {
-        return this.#fromValues? this.#fromValues(resolved) : /** @type {T} */ (resolved);
+        return this.#fromValues? this.#fromValues(resolved, input) : (resolved);
       })
     }
   }

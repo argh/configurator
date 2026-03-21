@@ -1,7 +1,7 @@
 import { toCamelCase } from '../../utils.js';
 
 /**
- * **Processor**: `$camelcase`
+ * **Processor**: `$camel-case`
  *
  * Converts a string value to camelCase format. Words are identified by spaces,
  * hyphens, underscores, or case changes. The first letter is lowercased, and
@@ -16,8 +16,8 @@ import { toCamelCase } from '../../utils.js';
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
-export const CAMELCASE_OPERATOR = {
-  keyword: 'camelcase',
+export const CAMEL_CASE_OPERATOR = {
+  keyword: 'camel-case',
   process: (value) => {
     return toCamelCase(String(value));
   }

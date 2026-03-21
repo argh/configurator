@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$nonempty`
+ * **Processor**: `$non-empty`
  *
  * Validates that a string, array, or object is not empty. For strings, the value must contain
  * at least one non-whitespace character. For arrays, the length must be greater than zero.
@@ -13,8 +13,8 @@ import { ConstraintError } from '../schema-errors.js';
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
-export const NONEMPTY_CONSTRAINT = {
-  keyword: 'nonempty',
+export const NON_EMPTY_CONSTRAINT = {
+  keyword: 'non-empty',
   process: (value, _target, location) => {
 
     if (typeof value === 'string') {
