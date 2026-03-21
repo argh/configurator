@@ -2,14 +2,14 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$prefix`
+ * **Processor**: `$has-suffix`
  *
- * Check that the provided string value starts with the prefix value
+ * Check that the provided string value ends with the suffix value
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}*
  */
-export const SUFFIX_CONSTRAINT = {
-  keyword: 'suffix',
+export const HAS_SUFFIX_CONSTRAINT = {
+  keyword: 'has-suffix',
   parameters: [ { parameter: 'match', required: true } ],
 
   process: (value, _target, location, options) => {

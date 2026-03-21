@@ -20,6 +20,7 @@ export const STRING_OPERATOR = {
       throw new ConstraintError(`Invalid string`, {value})
     }
     else if (typeof value === 'object') {
+      if (value instanceof Date) return value.toISOString();
       return stringify(value);
     }
     else {

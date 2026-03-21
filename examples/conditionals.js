@@ -30,7 +30,7 @@ const resolver = new SchemaResolver();
 const goodSchema1 = await resolver.compile(
   new Schema('object')
     .property('url', new Schema('string')
-      .validator({$all: ['$url', {$any: [{$prefix: 'http:'}, {$prefix: 'https:'}]}]})
+      .validator({$all: ['$url', {$any: [{'$has-prefix': 'http:'}, {'$has-prefix': 'https:'}]}]})
     )
 )
 
