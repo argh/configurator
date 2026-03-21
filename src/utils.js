@@ -37,12 +37,27 @@ function wordsToPascalCase(words) {
   ).join('');
 }
 
-function wordsToHeadline(words) {
+function wordsToCapitalize(words) {
   if (words.length === 0) return '';
   return words.map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ');
+}
 
+const TITLE_CASE_LOWERCASE = new Set([
+  'a', 'an', 'the',                          // articles
+  'and', 'but', 'or', 'nor', 'for', 'so', 'yet',  // coordinating conjunctions
+  'at', 'by', 'in', 'of', 'on', 'to', 'up', 'as', 'via',  // short prepositions
+]);
+
+function wordsToTitleCase(words) {
+  if (words.length === 0) return '';
+  return words.map((word, i) => {
+    if (i !== 0 && i !== words.length - 1 && TITLE_CASE_LOWERCASE.has(word)) {
+      return word;
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(' ');
 }
 
 // Convert normalized words array to CONSTANT_CASE
@@ -94,8 +109,16 @@ export function toKebabCase(str) {
  * @param {string} str
  * @returns {string}
  */
-export function toHeadline(str) {
-  return wordsToHeadline(normalizeToWords(str));
+export function toCapitalize(str) {
+  return wordsToCapitalize(normalizeToWords(str));
+}
+
+/**
+ * @param {string} str
+ * @returns {string}
+ */
+export function toTitleCase(str) {
+  return wordsToTitleCase(normalizeToWords(str));
 }
 
 /**

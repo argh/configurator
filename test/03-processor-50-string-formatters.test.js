@@ -117,16 +117,36 @@ describe('Processor: string formatter operators', function() {
     });
   });
 
-  describe('$headline', function() {
-    it('should convert word sequences to Headline Case', async function() {
-      const schema = await compile(resolver, '$headline');
+  describe('$capitalize', function() {
+    it('should capitalize every word unconditionally', async function() {
+      const schema = await compile(resolver, '$capitalize');
       assert.strictEqual(await schema.transformValue('hello world'), 'Hello World');
       assert.strictEqual(await schema.transformValue('foo-bar-baz'), 'Foo Bar Baz');
-      assert.strictEqual(await schema.transformValue('FOO_BAR'), 'Foo Bar');
+      assert.strictEqual(await schema.transformValue('sisters-of-mercy'), 'Sisters Of Mercy');
     });
 
     it('should coerce non-strings', async function() {
-      const schema = await compile(resolver, '$headline');
+      const schema = await compile(resolver, '$capitalize');
+      assert.strictEqual(await schema.transformValue(42), '42');
+    });
+  });
+
+  describe('$title-case', function() {
+    it('should lowercase articles, conjunctions, and short prepositions mid-phrase', async function() {
+      const schema = await compile(resolver, '$title-case');
+      assert.strictEqual(await schema.transformValue('sisters-of-mercy'), 'Sisters of Mercy');
+      assert.strictEqual(await schema.transformValue('the lord of the rings'), 'The Lord of the Rings');
+      assert.strictEqual(await schema.transformValue('war and peace'), 'War and Peace');
+    });
+
+    it('should always capitalize first and last word', async function() {
+      const schema = await compile(resolver, '$title-case');
+      assert.strictEqual(await schema.transformValue('the'), 'The');
+      assert.strictEqual(await schema.transformValue('in the end'), 'In the End');
+    });
+
+    it('should coerce non-strings', async function() {
+      const schema = await compile(resolver, '$title-case');
       assert.strictEqual(await schema.transformValue(42), '42');
     });
   });
