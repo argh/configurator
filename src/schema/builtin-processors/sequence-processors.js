@@ -42,7 +42,7 @@ function generateBuilderFunction(keyword, joiner, builder) {
 
 
 /**
- * **Processor**: `$or`
+ * ## $or
  *
  * A constraint that checks whether any of the provided processors return a truthy value.
  *
@@ -76,7 +76,7 @@ export const OR_CONSTRAINT = {
 };
 
 /**
- * **Processor**: `$and`
+ * ## $and
  *
  * A constraint that checks whether all the provided processors return a truthy value.
  *
@@ -110,7 +110,7 @@ export const AND_CONSTRAINT = {
 };
 
 /**
- * **Processor**: `$any`
+ * ## $any
  *
  * A constraint that checks whether any of the provided processors return a defined value.
  *
@@ -144,7 +144,7 @@ export const ANY_CONSTRAINT = {
 };
 
 /**
- * **Processor**: `$all`
+ * ## $all
  *
  * A constraint that checks whether all the provided processors return a defined value.
  *
@@ -179,7 +179,7 @@ export const ALL_CONSTRAINT = {
 };
 
 /**
- * **Processor**: `$first`
+ * ## $first
  *
  * An operator that returns the first defined value successfully returned from a sequence of processors.
  *

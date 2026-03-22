@@ -1,18 +1,14 @@
 import { ConstraintError, ResolverError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$range`
+ * ## $range
  *
  * Validates that a numeric value falls within the specified range (inclusive).
  * Can specify minimum, maximum, or both bounds.
  *
- * **Parameters**:
+ * ### Parameters
  * - `min` (number, optional): Minimum value (inclusive). If omitted, no lower bound.
  * - `max` (number, optional): Maximum value (inclusive). If omitted, no upper bound.
- *
- * **Valid values**: Numbers within the specified range (both min and max are inclusive)
- *
- * **Invalid values**: Non-numeric values, numbers below min, numbers above max
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

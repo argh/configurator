@@ -15,7 +15,7 @@ function fromDateObject(obj) {
 }
 
 /**
- * **Processor**: `$date`
+ * ## $date
  *
  * Normalize the input value as a Date.  Accepts strings, numbers, Date instances, and
  * date-field objects produced by `$date-object`.

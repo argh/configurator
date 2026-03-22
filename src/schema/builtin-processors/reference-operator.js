@@ -2,15 +2,14 @@ import { deepValue } from '../../utils.js';
 import { SchemaError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$reference`
+ * ## $reference
  *
  * Returns the value at the referenced path in the target data, or undefined if not set.
  *
  * Throws a `SchemaError` if the specified path is not defined in the schema.
  *
- * **Parameters**:
+ * ### Parameters
  * - `path` (string, required): The path in the schema hierarchy; must be defined.
- *
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

@@ -1,10 +1,8 @@
 /**
- * **Processor**: `$lowercase`
+ * ## $lowercase
  *
  * Converts a string value to lowercase.
  * Safe to use in normalize phase (non-throwing).
- *
- * **Input**: `"Hello WORLD"` → **Output**: `"hello world"`
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

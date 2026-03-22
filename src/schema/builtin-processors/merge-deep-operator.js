@@ -5,7 +5,7 @@ import { ObjectExecutor } from '../executor/object-executor.js';
 import { deepMerge } from '../../utils.js';
 
 /**
- * **Processor**: `$merge-deep`
+ * ## $merge-deep
  *
  * Recursively deep-merges the argument object into the input object, returning
  * a new object. Nested plain objects are merged rather than replaced; arrays
@@ -13,10 +13,9 @@ import { deepMerge } from '../../utils.js';
  *
  * Use `$merge` for shallow (one-level) merging.
  *
- * **Parameters**:
+ * ### Parameters
  * - Object of fields to deep-merge (object, required): Key/value pairs to apply over the input.
  *
- * **Input**: `{a: {x: 1, y: 2}}` with `{$merge-deep: {a: {y: 99, z: 3}}}` →
  * **Output**: `{a: {x: 1, y: 99, z: 3}}`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}

@@ -3,7 +3,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
 
 /**
- * **Processor**: `$each`
+ * ## $each
  *
  * Applies a processor to each element of an array. The processor can be any valid
  * processor specification (RegExp, function, keyword, or parameterized processor).
@@ -12,13 +12,9 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  * This operator is useful for applying consistent validation or transformation rules
  * across all array elements without requiring explicit array element schemas.
  *
- * **Parameters**:
+ * ### Parameters
  * - `processor` (any valid processor spec, required): The processor to apply to each element.
  *   Can be a RegExp, function, string keyword (e.g., `'$numeric'`), or parameterized processor object.
- *
- * **Valid values**: Any array where all elements satisfy the specified processor
- *
- * **Invalid values**: Non-array values, or arrays where any element fails the processor
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

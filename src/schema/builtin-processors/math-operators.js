@@ -2,12 +2,9 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$abs`
+ * ## $abs
  *
  * Returns the absolute value of a number.
- *
- * **Input**: `-5` → **Output**: `5`
- * **Input**: `3.14` → **Output**: `3.14`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -23,19 +20,16 @@ export const ABS_OPERATOR = {
 };
 
 /**
- * **Processor**: `$pow`
+ * ## $pow
  *
  * Raises a number to a power.
  *
  * - `{$pow: exponent}` — raises the input value to the given exponent
  * - `{$pow: {exponent, base}}` — raises `base` to `exponent`, ignoring the input value
  *
- * **Parameters**:
+ * ### Parameters
  * - `exponent` (number, required): The exponent.
  * - `base` (number, optional): Override the base. Defaults to the input value.
- *
- * **Input**: `2` with `{$pow: 10}` → **Output**: `1024`
- * **Input**: any with `{$pow: {exponent: 8, base: 2}}` → **Output**: `256`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -55,12 +49,9 @@ export const POW_OPERATOR = {
 };
 
 /**
- * **Processor**: `$sqrt`
+ * ## $sqrt
  *
  * Returns the square root of a number.
- *
- * **Input**: `9` → **Output**: `3`
- * **Input**: `2` → **Output**: `1.4142135623730951`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -76,20 +67,16 @@ export const SQRT_OPERATOR = {
 };
 
 /**
- * **Processor**: `$clamp`
+ * ## $clamp
  *
  * Constrains a number to a `[min, max]` range by returning the nearest boundary when the value
  * falls outside. Unlike `$range` (which throws), `$clamp` transforms.
  *
  * Both `min` and `max` are optional; omitting either leaves that end unclamped.
  *
- * **Parameters**:
+ * ### Parameters
  * - `min` (number, optional): Lower bound.
  * - `max` (number, optional): Upper bound.
- *
- * **Input**: `150` with `{$clamp: {min: 0, max: 100}}` → **Output**: `100`
- * **Input**: `-5` with `{$clamp: {min: 0}}` → **Output**: `0`
- * **Input**: `42` with `{$clamp: {min: 0, max: 100}}` → **Output**: `42`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

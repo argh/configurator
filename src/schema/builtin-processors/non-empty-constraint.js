@@ -1,15 +1,11 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$non-empty`
+ * ## $non-empty
  *
  * Validates that a string, array, or object is not empty. For strings, the value must contain
  * at least one non-whitespace character. For arrays, the length must be greater than zero.
  * For objects, the number of keys must be greater than zero.
- *
- * **Valid values**: `"hello"`, `"  text  "`, `[1, 2, 3]`, `["item"]`, `{hello: "world"}`
- *
- * **Invalid values**: `""`, `"   "` (whitespace only), `[]`, `{}`
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

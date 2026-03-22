@@ -4,7 +4,7 @@ import { constants } from 'node:fs';
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$executable` (async)
+ * ## $executable
  *
  * Validates that a file path points to an executable file by checking execute
  * permissions. This is an asynchronous processor that performs a file system
@@ -12,10 +12,6 @@ import { ConstraintError } from '../schema-errors.js';
  *
  * This processor is particularly useful for validating script paths, binary
  * paths, and command executables in configuration files.
- *
- * **Valid values**: `/usr/bin/node`, `/bin/bash`, `./scripts/deploy.sh` (if executable)
- *
- * **Invalid values**: Non-existent paths, files without execute permission, directories
  *
  * **Note**: This processor performs async file system checks and should usually
  * be used as a validator. Execution permissions are platform-dependent (Unix/Linux/macOS

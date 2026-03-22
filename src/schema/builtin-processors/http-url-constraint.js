@@ -1,14 +1,10 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$http-url`
+ * ## $http-url
  *
  * Validates that a string is a valid HTTP or HTTPS URL. Uses the URL Web API for
  * validation and specifically requires the protocol to be either `http:` or `https:`.
- *
- * **Valid values**: `https://example.com`, `http://localhost:3000/api`, `https://api.example.com/v1/users?page=1`
- *
- * **Invalid values**: `ftp://example.com` (wrong protocol), `example.com` (missing protocol), `http://` (missing host), `not a url`
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

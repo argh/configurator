@@ -2,12 +2,10 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$keys`
+ * ## $keys
  *
  * Returns the enumerable own property keys of an object as an array of strings.
  * Throws if the input is not a plain object.
- *
- * **Input**: `{a: 1, b: 2}` → **Output**: `['a', 'b']`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -2,7 +2,7 @@ import { parse } from '../helpers/stringify.js';
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$array`
+ * ## $array
  *
  * Attempt to normalize the input value as an array.
  *

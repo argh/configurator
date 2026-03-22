@@ -2,7 +2,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { stringify } from '../helpers/stringify.js';
 
 /**
- * **Processor**: `$string`
+ * ## $string
  *
  * Ensures value is a string, stringifying as necessary.  Everything other than null and undefined can be converted.
  *

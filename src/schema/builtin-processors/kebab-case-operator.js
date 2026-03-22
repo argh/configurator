@@ -1,7 +1,7 @@
 import { toKebabCase } from '../../utils.js';
 
 /**
- * **Processor**: `$kebab-case`
+ * ## $kebab-case
  *
  * Converts a string to kebab-case format (lowercase words separated by hyphens).
  * Safe to use in normalize phase (non-throwing).

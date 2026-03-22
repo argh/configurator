@@ -1,14 +1,10 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$alpha`
+ * ## $alpha
  *
  * Validates that a string contains only alphabetic characters (a-z, A-Z).
  * No spaces, numbers, punctuation, or special characters are allowed.
- *
- * **Valid values**: `hello`, `ABC`, `MyVariable`, `en`, `USA`
- *
- * **Invalid values**: `hello123`, `hello world`, `hello-world`, `hello_world`, `hello!`, `123`, ``
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

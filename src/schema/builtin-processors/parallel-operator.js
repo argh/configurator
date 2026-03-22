@@ -6,7 +6,7 @@ import { map } from '../../utils.js';
 /** @import {ValueProcessorDefinition} from '../value-processor/value-processor.js' */
 
 /**
- * **Processor**: `$parallel`
+ * ## $parallel
  *
  * Applies an array of processors concurrently to the same input value, returning an array
  * of all results in the same order as the processors.
@@ -18,7 +18,7 @@ import { map } from '../../utils.js';
  * Errors propagate immediately (fail-fast). Wrap individual processors in `$gate` or `$try`
  * to trap errors and return a fallback instead.
  *
- * **Parameters**:
+ * ### Parameters
  * - `processors` (Array, required): Array of processor specifications to run concurrently.
  *
  * **Examples**:

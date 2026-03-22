@@ -1,21 +1,18 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$ipv6`
+ * ## $ipv6
  *
  * Validates that a string is a properly formatted IPv6 address. Supports all standard IPv6
  * notation formats including full notation, compressed notation (::), link-local addresses,
  * IPv4-mapped IPv6 addresses, and zone identifiers.
  *
- * **Valid values**:
  * - Full notation: `2001:0db8:0000:0000:0000:0000:0000:0001`
  * - Compressed: `2001:db8::1`
  * - Loopback: `::1`
  * - All zeros: `::`
  * - Link-local: `fe80::1%eth0`
  * - IPv4-mapped: `::ffff:192.0.2.1`
- *
- * **Invalid values**: `192.168.1.1` (IPv4), `gggg::1` (invalid hex), `2001:db8::1::2` (double compression), `not-an-ip`
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

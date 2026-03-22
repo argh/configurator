@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$is-array`
+ * ## $is-array
  *
  * Validates that the input is a valid array.
  *

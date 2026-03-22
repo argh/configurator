@@ -8,7 +8,7 @@ import { isPlainObject } from '../../utils.js';
 /** @import { ValueProcessorDefinition } from '../value-processor/value-processor.js' */
 
 /**
- * **Processor**: `$map`
+ * ## $map
  *
  * Polymorphic map operator. Applies a processor to each element of an array, or to each
  * value of a plain object. Returns a new collection of the same shape with transformed values.
@@ -20,12 +20,8 @@ import { isPlainObject } from '../../utils.js';
  * Note that `null` returned by the processor is the standard prune signal and will remove
  * the element/entry from the output.
  *
- * **Parameters**:
+ * ### Parameters
  * - `processor` (any valid processor spec, required): Applied to each element or value.
- *
- * **Input**: `[1, '2', 3]` with `{$map: '$number'}` → **Output**: `[1, 2, 3]`
- *
- * **Input**: `{a: 1, b: 2}` with `{$map: '$string'}` → **Output**: `{a: '1', b: '2'}`
  *
  * @type {ValueProcessorDefinition}
  */

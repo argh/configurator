@@ -1,9 +1,9 @@
 /**
- * **Processor**: `$split`
+ * ## $split
  *
  * Stringify the input and split on the provided separator, returning an array.
  *
- * **Parameters**:
+ * ### Parameters
  * - `separator` (string, optional, defaults to ","): The value to use for splitting
  * - `limit` (integer, optional): The maximum number of elements to return.
  *

@@ -64,7 +64,7 @@ function generateBuilderFunction(keyword, flags) {
 }
 
 /**
- * **Processor**: `$if`
+ * ## $if
  *
  * This is a conditional operator that evaluates a predicate for truthiness.
  *
@@ -86,7 +86,7 @@ export const IF_OPERATOR = {
   build: generateBuilderFunction('$if', [ConditionalExecutor.CHECK_TRUTHY])
 };
 /**
- * **Processor**: `gate`
+ * ## $gate
  *
  * This is a conditional operator that evaluates a predicate for whether it returns a defined value.
  *
@@ -107,7 +107,7 @@ export const GATE_OPERATOR = {
   build: generateBuilderFunction('$gate',[ConditionalExecutor.CHECK_DEFINED])
 };
 /**
- * **Processor**: `$check`
+ * ## $check
  *
  * This is a conditional operator that evaluates a predicate for truthiness.
  *
@@ -127,7 +127,7 @@ export const CHECK_OPERATOR = {
   build: generateBuilderFunction('$check',[ConditionalExecutor.CHECK_TRUTHY, ConditionalExecutor.PASS_RESULT])
 };
 /**
- * **Processor**: `$when`
+ * ## $when
  *
  * This is a conditional operator that evaluates a predicate for whether it returns a defined value.
  *
@@ -151,14 +151,14 @@ export const WHEN_OPERATOR = {
 };
 
 /**
- * **Processor**: `$try`
+ * ## $try
  *
  * This is a conditional operator that evaluates a predicate for whether it throws/rejects.
  *
- * If the predicate does not throw, $when will return the result of invoking any provided success action
+ * If the predicate does not throw, $try will return the result of invoking any provided success action
  * with the predicate result.  If not provided, the default success action will simply return the predicate result.
  *
- * If the predicate rejects/throws, $when will return the result of invoking the failure action with the error returned.
+ * If the predicate rejects/throws, $try will return the result of invoking the failure action with the error returned.
  * The default failure action will return undefined.  Since the predicate result is an error, the failure action is
  * best used to either intercept errors and return a default value, or to propagate or wrap the error.
  *

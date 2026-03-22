@@ -2,12 +2,10 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$json-decode`
+ * ## $json-decode
  *
  * Parses a JSON string into a value.
  * Throws if the input is not a string or is not valid JSON.
- *
- * **Input**: `'{"a":1,"b":[2,3]}'` → **Output**: `{a: 1, b: [2, 3]}`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

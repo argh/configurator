@@ -9,7 +9,7 @@ import { map } from '../../utils.js';
  */
 
 /**
- * **Processor**: `$pipeline`
+ * ## $pipeline
  *
  * Executes a sequence of processors in order, passing the output of each processor
  * as input to the next. The final processor's output becomes the result.
@@ -18,7 +18,7 @@ import { map } from '../../utils.js';
  * so this processor is rarely used directly. It's primarily used internally by the
  * schema compiler to aggregate handler arrays into single compiled processors.
  *
- * **Parameters**:
+ * ### Parameters
  * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications to execute in sequence.
  *   Each element can be a string keyword (e.g., `'$trim'`), a parameterized processor object
  *   (e.g., `{$range: {min: 0}}`), a RegExp, or a function.

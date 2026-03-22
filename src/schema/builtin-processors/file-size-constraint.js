@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import { ConstraintError, ResolverError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$file-size` (async, parameterized)
+ * ## $file-size
  *
  * Validates that a file's size falls within the specified range. Accepts size constraints
  * in bytes and checks the file's metadata without loading the entire file into memory.
@@ -11,7 +11,7 @@ import { ConstraintError, ResolverError } from '../schema-errors.js';
  * **This is an async processor** that performs filesystem I/O and must be used in the
  * validation phase (not normalization phase).
  *
- * **Parameters**:
+ * ### Parameters
  * - `min` (number, optional): Minimum file size in bytes (inclusive). If omitted, no lower bound.
  * - `max` (number, optional): Maximum file size in bytes (inclusive). If omitted, no upper bound.
  *
@@ -19,10 +19,6 @@ import { ConstraintError, ResolverError } from '../schema-errors.js';
  * - 1 KB = 1024 bytes
  * - 1 MB = 1024 * 1024 bytes (1,048,576)
  * - 1 GB = 1024 * 1024 * 1024 bytes (1,073,741,824)
- *
- * **Valid values**: Any file path string where the file exists and its size satisfies the constraints
- *
- * **Invalid values**: Non-existent files, files smaller than `min`, files larger than `max`
  *
  * **Note**: Typically used with `$file` validator to ensure the file exists before checking size.
  * The processor reads file metadata via `fs.stat()` and does not load file contents.

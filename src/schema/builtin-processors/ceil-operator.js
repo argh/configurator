@@ -2,12 +2,12 @@
 /** @import {ValueProcessorDefinition} from '../value-processor/value-processor.js' */
 
 /**
- * **Processor**: `$ceil`
+ * ## $ceil
  *
  * Rounds a numeric value up to the nearest integer or specified decimal precision.
  * Non-numeric values are passed through unchanged. Safe to use in normalize phase (non-throwing).
  *
- * **Parameters**:
+ * ### Parameters
  * - `precision` (number, optional): Number of decimal places to preserve. Defaults to 0 (round to integer).
  *
  * **Examples**:
@@ -15,8 +15,6 @@
  * - `{$ceil: 2}` with `3.14159` → `3.15`
  * - `{$ceil: 1}` with `1.01` → `1.1`
  * - `{$ceil: 0}` with `"not a number"` → `"not a number"` (unchanged)
- *
- *
  *
  * The schema is transforming a complex object down to a single value.
  *

@@ -5,14 +5,14 @@ import { ConditionalExecutor } from '../executor/conditional-executor.js';
 import { Executor } from '../executor/executor.js';
 
 /**
- * **Processor**: `$never`
+ * ## $never
  *
  * Inverts a processor - Returns the input if the wrapped processor throws or returns an undefined value.
  * Throw a constraint error if the wrapped processor returns a defined value.
  *
  * See `$not` to enforce falseyness.
  *
- * **Parameters**:
+ * ### Parameters
  * - `value` - a processor specification to negate.
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}*

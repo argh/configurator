@@ -2,7 +2,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$is-date`
+ * ## $is-date
  *
  * Validates that the input is a valid date.
  *

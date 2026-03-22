@@ -1,7 +1,7 @@
 import { toCamelCase } from '../../utils.js';
 
 /**
- * **Processor**: `$camel-case`
+ * ## $camel-case
  *
  * Converts a string value to camelCase format. Words are identified by spaces,
  * hyphens, underscores, or case changes. The first letter is lowercased, and

@@ -1,12 +1,10 @@
 /**
- * **Processor**: `$json-encode`
+ * ## $json-encode
  *
  * Serializes any value to a JSON string.
  *
- * **Parameters**:
+ * ### Parameters
  * - `indent` (number, optional, default `0`): Indentation spaces for pretty-printing. `0` produces compact output.
- *
- * **Input**: `{a: 1, b: [2, 3]}` → **Output**: `'{"a":1,"b":[2,3]}'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

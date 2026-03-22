@@ -4,7 +4,7 @@ import { FunctionValueProcessor } from '../value-processor/function-value-proces
 import { ObjectExecutor } from '../executor/object-executor.js';
 
 /**
- * **Processor**: `$merge`
+ * ## $merge
  *
  * Merges the argument object into the input object (shallow). The argument fields take
  * precedence over same-named fields in the input, consistent with the "apply to the
@@ -12,10 +12,8 @@ import { ObjectExecutor } from '../executor/object-executor.js';
  *
  * The input object is not mutated; a new object is returned.
  *
- * **Parameters**:
+ * ### Parameters
  * - Object of fields to merge (object, required): Key/value pairs to apply over the input.
- *
- * **Input**: `{a: 1, b: 2}` with `{$merge: {b: 99, c: 3}}` → **Output**: `{a: 1, b: 99, c: 3}`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

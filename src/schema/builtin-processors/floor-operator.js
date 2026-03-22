@@ -1,10 +1,10 @@
 /**
- * **Processor**: `$floor`
+ * ## $floor
  *
  * Rounds a numeric value down to the specified number of decimal places.
  * Non-numeric values are passed through unchanged. Safe to use in normalize phase (non-throwing).
  *
- * **Parameters**:
+ * ### Parameters
  * - `precision` (number, optional): Number of decimal places to preserve. Defaults to 0 (round to integer).
  *
  * **Input/Output Examples**:

@@ -4,7 +4,7 @@ import { constants } from 'node:fs';
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$readable` (async)
+ * ## $readable
  *
  * Validates that a file or directory path exists and has read permissions for the
  * current process. Performs an asynchronous file system access check.
@@ -13,10 +13,8 @@ import { ConstraintError } from '../schema-errors.js';
  * without actually opening the file. Note that permission checks can be subject to race
  * conditions where permissions change between validation and actual file access.
  *
- * **Valid values**: Any file or directory path that exists and has read permissions
  * (e.g., `"/etc/hosts"`, `"./config.json"`, `"~/Documents"`)
  *
- * **Invalid values**: Non-existent paths, paths without read permissions,
  * or non-string values
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}

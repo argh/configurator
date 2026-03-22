@@ -1,10 +1,8 @@
 /**
- * **Processor**: `$uppercase`
+ * ## $uppercase
  *
  * Converts a string value to uppercase. Safe to use in normalize phase (non-throwing).
  * Non-string values are coerced to strings before conversion.
- *
- * **Input**: `"hello world"` → **Output**: `"HELLO WORLD"`
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

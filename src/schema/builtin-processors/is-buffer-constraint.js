@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$is-buffer`
+ * ## $is-buffer
  *
  * Validates that the input is a Node.js Buffer.
  *

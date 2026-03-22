@@ -3,7 +3,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$object`
+ * ## $object
  *
  * Attempts to normalize the input value as an object.
  *

@@ -3,7 +3,7 @@ import { FunctionValueProcessor } from '../value-processor/function-value-proces
 import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
 
 /**
- * **Processor**: `$match`
+ * ## $match
  *
  * Operator that executes a RegExp match against a string input and returns the extracted result.
  * Non-string values are passed through unchanged. Returns `undefined` if the string does not match.
@@ -12,16 +12,8 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  *   object (ES2018 named captures) as a plain object.
  * - Otherwise, returns a plain array of the full match and positional capture groups.
  *
- * **Parameters**:
+ * ### Parameters
  * - `pattern` (RegExp, required): The pattern to match against.
- *
- * **Input**: `"2026-03-21"` with `{$match: /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/}`
- * → **Output**: `{year: '2026', month: '03', day: '21'}`
- *
- * **Input**: `"hello world"` with `{$match: /(\w+)\s(\w+)/}`
- * → **Output**: `['hello world', 'hello', 'world']`
- *
- * **Input**: `"nope"` with `{$match: /^\d+$/}` → **Output**: `undefined`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

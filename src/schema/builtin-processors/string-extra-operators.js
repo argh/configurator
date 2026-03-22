@@ -3,18 +3,16 @@ import { formatValue } from '../../errors.js';
 import { FunctionValueProcessor } from '../value-processor/function-value-processor.js';
 
 /**
- * **Processor**: `$replace`
+ * ## $replace
  *
  * Replaces occurrences of a pattern in a string.
  *
  * - Pattern may be a string (replaced globally via `replaceAll`) or a RegExp (flags control global).
  * - Replacement must be a string.
  *
- * **Parameters**:
+ * ### Parameters
  * - First positional: pattern (string or RegExp, required)
  * - Second positional: replacement (string, required)
- *
- * **Input**: `'foo bar foo'` with `{$replace: ['foo', 'baz']}` → **Output**: `'baz bar baz'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -47,16 +45,13 @@ export const REPLACE_OPERATOR = {
 };
 
 /**
- * **Processor**: `$substring`
+ * ## $substring
  *
  * Extracts a portion of a string by start index and optional length.
  *
- * **Parameters**:
+ * ### Parameters
  * - `start` (number, required): Start index (0-based).
  * - `length` (number, optional): Number of characters to extract. If omitted, extracts to end of string.
- *
- * **Input**: `'hello world'` with `{$substring: 6}` → **Output**: `'world'`
- * **Input**: `'hello world'` with `{$substring: {start: 0, length: 5}}` → **Output**: `'hello'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -77,17 +72,14 @@ export const SUBSTRING_OPERATOR = {
 };
 
 /**
- * **Processor**: `$pad`
+ * ## $pad
  *
  * Pads a string to a minimum width.
  *
- * **Parameters**:
+ * ### Parameters
  * - `width` (number, required): Target minimum length.
  * - `char` (string, optional): Pad character. Defaults to `' '`.
  * - `side` (`'left'`|`'right'`, optional): Which side to pad. Defaults to `'left'`.
- *
- * **Input**: `'42'` with `{$pad: {width: 5}}` → **Output**: `'   42'`
- * **Input**: `'hi'` with `{$pad: {width: 5, char: '-', side: 'right'}}` → **Output**: `'hi---'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

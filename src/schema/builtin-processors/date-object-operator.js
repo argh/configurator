@@ -2,7 +2,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$date-object`
+ * ## $date-object
  *
  * Expands a Date into a plain object with named calendar fields.
  *
@@ -13,9 +13,6 @@ import { formatValue } from '../../errors.js';
  * where `month` is 1–12 (not 0-based), and `zone` is `'utc'` or `'local'`.
  *
  * The output is accepted by `$date` for round-trip reassembly.
- *
- * **Input**: `new Date('2026-03-21T10:30:00Z')` with `{'$date-object': 'utc'}`
- * → **Output**: `{year: 2026, month: 3, day: 21, hour: 10, minute: 30, second: 0, ms: 0, zone: 'utc'}`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

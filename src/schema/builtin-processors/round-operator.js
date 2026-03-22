@@ -1,10 +1,10 @@
 /**
- * **Processor**: `$round`
+ * ## $round
  *
  * Rounds a numeric value to the nearest integer or to a specified number of decimal places.
  * Safe to use in normalize phase (non-throwing). Non-numeric values pass through unchanged.
  *
- * **Parameters**:
+ * ### Parameters
  * - `precision` (number, optional): Number of decimal places. Defaults to 0 (integer rounding).
  *
  * **Examples**:

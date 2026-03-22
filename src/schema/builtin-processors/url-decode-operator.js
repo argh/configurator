@@ -2,7 +2,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$url-decode`
+ * ## $url-decode
  *
  * Decodes a percent-encoded URL string.
  *
@@ -12,10 +12,8 @@ import { formatValue } from '../../errors.js';
  *
  * Throws if the input is not a string or contains a malformed escape sequence.
  *
- * **Parameters**:
+ * ### Parameters
  * - `full` (boolean, optional, default `false`): Use full-URL decoding (`decodeURI`) rather than component decoding (`decodeURIComponent`).
- *
- * **Input**: `"hello%20world%2Fpath"` → **Output**: `"hello world/path"`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

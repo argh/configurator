@@ -2,7 +2,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$has-suffix`
+ * ## $has-suffix
  *
  * Check that the provided string value ends with the suffix value
  *

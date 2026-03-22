@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$is-object`
+ * ## $is-object
  *
  * Validates that the input is a valid object (and not null!)
  *

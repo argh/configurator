@@ -3,21 +3,15 @@ import { FunctionValueProcessor } from '../value-processor/function-value-proces
 import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
 
 /**
- * **Processor**: `$template`
+ * ## $template
  *
  * Operator that interpolates a template string using properties from the input object.
  * Placeholders use `{key}` syntax; double braces `{{` and `}}` are literal brace escapes.
  *
  * The input must be a plain object. Unknown keys resolve to an empty string.
  *
- * **Parameters**:
+ * ### Parameters
  * - `template` (string, required): The template string to interpolate.
- *
- * **Input**: `{year: 2026, month: 3, day: 21}` with `{$template: '{month}/{day}/{year}'}`
- * → **Output**: `'3/21/2026'`
- *
- * **Input**: `{name: 'World'}` with `{$template: 'Hello, {name}!'}`
- * → **Output**: `'Hello, World!'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

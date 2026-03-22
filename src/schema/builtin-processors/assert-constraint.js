@@ -5,14 +5,14 @@ import { ConditionalExecutor } from '../executor/conditional-executor.js';
 import { Executor } from '../executor/executor.js';
 
 /**
- * **Processor**: `$assert`
+ * ## $assert
  *
  * Require that the provided processor returns a truthy value; return original input.
  * Throws a constraint exception if not truthy.
  *
  * May be used inline in a pipeline without parameters, or can have a single processor argument.
  *
- * **Parameters**:
+ * ### Parameters
  * - `processor` - an optional processor specification to check for truthiness.
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}

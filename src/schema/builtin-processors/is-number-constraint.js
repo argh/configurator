@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$is-number`
+ * ## $is-number
  *
  * Validates that the input is a valid number.
  *

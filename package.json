@@ -36,7 +36,9 @@
     "docs:api:contributors": "typedoc --excludeInternal false --excludePrivate false --out docs-output-contributors",
     "docs:api:contributors:json": "typedoc --excludeInternal false --excludePrivate false --json docs-output-contributors/api.json",
     "docs:api:md": "typedoc --options typedoc-md.json",
-    "docs:api:md:contributors": "typedoc --options typedoc-md.json --excludeInternal false --excludePrivate false --out docs-output-md-contributors"
+    "docs:api:md:contributors": "typedoc --options typedoc-md.json --excludeInternal false --excludePrivate false --out docs-output-md-contributors",
+    "docs:processors": "node scripts/extract-processor-docs.js",
+    "docs:processors:clean": "rm -rf processors-output-md"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.6.1",
@@ -51,8 +53,5 @@
     "typedoc-plugin-markdown": "^4.9.0",
     "typedoc-plugin-missing-exports": "^4.1.2",
     "typescript": "~5.8"
-  },
-  "dependencies": {
-    "zod": "^4.3.6"
   }
 }

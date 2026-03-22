@@ -1,19 +1,17 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$url`
+ * ## $url
  *
  * Validates that a string is a valid URL and normalizes it to canonical form.
  * Uses the WHATWG URL Standard for validation and normalization. The normalized
  * URL includes explicit protocol, properly encoded characters, and standardized formatting.
  *
- * **Valid values**:
  * - `https://example.com` → `https://example.com/`
  * - `http://localhost:8080/api` → `http://localhost:8080/api`
  * - `https://example.com/path?query=value` → `https://example.com/path?query=value`
  * - `ftp://files.example.com/` → `ftp://files.example.com/`
  *
- * **Invalid values**:
  * - `not-a-url` (missing protocol)
  * - `//example.com` (missing protocol)
  * - `example.com` (missing protocol)

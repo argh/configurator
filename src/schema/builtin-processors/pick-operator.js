@@ -5,17 +5,14 @@ import { ArrayExecutor } from '../executor/array-executor.js';
 import { map } from '../../utils.js';
 
 /**
- * **Processor**: `$pick`
+ * ## $pick
  *
  * Returns a new object or dense array containing only the specified keys/indices from the input.
  * Keys not present in the input are silently omitted from the result.
  * For arrays, numeric indices are selected and the result is a dense (packed) array.
  *
- * **Parameters**:
+ * ### Parameters
  * - Array of key names or indices (string[]|number[], required): The keys/indices to retain.
- *
- * **Input**: `{a: 1, b: 2, c: 3}` with `{$pick: ['a', 'c']}` → **Output**: `{a: 1, c: 3}`
- * **Input**: `[10, 20, 30]` with `{$pick: [0, 2]}` → **Output**: `[10, 30]`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

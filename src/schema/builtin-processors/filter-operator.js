@@ -5,9 +5,9 @@ import { EachExecutor } from '../executor/each-executor.js';
 import { SchemaError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$filter`
+ * ## $filter
  *
- * **Parameters**:
+ * ### Parameters
  * - `processor` (any valid processor spec, optional): The processor to apply to each element.
  *
  * Runs a processor on each element of the input array, keeping elements for which the processor

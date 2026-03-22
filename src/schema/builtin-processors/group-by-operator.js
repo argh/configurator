@@ -5,7 +5,7 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
 import { EachExecutor } from '../executor/each-executor.js';
 
 /**
- * **Processor**: `$group-by`
+ * ## $group-by
  *
  * Groups an array of objects by a key, returning an object whose values are arrays of elements
  * that share that key value.
@@ -16,9 +16,6 @@ import { EachExecutor } from '../executor/each-executor.js';
  *
  * Elements where the extracted key is `undefined` are omitted from the result.
  * Insertion order is preserved within each group.
- *
- * **Input**: `[{type:'a',v:1},{type:'b',v:2},{type:'a',v:3}]` with `{'$group-by': 'type'}`
- * → **Output**: `{a: [{type:'a',v:1},{type:'a',v:3}], b: [{type:'b',v:2}]}`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -16,5 +16,6 @@ docs-output/
 docs-output-contributors/
 docs-output-md/
 docs-output-md-contributors/
+processors-output-md/
 benchmark/
 dev-scripts/

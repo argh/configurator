@@ -1,14 +1,10 @@
 /**
- * **Processor**: `$type`
+ * ## $type
  *
  * Returns the type name of the input value as a string. Unlike the `$is-*` constraint family,
  * this operator produces the type name as a value usable in pipelines and templates.
  *
  * **Return values**: `'string'`, `'number'`, `'boolean'`, `'array'`, `'object'`, `'date'`, `'null'`, `'undefined'`
- *
- * **Input**: `'hello'` → **Output**: `'string'`
- * **Input**: `[1, 2]` → **Output**: `'array'`
- * **Input**: `null` → **Output**: `'null'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -2,16 +2,13 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$flatten`
+ * ## $flatten
  *
  * Returns a new array with sub-array elements flattened to the specified depth.
  * Throws if the input is not an array.
  *
- * **Parameters**:
+ * ### Parameters
  * - `depth` (number, optional, default `1`): The depth to flatten. Use `Infinity` to flatten completely.
- *
- * **Input**: `[[1, 2], [3, [4]]]` → **Output** (depth 1): `[1, 2, 3, [4]]`
- * **Input**: `[[1, [2, [3]]]]` with `{$flatten: Infinity}` → **Output**: `[1, 2, 3]`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -5,14 +5,14 @@ import { ConditionalExecutor } from '../executor/conditional-executor.js';
 import { Executor } from '../executor/executor.js';
 
 /**
- * **Processor**: `$require`
+ * ## $require
  *
  * Require that the provided processor returns a defined value; return the processed value.
  * Throws a constraint error if the processor does not return a defined value.
  *
  * May be used inline in a pipeline without parameters, or can have a single processor argument.
  *
- * **Parameters**:
+ * ### Parameters
  * - `processor` - an optional processor specification to check for a defined value.
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}

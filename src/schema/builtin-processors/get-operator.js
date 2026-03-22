@@ -1,7 +1,7 @@
 import { deepValue } from '../../utils.js';
 
 /**
- * **Processor**: `$get`
+ * ## $get
  *
  * Extracts a value from the input using a dot-separated path (for objects) or a numeric
  * index (for arrays). Does not require the path to be declared as a schema property —
@@ -9,7 +9,7 @@ import { deepValue } from '../../utils.js';
  *
  * Returns `undefined` if the path does not resolve.
  *
- * **Parameters**:
+ * ### Parameters
  * - `path` (string | number, required): Dot-separated property path or array index.
  *
  * **Examples**:

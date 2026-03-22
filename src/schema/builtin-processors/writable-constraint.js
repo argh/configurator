@@ -4,18 +4,16 @@ import { constants } from 'node:fs';
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$writable` (async)
+ * ## $writable
  *
  * Validates that a file system path is writable by checking write permissions.
  * If the path does not exist, validates that the parent directory exists and is writable.
  *
  * This is an asynchronous processor that performs file system permission checks.
  *
- * **Valid values**:
  * - Existing files with write permissions: `/tmp/output.log`, `./config.json`
  * - Non-existent paths in writable directories: `/tmp/new-file.txt`, `./data/output.csv`
  *
- * **Invalid values**:
  * - Read-only files: `/etc/hosts`, system-protected paths
  * - Paths in non-existent parent directories: `/nonexistent/dir/file.txt`
  * - Paths in read-only directories: `/read-only-mount/file.txt`

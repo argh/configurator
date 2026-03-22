@@ -1,15 +1,11 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$numeric`
+ * ## $numeric
  *
  * Validates that a string contains only numeric digits (0-9).
  * The value is coerced to a string before validation, so numbers are accepted
  * but must not contain decimal points, signs, or scientific notation.
- *
- * **Valid values**: `"12345"`, `"0"`, `"999"`, `123` (coerced to `"123"`)
- *
- * **Invalid values**: `"12.34"`, `"-5"`, `"+10"`, `"1e5"`, `"abc"`, `"12a34"`, `""`
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

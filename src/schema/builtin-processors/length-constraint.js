@@ -2,23 +2,21 @@ import { ConstraintError, ResolverError } from '../schema-errors.js';
 import { SchemaLocation } from "../schema-location.js";
 
 /**
- * **Processor**: `$length`
+ * ## $length
  *
  * Validates that the length of a string or array falls within specified bounds (inclusive).
  * Can specify minimum, maximum, exact length, or any combination of min/max.
  *
  * For strings, length is measured in characters. For arrays, length is measured in elements.
  *
- * **Parameters**:
+ * ### Parameters
  * - `min` (number, optional): Minimum length (inclusive). If omitted, no lower bound.
  * - `max` (number, optional): Maximum length (inclusive). If omitted, no upper bound.
  * - `exact` (number, optional): Exact required length. If specified, min/max are ignored.
  *
- * **Valid values**:
  * - With `{min: 3, max: 10}`: strings "abc" to "abcdefghij", arrays with 3-10 elements
  * - With `{exact: 5}`: string "hello", array [1,2,3,4,5]
  *
- * **Invalid values**:
  * - With `{min: 3, max: 10}`: string "ab" (too short), array with 11 elements (too long)
  * - With `{exact: 5}`: string "hi" (wrong length), array [1,2,3] (wrong length)
  *

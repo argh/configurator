@@ -1,5 +1,5 @@
 /**
- * **Processor**: `$url-encode`
+ * ## $url-encode
  *
  * Percent-encodes a string for safe use as a URL component (query param value,
  * path segment, etc.). Encodes all characters except unreserved URI characters
@@ -11,10 +11,8 @@
  *
  * Non-string inputs are coerced to string before encoding.
  *
- * **Parameters**:
+ * ### Parameters
  * - `full` (boolean, optional, default `false`): Use full-URL encoding (`encodeURI`) rather than component encoding (`encodeURIComponent`).
- *
- * **Input**: `"hello world/path"` → **Output**: `"hello%20world%2Fpath"`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

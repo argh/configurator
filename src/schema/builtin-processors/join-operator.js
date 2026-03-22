@@ -1,9 +1,9 @@
 /**
- * **Processor**: `$join`
+ * ## $join
  *
  * Join the input array elements into a string using the provided separator.
  *
- * **Parameters**:
+ * ### Parameters
  * - `separator` (string, required): The value to use for joining
  *
  * If the input is not an array, it is treated as a single element.

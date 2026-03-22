@@ -2,7 +2,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$has-prefix`
+ * ## $has-prefix
  *
  * Check that the provided string value starts with the prefix value
  *

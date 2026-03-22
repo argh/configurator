@@ -3,11 +3,11 @@ import { SchemaError } from "../schema-errors.js";
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$process`
+ * ## $process
  *
  * Process the incoming value according to the provided schema
  *
- * **Parameters**:
+ * ### Parameters
  * - `schema` (CompiledSchema, required): the schema to use for processing
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}

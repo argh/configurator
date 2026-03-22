@@ -5,7 +5,7 @@ import { ValueProcessor } from '../value-processor/value-processor.js';
 import { PipelineExecutor } from '../executor/pipeline-executor.js';
 
 /**
- * **Processor**: `$compile`
+ * ## $compile
  *
  * Compiles an input or provided Schema into a CompiledSchema
  *

@@ -3,14 +3,11 @@ import * as fs from 'node:fs/promises';
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$file` (async)
+ * ## $file
  *
  * Validates that a path exists in the filesystem and is a file (not a directory or other type).
  * Performs an asynchronous filesystem check using `fs.stat()`.
  *
- * **Valid values**: `"/var/log/app.log"`, `"./config.json"`, `"~/documents/data.txt"` (if they exist as files)
- *
- * **Invalid values**:
  * - Non-existent paths: `"/does/not/exist.txt"` → throws "File does not exist"
  * - Directory paths: `"/var/log"` → throws "Path exists but is not a file"
  * - Inaccessible paths: `"/root/secret.txt"` (permission denied) → throws "Cannot access file: ..."

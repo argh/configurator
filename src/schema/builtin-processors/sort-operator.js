@@ -2,18 +2,15 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$sort`
+ * ## $sort
  *
  * Returns a new sorted array. Non-mutating. Numbers are compared numerically;
  * all other values are compared lexicographically as strings.
  * Throws if the input is not an array.
  *
- * **Parameters**:
+ * ### Parameters
  * - `key` (string|null, optional, default `null`): Object property key to sort by.
  * - `direction` (`'asc'`|`'desc'`, optional, default `'asc'`): Sort direction.
- *
- * **Input**: `[3, 1, 2]` → **Output**: `[1, 2, 3]`
- * **Input**: `[{n:3},{n:1}]` with `{$sort: {key: 'n'}}` → **Output**: `[{n:1},{n:3}]`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

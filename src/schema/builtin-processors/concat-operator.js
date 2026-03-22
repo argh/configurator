@@ -5,16 +5,14 @@ import { ArrayExecutor } from '../executor/array-executor.js';
 import { map } from '../../utils.js';
 
 /**
- * **Processor**: `$concat`
+ * ## $concat
  *
  * Returns a new array with the specified values appended to the input array.
  * Throws `SchemaError` at compile time if no arguments are provided.
  * Throws `ConstraintError` at runtime if the input is not an array.
  *
- * **Parameters**:
+ * ### Parameters
  * - Array of values to append (required, at least one).
- *
- * **Input**: `[1, 2]` with `{$concat: [3, 4]}` → **Output**: `[1, 2, 3, 4]`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

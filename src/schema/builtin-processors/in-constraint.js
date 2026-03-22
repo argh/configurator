@@ -7,18 +7,14 @@ import { ArrayExecutor } from '../executor/array-executor.js';
 /** @import {ValueProcessor, ValueProcessorDefinition} from '../value-processor/value-processor.js' */
 
 /**
- * **Processor**: `$in`
+ * ## $in
  *
  * Validates that a value is included in an allowed list of values.
  * Uses strict equality (===) for comparison.
  *
- * **Parameters**:
+ * ### Parameters
  * The parameter is an array (not an object) of allowed values passed directly to the processor.
  * - Array of values (array, required): The allowed values to match against using strict equality
- *
- * **Valid values**: Any value that matches (using `===`) an element in the allowed array
- *
- * **Invalid values**: Any value not present in the allowed array
  *
  * @type {ValueProcessorDefinition}
  */

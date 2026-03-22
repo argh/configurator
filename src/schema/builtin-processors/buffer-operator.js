@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$buffer`
+ * ## $buffer
  *
  * Converts a value to a Node.js Buffer.  Accepts:
  * - `Buffer` — passed through unchanged

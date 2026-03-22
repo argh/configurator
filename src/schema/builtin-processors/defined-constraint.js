@@ -1,7 +1,7 @@
 import { ConstraintError } from '../schema-errors.js';
 
 /**
- * **Processor**: `$defined`
+ * ## $defined
  *
  * Allow any value, as long as it's defined.
  *

@@ -3,7 +3,7 @@ import { FunctionValueProcessor } from '../value-processor/function-value-proces
 import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
 
 /**
- * **Processor**: `$matches`
+ * ## $matches
  *
  * Constraint that tests the string representation of the input against a RegExp.
  * Throws a `ConstraintError` if the input does not match. Returns the original value unchanged.
@@ -11,12 +11,8 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  * This is the explicit constraint form; bare RegExp values in processor specs are no longer
  * treated as implicit constraints and must be wrapped with `$matches`.
  *
- * **Parameters**:
+ * ### Parameters
  * - `pattern` (RegExp, required): The pattern to test against.
- *
- * **Input**: `"hello"` with `{$matches: /^h/}` → **Output**: `"hello"` (passes through)
- *
- * **Input**: `"world"` with `{$matches: /^h/}` → throws `ConstraintError`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

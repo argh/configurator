@@ -4,7 +4,7 @@ import { FunctionValueProcessor } from '../value-processor/function-value-proces
 import { ObjectExecutor } from '../executor/object-executor.js';
 
 /**
- * **Processor**: `$lookup`
+ * ## $lookup
  *
  * Uses the pipeline value as a key to look up a corresponding value from the argument
  * collection. This is the inverse of `$get`: the value is the key, the argument is the
@@ -12,7 +12,7 @@ import { ObjectExecutor } from '../executor/object-executor.js';
  *
  * Returns `undefined` if the key is not found in the collection.
  *
- * **Parameters**:
+ * ### Parameters
  * - Object collection (object, required): The key/value lookup table.
  *
  * **Examples**:

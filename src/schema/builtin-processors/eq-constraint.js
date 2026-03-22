@@ -3,7 +3,7 @@ import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
 
 /**
- * **Processor**: `$eq`
+ * ## $eq
  *
  * Do a deep equality check between the value and the provided constraint value.
  *
