@@ -6,6 +6,18 @@ import { formatValue } from '../../errors.js';
  *
  * Check that the provided string value ends with the suffix value
  *
+ * ### Parameters
+ * - `match` (string, required): The required suffix string.
+ *
+ * ### Example
+ * ```js
+ * // Require file paths to end with '.json'
+ * new Schema('string').validator({'$has-suffix': '.json'})
+ *
+ * // Require callback URLs to end with '/callback'
+ * new Schema('string').validator({'$has-suffix': '/callback'})
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}*
  */
 export const HAS_SUFFIX_CONSTRAINT = {

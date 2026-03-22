@@ -7,6 +7,24 @@ import { ConstraintError } from '../schema-errors.js';
  * at least one non-whitespace character. For arrays, the length must be greater than zero.
  * For objects, the number of keys must be greater than zero.
  *
+ * ### Example
+ * ```js
+ * // Require a non-blank username
+ * new Schema('string').normalizer('$trim').validator('$non-empty')
+ *
+ * // Require at least one tag
+ * new Schema('array').validator('$non-empty')
+ *
+ * // Require a non-empty configuration object
+ * new Schema('object').validator('$non-empty')
+ *
+ * // Combine trim + non-empty as a common pattern for required text fields
+ * new Schema('object', {
+ *   name: new Schema('string').normalizer('$trim').validator('$non-empty'),
+ *   description: new Schema('string').normalizer('$trim').validator('$non-empty'),
+ * })
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const NON_EMPTY_CONSTRAINT = {

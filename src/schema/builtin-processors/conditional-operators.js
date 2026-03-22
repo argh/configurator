@@ -79,6 +79,36 @@ function generateBuilderFunction(keyword, flags) {
  * To pass the predicate results to the actions instead of the input, see $check.
  * To test for success rather than truthiness, see $gate.
  *
+ * ### Parameters
+ * - `predicate` (processor, optional): Evaluated for truthiness. If omitted, the input itself is used as the predicate.
+ * - `success` (processor, optional): Invoked with the original input on truthy predicate result. Default: returns input as-is.
+ * - `failure` (processor, optional): Invoked with the original input on falsey predicate result or throw. Default: returns undefined.
+ *
+ * Array form: `{$if: [predicate, success, failure]}`
+ * Object form: `{$if: {predicate: ..., success: ..., failure: ...}}`
+ * Aliases: `predicate` may also be written as `condition` or `cond`.
+ *
+ * ### Example
+ * ```js
+ * // Normalize an optional port — keep it if numeric, otherwise drop it
+ * new Schema('object', {
+ *   port: new Schema('number').normalizer({
+ *     $if: ['$numeric', '$number', null]
+ *   }),
+ * })
+ *
+ * // Conditionally require an API key when a flag is set
+ * new Schema('object', {
+ *   useApiKey: new Schema('boolean'),
+ *   apiKey: new Schema('string').validator({
+ *     $if: [
+ *       {$reference: 'useApiKey'},
+ *       '$non-empty',
+ *     ]
+ *   }),
+ * })
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const IF_OPERATOR = {
@@ -100,6 +130,30 @@ export const IF_OPERATOR = {
  *
  * To pass the original input to the actions instead of the predicate results, see $if.
  *
+ * ### Parameters
+ * - `predicate` (processor, optional): Evaluated for defined-ness. If omitted, the input itself is tested.
+ * - `success` (processor, optional): Invoked with the original input when predicate returns a defined value. Default: returns input as-is.
+ * - `failure` (processor, optional): Invoked with the original input when predicate returns undefined or throws. Default: returns undefined.
+ *
+ * Array form: `{$gate: [predicate, success, failure]}`
+ * Object form: `{$gate: {predicate: ..., success: ..., failure: ...}}`
+ *
+ * ### Example
+ * ```js
+ * // Only process the value through $uppercase if it was provided
+ * new Schema('string').normalizer({
+ *   $gate: ['$defined', '$uppercase']
+ * })
+ *
+ * // Use the first resolvable property as a value
+ * new Schema('object', {
+ *   host: new Schema('string'),
+ *   fallbackHost: new Schema('string'),
+ * }).transformer({
+ *   $gate: [{$property: 'host'}, {$property: 'host'}, {$property: 'fallbackHost'}]
+ * })
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const GATE_OPERATOR = {
@@ -119,6 +173,33 @@ export const GATE_OPERATOR = {
  * is already falsey, the failure action is best used to either return a default value or throw an error.
  *
  * This processor can act as a constraint if the success or failure actions throw when triggered.
+ *
+ * ### Parameters
+ * - `predicate` (processor, optional): Evaluated for truthiness. The predicate result (not the original input) is passed to success/failure.
+ * - `success` (processor, optional): Invoked with the predicate result on truthy outcome. Default: returns predicate result.
+ * - `failure` (processor, optional): Invoked with the predicate result on falsey outcome or throw. Default: returns undefined.
+ *
+ * Array form: `{$check: [predicate, success, failure]}`
+ * Object form: `{$check: {predicate: ..., success: ..., failure: ...}}`
+ *
+ * ### Example
+ * ```js
+ * // Extract and validate an environment key, returning the matched value or undefined
+ * new Schema('string').transformer({
+ *   $check: [
+ *     {$match: /^(production|staging|development)$/},
+ *   ]
+ * })
+ *
+ * // Validate a regex match and throw on failure
+ * new Schema('string').validator({
+ *   $check: [
+ *     {$match: /^\d{4}-\d{2}-\d{2}$/},
+ *     null,
+ *     () => { throw new Error('Expected YYYY-MM-DD date format') }
+ *   ]
+ * })
+ * ```
  *
  * @type {ValueProcessorDefinition}
  */
@@ -143,6 +224,31 @@ export const CHECK_OPERATOR = {
  * To check truthiness instead of defined/undefined, see $check.
  * To pass the original input to the actions instead of the predicate result, see $gate.
  *
+ * ### Parameters
+ * - `predicate` (processor, optional): Evaluated for defined-ness. The predicate result (not the original input) is passed to success/failure.
+ * - `success` (processor, optional): Invoked with the predicate result when it is defined. Default: returns predicate result.
+ * - `failure` (processor, optional): Invoked with the predicate result (undefined) when predicate returns undefined or throws. Default: returns undefined.
+ *
+ * Array form: `{$when: [predicate, success, failure]}`
+ * Object form: `{$when: {predicate: ..., success: ..., failure: ...}}`
+ *
+ * ### Example
+ * ```js
+ * // Extract a nested value, providing a default when not found
+ * new Schema('object').transformer({
+ *   $when: [
+ *     {$get: 'config.timeout'},
+ *     null,
+ *     () => 5000   // default 5s when config.timeout not set
+ *   ]
+ * })
+ *
+ * // Chain: extract the match groups object if the pattern matched, otherwise drop
+ * new Schema('string').transformer({
+ *   $when: [{$match: /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/}]
+ * })
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const WHEN_OPERATOR = {
@@ -163,6 +269,27 @@ export const WHEN_OPERATOR = {
  * best used to either intercept errors and return a default value, or to propagate or wrap the error.
  *
  * This processor can act as a constraint if the success or failure actions throw when triggered.
+ *
+ * ### Parameters
+ * - `predicate` (processor, optional): Executed and observed for throw/rejection.
+ * - `success` (processor, optional): Invoked with the predicate result if it did not throw. Default: returns predicate result.
+ * - `failure` (processor, optional): Invoked with the thrown error if the predicate threw. Default: returns undefined.
+ *
+ * Array form: `{$try: [predicate, success, failure]}`
+ * Object form: `{$try: {predicate: ..., success: ..., failure: ...}}`
+ *
+ * ### Example
+ * ```js
+ * // Attempt JSON parsing, fall back to raw string on failure
+ * new Schema('string').normalizer({
+ *   $try: ['$json-decode', null, (err) => err.input]
+ * })
+ *
+ * // Attempt to parse a number, silently drop value on error
+ * new Schema('string').normalizer({
+ *   $try: ['$number']
+ * })
+ * ```
  *
  * @type {ValueProcessorDefinition}
  */

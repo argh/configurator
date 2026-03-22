@@ -15,7 +15,19 @@ import { Executor } from '../executor/executor.js';
  * See `$never` to require the processor returns undefined or throws an exception.
  *
  * ### Parameters
- * - `value` - a processor specification to negate.
+ * - `value` (ProcessorSpec, required): The processor specification to negate.
+ *
+ * ### Example
+ * ```js
+ * // Reject anything that looks like an IP address (accept hostnames only)
+ * new Schema('string').validator({$not: '$ipv4'})
+ *
+ * // Ensure a string is not a reserved word
+ * new Schema('string').validator({$not: {$in: ['admin', 'root', 'system']}})
+ *
+ * // Require a URL that is NOT an HTTP URL (i.e., must be HTTPS or another scheme)
+ * new Schema('string').validator({$not: '$http-url'}).validator('$url')
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}*
  */

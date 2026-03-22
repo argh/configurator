@@ -14,6 +14,20 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  * ### Parameters
  * - `pattern` (RegExp, required): The pattern to test against.
  *
+ * ### Example
+ * ```js
+ * // Validate a semantic version string
+ * new Schema('string').validator({$matches: /^\d+\.\d+\.\d+$/})
+ *
+ * // Validate a slug (lowercase letters, numbers, hyphens only)
+ * new Schema('string').validator({$matches: /^[a-z0-9]+(?:-[a-z0-9]+)*$/})
+ *
+ * // Validate a hex color code
+ * new Schema('object', {
+ *   color: new Schema('string').validator({$matches: /^#[0-9a-fA-F]{6}$/}),
+ * })
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const MATCHES_CONSTRAINT = {

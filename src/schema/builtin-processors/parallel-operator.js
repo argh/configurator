@@ -21,15 +21,24 @@ import { map } from '../../utils.js';
  * ### Parameters
  * - `processors` (Array, required): Array of processor specifications to run concurrently.
  *
- * **Examples**:
+ * ### Example
  * ```js
  * // Fan out to two transforms and collect both results
- * schema.transformer({$parallel: ['$uppercase', '$trim']})
- * // → ['HELLO', 'hello'] for input '  hello  '
+ * new Schema('string').transformer({$parallel: ['$uppercase', '$trim']})
+ * // '  hello  ' → ['HELLO', 'hello']
  *
- * // Concurrent async lookups
- * schema.transformer({$parallel: [fetchFlags, fetchPermissions]})
+ * // Concurrent async lookups (both execute at the same time via Promise.all)
+ * new Schema('string').transformer({$parallel: [fetchUserFlags, fetchUserPermissions]})
  * // → [flagsResult, permissionsResult]
+ *
+ * // Fan out validation across multiple schemas and collect results
+ * new Schema('object').transformer({
+ *   $parallel: [
+ *     {$get: 'id'},
+ *     {$get: 'name'},
+ *     {$get: 'email'},
+ *   ]
+ * })
  * ```
  *
  * @type {ValueProcessorDefinition}

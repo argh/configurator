@@ -13,6 +13,22 @@
  * - `123.456` with precision 1 → `123.5`
  * - `"not a number"` → `"not a number"` (passes through unchanged)
  *
+ * ### Example
+ * ```js
+ * // Round to nearest integer
+ * new Schema('number').transformer('$round')
+ * // 3.5 → 4, 3.4 → 3
+ *
+ * // Round a price to 2 decimal places
+ * new Schema('number').transformer({$round: {precision: 2}})
+ * // 9.9950 → 9.99, 9.9951 → 10.00
+ *
+ * // Round a sensor reading to 1 decimal place
+ * new Schema('object', {
+ *   temperature: new Schema('number').transformer({$round: {precision: 1}}),
+ * })
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const ROUND_OPERATOR = {

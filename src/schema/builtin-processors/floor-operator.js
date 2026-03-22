@@ -12,6 +12,22 @@
  * - `{$floor: 2}`: `3.14159` → `3.14`, `99.999` → `99.99`, `5.1` → `5.1`
  * - `{$floor: 1}`: `3.76` → `3.7`, `9.01` → `9.0`
  *
+ * ### Example
+ * ```js
+ * // Truncate to integer (floor toward zero for positive numbers)
+ * new Schema('number').transformer('$floor')
+ * // 9.99 → 9
+ *
+ * // Preserve 2 decimal places, discarding extra precision
+ * new Schema('number').transformer({$floor: {precision: 2}})
+ * // 3.14159 → 3.14
+ *
+ * // Strip sub-cent precision from a price field
+ * new Schema('object', {
+ *   price: new Schema('number').transformer({$floor: {precision: 2}}),
+ * })
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const FLOOR_OPERATOR = {

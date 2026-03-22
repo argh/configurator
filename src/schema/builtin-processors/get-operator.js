@@ -12,9 +12,21 @@ import { deepValue } from '../../utils.js';
  * ### Parameters
  * - `path` (string | number, required): Dot-separated property path or array index.
  *
- * **Examples**:
- * - `{a: {b: 1}}` with `{$get: {path: 'a.b'}}` → `1`
- * - `[10, 20, 30]` with `{$get: {path: 1}}` → `20`
+ * ### Example
+ * ```js
+ * // Extract a nested property from an object
+ * new Schema('object').transformer({$get: {path: 'database.host'}})
+ * // {database: {host: 'localhost'}} → 'localhost'
+ *
+ * // Extract an array element by index
+ * new Schema('array').transformer({$get: {path: 0}})
+ * // ['first', 'second'] → 'first'
+ *
+ * // Use as a conditional predicate — only proceed if the path exists
+ * new Schema('object').transformer({
+ *   $when: [{$get: {path: 'config.timeout'}}]
+ * })
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -15,6 +15,17 @@ import { ObjectExecutor } from '../executor/object-executor.js';
  * ### Parameters
  * - Object of fields to merge (object, required): Key/value pairs to apply over the input.
  *
+ * ### Example
+ * ```js
+ * // Inject default fields into every output object
+ * new Schema('object').transformer({$merge: {version: 1, active: true}})
+ * // {id: 42} → {id: 42, version: 1, active: true}
+ *
+ * // Overwrite a specific field in the result
+ * new Schema('object').transformer({$merge: {status: 'normalized'}})
+ * // {id: 1, status: 'raw'} → {id: 1, status: 'normalized'}
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const MERGE_OPERATOR = {

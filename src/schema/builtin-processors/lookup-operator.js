@@ -15,9 +15,26 @@ import { ObjectExecutor } from '../executor/object-executor.js';
  * ### Parameters
  * - Object collection (object, required): The key/value lookup table.
  *
- * **Examples**:
- * - `'b'` with `{$lookup: {a: 1, b: 2, c: 3}}` → `2`
- * - `'database'` with `{$lookup: {database: dbSchema, cache: cacheSchema}}` → `dbSchema`
+ * ### Example
+ * ```js
+ * // Map a string value to a numeric code
+ * new Schema('string').transformer({$lookup: {low: 1, medium: 2, high: 3}})
+ * // 'medium' → 2
+ *
+ * // Use a role name to look up its permission set
+ * new Schema('string').transformer({
+ *   $lookup: {
+ *     admin: ['read', 'write', 'delete'],
+ *     editor: ['read', 'write'],
+ *     viewer: ['read'],
+ *   }
+ * })
+ *
+ * // Validate that a key exists in the table (require a defined result)
+ * new Schema('string').validator({
+ *   $require: {$lookup: {us: 'United States', uk: 'United Kingdom', ca: 'Canada'}}
+ * })
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

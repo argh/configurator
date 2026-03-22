@@ -23,6 +23,24 @@ import { ConstraintError, ResolverError } from '../schema-errors.js';
  * **Note**: Typically used with `$file` validator to ensure the file exists before checking size.
  * The processor reads file metadata via `fs.stat()` and does not load file contents.
  *
+ * ### Example
+ * ```js
+ * // Validate a config file exists and is under 1 MB
+ * new Schema('string')
+ *   .validator('$file')
+ *   .validator({'$file-size': {max: 1024 * 1024}})
+ *
+ * // Require an upload file to be between 1 KB and 10 MB
+ * new Schema('string')
+ *   .validator('$file')
+ *   .validator({'$file-size': {min: 1024, max: 10 * 1024 * 1024}})
+ *
+ * // Ensure a log file is not empty
+ * new Schema('string')
+ *   .validator('$file')
+ *   .validator({'$file-size': {min: 1}})
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const FILE_SIZE_CONSTRAINT = {

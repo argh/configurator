@@ -7,15 +7,34 @@ import { SchemaError } from '../schema-errors.js';
 /**
  * ## $filter
  *
- * ### Parameters
- * - `processor` (any valid processor spec, optional): The processor to apply to each element.
- *
  * Runs a processor on each element of the input array, keeping elements for which the processor
  * succeeds and returning the processor's output value (consistent with standard processor semantics).
  * Elements are filtered out if the processor throws or returns undefined.
  * (Note that processor results are not checked for truthiness — only for definedness.)
  *
  * Non-arrays are "filtered" as an empty array.
+ *
+ * ### Parameters
+ * - `processor` (any valid processor spec, optional): The processor to apply to each element.
+ *   Elements where the processor returns undefined or throws are excluded from the result.
+ *   If omitted, null/undefined elements are removed.
+ *
+ * ### Example
+ * ```js
+ * // Remove null and undefined values from an array
+ * new Schema('array').transformer('$filter')
+ *
+ * // Keep only numeric strings
+ * new Schema('array').transformer({$filter: '$numeric'})
+ *
+ * // Keep only values within range
+ * new Schema('array').transformer({$filter: {$range: {min: 0, max: 100}}})
+ *
+ * // Filter out non-email strings from a list
+ * new Schema('object', {
+ *   recipients: new Schema('array').transformer({$filter: '$email'}),
+ * })
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -10,6 +10,20 @@ import { formatValue } from '../../errors.js';
  * ### Parameters
  * - `depth` (number, optional, default `1`): The depth to flatten. Use `Infinity` to flatten completely.
  *
+ * ### Example
+ * ```js
+ * // Flatten one level of nesting
+ * new Schema('array').transformer('$flatten')
+ * // [[1, 2], [3, 4]] → [1, 2, 3, 4]
+ *
+ * // Flatten all levels
+ * new Schema('array').transformer({$flatten: {depth: Infinity}})
+ * // [1, [2, [3, [4]]]] → [1, 2, 3, 4]
+ *
+ * // Flatten exactly 2 levels
+ * new Schema('array').transformer({$flatten: {depth: 2}})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const FLATTEN_OPERATOR = {

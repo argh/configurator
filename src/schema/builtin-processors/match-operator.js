@@ -15,6 +15,24 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  * ### Parameters
  * - `pattern` (RegExp, required): The pattern to match against.
  *
+ * ### Example
+ * ```js
+ * // Extract named capture groups from a date string
+ * new Schema('string').transformer({$match: /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/})
+ * // '2026-03-21' → {year: '2026', month: '03', day: '21'}
+ *
+ * // Extract positional captures from a version string
+ * new Schema('string').transformer({$match: /^(\d+)\.(\d+)\.(\d+)$/})
+ * // '1.2.3' → ['1.2.3', '1', '2', '3']
+ *
+ * // Use with $when to only proceed when the pattern matched
+ * new Schema('string').transformer({
+ *   $when: [{$match: /^Bearer (.+)$/}]
+ * })
+ * // 'Bearer abc123' → ['Bearer abc123', 'abc123']
+ * // 'Basic xyz'    → undefined (no match)
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const MATCH_OPERATOR = {

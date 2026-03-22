@@ -14,6 +14,16 @@ import { map } from '../../utils.js';
  * ### Parameters
  * - Array of values to append (required, at least one).
  *
+ * ### Example
+ * ```js
+ * // Append default scopes to a user-supplied scopes array
+ * new Schema('array').transformer({$concat: ['read:profile', 'read:email']})
+ * // ['custom:scope'] → ['custom:scope', 'read:profile', 'read:email']
+ *
+ * // Always include a sentinel value at the end of an array
+ * new Schema('array').transformer({$concat: [null]})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const CONCAT_OPERATOR = {

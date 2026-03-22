@@ -14,6 +14,23 @@
  * ### Parameters
  * - `full` (boolean, optional, default `false`): Use full-URL encoding (`encodeURI`) rather than component encoding (`encodeURIComponent`).
  *
+ * ### Example
+ * ```js
+ * // Encode a query parameter value
+ * new Schema('string').transformer('$url-encode')
+ * // 'hello world & more' → 'hello%20world%20%26%20more'
+ *
+ * // Encode a full URL, preserving structural characters
+ * new Schema('string').transformer({'$url-encode': {full: true}})
+ * // 'https://example.com/path with spaces' → 'https://example.com/path%20with%20spaces'
+ *
+ * // Build an encoded query string from an object
+ * new Schema('object', {
+ *   q: new Schema('string').transformer('$url-encode'),
+ *   page: new Schema('number'),
+ * })
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const URL_ENCODE_OPERATOR = {

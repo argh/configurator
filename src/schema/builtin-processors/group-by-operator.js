@@ -17,6 +17,26 @@ import { EachExecutor } from '../executor/each-executor.js';
  * Elements where the extracted key is `undefined` are omitted from the result.
  * Insertion order is preserved within each group.
  *
+ * ### Parameters
+ * - `key` (string or processor, required): Property name to group by, or a processor that extracts
+ *   the grouping key from each element. Plain strings (no leading `$`) are treated as property names;
+ *   all other processor specs are executed as extractors.
+ *
+ * ### Example
+ * ```js
+ * // Group an array of log entries by their severity level
+ * new Schema('array').transformer({'$group-by': 'level'})
+ * // [{level:'error', msg:'...'}, {level:'info', msg:'...'}]
+ * // → {error: [{level:'error', ...}], info: [{level:'info', ...}]}
+ *
+ * // Group by a computed key (the JS type of each element)
+ * new Schema('array').transformer({'$group-by': '$type'})
+ * // [1, 'a', 2, 'b'] → {number: [1, 2], string: ['a', 'b']}
+ *
+ * // Group by a nested property using $get
+ * new Schema('array').transformer({'$group-by': {$get: 'meta.region'}})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const GROUP_BY_OPERATOR = {

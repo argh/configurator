@@ -6,6 +6,17 @@ import { formatValue } from '../../errors.js';
  *
  * Returns the absolute value of a number.
  *
+ * ### Example
+ * ```js
+ * // Normalize a signed offset to always be non-negative
+ * new Schema('number').transformer('$abs')
+ *
+ * // Ensure a distance value is always positive
+ * new Schema('object', {
+ *   distance: new Schema('number').transformer('$abs'),
+ * })
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const ABS_OPERATOR = {
@@ -31,6 +42,19 @@ export const ABS_OPERATOR = {
  * - `exponent` (number, required): The exponent.
  * - `base` (number, optional): Override the base. Defaults to the input value.
  *
+ * ### Example
+ * ```js
+ * // Square the input value
+ * new Schema('number').transformer({$pow: {exponent: 2}})
+ * // 4 → 16, 3 → 9
+ *
+ * // Compute 2^n where n is the input
+ * new Schema('number').transformer({$pow: {exponent: '$number', base: 2}})
+ *
+ * // Convert bytes to kilobytes using inverse power
+ * new Schema('number').transformer({$pow: {exponent: -1}})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const POW_OPERATOR = {
@@ -52,6 +76,15 @@ export const POW_OPERATOR = {
  * ## $sqrt
  *
  * Returns the square root of a number.
+ *
+ * ### Example
+ * ```js
+ * // Compute the magnitude of a value
+ * new Schema('number').transformer('$sqrt')
+ *
+ * // Validate then take the square root
+ * new Schema('number').validator('$positive').transformer('$sqrt')
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -77,6 +110,18 @@ export const SQRT_OPERATOR = {
  * ### Parameters
  * - `min` (number, optional): Lower bound.
  * - `max` (number, optional): Upper bound.
+ *
+ * ### Example
+ * ```js
+ * // Clamp a volume setting to [0, 100]
+ * new Schema('number').transformer({$clamp: {min: 0, max: 100}})
+ *
+ * // Clamp retry count to at most 10 (no lower bound)
+ * new Schema('number').transformer({$clamp: {max: 10}})
+ *
+ * // Ensure a timeout is at least 100ms
+ * new Schema('number').transformer({$clamp: {min: 100}})
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

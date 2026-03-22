@@ -10,6 +10,24 @@
  * Note that RegExp separators must be wrapped in a `$literal` to prevent evaluation as constraints.
  * Otherwise, follows the behavior of JavaScript's String.prototype.split.
  *
+ * ### Example
+ * ```js
+ * // Split a comma-separated list into an array
+ * new Schema('string').transformer('$split')
+ * // 'a,b,c' → ['a', 'b', 'c']
+ *
+ * // Split on a custom separator
+ * new Schema('string').transformer({$split: {separator: ':'}})
+ * // 'host:port' → ['host', 'port']
+ *
+ * // Split then normalize each element
+ * new Schema('string').normalizer([{$split: {separator: ','}}, {$each: '$trim'}])
+ * // '  a , b , c  ' → ['a', 'b', 'c']
+ *
+ * // Split a PATH-style variable, limiting to 5 segments
+ * new Schema('string').transformer({$split: {separator: '/', limit: 5}})
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}*
  */
 export const SPLIT_OPERATOR = {

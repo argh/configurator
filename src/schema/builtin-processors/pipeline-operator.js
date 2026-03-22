@@ -27,6 +27,20 @@ import { map } from '../../utils.js';
  * stops and the error propagates. Each processor receives the output of the previous processor
  * as its input value.
  *
+ * ### Example
+ * ```js
+ * // Explicit pipeline (equivalent to passing an array to .normalizer())
+ * new Schema('string').normalizer({$pipeline: ['$trim', '$lowercase', '$alphanum']})
+ *
+ * // Use $pipeline inside a conditional to chain processors on a branch
+ * new Schema('string').transformer({
+ *   $if: [
+ *     '$numeric',
+ *     {$pipeline: ['$number', {$clamp: {min: 0, max: 100}}]},
+ *   ]
+ * })
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const PIPELINE_OPERATOR = {

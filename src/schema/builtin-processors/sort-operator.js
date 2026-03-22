@@ -12,6 +12,23 @@ import { formatValue } from '../../errors.js';
  * - `key` (string|null, optional, default `null`): Object property key to sort by.
  * - `direction` (`'asc'`|`'desc'`, optional, default `'asc'`): Sort direction.
  *
+ * ### Example
+ * ```js
+ * // Sort an array of numbers in ascending order
+ * new Schema('array').transformer('$sort')
+ * // [3, 1, 2] → [1, 2, 3]
+ *
+ * // Sort strings in descending order
+ * new Schema('array').transformer({$sort: {direction: 'desc'}})
+ *
+ * // Sort an array of objects by a property
+ * new Schema('array').transformer({$sort: {key: 'name'}})
+ * // [{name: 'Charlie'}, {name: 'Alice'}] → [{name: 'Alice'}, {name: 'Charlie'}]
+ *
+ * // Sort objects by a numeric property descending
+ * new Schema('array').transformer({$sort: {key: 'score', direction: 'desc'}})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const SORT_OPERATOR = {

@@ -10,6 +10,21 @@ import { ConstraintError, ResolverError } from '../schema-errors.js';
  * - `min` (number, optional): Minimum value (inclusive). If omitted, no lower bound.
  * - `max` (number, optional): Maximum value (inclusive). If omitted, no upper bound.
  *
+ * ### Example
+ * ```js
+ * // Object form with named parameters
+ * new Schema('number').validator({$range: {min: 1, max: 100}})
+ *
+ * // Array form [min, max]
+ * new Schema('number').validator({$range: [1, 65535]})
+ *
+ * // Only a lower bound (percentage, must be non-negative)
+ * new Schema('number').validator({$range: {min: 0}})
+ *
+ * // Only an upper bound
+ * new Schema('number').validator({$range: {max: 255}})
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const RANGE_CONSTRAINT = {

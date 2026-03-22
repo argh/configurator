@@ -50,6 +50,23 @@ function generateBuilderFunction(keyword, joiner, builder) {
  *
  * See `$any` if you want to check for success (defined value) instead of truthiness
  *
+ * ### Parameters
+ * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications, at least one of which must return a truthy value.
+ *
+ * ### Example
+ * ```js
+ * // Accept either a valid hostname or a valid IPv4 address
+ * new Schema('string').validator({$or: ['$hostname', '$ipv4']})
+ *
+ * // Accept a port number OR the string 'auto'
+ * new Schema('any').validator({
+ *   $or: [
+ *     {$range: {min: 1, max: 65535}},
+ *     {$eq: 'auto'},
+ *   ]
+ * })
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const OR_CONSTRAINT = {
@@ -83,6 +100,20 @@ export const OR_CONSTRAINT = {
  * Returns the last truthy value from the processors, or throws if any are falsey.
  *
  * See `$all` if you want to check for success (defined value) instead of truthiness
+ *
+ * ### Parameters
+ * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications, all of which must return a truthy value.
+ *
+ * ### Example
+ * ```js
+ * // Require a string to be both non-empty and a valid email
+ * new Schema('string').validator({$and: ['$non-empty', '$email']})
+ *
+ * // Require a number to be positive and within range
+ * new Schema('number').validator({
+ *   $and: ['$positive', {$range: {max: 1000}}]
+ * })
+ * ```
  *
  * @type {ValueProcessorDefinition}
  */
@@ -118,6 +149,23 @@ export const AND_CONSTRAINT = {
  *
  * See `$or` if you want to check for truthiness instead of a defined value.
  *
+ * ### Parameters
+ * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications, at least one of which must return a defined value.
+ *
+ * ### Example
+ * ```js
+ * // Accept a value that matches any of several pattern-based normalizations
+ * new Schema('string').normalizer({
+ *   $any: [
+ *     {$match: /^\d+$/},
+ *     {$match: /^[a-f0-9]+$/i},
+ *   ]
+ * })
+ *
+ * // Require a value that can be processed by at least one schema
+ * new Schema('any').validator({$any: ['$numeric', '$boolean', '$date']})
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const ANY_CONSTRAINT = {
@@ -151,6 +199,20 @@ export const ANY_CONSTRAINT = {
  * Returns the last defined value returned from the processors, or throws if any returned undefined or threw an error.
  *
  * See `$and` if you want to check for truthiness instead of defined values.
+ *
+ * ### Parameters
+ * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications, all of which must return a defined value.
+ *
+ * ### Example
+ * ```js
+ * // Validate that all normalizations succeed for a value that must satisfy multiple constraints
+ * new Schema('string').validator({
+ *   $all: ['$non-empty', '$email', {$matches: /\.com$/}]
+ * })
+ *
+ * // Ensure a value passes both a type check and a range constraint
+ * new Schema('any').validator({$all: ['$numeric', {$range: {min: 0, max: 100}}]})
+ * ```
  *
  * @type {ValueProcessorDefinition}
  */
@@ -188,6 +250,26 @@ export const ALL_CONSTRAINT = {
  * There is no truthy variant of `$first`, as there generally isn't much value in differentiating which
  * truthy value to return; use constructs like `{$if: {$or: [...]}}` to wrap truthy sequence constraints as operators.
  * `$first` is basically an alias for `{$gate: {$any: [...]}}`.
+ *
+ * ### Parameters
+ * - `processors` (Array<ProcessorSpec>, required): Array of processor specifications to try in order.
+ *
+ * ### Example
+ * ```js
+ * // Try several environment variable names and return the first one that has a value
+ * new Schema('object').transformer({
+ *   $first: [
+ *     {$reference: 'DATABASE_URL'},
+ *     {$reference: 'DB_URL'},
+ *     {$reference: 'POSTGRES_URL'},
+ *   ]
+ * })
+ *
+ * // Return the first successfully parsed format
+ * new Schema('string').normalizer({
+ *   $first: ['$number', '$date', '$boolean']
+ * })
+ * ```
  *
  * @type {ValueProcessorDefinition}
  */

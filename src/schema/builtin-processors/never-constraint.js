@@ -13,7 +13,19 @@ import { Executor } from '../executor/executor.js';
  * See `$not` to enforce falseyness.
  *
  * ### Parameters
- * - `value` - a processor specification to negate.
+ * - `value` (ProcessorSpec, required): The processor specification to negate (must not return a defined value).
+ *
+ * ### Example
+ * ```js
+ * // Blacklist specific values — reject any input that is found in the lookup table
+ * new Schema('string').validator({$never: {$lookup: {admin: true, root: true}}})
+ *
+ * // Ensure a value does not parse as a number (must be a non-numeric string)
+ * new Schema('string').validator({$never: '$numeric'})
+ *
+ * // Reject any value that resolves from $get (path must NOT exist)
+ * new Schema('object').validator({$never: {$get: 'deprecated.field'}})
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}*
  */

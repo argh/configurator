@@ -14,6 +14,17 @@ import { map } from '../../utils.js';
  * ### Parameters
  * - Array of key names or indices (string[]|number[], required): The keys/indices to exclude.
  *
+ * ### Example
+ * ```js
+ * // Remove internal fields before returning a user object
+ * new Schema('object').transformer({$omit: ['password', 'salt', '_internalId']})
+ * // {id: 1, name: 'Alice', password: '...', _internalId: 42} → {id: 1, name: 'Alice'}
+ *
+ * // Remove the first element from an array
+ * new Schema('array').transformer({$omit: [0]})
+ * // ['header', 'row1', 'row2'] → ['row1', 'row2']
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const OMIT_OPERATOR = {

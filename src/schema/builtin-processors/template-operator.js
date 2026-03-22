@@ -13,6 +13,23 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  * ### Parameters
  * - `template` (string, required): The template string to interpolate.
  *
+ * ### Example
+ * ```js
+ * // Build a connection string from object properties
+ * new Schema('object', {
+ *   host: new Schema('string'),
+ *   port: new Schema('number'),
+ *   database: new Schema('string'),
+ * }).transformer({$template: 'postgresql://{host}:{port}/{database}'})
+ *
+ * // Format a greeting from a user object
+ * new Schema('object').transformer({$template: 'Hello, {firstName} {lastName}!'})
+ *
+ * // Use double-braces to produce literal curly braces
+ * new Schema('object').transformer({$template: 'Value: {{literal}}'})
+ * // {} → 'Value: {literal}'
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const TEMPLATE_OPERATOR = {

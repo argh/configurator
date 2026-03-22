@@ -13,7 +13,23 @@ import { Executor } from '../executor/executor.js';
  * May be used inline in a pipeline without parameters, or can have a single processor argument.
  *
  * ### Parameters
- * - `processor` - an optional processor specification to check for truthiness.
+ * - `processor` (ProcessorSpec, optional): Processor specification to check for truthiness.
+ *   If omitted, the input value itself is checked.
+ *
+ * ### Example
+ * ```js
+ * // Require the input value itself to be truthy
+ * new Schema('any').validator('$assert')
+ *
+ * // Assert that a referenced sibling field has a truthy value
+ * new Schema('object', {
+ *   enabled: new Schema('boolean'),
+ *   config: new Schema('object').validator({$assert: {$reference: 'enabled'}}),
+ * })
+ *
+ * // Assert that a custom function returns true
+ * new Schema('string').validator({$assert: (value) => value.startsWith('https://')})
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

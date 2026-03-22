@@ -14,6 +14,20 @@ import { FunctionValueProcessor } from '../value-processor/function-value-proces
  * - First positional: pattern (string or RegExp, required)
  * - Second positional: replacement (string, required)
  *
+ * ### Example
+ * ```js
+ * // Replace all underscores with hyphens
+ * new Schema('string').transformer({$replace: ['_', '-']})
+ * // 'hello_world' → 'hello-world'
+ *
+ * // Strip all non-digit characters using a RegExp
+ * new Schema('string').normalizer({$replace: [/\D+/g, '']})
+ * // '+1 (800) 555-1234' → '18005551234'
+ *
+ * // Redact sensitive patterns
+ * new Schema('string').transformer({$replace: [/\b\d{4}-\d{4}-\d{4}-\d{4}\b/g, '[REDACTED]']})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const REPLACE_OPERATOR = {
@@ -53,6 +67,20 @@ export const REPLACE_OPERATOR = {
  * - `start` (number, required): Start index (0-based).
  * - `length` (number, optional): Number of characters to extract. If omitted, extracts to end of string.
  *
+ * ### Example
+ * ```js
+ * // Extract the first 8 characters of a hash
+ * new Schema('string').transformer({$substring: {start: 0, length: 8}})
+ * // 'abcdef1234567890' → 'abcdef12'
+ *
+ * // Strip a known prefix (e.g. 'Bearer ')
+ * new Schema('string').transformer({$substring: {start: 7}})
+ *
+ * // Extract a fixed-position field from a formatted string
+ * new Schema('string').transformer({$substring: {start: 4, length: 2}})
+ * // '2026-03-21' → '03' (month)
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const SUBSTRING_OPERATOR = {
@@ -80,6 +108,21 @@ export const SUBSTRING_OPERATOR = {
  * - `width` (number, required): Target minimum length.
  * - `char` (string, optional): Pad character. Defaults to `' '`.
  * - `side` (`'left'`|`'right'`, optional): Which side to pad. Defaults to `'left'`.
+ *
+ * ### Example
+ * ```js
+ * // Zero-pad a numeric string to 6 digits
+ * new Schema('string').transformer({$pad: {width: 6, char: '0'}})
+ * // '42' → '000042'
+ *
+ * // Right-pad a string to fill a fixed-width column
+ * new Schema('string').transformer({$pad: {width: 20, side: 'right'}})
+ * // 'Alice' → 'Alice               '
+ *
+ * // Pad a month/day to 2 digits
+ * new Schema('number').transformer(['$string', {$pad: {width: 2, char: '0'}}])
+ * // 3 → '03'
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

@@ -20,6 +20,21 @@ import { SchemaLocation } from "../schema-location.js";
  * - With `{min: 3, max: 10}`: string "ab" (too short), array with 11 elements (too long)
  * - With `{exact: 5}`: string "hi" (wrong length), array [1,2,3] (wrong length)
  *
+ * ### Example
+ * ```js
+ * // Validate a username is between 3 and 32 characters
+ * new Schema('string').validator({$length: {min: 3, max: 32}})
+ *
+ * // Array form [min, max]
+ * new Schema('string').validator({$length: [1, 255]})
+ *
+ * // Require an exact number of elements in an array
+ * new Schema('array').validator({$length: {exact: 3}})
+ *
+ * // Validate a fixed-length code (e.g., ISO country code)
+ * new Schema('string').normalizer('$uppercase').validator({$length: {exact: 2}})
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */
 export const LENGTH_CONSTRAINT = {

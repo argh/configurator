@@ -10,7 +10,26 @@ import { ResolverError, SchemaError } from '../schema-errors.js';
  * Throws a `SchemaError` if the specified property name is not defined in the schema.
  *
  * ### Parameters
- * - `propertyName` (string, required): The name of the property to extract. Must be defined in the schema.
+ * - `name` (string, required): The name of the schema-defined property to extract from the input object.
+ *   The property must be declared in the current schema; use `$get` for arbitrary path access without
+ *   schema awareness.
+ *
+ * ### Example
+ * ```js
+ * // Conditionally require 'apiKey' only when 'useApiKey' is true
+ * new Schema('object', {
+ *   useApiKey: new Schema('boolean'),
+ *   apiKey: new Schema('string').validator({
+ *     $if: [{$property: 'useApiKey'}, '$non-empty']
+ *   }),
+ * })
+ *
+ * // Discriminate a union using a schema property value
+ * new Schema('object', {
+ *   type: new Schema('string'),
+ *   config: new Schema('any'),
+ * }).discriminator({$property: 'type'})
+ * ```
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

@@ -23,6 +23,23 @@ import { isPlainObject } from '../../utils.js';
  * ### Parameters
  * - `processor` (any valid processor spec, required): Applied to each element or value.
  *
+ * ### Example
+ * ```js
+ * // Uppercase every string in an array
+ * new Schema('array').transformer({$map: '$uppercase'})
+ *
+ * // Parse every element as a number
+ * new Schema('array').transformer({$map: '$number'})
+ *
+ * // Apply a pipeline to every value in an object
+ * new Schema('object').transformer({$map: ['$trim', '$lowercase']})
+ * // {name: '  Alice  ', city: '  NYC  '} → {name: 'alice', city: 'nyc'}
+ *
+ * // Extract a nested field from each element
+ * new Schema('array').transformer({$map: {$get: 'id'}})
+ * // [{id: 1, name: 'a'}, {id: 2, name: 'b'}] → [1, 2]
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const MAP_OPERATOR = {

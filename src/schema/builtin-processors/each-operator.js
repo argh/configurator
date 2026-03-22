@@ -16,6 +16,23 @@ import { ComposedValueProcessor } from '../value-processor/composed-value-proces
  * - `processor` (any valid processor spec, required): The processor to apply to each element.
  *   Can be a RegExp, function, string keyword (e.g., `'$numeric'`), or parameterized processor object.
  *
+ * ### Example
+ * ```js
+ * // Trim whitespace from every string in an array
+ * new Schema('array').transformer({$each: '$trim'})
+ *
+ * // Validate that every element is numeric
+ * new Schema('array').validator({$each: '$numeric'})
+ *
+ * // Validate that each element is within a range
+ * new Schema('array').validator({$each: {$range: {min: 0, max: 100}}})
+ *
+ * // Normalize every tag: trim and lowercase
+ * new Schema('object', {
+ *   tags: new Schema('array').transformer({$each: ['$trim', '$lowercase']}),
+ * })
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const EACH_OPERATOR = {

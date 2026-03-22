@@ -7,6 +7,18 @@ import { formatValue } from '../../errors.js';
  *
  * Do a deep equality check between the value and the provided constraint value.
  *
+ * ### Parameters
+ * - `value` (any, required): The value to compare against using deep equality.
+ *
+ * ### Example
+ * ```js
+ * // Ensure a status field can only be 'active'
+ * new Schema('string').validator({$eq: 'active'})
+ *
+ * // Ensure an object matches an exact structure
+ * new Schema('object').validator({$eq: {type: 'config', version: 1}})
+ * ```
+ *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}*
  */
 export const EQ_CONSTRAINT = {

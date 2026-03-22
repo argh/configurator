@@ -16,7 +16,22 @@ import { deepMerge } from '../../utils.js';
  * ### Parameters
  * - Object of fields to deep-merge (object, required): Key/value pairs to apply over the input.
  *
- * **Output**: `{a: {x: 1, y: 99, z: 3}}`
+ * ### Example
+ * ```js
+ * // Deep-merge default nested config into the user-supplied object
+ * new Schema('object').transformer({
+ *   '$merge-deep': {
+ *     logging: {level: 'info', format: 'json'},
+ *     server: {port: 3000},
+ *   }
+ * })
+ * // {logging: {level: 'debug'}, server: {host: 'localhost'}}
+ * // → {logging: {level: 'debug', format: 'json'}, server: {host: 'localhost', port: 3000}}
+ *
+ * // Inject a nested metadata field without overwriting sibling keys
+ * new Schema('object').transformer({'$merge-deep': {meta: {version: 1}}})
+ * // {meta: {author: 'rg'}} → {meta: {author: 'rg', version: 1}}
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

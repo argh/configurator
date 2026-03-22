@@ -9,7 +9,27 @@ import { SchemaError } from '../schema-errors.js';
  * Throws a `SchemaError` if the specified path is not defined in the schema.
  *
  * ### Parameters
- * - `path` (string, required): The path in the schema hierarchy; must be defined.
+ * - `path` (string, required): Dot-separated path into the top-level target object; must be a valid
+ *   schema path. Use `$get` for accessing arbitrary paths without schema validation.
+ *
+ * ### Example
+ * ```js
+ * // Validate 'port' is within range only when 'ssl' is enabled at the top level
+ * new Schema('object', {
+ *   ssl: new Schema('boolean'),
+ *   port: new Schema('number').validator({
+ *     $if: [{$reference: 'ssl'}, {$range: {min: 443, max: 443}}]
+ *   }),
+ * })
+ *
+ * // Cross-field consistency: confirm 'passwordConfirm' matches 'password'
+ * new Schema('object', {
+ *   password: new Schema('string'),
+ *   passwordConfirm: new Schema('string').validator(
+ *     (value, target) => value === target.password || undefined
+ *   ),
+ * })
+ * ```
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}
  */

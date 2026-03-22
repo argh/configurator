@@ -16,6 +16,18 @@ import { ArrayExecutor } from '../executor/array-executor.js';
  * The parameter is an array (not an object) of allowed values passed directly to the processor.
  * - Array of values (array, required): The allowed values to match against using strict equality
  *
+ * ### Example
+ * ```js
+ * // Restrict a log level to known values
+ * new Schema('string').validator({$in: ['debug', 'info', 'warn', 'error']})
+ *
+ * // Accept only specific HTTP methods
+ * new Schema('string').normalizer('$uppercase').validator({$in: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']})
+ *
+ * // Restrict a numeric status code to expected values
+ * new Schema('number').validator({$in: [200, 201, 204, 400, 401, 403, 404, 500]})
+ * ```
+ *
  * @type {ValueProcessorDefinition}
  */
 export const IN_CONSTRAINT = {

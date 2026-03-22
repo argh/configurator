@@ -14,6 +14,20 @@ import { map } from '../../utils.js';
  * ### Parameters
  * - Array of key names or indices (string[]|number[], required): The keys/indices to retain.
  *
+ * ### Example
+ * ```js
+ * // Retain only 'id' and 'name' from an object
+ * new Schema('object').transformer({$pick: ['id', 'name']})
+ * // {id: 1, name: 'Alice', secret: 'xyz'} → {id: 1, name: 'Alice'}
+ *
+ * // Select the first and third elements from an array
+ * new Schema('array').transformer({$pick: [0, 2]})
+ * // ['a', 'b', 'c', 'd'] → ['a', 'c']
+ *
+ * // Strip sensitive fields from a user record before returning
+ * new Schema('object').transformer({$pick: ['id', 'username', 'email', 'role']})
+ * ```
+ *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
 export const PICK_OPERATOR = {

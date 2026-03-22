@@ -13,7 +13,22 @@ import { Executor } from '../executor/executor.js';
  * May be used inline in a pipeline without parameters, or can have a single processor argument.
  *
  * ### Parameters
- * - `processor` - an optional processor specification to check for a defined value.
+ * - `processor` (ProcessorSpec, optional): Processor specification to check for a defined return value.
+ *   If omitted, the input value itself is checked for defined-ness.
+ *
+ * ### Example
+ * ```js
+ * // Require the input to be defined (not undefined)
+ * new Schema('any').validator('$require')
+ *
+ * // Require a lookup to succeed (key must exist in the table)
+ * new Schema('string').validator({
+ *   $require: {$lookup: {admin: 1, user: 2, guest: 3}}
+ * })
+ *
+ * // Require a nested path to resolve
+ * new Schema('object').validator({$require: {$get: 'metadata.version'}})
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */

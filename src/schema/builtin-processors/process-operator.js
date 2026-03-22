@@ -8,7 +8,27 @@ import { formatValue } from '../../errors.js';
  * Process the incoming value according to the provided schema
  *
  * ### Parameters
- * - `schema` (CompiledSchema, required): the schema to use for processing
+ * - `schema` (CompiledSchema, required): the compiled schema to apply to the input value.
+ *   Use `$compile` to produce a `CompiledSchema` from a `Schema` instance.
+ *
+ * ### Example
+ * ```js
+ * import { Schema, SchemaResolver } from '@versionzero/configurator';
+ *
+ * // Compile a reusable sub-schema and run values through it
+ * const resolver = new SchemaResolver();
+ * const portSchema = await resolver.compile(
+ *   new Schema('number').validator({$range: {min: 1, max: 65535}})
+ * );
+ *
+ * new Schema('object', {
+ *   port: new Schema('any').validator({$process: {schema: portSchema}}),
+ * })
+ *
+ * // Use $compile inline to compile-then-process in a single pipeline
+ * const mySchema = new Schema('string').validator('$non-empty');
+ * new Schema('any').normalizer([{$compile: mySchema}, '$process'])
+ * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
