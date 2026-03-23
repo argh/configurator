@@ -1,10 +1,12 @@
+import { CompiledSchema } from '../compiled-schema.js';
+
 /**
  * ## $type
  *
  * Returns the type name of the input value as a string. Unlike the `$is-*` constraint family,
  * this operator produces the type name as a value usable in pipelines and templates.
  *
- * **Return values**: `'string'`, `'number'`, `'boolean'`, `'array'`, `'object'`, `'date'`, `'null'`, `'undefined'`
+ * **Return values**: `'string'`, `'number'`, `'boolean'`, `'array'`, `'object'`, `'date'`, `'schema'`, `'null'`, `'undefined'`
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}
  */
@@ -16,6 +18,7 @@ export const TYPE_OPERATOR = {
     if (value === undefined) return 'undefined';
     if (value instanceof Date) return 'date';
     if (Array.isArray(value)) return 'array';
+    if (value instanceof CompiledSchema) return 'schema';
     return typeof value;
   }
 };

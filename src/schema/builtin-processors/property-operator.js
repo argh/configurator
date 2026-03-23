@@ -1,4 +1,4 @@
-import { ResolverError, SchemaError } from '../schema-errors.js';
+import { SchemaError } from '../schema-errors.js';
 
 /**
  * ## $property

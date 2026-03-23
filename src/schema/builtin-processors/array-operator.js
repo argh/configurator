@@ -6,6 +6,8 @@ import { ConstraintError } from '../schema-errors.js';
  *
  * Attempt to normalize the input value as an array.
  *
+ * If the input value is "*", the array will expand to the "values" option defined in the current schema.
+ *
  * See `$is-array` for strict array validation.
  *
  * @type {import("../value-processor/value-processor.js").ValueProcessorDefinition}

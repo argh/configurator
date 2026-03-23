@@ -90,6 +90,12 @@ export class SchemaLocation {
     if (path.charAt(0) === '^') {
       return this.parent?.relative(path.slice(1));
     }
+    else if (path.charAt(0) === '/') {
+      return this.root.relative(path.slice(1));
+    }
+    else if (path.charAt(0) === '.') {
+      return this.relative(path.slice(1));  // no-op
+    }
 
     const [propertyName, remainingPath] = behead(path);
 

@@ -9,7 +9,8 @@ import { formatValue } from '../../errors.js';
  *
  * ### Parameters
  * - `schema` (CompiledSchema, required): the compiled schema to apply to the input value.
- *   Use `$compile` to produce a `CompiledSchema` from a `Schema` instance.
+ *   Any `Schema` found in a handler pipeline will be automatically compiled;
+ *   Use `$compile` to produce a `CompiledSchema` from a `Schema` literal value.
  *
  * ### Example
  * ```js
@@ -21,13 +22,14 @@ import { formatValue } from '../../errors.js';
  *   new Schema('number').validator({$range: {min: 1, max: 65535}})
  * );
  *
+ * // portSchema is automatically compiled:
  * new Schema('object', {
  *   port: new Schema('any').validator({$process: {schema: portSchema}}),
  * })
  *
  * // Use $compile inline to compile-then-process in a single pipeline
  * const mySchema = new Schema('string').validator('$non-empty');
- * new Schema('any').normalizer([{$compile: mySchema}, '$process'])
+ * new Schema('any').normalizer([{$compile: {$literal: mySchema}}, '$process'])
  * ```
  *
  * @type {import('../value-processor/value-processor.js').ValueProcessorDefinition}

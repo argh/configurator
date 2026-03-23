@@ -1,5 +1,6 @@
 import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
+import { isPlainObject } from '../../utils.js';
 
 /**
  * ## $entries
@@ -16,7 +17,7 @@ import { formatValue } from '../../errors.js';
 export const ENTRIES_OPERATOR = {
   keyword: 'entries',
   process: (value, _target, location) => {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    if (!isPlainObject(value)) {
       throw new ConstraintError(`$entries requires a plain object, got ${formatValue(value)}`, {location});
     }
     return Object.entries(value);

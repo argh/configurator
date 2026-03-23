@@ -7,7 +7,7 @@ import { ObjectExecutor } from '../executor/object-executor.js';
  * ## $lookup
  *
  * Uses the pipeline value as a key to look up a corresponding value from the argument
- * collection. This is the inverse of `$get`: the value is the key, the argument is the
+ * collection. This is the inverse of `$get`: the input value is the key, the argument is the
  * collection.
  *
  * Returns `undefined` if the key is not found in the collection.
