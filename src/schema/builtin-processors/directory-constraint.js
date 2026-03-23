@@ -9,7 +9,7 @@ import { ConstraintError } from '../schema-errors.js';
  * This is an **async processor** that performs filesystem operations.
  *
  * The processor checks both existence and type, throwing distinct errors for:
- * - Path does not exist (ENOENT)
+ * - Path does not exist (`ENOENT`)
  * - Path exists but is a file, symlink, or other non-directory type
  * - Path is inaccessible due to permissions or other filesystem errors
  *

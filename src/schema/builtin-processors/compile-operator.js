@@ -1,8 +1,8 @@
 import { SchemaError } from '../schema-errors.js';
-import { ComposedValueProcessor } from '../value-processor/composed-value-processor.js';
-import { Executor } from '../executor/executor.js';
-import { ValueProcessor } from '../value-processor/value-processor.js';
-import { PipelineExecutor } from '../executor/pipeline-executor.js';
+import { formatValue } from '../../errors.js';
+import { ParametersValueProcessor } from '../value-processor/parameters-value-processor.js';
+import { ParameterizedValueProcessor } from '../value-processor/parameterized-value-processor.js';
+import { FunctionValueProcessor } from '../value-processor/function-value-processor.js';
 
 /**
  * ## $compile
@@ -39,34 +39,26 @@ import { PipelineExecutor } from '../executor/pipeline-executor.js';
  */
 export const COMPILE_OPERATOR = {
   keyword: 'compile',
-  parameters: [{parameter: 'schema', required: false}],
+  parameters: [{parameter: 'schema', required: false}, {parameter: 'compiler', required: false}],
   build: (args, options) => {
 
     const compiler = options.compiler;
 
-    let schemaArgument;
-    if (Array.isArray(args)) {
-      if (args.length === 1) {
-        schemaArgument = args[0];
-      }
-      else if (args.length === 0) {
-        schemaArgument = new ComposedValueProcessor(new Executor(), []);
-      }
-      else {
-        throw new SchemaError('$compile requires a single schema argument');
-      }
-    }
-    else if (typeof args === 'object') {
-      schemaArgument = args.schema;
-    }
+    const paramsProcessor = new ParametersValueProcessor(COMPILE_OPERATOR.parameters, args);
 
-    if (!(schemaArgument instanceof ValueProcessor)) {
-      throw new SchemaError('$compile requires a schema argument');
-    }
-
-    return new ComposedValueProcessor(
-      new PipelineExecutor([schemaArgument, (schema) => compiler.compile(schema)]),
-        {$compile: schemaArgument}
+    return new ParameterizedValueProcessor(
+      new FunctionValueProcessor((schema, _target, location, options) => {
+        const c = options.args.compiler ?? compiler;
+        if (typeof c?.compile !== 'function') {
+          throw new SchemaError(`Invalid compiler provided to $compile ${formatValue(c)}`, {location})
+        }
+        if (options.args.schema !== undefined) {
+          schema = options.args.schema;
+        }
+        return c.compile(schema)
+      }),
+      paramsProcessor,
+      {$compile: paramsProcessor.spec}
     );
   }
 };

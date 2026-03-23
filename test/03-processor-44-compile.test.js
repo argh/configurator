@@ -4,6 +4,7 @@ import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
 import { SchemaError } from '../src/schema/schema-errors.js';
+import { SchemaCompiler } from '../src/schema/schema-compiler.js';
 
 describe('Processor: $compile', function() {
   /** @type {SchemaResolver} */
@@ -14,10 +15,10 @@ describe('Processor: $compile', function() {
   });
 
   it('should reject invalid configuration at compile time', async function() {
-    // more than one argument is not allowed
+    // more than two arguments are not allowed
     await assert.rejects(
       () => resolver.compile(
-        new Schema('any').transformer({$compile: [{$literal: new Schema('string')}, {$literal: new Schema('number')}]})
+        new Schema('any').transformer({$compile: [{$literal: new Schema('string')}, {$literal: new Schema('number')}, 123]})
       ),
       SchemaError
     );
@@ -57,4 +58,20 @@ describe('Processor: $compile', function() {
     assert.ok(result instanceof CompiledSchema);
     assert.strictEqual(await result.transformValue('fig'), 'wrapped(fig)');
   });
+  it('should allow a custom compiler', async function() {
+    const customResolver = new SchemaResolver();
+    resolver.registerSchema('test-schema', new Schema('string').normalizer(() => 'stick'))
+    customResolver.registerSchema('test-schema', new Schema('string').normalizer(() => 'carrot'))
+    const customCompiler = new SchemaCompiler(customResolver);
+
+    const inner = new Schema('test-schema').transformer('$uppercase');
+    const schema = await resolver.compile(
+      new Schema('any')
+        .transformer({$process: {$compile: {schema: {$literal: inner}, compiler: customCompiler}}})
+    );
+    const result = await schema.transformValue('ignored');
+    assert.strictEqual(result, 'CARROT');
+  });
+
+
 });

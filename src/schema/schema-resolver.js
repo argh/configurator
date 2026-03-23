@@ -116,7 +116,7 @@ export class SchemaResolver
     const {keyword, process, description, build} = definition;
 
     if (!keyword) {
-      throw new ResolverError('Processor definition must have a keyword');
+      throw new ResolverError('Missing keyword in processor definition');
     }
 
     if (process && build) {
@@ -352,6 +352,9 @@ export class SchemaResolver
       catch {
         throw new SchemaError(`Invalid regex pattern`, {value: spec});
       }
+    }
+    else if (spec instanceof SchemaCompiler) {
+      valueProcessor = new ComposedValueProcessor(new ConstantExecutor(spec), spec);
     }
     else if (typeof spec === 'object' && typeof spec.process === 'function') {
       valueProcessor = new DefinedValueProcessor(spec);
