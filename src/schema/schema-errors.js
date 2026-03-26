@@ -40,6 +40,9 @@ export class NormalizeError
 export class TransformError
   extends SchemaError {}
 
+export class FinalizeError
+  extends SchemaError {}
+
 export class SerializeError
   extends SchemaError {}
 

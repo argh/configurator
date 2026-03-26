@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
-import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
+import { NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
 
 describe('Schema Compilation - Number Type', function() {
   /** @type {SchemaResolver} */

@@ -2,7 +2,6 @@ import { CompiledSchema } from "../compiled-schema.js";
 import { SchemaCompiler } from "../schema-compiler.js";
 import { SchemaLocation } from "../schema-location.js";
 import { Schema } from '../schema.js';
-import { ConfiguratorError } from '../../errors.js';
 import { deepEquals } from '../../utils.js';
 import { TraversalContext } from '../traversal/index.js';
 import { SchemaCompilationError, SchemaError, UnionResolutionError } from '../schema-errors.js';
@@ -248,7 +247,7 @@ function findDiscriminatorProperties(schema) {
     if (!found) {
       // fixme - shouldn't we wait until we see if we can add anything from the unique property set below?
       const key = schema.findUnionKey(unionSchema);  // this is silly, we had the key already
-      throw new ConfiguratorError(`Union schema ${key} needs at least one property with constrained values`);
+      throw new SchemaCompilationError(`Union schema ${key} needs at least one property with constrained values`);
     }
   }
 
@@ -319,7 +318,7 @@ function findDiscriminatorProperties(schema) {
       }
 
       if (!canDistinguish && !uniqueProperty) {
-        throw new ConfiguratorError(
+        throw new SchemaCompilationError(
           `Union members are indistinguishable (cannot discriminate between schemas)`
         );
       }
@@ -336,7 +335,7 @@ function findDiscriminatorProperties(schema) {
  */
 function generateAutomaticDiscriminatorFunction(schema) {
   if (!schema.isUnion) {
-    throw new ConfiguratorError('Can only generate a discriminator for a union')
+    throw new SchemaCompilationError('Can only generate a discriminator for a union')
   }
   const unionSchemas = Array.from(schema.unionSchemaEntries).map(e => e[1]);
   const discriminatorProps = findDiscriminatorProperties(schema);

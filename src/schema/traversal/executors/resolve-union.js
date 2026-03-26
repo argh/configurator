@@ -21,11 +21,18 @@ export function resolveUnion(state) {
 
   /**
    * @param {CompiledSchema|undefined} unionSchema
-   * @returns {TraversalState}
+   * @returns {TraversalState|undefined|null|Promise<TraversalState|null|undefined>}
    */
   const handleUnionSchema = (unionSchema) => {
     if (unionSchema) {
       state.schema = unionSchema;
+
+      if (unionSchema.isUnion) {
+        // whoa, multiple layers!
+        return resolveUnion(state);
+      }
+
+
       //return undefined;  // consider forcing a loop so that we re-normalize with the new schema?
     }
     else {

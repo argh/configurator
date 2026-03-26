@@ -180,5 +180,47 @@ export class TraversalContext
     debug({contextName: 'context'}, ...args);
   }
 
+  traverse(executor) {
 
+    const rootState = this.getState('');
+
+    let done = false;
+
+    const updateDone = (counter) => {
+      if (this.isComplete) {
+        done = true;
+      }
+      else if (this.counter === counter) {
+        if (this.final) {
+          done = true;
+        }
+        else {
+          this.final = true;
+        }
+      }
+      else {
+        this.final = false;
+      }
+      return done;
+    }
+
+    const loop = () => {
+      let result = undefined;
+      while (!done) {
+        const counter = this.counter;
+        result = executor.execute(rootState);
+
+        if (result instanceof Promise) {
+          return result.then(
+            resolved => updateDone(counter)? resolved : loop(),
+            rejected => { throw(rejected) }
+          );
+        }
+        updateDone(counter);
+        this.traversals++;
+      }
+      return result;
+    }
+    return loop();
+  }
 }

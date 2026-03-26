@@ -1,32 +1,27 @@
-import { behead, deepEquals, deepPrune, isPlainObject, isTruthy } from '../utils.js';
+import { deepEquals, deepPrune, isPlainObject, isTruthy } from '../utils.js';
 import { toData } from './helpers/to-data.js';
 import { SchemaLocation } from './schema-location.js';
-import {
-  TraversalContext,
-  TraversalState
-} from './traversal/index.js';
+import { TraversalContext } from './traversal/index.js';
 
 // Core executor functionality
 
 import { ValueProcessor } from './value-processor/value-processor.js';
 
-// Traversal executor functionality
-import { TraversalStateExecutor } from "./traversal/executors/traversal-state-executor.js";
-
 import {
+  FinalizeError,
   NormalizeError, SchemaError,
   SerializeError,
   TransformError,
   ValidationError
 } from './schema-errors.js';
 import {
-  PRELOAD_ENTER, PRELOAD_EXIT,
-  PROCESS_ENTER, PROCESS_EXIT,
-  NORMALIZE_ENTER, NORMALIZE_EXIT,
-  TRANSFORM_ENTER, TRANSFORM_EXIT,
-  VALIDATE_ENTER, VALIDATE_EXIT,
-  SERIALIZE_ENTER, SERIALIZE_EXIT
+  PROCESS_EXECUTOR,
+  PRELOAD_EXECUTOR,
+  VALIDATE_EXECUTOR,
+  SERIALIZE_EXECUTOR
 } from "./traversal/executors/index.js";
+import { formatValue } from "../errors.js";
+import { PipelineExecutor } from "./executor/pipeline-executor.js";
 
 
 /** @import { TraversalContextOptions } from './traversal/traversal-context.js' */
@@ -40,6 +35,7 @@ import {
  * @property {Array<ValueProcessor>} [normalizers]
  * @property {Array<ValueProcessor>} [conditions]
  * @property {Array<ValueProcessor>} [transformers]
+ * @property {Array<ValueProcessor>} [finalizers]
  * @property {Array<ValueProcessor>} [validators]
  * @property {Array<ValueProcessor>} [serializers]
  * @property {Array<ValueProcessor>} [discriminators]
@@ -85,8 +81,6 @@ export class CompiledSchema
   #metadata = {};
   /** @type {boolean} */
   #frozen = false;
-  /** @type {Set<any>} */
-  #values = new Set();
 
   /**
    * CompiledSchema constructor - do not call directly (use SchemaResolver.compile())
@@ -157,19 +151,28 @@ export class CompiledSchema
     return this.#handlers;
   }
 
-  getValueProcessor(processorName) {
-    return this.#valueProcessorMap.get(processorName);
+  /**
+   * Get a value processor by handler name
+   *
+   * Handler definitions are compiled into a single value processor pipeline per handler name.
+   *
+   * @param {string} handlerName
+   * @returns {ValueProcessor|undefined}
+   * @internal
+   */
+  getValueProcessor(handlerName) {
+    return this.#valueProcessorMap.get(handlerName);
   }
 
   /**
    *
-   * @param {string} processorName
+   * @param {string} handlerName
    * @param {ValueProcessor} valueProcessor
    * @returns {ValueProcessor}
    * @internal
    */
-  _setValueProcessor(processorName, valueProcessor) {
-    this.#valueProcessorMap.set(processorName, valueProcessor);
+  _setValueProcessor(handlerName, valueProcessor) {
+    this.#valueProcessorMap.set(handlerName, valueProcessor);
     return valueProcessor;
   }
 
@@ -561,6 +564,16 @@ export class CompiledSchema
   }
 
   /**
+   * Return true if this schema requires finalization
+   *
+   * @returns {boolean}
+   */
+  get requiresFinalization() {
+    const finalizers = this.handlers.finalizers;
+    return Boolean(finalizers && Array.isArray(finalizers) && finalizers.length);
+  }
+
+  /**
    * Use the registered discriminator to return a matching union schema, or undefined if the union cannot be resolved.
    * Discriminator functions must return either one of the unionSchema members, a unionSchema key, or undefined.
    *
@@ -634,7 +647,7 @@ export class CompiledSchema
    * The normalize process will throw an exception if the input is incompatible.
    *
    * Unlike other handlers, normalizers should generally not depend on the overall
-   * target configuration state, as they are sometimes invoked in isolation (even during compilation!)
+   * target state, as they are sometimes invoked in isolation (even during compilation!)
    * and thus shouldn't assume the "undefined means retry later" behavior of other handlers.
    *
    * Also note that normalizeValue does not recursively examine child properties.
@@ -716,7 +729,7 @@ export class CompiledSchema
    * The normalize process will throw an exception if the input is incompatible.
    *
    * Unlike other handlers, normalizers should generally not depend on the overall
-   * target configuration state, as they are sometimes invoked in isolation (even during compilation!)
+   * target state, as they are sometimes invoked in isolation (even during compilation!)
    * and thus shouldn't assume the "undefined means retry later" behavior of other handlers.
    *
    * Also note that normalizeValue does not recursively examine child properties.
@@ -736,16 +749,16 @@ export class CompiledSchema
   }
 
   /**
-   * Transform an input value for the final target based on this schema and provided context.
+   * Transform a normalized input value for the final target based on this schema and provided context.
    *
    * Runs all transformer value processors in a pipeline until one returns undefined or throws an error.
    * - The input to the pipeline is be assumed to be normalized.
    * - An error may be thrown if the input cannot be transformed.
-   * - If a transformer depends upon the overall configuration, it may return undefined to signal
-   *   that the transform should be retried when the configuration is updated.
+   * - If a transformer depends upon the overall target, it may return undefined to signal
+   *   that the transform should be retried when the target is updated.
    *
    * A schema's transform is allowed to enforce validation internally, or it can delegate this to
-   * the validation handler.  In any case, the output from the transform is not guaranteed to be valid.
+   * a finalizer or validator.  In any case, the output from the transform is not guaranteed to be valid.
    * (Note that conditions and unions are not checked if you call this directly.)
    *
    * Child properties are not traversed in this call, and are presumed to already have been transformed.
@@ -790,19 +803,21 @@ export class CompiledSchema
     return result;
   }
   /**
-   * Transform an input value for the final target based on this schema and provided context.
+   * Transform a normalized input value for the final target based on this schema and provided context.
    *
    * Runs all transformer value processors in a pipeline until one returns undefined or throws an error.
    * - The input to the pipeline is be assumed to be normalized.
    * - An error may be thrown if the input cannot be transformed.
-   * - If a transformer depends upon the overall configuration, it may return undefined to signal
-   *   that the transform should be retried when the configuration is updated.
+   * - If a transformer depends upon the overall target, it may return undefined to signal
+   *   that the transform should be retried when the target is updated.
    *
    * A schema's transform is allowed to enforce validation internally, or it can delegate this to
-   * the validation handler.  In any case, the output from the transform is not guaranteed to be valid.
+   * a finalizer or validator.  In any case, the output from the transform is not guaranteed to be valid.
    * (Note that conditions and unions are not checked if you call this directly.)
    *
    * Child properties are not traversed in this call, and are presumed to already have been transformed.
+   *
+   * (This an async wrapper around the internal `_transformValue` executor function.)
    *
    * @param {any} value - input value to transform
    * @param {any} [target] - global target in case the transformer depends on it
@@ -813,6 +828,75 @@ export class CompiledSchema
    */
   async transformValue(value, target, location = new SchemaLocation(this), options) {
     return this._transformValue(value, target, location, options);
+  }
+
+  /**
+   * Finalize a transformed input value by running any necessary post-processing steps.
+   *
+   * Runs all finalizer value processors in a pipeline until one returns undefined or throws an error.
+   * - The input to the pipeline is be assumed to be transformed.
+   * - Finalizers are generally only required for incremental schemas that need to check child values.
+   * - A finalizer on the root schema (or that checks for the root path, if the root schema is shared)
+   *   can act as an "entire output" finalizer.
+   *
+   * (This is an executor function that may return synchronous or asynchronous results.)
+   *
+   * @param {any} value - input value to finalize
+   * @param {any} [target] - global target in case the finalizer depends on it
+   * @param {SchemaLocation} [location] - the traversal location of the schema
+   * @param {object} [options] - any tweaks to the finalizer behavior
+   * @returns {any|Promise<any>} - finalized value
+   * @internal
+   */
+  _finalizeValue(value, target, location = new SchemaLocation(this), options = {}) {
+    if (location.schema !== this) {
+      return location.schema._finalizeValue(value, target, location, options);
+    }
+    if (this.isImplicit) {
+      throw new TransformError('Cannot finalize a value for an implicit schema', {location});
+    }
+    if (value === null || (value === undefined && !this.options.allowUndefined)) {
+      return value;
+    }
+    let result;
+    try {
+      const finalizer = this.getValueProcessor('finalizers');
+      if (finalizer === undefined) {
+        return value;
+      }
+      result = finalizer.execute(value, target, location, options);
+    }
+    catch (error) {
+      throw new FinalizeError('Unable to finalize', {value, location, cause: error});
+    }
+    if (result instanceof Promise) {
+      return result.then(
+        resolved => resolved,
+        rejected => { throw new FinalizeError('Unable to finalize', {value, location, cause: rejected}) }
+      );
+    }
+    return result;
+  }
+  /**
+   * Finalize a transformed input value by running any necessary post-processing steps.
+   *
+   * Runs all finalizer value processors in a pipeline until one returns undefined or throws an error.
+   * - The input to the pipeline is be assumed to be transformed.
+   * - Finalizers are generally only required for incremental schemas that need to check child values.
+   * - A finalizer on the root schema (or that checks for the root path, if the root schema is shared)
+   *   can act as an "entire output" finalizer.
+   *
+   * (This an async wrapper around the internal `_finalizeValue` executor function.)
+   *
+   * @param {any} value - input value to transform
+   * @param {any} [target] - global target in case the transformer depends on it
+   * @param {SchemaLocation} [location] - the traversal location of the schema
+   * @param {object} [options] - any tweaks to the transformer behavior
+   * @returns {Promise<any>} - transformed value
+   * @internal
+   */
+  async finalizeValue(value, target, location = new SchemaLocation(this), options) {
+    return this._finalizeValue(value, target, location, options);
   }
 
   /**
@@ -990,7 +1074,10 @@ export class CompiledSchema
 
     if (!found) {
         // todo - consider using valueDescription metadata
-      throw new ValidationError(`Invalid value «${value}», expected one of {${this.values.join('|')}}`);
+      const valueDescription = this.metadata.valueDescription ?? `{${this.values.map(formatValue).join('|')}}`;
+      const details = (valueDescription.length > 80)? `not found in schema "values" option` : `expected one of ${valueDescription}`;
+
+      throw new ValidationError(`Invalid value ${formatValue(value)}, ${details}`);
     }
     return;
   }
@@ -1011,77 +1098,36 @@ export class CompiledSchema
 
 
   /**
-   * Load the provided target as if it were the result of previous assignments.
+   * Return a validated output if and only if the input fully matches the schema definition.
    *
-   * @param {any} target
-   * @param {TraversalContext} context
-   * @returns {Promise<any>}
-   * @internal
+   * Note: depending on the processors used for validation, the input value may be mutated during validation!
+   * (todo - create an option that prevents this from happening?)
+   *
+   * @param {any} value - input value to validate
+   * @param {ValidateOptions} [options] - any tweaks to the validator behavior
+   * @returns {any|Promise<any>} - validated value
+   * @package
    */
-  async _preload(target, context) {
-
-    const location = new SchemaLocation(this);
-
-    if (!context) {
-      context = new TraversalContext(location);
-    }
-    const result = await this.traverse(target, {context, enterExecutor: PRELOAD_ENTER, exitExecutor: PRELOAD_EXIT });
-
-    return result;
-  }
-
-
-  /**
-   * Normalize the input value.
-   *
-   * Unlike normalizeValue, this will normalize an entire object hierarchy, starting at the root.
-   * Deprecated because this is weird, and under some conditions doesn't play well with the hook semantics.
-   * (Normalization and transformation are phases, not independent top level operations.)
-   *
-   * @param {any} input - input value to normalize
-   * @param {any} [target] - optional existing value
-   * @param {any} [options]
-   * @returns {Promise<any>} - normalized value
-   * @deprecated
-   * @internal
-   */
-  async _normalize(input, target, options) {
-    const location = options?.location ?? new SchemaLocation(this);
-
-    const context = new TraversalContext(location, {strict: false});
-
-    if (target !== undefined) {
-      await this._preload(target, context);
-    }
-
-    const result = await this.traverseMultipass(input, {context, enterExecutor: NORMALIZE_ENTER, exitExecutor: NORMALIZE_EXIT});
-
-    return result;
-  }
-
-  /**
-   * Transform the input value.
-   *
-   * Unlike transformValue, this assumes it starts at the root, and will normalize and transform an entire object hierarchy.
-   * Deprecated because this is weird, and under some conditions doesn't play well with the hook semantics.
-   * (Normalization and transformation are phases, not independent top level operations.)
-   *
-   * @param {any} input - input value to transform
-   * @param {TraversalOptions} [options] - any tweaks to the transformer behavior
-   * @returns {Promise<any>} - transformed value
-   * @deprecated
-   * @internal
-   */
-  async _transform(input, options) {
+  _validate(value, options) {
     const location = options?.location ?? new SchemaLocation(this);
 
     const context = new TraversalContext(location, options);
-    const result = await this.traverseMultipass(input, {context, enterExecutor: TRANSFORM_ENTER, exitExecutor: TRANSFORM_EXIT});
+    const executors = [
+      () => {
+        context.setAssignedInput(value, '');
+        return context.traverse(PRELOAD_EXECUTOR);
+      },
+      () => {
+        for (const state of context.stateMap.values()) {
+          state.completed = false;  // yuck.
+        }
+        return context.traverse(VALIDATE_EXECUTOR);
+      },
+      () => context.getValue()
+    ];
 
-    return result;
+    return new PipelineExecutor(executors).execute(context);
   }
-
-
   /**
    * Return a validated output if and only if the input fully matches the schema definition.
    *
@@ -1093,18 +1139,76 @@ export class CompiledSchema
    * @returns {Promise<any>} - validated value
    */
   async validate(value, options) {
+    return this._validate(value, options);
+  }
+
+  /**
+   * Process an input value to an output value based on this schema.
+   *
+   * Errors are thrown if:
+   * - the input value doesn't match the schema
+   * - a value processor throws an error
+   * - a value cannot be processed (value processors return undefined) after repeated attempts
+   * - a union cannot be resolved
+   *
+   * If an output target is provided, it is assumed to already be valid.
+   *
+   * (This is an executor function that may return synchronous or asynchronous results.)
+   *
+   * @param {any} input - the value to process
+   * @param {any} [target] - preexisting output value to build upon, if any
+   * @param {ProcessOptions & TraversalOptions & TraversalContextOptions} [options] - options to customize the traversal
+   * @returns {any|Promise<any>} - returns the output value
+   * @package
+   */
+  _process(input, target, options = {}) {
     const location = options?.location ?? new SchemaLocation(this);
+    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep, debug: options?.debug});
 
-    const context = new TraversalContext(location, options);
-    if (value !== undefined) {
-      await this._preload(value, context);
+    const executors = [];
+
+    if (target !== undefined) {
+      executors.push(() => {
+        context.setAssignedInput(target, '');
+        return context.traverse(PRELOAD_EXECUTOR)
+      })
     }
+    executors.push(() => {
+      context.setAssignedInput(input, options?.inputPath);
+      if (options?.assignments) {
+        for (const [assignmentPath, assignmentInput] of options.assignments) {
+          context.setAssignedInput(assignmentInput, assignmentPath);
+        }
+      }
+      return context.traverse(PROCESS_EXECUTOR)
+    });
+    executors.push(() => {
+      return context.getValue()
+    });
 
-    for (const state of context.stateMap.values()) {
-      state.completed = false;
-    }
+    return new PipelineExecutor(executors).execute(context);
+  }
 
-    return await this.traverseMultipass(value, {context, enterExecutor: VALIDATE_ENTER, exitExecutor: VALIDATE_EXIT })
+  /**
+   * Process an input value to an output value based on this schema.
+   *
+   * Errors are thrown if:
+   * - the input value doesn't match the schema
+   * - a value processor throws an error
+   * - a value cannot be processed (value processors return undefined) after repeated attempts
+   * - a union cannot be resolved
+   *
+   * If an output target is provided, it is assumed to already be valid.
+   *
+   * (This an async wrapper around the internal `_process` executor function.)
+   *
+   * @param {any} input - the value to process
+   * @param {any} [target] - preexisting output value to build upon, if any
+   * @param {ProcessOptions & TraversalOptions & TraversalContextOptions} [options] - options to customize the traversal
+   * @returns {Promise<any>} - returns the output value
+   */
+  async process(input, target, options = {}) {
+    return this._process(input, target, options);
   }
 
 
@@ -1123,6 +1227,7 @@ export class CompiledSchema
    * - a value cannot be processed (value processors return undefined) after repeated attempts
    * - a union cannot be resolved
    *
+   * (This an async convenience wrapper around the internal `_process` executor function.)
    *
    * @param {Map<string,any>} assignments - path/value associations
    * @param {any} [target] - preexisting output value to build upon, if any
@@ -1130,52 +1235,8 @@ export class CompiledSchema
    * @returns {Promise<any>} - returns the output value
    */
   async processAssignments(assignments, target, options = {}) {
-    const location = options?.location ?? new SchemaLocation(this);
-
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep, debug: options?.debug});
-
-    if (target !== undefined) {
-      await this._preload(target, context);
-    }
-
-    for (const [inputPath, input] of assignments) {
-      context.setAssignedInput(input, inputPath);
-    }
-
-    return await this.traverseMultipass(undefined, {context, enterExecutor: PROCESS_ENTER, exitExecutor: PROCESS_EXIT});
+    return this._process(undefined, target, {...options, assignments})
   }
-
-  /**
-   * Process an input value to an output value based on this schema.
-   *
-   * Errors are thrown if:
-   * - the input value doesn't match the schema
-   * - a value processor throws an error
-   * - a value cannot be processed (value processors return undefined) after repeated attempts
-   * - a union cannot be resolved
-   *
-   * If an output target is provided, it is assumed to already be valid.
-   *
-   * @param {any} input - the value to process
-   * @param {any} [target] - preexisting output value to build upon, if any
-   * @param {ProcessOptions & TraversalOptions & TraversalContextOptions} [options] - options to customize the traversal
-   * @returns {Promise<any>} - returns the output value
-   */
-  async process(input, target, options = {}) {
-    const location = options?.location ?? new SchemaLocation(this);
-    const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep, debug: options?.debug});
-
-    if (target !== undefined) {
-      await this._preload(target, context);
-    }
-
-    const result = await this.traverseMultipass(input, {context, enterExecutor: PROCESS_ENTER, exitExecutor: PROCESS_EXIT});
-    return result;
-    //return await this.traverse(result, {context, hooks: postProcessValidationHooks});
-  }
-
-
-
   /**
    * Serialize the config data as if you were going to use the result for a config file.
    *
@@ -1195,9 +1256,15 @@ export class CompiledSchema
     const context = (options.context instanceof TraversalContext) ? options.context : new TraversalContext(location, {strict: options?.strict, deep: options?.deep, debug: options?.debug});
 
     // should be able to single-shot serialization
-    const result = await this.traverse(value, {context, enterExecutor: SERIALIZE_ENTER, exitExecutor: SERIALIZE_EXIT });
 
-    return deepPrune(result);
+    const executors = [
+      () => {
+        context.setAssignedInput(value, '');
+        return context.traverse(SERIALIZE_EXECUTOR)
+      },
+      () => deepPrune(context.getValue())
+    ]
+    return new PipelineExecutor(executors).execute(context);
   }
 
   /**
@@ -1357,7 +1424,7 @@ export class CompiledSchema
     /**
      * @param {CompiledSchema} schema
      * @param {string} path
-     * @returns {any|boolean}
+     * @returns {boolean|undefined}
      */
     function walk(schema, path) {
       if (walked.has(schema)) {
@@ -1387,108 +1454,7 @@ export class CompiledSchema
     return walk(this, '') ?? true;
   }
 
-  /**
-   * Traverse the provided input data based on the current schema using executors
-   *
-   * Behaviors are composed via "hooks" that are called at pre/post phases during the traversal.
-   * This is all rather complex, so it's kept as an internal detail and is not part of the public API surface.
-   *
-   * @param {any} input
-   * @param {TraversalOptions} [options]
-   * @returns {Promise<any>}
-   * @internal
-   */
-  async traverse(input, options) {
 
-    // todo - this entire call should probably move to TraversalContext.
-
-    const context = options?.context ?? new TraversalContext(new SchemaLocation(this)).finalize();
-
-    const enterExecutor = options?.enterExecutor;
-    const exitExecutor = options?.exitExecutor;
-
-    const target = options?.target;
-    const rootState = context.getState('');
-
-    if (rootState.schema !== this) {
-      // union?
-
-
-    }
-
-    const inputPath = options?.inputPath;  // the relative path from this schema to the input
-
-    if (target !== undefined) {
-      await this._preload(target, context);
-    }
-    context.setAssignedInput(input, inputPath);
-
-    const executor = new TraversalStateExecutor(enterExecutor, exitExecutor);
-
-    const result = executor.execute(rootState);
-
-    if (result instanceof Promise) {
-      return result.then(_ => {
-        return context.getValue();
-      })
-    }
-    else {
-      return context.getValue();
-    }
-  }
-
-
-
-  /**
-   * Repeatedly traverse the provided input data based on the current schema until it stabilizes (or an error occurs)
-   *
-   * See traverse() for more details.
-   *
-   * @param {any} input
-   * @param {object} [options]
-   * @returns {Promise<any>}
-   * @internal
-   */
-  async traverseMultipass(input, options) {
-    let done = false;
-    let result = undefined;
-
-    const context = options?.context ?? new TraversalContext(new SchemaLocation(this));
-    const path = options?.path ?? '';
-
-    // ensure the root state exists so that the context doesn't already appear to be completed on the first pass
-    context.getState(path);
-
-    // loop until context stabilizes
-    while (!done) {
-      const counter = context.counter;
-      //context._debug(`****** MULTIPASS TRAVERSAL ${context.traversals} STARTS ******`)
-
-      result = await this.traverse(input, options);
-
-      if (context.isComplete) {
-        break;
-      }
-
-      if (context.counter === counter || context.isComplete) {
-        // nothing changed during this traversal pass, or we've handled all known assignments
-        if (context.final) {
-          done = true;
-        }
-        else {
-          // attempt finalization pass (may discover defaults, newly resolved unions/conditions, etc.)
-          context.final = true;
-        }
-      }
-      else {
-        // if we were finalizing and something changed, allow another pass
-        // (footgun warning: interdependent unions or conditions could result in nondeterministic resolution!)
-        context.final = false;
-      }
-      context.traversals++;
-    }
-    return result;
-  }
 
   /**
    * Compute all possible schema paths (including union schema properties)
@@ -1627,6 +1593,7 @@ export class CompiledSchema
     if (this.#frozen || seen.has(this)) {
       return;
     }
+    this.#frozen = true;
     seen.add(this);
     for (const childSchema of this.#propertiesMap.values()) {
       childSchema._freeze(seen);

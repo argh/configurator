@@ -11,6 +11,7 @@ import { SchemaError } from '../schema-errors.js';
  * ### Parameters
  * - `path` (string, required): Dot-separated path into the top-level target object; must be a valid
  *   schema path. Use `$get` for accessing arbitrary paths without schema validation.
+ * - `pending` (boolean, optional, default: false): If true will fall back to any pending value not yet in the target data.
  *
  * ### Example
  * ```js
@@ -35,12 +36,17 @@ import { SchemaError } from '../schema-errors.js';
  */
 export const REFERENCE_OPERATOR = {
   keyword: 'reference',
-  parameters: [{parameter: 'path', required: true}],
+  parameters: [{parameter: 'path', required: true}, {parameter: 'pending', required: false, default: false}],
   process: (_, target, location, options) => {
     const path = options.args.path;
     if (path === undefined) {
       throw new SchemaError('$reference expects a path')
     }
+    if (options.args.pending && options.state !== undefined) {
+      const state = options.state.absolute(path);
+      return state?.value ?? state?.pending;
+    }
+
     const pathLocation = location.absolute(path);
 
     if (pathLocation === undefined) {

@@ -23,7 +23,7 @@ export function checkCondition(state) {
   //        possibility: allow pending to build up but never be transformed?
 
 
-  const result = state.schema.checkCondition(state.input, state.context.getValue(), state.location, {strict: state.context.strict});
+  const result = state.schema.checkCondition(state.input, state.context.getValue(), state.location, state.options);
 
   if (result instanceof Promise) {
     return result.then(resolved => {

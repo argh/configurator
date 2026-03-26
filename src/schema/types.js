@@ -127,6 +127,7 @@ import { Executor } from './executor/executor.js';
 /**
  * @typedef {object} ProcessOptions
  * @property {TraversalContext|TraversalOptions} [context]
+ * @property {Map<string,any>} [assignments]
  */
 
 

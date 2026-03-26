@@ -7,7 +7,10 @@ import { ValidationError } from '../../schema-errors.js';
  * @returns {TraversalState|Promise<TraversalState>}
  */
 export function validate(state) {
-
+  if (state.completed) {
+    // we must already be validated!
+    return state;
+  }
 //  const doValidation = state.context.final || (state.value !== undefined && (state.isIncremental || !state.isContainer));
   const doValidation = state.context.final || state.isComplete;
 

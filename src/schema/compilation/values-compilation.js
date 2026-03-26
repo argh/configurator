@@ -9,28 +9,48 @@ import { isEmpty } from '../../utils.js';
  * @param {CompiledSchema} cs
  * @param {any} _
  * @param {SchemaLocation} location
- * @param {object} transformOptions
- * @returns {Promise<CompiledSchema>}  // fixme - fix normalize step to not require await!
+ * @returns {CompiledSchema|Promise<CompiledSchema>}
  * @this {SchemaCompiler}
  */
-export async function normalizeValues(cs, _, location, transformOptions) {
-
+export function normalizeValues(cs, _, location) {
+  const values = cs.options.values ?? [];
   if (isEmpty(cs.options.values)) {
     return cs;
   }
+
   const valueSet = new Set();
 
-  for (const value of cs.options.values ?? []) {
-    // CAUTION: do NOT pass the transform location (which captures the *schema schema* to the normalize call (the *output* schema)!
-    const normalizedValue = await cs.normalizeValue(value);
-    if (normalizedValue === undefined) {
+  const handle = (value) => {
+    if (value === undefined) {
       throw new SchemaCompilationError(`Undefined after normalizing`, {value, location});
     }
-    valueSet.add(normalizedValue);
+    valueSet.add(value);
   }
-  if (valueSet.size) {
-    cs.options.values = [...valueSet];
+  const done = () => {
+    if (valueSet.size) {
+      cs.options.values = [...valueSet];
+    }
+    return cs;
   }
 
-  return cs;
+  const resume = async (vi) => {
+
+    while (vi < values.length) {
+      handle(await cs._normalizeValue(values[vi++]));
+    }
+    return done();
+  }
+
+
+  let vi = 0;
+
+  while (vi < values.length) {
+    const result = cs._normalizeValue(values[vi++]);
+    if (result instanceof Promise) {
+      return result.then(resolved => { handle(resolved); return resume(vi) })
+    }
+    handle(result);
+  }
+  return done();
+
 }

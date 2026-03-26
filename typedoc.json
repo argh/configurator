@@ -17,7 +17,8 @@
     "**/test/**",
     "**/*.test.js",
     "**/.c8/**",
-    "**/examples/**"
+    "**/examples/**",
+    "**/scripts/**"
   ],
   "includeVersion": true,
   "excludePrivate": true,

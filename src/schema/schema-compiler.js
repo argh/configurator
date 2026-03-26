@@ -10,12 +10,20 @@ import { populateChildSelectorValues } from './compilation/selection-compilation
 import { populateMetadata } from './compilation/metadata-compilation.js';
 import { normalizeSchema, transformSchema, validateSchema } from './compilation/schema-compilation.js';
 import { TraversalContext } from './traversal/index.js';
-import { NormalizeError, SchemaCompilationError, SchemaError, TransformError } from './schema-errors.js';
+import {
+  FinalizeError,
+  NormalizeError,
+  SchemaCompilationError,
+  SchemaError,
+  TransformError,
+  ValidationError
+} from './schema-errors.js';
 import { isKeywordValueProcessorSpec } from './value-processor/spec.js';
 import { isEmpty, isPlainObject } from '../utils.js';
 import { ValueProcessor } from './value-processor/value-processor.js';
 import { compileHandlers } from './compilation/handler-compilation.js';
 import { normalizeValues } from './compilation/values-compilation.js';
+import { formatValue } from "../errors.js";
 
 /** @typedef {(inputSchema:CompiledSchema|Schema, targetSchema:CompiledSchema, location:SchemaLocation, options?:object) => Promise<Schema|CompiledSchema|import("./types.js").SchemaData|undefined>} InputSchemaProcessor */
 /** @typedef {(inputSchema:CompiledSchema, targetSchema:CompiledSchema, location:SchemaLocation, options?:object) => Promise<CompiledSchema|undefined>} OutputSchemaProcessor */
@@ -58,13 +66,9 @@ export class SchemaCompiler extends CompiledSchema {
 
     // We'll use Schema's fluent setters to carefully define a "Schema Schema", and then extract its guts.
 
-
-    const simpleKeywordSpecSchema = new Schema('any')
+    const valueProcessorSchema = new Schema('any')
       .option('dynamic', false)
       .opaque()
-      .transformer(spec => {
-        return resolver.compileKeywordValueProcessorSpec(this, spec)
-      })
       .validator((p, _target, location) => {
         if (!(p instanceof ValueProcessor)) {
           throw new SchemaCompilationError('Failed to compile to a value processor', {location});
@@ -72,28 +76,29 @@ export class SchemaCompiler extends CompiledSchema {
         return p;
       })
 
-    const verboseKeywordSpecSchema = new Schema('object')
-      .property('$literal', new Schema('any'))
-      .option('dynamic', false)
-      .opaque()
+    const simpleKeywordSpecSchema = new Schema(valueProcessorSchema)
       .transformer(spec => {
         return resolver.compileKeywordValueProcessorSpec(this, spec)
       })
 
-    const generalSpecSchema = new Schema('any')
-      .option('dynamic', false)
+    const verboseKeywordSpecSchema = new Schema(valueProcessorSchema)
+      .property('$literal', new Schema('any'))
+      .transformer(spec => {
+        return resolver.compileKeywordValueProcessorSpec(this, spec)
+      })
+
+    const generalSpecSchema = new Schema(valueProcessorSchema)
       .transformer(spec => {
         return resolver.compileValueProcessorSpec(this, spec)
       })
 
-    const specSchema = new Schema('any')
+    const specSchema = new Schema(valueProcessorSchema)
       .normalizer((spec) => {
         if (spec === null) {
           return '$null';
         }
         return spec;
       })
-      .option('dynamic', false)
 // union - never transformed
 //      .transformer(spec => {
 //        return resolver.compileKeywordValueProcessorSpec(spec)
@@ -130,13 +135,13 @@ export class SchemaCompiler extends CompiledSchema {
       })
       .unionSchema('spec', specSchema)
       .unionSchema('array', new Schema('array')
-        .opaque()
+        //.opaque()
         .transformer(pa => {
           return pa; // todo - verify parameters
         })
         .property('*', specSchema))
       .unionSchema('object', new Schema('object')
-        .opaque()
+        //.opaque()
         .transformer(po => {
           return po;  // todo - verify parameters
         })
@@ -203,7 +208,6 @@ export class SchemaCompiler extends CompiledSchema {
           return 'reference';
         }
         else if (typeof s === 'object') {
-//          this.compileSeen.add(s);
           return 'schema';
         }
         else {
@@ -286,35 +290,74 @@ export class SchemaCompiler extends CompiledSchema {
 //      .normalizer(normalizeSchema.bind(this))
       .transformer(transformSchema.bind(this))
 
-      .transformer({$if: [
+      .finalizer({$if: [
           (inputSchema => inputSchema.isUnion),
           {$pipeline: [synthesizeKeyDiscrimination, synthesizeAutoDiscrimination, copyUnionOptions].map(p => p.bind(this))},
-          '$defined'
+          '$input'
         ]
       })
-      .transformer(compileHandlers.bind(this))  // needs to be after discriminator synthesis
-      .transformer({$if: [
+      .finalizer(compileHandlers.bind(this))  // needs to be after discriminator synthesis
+
+      .finalizer({$if: [
           (compiledSchema => !isEmpty(compiledSchema.options.values)),
           normalizeValues.bind(this),  // requires handlers; conditional to avoid async when not needed
           '$defined'
         ]
       })
-      .transformer( {$if: [
+
+/*
+      .finalizer({$if: [
+          (compiledSchema => compiledSchema.hasValues),
+          {
+            $gate: [
+              {
+                $invoke: {
+                  processor: {
+                    $pipeline: [
+                      (compiledSchema => compiledSchema.options.values),
+                      {
+                        $each: (value, _target, _location, options) => {
+                          return options.args.schema._normalizeValue(value);
+                        }
+                      },
+                      (values, _target, _location, options) => {
+                        options.args.schema.options.values = values;
+                        return options.args.schema;
+                      }
+                    ]
+                  },
+                  arguments: {schema: '$input'}
+                }
+              },
+              '$input',
+              '$input'
+            ]
+          },
+          '$input'
+
+        ]
+      })
+*/
+      .finalizer( {$if: [
           (inputSchema => inputSchema.hasChildSelector || inputSchema.hasChildSelection),
           populateChildSelectorValues,
           '$defined'
         ]})
-      .transformer(populateMetadata)
-      .transformer(/** @type {OutputSchemaProcessor} */ async (inputSchema, _, location) => {  // FIXME - fix signature, remove async
+      .finalizer(populateMetadata)
+      .finalizer((compiledSchema, _rootSchema, location) => {
         if (location.path !== '') {
-          return inputSchema;
+          return compiledSchema;
         }
-        if (inputSchema instanceof CompiledSchema) {
-//          inputSchema._freeze();
-          return inputSchema;
+        if (!(compiledSchema instanceof CompiledSchema)) {
+          throw new SchemaCompilationError('Schema failed to compile!');
         }
-        throw new SchemaError('Schema failed to compile!');
+        // Replace placeholders (marking circular references) with their final compiled versions.
+        this._replaceCachedReferences(compiledSchema);
+
+        compiledSchema._freeze();
+        return compiledSchema;
       })
+
       .validator(validateSchema.bind(this))
       .property('properties',
         new Schema('object')
@@ -336,9 +379,7 @@ export class SchemaCompiler extends CompiledSchema {
           .property('compileHook', new Schema('function'))
           .property('default', new Schema('any').option('dynamic', false))
 //          .implicit()
-          .property('values', new Schema('array')
-// need deps for this to work            .normalizer(valuesNormalizer)
-          )
+          .property('values', new Schema('array'))
           .property('*', new Schema('any'))
       )
       .property('handlers',
@@ -346,6 +387,7 @@ export class SchemaCompiler extends CompiledSchema {
 //          .implicit()
           .property('normalizers', pipelineSchema)
           .property('transformers', pipelineSchema)
+          .property('finalizers', pipelineSchema)
           .property('validators', pipelineSchema)
           .property('serializers', pipelineSchema)
           .property('conditions', pipelineSchema)
@@ -427,8 +469,9 @@ export class SchemaCompiler extends CompiledSchema {
       if (pv !== pvr) {
         pv.metadata.references ??= '';
         pv.metadata.references += `[${propertyPath}]`
+        cs._setPropertySchema(pk, pv);
       }
-      cs._setPropertySchema(pk, pv);
+
       this._replaceCachedReferences(pv, propertyPath, seen);
     }
     for (const [uk, uvr] of cs.unionSchemaEntries) {
@@ -439,34 +482,31 @@ export class SchemaCompiler extends CompiledSchema {
       if (uv !== uvr) {
         uv.metadata.references ??= '';
         uv.metadata.references += `[${path}:${uk}]`;
+        cs._setUnionSchema(uk, uv);
       }
-      cs._setUnionSchema(uk, uv);
       this._replaceCachedReferences(uv, path, seen);
     }
   }
 
   /**
+   * Compile a Schema to a CompiledSchema
+   *
+   * Schemas are compiled using a schema that defines schemas!  This method is a convenience facade over the regular
+   * "process" flow.
+   *
    * @param {Schema|CompiledSchema|import("./types.js").SchemaData} inputSchema
-   * @returns {Promise<any>}
+   * @returns {Promise<CompiledSchema>}
    */
   async compile(inputSchema) {
     try {
       const context = new TraversalContext(new SchemaLocation(this));
-      context.compiling = true;
-      const compiledSchema = await this.process(inputSchema, undefined, {context});
-
-      // Replace placeholders (marking circular references) with their final compiled versions.
-      this._replaceCachedReferences(compiledSchema);
-
-      compiledSchema._freeze();
-
-      return compiledSchema;
+      return await this.process(inputSchema, undefined, {context});
     }
     catch (error) {
       if (error instanceof SchemaCompilationError) {
         throw error;
       }
-      else if ((error instanceof NormalizeError || error instanceof TransformError) && error.cause) {
+      else if ((error instanceof NormalizeError || error instanceof TransformError || error instanceof FinalizeError || error instanceof ValidationError) && error.cause) {
         // these aren't interesting, but their internals are...
         throw new SchemaCompilationError(error.cause.message, {...error.data, ...error.cause.data, cause: error.cause});
       }

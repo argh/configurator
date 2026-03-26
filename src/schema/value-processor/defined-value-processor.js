@@ -42,7 +42,7 @@ export class DefinedValueProcessor extends ParameterizedValueProcessor
       argsProcessor = new ParametersValueProcessor(definition.parameters, args);
       spec = {[`$${definition.keyword}`]: argsProcessor.spec}
     }
-    else if (args) {
+    else if (!isEmpty(args)) {
       const argSpecs = map(args, arg => arg.spec);
 
       if (Array.isArray(args)) {

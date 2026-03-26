@@ -11,7 +11,8 @@ export default [
       "docs-output/",
       "benchmark/",
       "coverage/",
-      "dev-scripts/"
+      "dev-scripts/",
+      "scripts/",
     ],
   },
   {
@@ -33,6 +34,7 @@ export default [
       "jsdoc/require-param-description": 0,
       "jsdoc/require-property-description": 0,
       "jsdoc/require-returns-description": 0,
+      "jsdoc/require-returns-check": 0,
       "jsdoc/no-undefined-types": ["error", {"definedTypes": ["IteratorObject", "PromiseLike"]}],
       "jsdoc/require-jsdoc": [1, {publicOnly: true, minLineCount: 2}],
       "jsdoc/no-defaults": 0

@@ -485,7 +485,10 @@ describe('Schema Compilation - Union Structure', function() {
 
       await assert.rejects(
       async () => await resolver.compile(schema),
-        /needs at least one property with constrained values/
+        (error) => {
+          return error.message.includes('needs at least one property with constrained values');
+        }
+        ///needs at least one property with constrained values/
       );
     });
 

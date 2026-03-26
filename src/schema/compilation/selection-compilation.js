@@ -66,6 +66,7 @@ export async function populateChildSelectorValues(inputSchema, _, location) {
           location: selectorPropertyLocation});
     }
 
+    // FIXME - figure out how we can avoid doing an await
     const selectorValue = await selectorPropertySchema.normalizeValue(selectionValue);
     selectionValueSet.add(selectorValue);
   }

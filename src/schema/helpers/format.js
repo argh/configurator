@@ -1,4 +1,5 @@
 import { CompiledSchema } from "../compiled-schema.js";
+import { stringify } from './stringify.js';
 
 /**
  *
@@ -44,7 +45,7 @@ export function formatArgumentType(schema) {
   }
   else {
     if (Array.isArray(schema.options.values) && schema.options.values.length > 0) {
-      argumentTypeString = schema.options.values.map(v => `${v}`)
+      argumentTypeString = schema.options.values.map(v => `${typeof v === 'string'? `"${v}"` : stringify(v)}`)
                                  .sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).join('|');
     }
     else {

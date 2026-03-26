@@ -15,6 +15,7 @@ import { SchemaError, ValidationError } from './schema-errors.js';
  * @typedef {object} SchemaHandlers
  * @property {Array<ValueProcessorSpec>} [normalizers]
  * @property {Array<ValueProcessorSpec>} [transformers]
+ * @property {Array<ValueProcessorSpec>} [finalizers]
  * @property {Array<ValueProcessorSpec>} [validators]
  * @property {Array<ValueProcessorSpec>} [serializers]
  * @property {Array<ValueProcessorSpec>} [conditions]
@@ -800,7 +801,7 @@ export class Schema
   }
 
   /**
-   * The transformer handler converts an input value into the output value used in the final configuration.
+   * The transformer handler converts a normalized input value into the final output value for the schema.
    * This call appends a single value processor to the handler pipeline.
    *
    * @param {ValueProcessorSpec} spec
@@ -811,7 +812,7 @@ export class Schema
   }
 
   /**
-   * The transformer handler converts an input value into the output value used in the final configuration.
+   * The transformer handler converts a normalized input value into the final output value for the schema.
    * This call applies one or more value processors to the handler pipeline.
    *
    * @param {Array<ValueProcessorSpec>} specs
@@ -821,6 +822,29 @@ export class Schema
   transformers(specs, policy) {
     return this.handler('transformers', specs, policy);
   }
+
+  /**
+   * The finalizer handler performs any required post-processing of a transformed value.
+   *
+   * @param {ValueProcessorSpec} spec
+   * @returns {Schema}
+   */
+  finalizer(spec) {
+    return this.finalizers(spec);
+  }
+
+  /**
+   * The finalizer handler does any required post-processing of a transformed value.
+   * This call applies one or more value processors to the handler pipeline.
+   *
+   * @param {Array<ValueProcessorSpec>} specs
+   * @param {symbol} [policy]
+   * @returns {Schema}
+   */
+  finalizers(specs, policy) {
+    return this.handler('finalizers', specs, policy);
+  }
+
 
   /**
    * The validator handler ensures an input value matches the schema, and returns a (potentially enhanced) fully validated output value.
@@ -1058,10 +1082,8 @@ export class Schema
     return new Schema()
       .option('reference', true)
       .default(path)
-      .normalizer((_, config, location) => {
-        // I think this acts as if the input value is a path (based on the default below)
-
-        // todo - maybe defer this until transform, and make it opaque?
+      .normalizer(() => path)
+      .transformer((_, config, location) => {
         const referenceSchema = location.absolute(path)?.schema;
         if (referenceSchema === undefined) {
           throw new SchemaError(`Reference path ${path} not found`);
