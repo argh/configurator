@@ -123,7 +123,7 @@ export class TraversalContext
 
     while (path) {
       const [propertyName, remainingPath] = behead(path);
-      const propertyState = state.relative(propertyName);
+      const propertyState = state.getChildState(propertyName);
 
       state.assignedInput ??= true;
       state = propertyState;

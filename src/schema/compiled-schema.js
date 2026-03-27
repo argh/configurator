@@ -215,6 +215,11 @@ export class CompiledSchema
    * Return true if this schema has any child schemas.
    *
    * todo - several callers also check if it is a union and the unionSchemas have children; absorb that logic here?
+   *  || (this.#unionSchemasMap.size > 0 && [...this.#unionSchemasMap.values()].some(schema => schema.hasChildren));
+   *
+   *  Currently does *not* work, because a union of a (boolean|object) will see a `true` as a trigger to normalize
+   *  as an object or array.  (This is starting to be motivation to make the "create a normalized empty container"
+   *  signal be something other than `true`.)
    *
    * @type {boolean}
    */

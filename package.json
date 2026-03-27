@@ -30,6 +30,7 @@
   },
   "scripts": {
     "test": "mocha --timeout 0 --ui bdd --recursive --exit",
+    "test:bail": "mocha -b --timeout 0 --ui bdd --recursive --exit",    
     "test:coverage": "c8 mocha --timeout 0 --ui bdd --recursive --exit --ignore 'test/99-*.test.js'",
     "docs:api": "typedoc",
     "docs:api:json": "typedoc --json docs-output/api.json",

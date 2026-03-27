@@ -446,7 +446,9 @@ export class SchemaCompiler extends CompiledSchema {
 
     compileSchemaCompiler(resolver.resolve(schemaCompilerSchema), this);
   }
-
+  get hasChildren() {
+    return true;
+  }
   /**
    *
    * @param {CompiledSchema} cs
@@ -500,6 +502,7 @@ export class SchemaCompiler extends CompiledSchema {
   async compile(inputSchema) {
     try {
       const context = new TraversalContext(new SchemaLocation(this));
+      context.compiling = true;
       return await this.process(inputSchema, undefined, {context});
     }
     catch (error) {

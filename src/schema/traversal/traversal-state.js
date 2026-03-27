@@ -187,23 +187,17 @@ export class TraversalState
     }
   }
 
+
   /**
-   * @param {string} relativePath
+   * @param {string} propertyName
    * @returns {TraversalState}
    */
-  relative(relativePath) {
-    if (relativePath === '') {
+  getChildState(propertyName) {
+    if (propertyName === '') {
       return this;
     }
-    if (relativePath.charAt(0) === '^') {
-      if (this.parent === undefined) {
-        throw new SchemaError(`Relative traversal state path ${relativePath} is above the root`);
-      }
-      return this.parent.relative(relativePath.slice(1));
-    }
-
-    const propertyPath = this.path ? `${this.path}.${relativePath}` : `${relativePath}`;
-    return this.context.getState(propertyPath);
+    return this.#children.get(propertyName)
+           ?? this.context.getState(this.path ? `${this.path}.${propertyName}` : `${propertyName}`)
   }
 
   get assignedInput() {
@@ -250,13 +244,11 @@ export class TraversalState
       this.mandatory = true;
     }
 
-    // fixme - experiment
-
     if (this.schema.hasChildren) {
-      if (isPlainObject(input)) {
+      if (isPlainObject(input) || (typeof input === 'object' && this.isIncremental)) {
         for (const [k,v] of Object.entries(input)) {
           if (v !== undefined && v !== null) {
-            const propertyState = this.relative(k);
+            const propertyState = this.getChildState(k);
             propertyState.assignedInput = v;
           }
         }
@@ -265,7 +257,7 @@ export class TraversalState
         for (let i = 0; i < input.length; ++i) {
           const v = input[i];
           if (v !== undefined && v !== null) {
-            const propertyState = this.relative(`${i}`);
+            const propertyState = this.getChildState(`${i}`);
             propertyState.assignedInput = v;
           }
         }
@@ -710,10 +702,12 @@ export class TraversalState
 
 
     const propertyKeys = new Set();
-    const input = this.input ?? this.assignedInput;
+    const input = this.input// ?? this.assignedInput;
 
     if (isPlainObject(input) || Array.isArray(input) || (input && this.isIncremental)) {
-      Object.keys(input).forEach(key => propertyKeys.add(key));
+      Object.keys(input).forEach(key => {
+        propertyKeys.add(key)
+      });
     }
 
     this.findIncompleteChildNames(propertyKeys);
@@ -744,7 +738,7 @@ export class TraversalState
       });
     }
     //return [...propertyKeys].map(propertyKey => this.relative(propertyKey)).filter(s => s?.isComplete === false);
-    return [...propertyKeys].map(propertyKey => this.relative(propertyKey));
+    return [...propertyKeys].map(propertyKey => this.getChildState(propertyKey));
   }
 
   get target() {
