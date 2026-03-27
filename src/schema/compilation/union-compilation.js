@@ -174,12 +174,7 @@ export async function synthesizeAutoDiscrimination(inputSchema, _target, _locati
     if (values.size > 0) {
       hoisted.values(Array.from(values))
     }
-    // fixme - temp hack
-    const context = new TraversalContext(new SchemaLocation(this));
-    context.compiling = true;
-    // end fixme
-
-    inputSchema._setPropertySchema(property, await compiler.process(hoisted, undefined, {context}));
+    inputSchema._setPropertySchema(property, await this.compile(hoisted));
   }
   inputSchema.handlers.discriminators = [
     compiler.resolver.compileValueProcessorSpec(compiler, generateAutomaticDiscriminatorFunction(inputSchema))

@@ -1,6 +1,7 @@
 import { parse } from '../helpers/stringify.js';
 import { ConstraintError } from '../schema-errors.js';
 import { formatValue } from '../../errors.js';
+import { EMPTY } from '../constants.js';
 
 /**
  * ## $object
@@ -14,7 +15,7 @@ import { formatValue } from '../../errors.js';
 export const OBJECT_OPERATOR = {
   keyword: 'object',
   process: (value) => {
-    if (value === true) {
+    if (value === EMPTY) {
       value = {};
     }
     if (typeof value === 'string') {

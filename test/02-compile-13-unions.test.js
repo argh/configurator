@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { CompiledSchema } from '../src/schema/compiled-schema.js';
+import { EMPTY } from '../src/schema/constants.js';
 
 describe('Schema Compilation - Union Structure', function() {
   /** @type {SchemaResolver} */
@@ -535,7 +536,7 @@ describe('Schema Compilation - Union Structure', function() {
 
   describe('any schema container construction with union members', function() {
 
-    it('should construct {} for true when a union member has string-keyed properties', async function() {
+    it('should construct {} for EMPTY when a union member has string-keyed properties', async function() {
       // hasStringProperties recurses into unionSchemaEntries on the compiled schema
       const unionMember = new Schema('any')
         .property('type', new Schema('string').values(['server']))
@@ -543,7 +544,7 @@ describe('Schema Compilation - Union Structure', function() {
       const schema = await resolver.compile(
         new Schema('any').unionSchema('server', unionMember)
       );
-      assert.deepStrictEqual(await schema.normalizeValue(true), {});
+      assert.deepStrictEqual(await schema.normalizeValue(EMPTY), {});
     });
   });
 });

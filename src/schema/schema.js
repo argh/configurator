@@ -261,6 +261,7 @@ export class Schema
     if (this.base === undefined && this.options.type === undefined) {
       //this.base = Number.isInteger(propertyName)? 'array' : 'object';
     }
+    this.options.container ??= true;
     return this;
   }
 

@@ -11,6 +11,7 @@ import { debug } from '../helpers/debug-sink.js';
 import { behead } from '../../utils.js';
 import { CompiledSchema } from "../compiled-schema.js";
 import { SchemaError } from '../schema-errors.js';
+import { EMPTY } from '../constants.js';
 
 export class TraversalContext
 {
@@ -125,7 +126,7 @@ export class TraversalContext
       const [propertyName, remainingPath] = behead(path);
       const propertyState = state.getChildState(propertyName);
 
-      state.assignedInput ??= true;
+      state.assignedInput ??= EMPTY;
       state = propertyState;
       path = remainingPath;
       state.mandatory = true;

@@ -8,7 +8,7 @@ import { TraversalState } from '../traversal-state.js';
 export function transformEarly(state) {
 
   if (state.value !== undefined && ((state.value === state.pending)
-                                    || (state.isContainer && state.isIncremental
+                                    || (state.hasChildren && state.isIncremental
                                         && deepEquals(state.pending, state.value)))) {
     state.pending = undefined;
     return state;
@@ -16,11 +16,11 @@ export function transformEarly(state) {
   if (state.pending === undefined || state.schema === undefined || state.isUnion || state.schema.isImplicit) {
     return state;
   }
-  if ((state.isContainer && state.isOpaque) /*|| !state.hasWorkInProgress*/) {
+  if ((state.hasChildren && state.isOpaque) /*|| !state.hasWorkInProgress*/) {
     return state;
   }
 
-  if (state.isContainer && !state.mandatory && isEmpty(state.pending)) {
+  if (state.hasChildren && !state.mandatory && isEmpty(state.pending)) {
     return state;
   }
 

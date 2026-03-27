@@ -135,12 +135,14 @@ export class SchemaCompiler extends CompiledSchema {
       })
       .unionSchema('spec', specSchema)
       .unionSchema('array', new Schema('array')
+        .allowEmpty()
         //.opaque()
         .transformer(pa => {
           return pa; // todo - verify parameters
         })
         .property('*', specSchema))
       .unionSchema('object', new Schema('object')
+        .allowEmpty()
         //.opaque()
         .transformer(po => {
           return po;  // todo - verify parameters

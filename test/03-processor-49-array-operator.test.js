@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { TransformError } from '../src/schema/schema-errors.js';
+import { EMPTY } from '../src/schema/constants.js';
 
 describe('Processor: $array', function() {
   /** @type {SchemaResolver} */
@@ -15,8 +16,8 @@ describe('Processor: $array', function() {
     schema = await resolver.compile(new Schema('any').transformer('$array'));
   });
 
-  it('should convert true to an empty array', async function() {
-    assert.deepStrictEqual(await schema.transformValue(true), []);
+  it('should convert EMPTY to an empty array', async function() {
+    assert.deepStrictEqual(await schema.transformValue(EMPTY), []);
   });
 
   it('should pass through plain arrays unchanged', async function() {

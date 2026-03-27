@@ -2,6 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { EMPTY } from '../src/schema/constants.js';
 
 describe('Schema: any — automatic container construction', function() {
   /** @type {SchemaResolver} */
@@ -11,35 +12,35 @@ describe('Schema: any — automatic container construction', function() {
     resolver = new SchemaResolver();
   });
 
-  it('should return {} for true when any property key is a non-numeric string', async function() {
+  it('should return {} for EMPTY when any property key is a non-numeric string', async function() {
     const schema = await resolver.compile(
       new Schema('any').property('stringKey', new Schema())
     );
-    assert.deepStrictEqual(await schema.normalizeValue(true), {});
+    assert.deepStrictEqual(await schema.normalizeValue(EMPTY), {});
   });
 
-  it('should return [] for true when all property keys are numeric', async function() {
+  it('should return [] for EMPTY when all property keys are numeric', async function() {
     const schema = await resolver.compile(
       new Schema('any').property('0', new Schema())
     );
-    assert.deepStrictEqual(await schema.normalizeValue(true), []);
+    assert.deepStrictEqual(await schema.normalizeValue(EMPTY), []);
   });
 
-  it('should return [] for true when the only property key is the wildcard *', async function() {
+  it('should return [] for EMPTY when the only property key is the wildcard *', async function() {
     const schema = await resolver.compile(
       new Schema('any').property('*', new Schema())
     );
-    assert.deepStrictEqual(await schema.normalizeValue(true), []);
+    assert.deepStrictEqual(await schema.normalizeValue(EMPTY), []);
   });
 
   it('should return {} when mixed numeric and string keys are present', async function() {
     const schema = await resolver.compile(
       new Schema('any').property('0', new Schema()).property('name', new Schema())
     );
-    assert.deepStrictEqual(await schema.normalizeValue(true), {});
+    assert.deepStrictEqual(await schema.normalizeValue(EMPTY), {});
   });
 
-  it('should pass through non-true values unchanged', async function() {
+  it('should pass through non-EMPTY values unchanged', async function() {
     const schema = await resolver.compile(
       new Schema('any').property('name', new Schema())
     );

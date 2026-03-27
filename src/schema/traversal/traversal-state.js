@@ -4,6 +4,7 @@ import { TraversalContext } from './traversal-context.js';
 import { deepEquals, isEmpty, isPlainObject, isPrimitive } from '../../utils.js';
 import { Executor } from "../executor/executor.js";
 import { SchemaError } from '../schema-errors.js';
+import { EMPTY } from '../constants.js';
 
 export class TraversalState
 {
@@ -264,11 +265,8 @@ export class TraversalState
       }
     }
 
-    // end
-
-
     if (this.schema?.hasChildren && !this.schema.isUnion) {
-      if (input !== true && !isEmpty(input)) {
+      if (input !== EMPTY && (!isEmpty(input) || this.schema.options.allowEmpty)) {
         this.mandatory = true;
       }
     }
@@ -354,7 +352,7 @@ export class TraversalState
   set processed(value) {
     this.#processed = Boolean(value);
 
-    if (this.#processed && !this.isContainer) {
+    if (this.#processed && !this.hasChildren) {
 //      this.isComplete = true;  // short-circuit completion when we know its safe
     }
   }
@@ -367,7 +365,7 @@ export class TraversalState
     if (this.schema?.required) {
       this.#required = true;
     }
-    else if (!this.isContainer) {
+    else if (!this.hasChildren) {
       this.#required = false;
     }
     else if (this.isDeep) {
@@ -484,8 +482,12 @@ export class TraversalState
     return !this.mandatory && /*this.#path !== '' &&*/ this.value === undefined;
   }
 
-  get isContainer() {
+  get hasChildren() {
     return this.schema?.hasChildren ?? false;
+  }
+
+  get isContainer() {
+    return this.schema?.isContainer ?? false;
   }
 
   get isPruned() {
@@ -500,14 +502,14 @@ export class TraversalState
     if (this.schema === undefined) {
       return true;
     }
-    return !this.isContainer || this.schema.isOpaque;
+    return !this.hasChildren || this.schema.isOpaque;
   }
 
   get isIncremental() {
     if (this.schema === undefined) {
       return false;
     }
-    return this.isContainer && !this.schema.isOpaque;
+    return this.hasChildren && !this.schema.isOpaque;
   }
 
   get isStrict() {
@@ -540,18 +542,18 @@ export class TraversalState
       return false;
     }
 
-    return !(this.isContainer && this.isIncremental);
+    return !(this.hasChildren && this.isIncremental);
   }
 
   get hasDescendentStates() {
-    if (!this.isContainer) {
+    if (!this.hasChildren) {
       return false;
     }
     return this.#children.size > 0;
   }
 
   get hasDescendentsToTraverse() {
-    if (!this.isContainer) {
+    if (!this.hasChildren) {
       return false;
     }
 
@@ -564,7 +566,7 @@ export class TraversalState
   }
 
   get hasIncompleteDescendents() {
-    if (!this.isContainer) {
+    if (!this.hasChildren) {
       return false;
     }
 
@@ -572,7 +574,7 @@ export class TraversalState
     return [...this.#children.values()].some(childState => !childState.completed);
   }
   get incompleteDescendents() {
-    if (!this.isContainer) {
+    if (!this.hasChildren) {
       return [];
     }
 
@@ -659,11 +661,14 @@ export class TraversalState
     if (this.schema?.isImplicit) {
       return false;
     }
-    if (!this.isContainer) {
+    if (!this.hasChildren) {
       return true;
     }
 
     if (isEmpty(this.pending)) {
+      if (this.schema?.options.allowEmpty) {
+        return true;
+      }
       // The WIP is an empty array or object; if we have a processed value, that's all that matters.
       if (this.processed) {
         return false;

@@ -98,7 +98,7 @@ assert(await hybridColorSchema.process(yellow) === yellowHexString);
 assert(await hybridColorSchema.process(yellowHexString) === yellowHexString);
 
 try {
-  await hybridColorSchema.process(123);
+  const result = await hybridColorSchema.process(123);
   assert(false, 'Oops, should have thrown a union resolution error!')
 }
 catch (error) {

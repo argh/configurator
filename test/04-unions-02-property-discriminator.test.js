@@ -2,6 +2,7 @@
 import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { SchemaError, UnionResolutionError } from '../src/schema/schema-errors.js';
 
 describe('Unions: Property-Based Discriminator', function() {
   /** @type {SchemaResolver} */
@@ -77,8 +78,7 @@ describe('Unions: Property-Based Discriminator', function() {
     assert.ok(result);
     assert.strictEqual(compiled.findUnionKey(result), 'a');
   });
-  // todo - remove?  this is now an error.
-  it.skip('should return undefined for non-matching discriminator value', async function() {
+  it('should throw an error for non-matching discriminator value', async function() {
     const schema = new Schema('object')
       .property('type', new Schema('string'))
       .unionDiscriminator({$property: 'type'})
@@ -88,8 +88,7 @@ describe('Unions: Property-Based Discriminator', function() {
 
     const compiled = await resolver.compile(schema);
 
-    const result = await compiled.discriminateUnion({type: 'invalid'});
-    assert.strictEqual(result, undefined);
+    await assert.rejects(() => compiled.discriminateUnion({type: 'invalid'}), SchemaError);
   });
 
   it('should return undefined when discriminator property is missing', async function() {

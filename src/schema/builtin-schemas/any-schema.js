@@ -1,6 +1,7 @@
 import { SchemaLocation } from "../schema-location.js";
 import { Schema } from '../schema.js';
 import { hasStringProperties } from '../helpers/has-string-properties.js';
+import { EMPTY } from '../constants.js';
 
 /**
  * @param {any} value
@@ -10,8 +11,8 @@ import { hasStringProperties } from '../helpers/has-string-properties.js';
  */
 function anyValueProcessor(value, _, location) {
   const schema = location.schema;
-  if (value === true && schema.hasChildren) {
-    return hasStringProperties(schema)? {} : [];
+  if (value === EMPTY && schema.isContainer) {
+    return (!schema.isArray && hasStringProperties(schema))? {} : [];
   }
   return value;
 }

@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { ConstraintError, NormalizeError, TransformError, ValidationError } from '../src/schema/schema-errors.js';
+import { EMPTY } from '../src/schema/constants.js';
 
 describe('Schema Compilation - Object Type', function() {
   /** @type {SchemaResolver} */
@@ -32,11 +33,11 @@ describe('Schema Compilation - Object Type', function() {
       assert.deepStrictEqual(normalized, obj);
     });
 
-    it('should normalize true to empty object', async function() {
+    it('should normalize EMPTY to empty object', async function() {
       const schema = new Schema('object');
       const compiled = await resolver.compile(schema);
 
-      const normalized = await compiled.normalizeValue(true);
+      const normalized = await compiled.normalizeValue(EMPTY);
       assert.deepStrictEqual(normalized, {});
     });
 

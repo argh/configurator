@@ -22,7 +22,7 @@ export function transform(state) {
   }
 
   if (state.value !== undefined && ((state.value === state.pending)
-                                    || (state.isContainer && state.isIncremental
+                                    || (state.hasChildren && state.isIncremental
                                         && deepEquals(state.pending, state.value)))) {
     state.pending = undefined;
     return state;
@@ -34,11 +34,13 @@ export function transform(state) {
     // implicit schemas never directly transform; they must use a value prepared by their parent.
     return state;
   }
-  if (!state.hasWorkInProgress || (state.isContainer && state.isOpaque && state.hasIncompleteDescendents)) {
+  if (!state.hasWorkInProgress || (state.hasChildren && state.isOpaque && state.hasIncompleteDescendents)) {
     return state;
   }
 
-  if (state.isContainer && state.isIncremental && !state.mandatory && isEmpty(state.pending)) {
+  // todo - mandatory may not be set (via TraversalState set input) if we resolved a union this pass!
+
+  if (state.hasChildren && state.isIncremental && !state.mandatory && isEmpty(state.pending) && !state.schema.options.allowEmpty) {
     return state;
   }
 

@@ -22,6 +22,7 @@ import {
 } from "./traversal/executors/index.js";
 import { formatValue } from "../errors.js";
 import { PipelineExecutor } from "./executor/pipeline-executor.js";
+import { EMPTY } from './constants.js';
 
 
 /** @import { TraversalContextOptions } from './traversal/traversal-context.js' */
@@ -214,17 +215,21 @@ export class CompiledSchema
   /**
    * Return true if this schema has any child schemas.
    *
-   * todo - several callers also check if it is a union and the unionSchemas have children; absorb that logic here?
-   *  || (this.#unionSchemasMap.size > 0 && [...this.#unionSchemasMap.values()].some(schema => schema.hasChildren));
-   *
-   *  Currently does *not* work, because a union of a (boolean|object) will see a `true` as a trigger to normalize
-   *  as an object or array.  (This is starting to be motivation to make the "create a normalized empty container"
-   *  signal be something other than `true`.)
-   *
    * @type {boolean}
    */
   get hasChildren() {
     return this.#propertiesMap.size > 0;
+  }
+
+  /**
+   * Return true if this schema should be treated as a container.
+   *
+   * Any schema that has children is a container, but also those explicitly marked as a container.
+   *
+   * @returns {boolean}
+   */
+  get isContainer() {
+    return this.hasChildren || Boolean(this.options.container);
   }
 
   /**
@@ -695,9 +700,9 @@ export class CompiledSchema
 
     const normalizer = this.getValueProcessor('normalizers');
     if (normalizer === undefined) {
-      // If we are a container type without a normalizer, create a default container if passed true
+      // If we are a container type without a normalizer, create a default container if passed EMPTY
       // todo - consider making this a compilation error!  all container schemas need a normalizer of some sort!
-      if (this.hasChildren && value === true) {
+      if (this.isContainer && value === EMPTY) {
         return this.isArray? [] : {}
       }
       return value;
@@ -1017,9 +1022,6 @@ export class CompiledSchema
     const serializer = this.getValueProcessor('serializers');
 
     if (!serializer) {
-      if (this.hasChildren) {
-        return this.isArray? [] : {}
-      }
       return value;
     }
 
@@ -1513,6 +1515,7 @@ export class CompiledSchema
     this.#properties = undefined;
 
     this.#propertiesMap.set(propertyName, propertySchema);
+    this.#options.container ??= true;
 
     return propertySchema;
   }

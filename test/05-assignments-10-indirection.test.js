@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { SchemaError, ValidationError } from '../src/schema/schema-errors.js';
+import { EMPTY } from '../src/schema/constants.js';
 
 describe('Assignments - Indirection (inherit, reference)', function() {
   /** @type {SchemaResolver} */
@@ -348,7 +349,7 @@ describe('Assignments - Indirection (inherit, reference)', function() {
 
         const assignments = new Map([
           ['config.database.connection.host', 'localhost'],
-          ['cache', true]  // trigger cache container creation
+          ['cache', EMPTY]  // trigger cache container creation
         ]);
 
         const result = await compiled.processAssignments(assignments);

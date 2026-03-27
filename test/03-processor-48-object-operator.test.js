@@ -3,6 +3,7 @@ import { strict as assert } from 'assert';
 import { Schema } from '../src/schema/schema.js';
 import { SchemaResolver } from '../src/schema/schema-resolver.js';
 import { NormalizeError } from '../src/schema/schema-errors.js';
+import { EMPTY } from '../src/schema/constants.js';
 
 describe('Processor: $object', function() {
   /** @type {SchemaResolver} */
@@ -15,8 +16,8 @@ describe('Processor: $object', function() {
     schema = await resolver.compile(new Schema('any').normalizer('$object'));
   });
 
-  it('should convert true to an empty object', async function() {
-    assert.deepStrictEqual(await schema.normalizeValue(true), {});
+  it('should convert EMPTY to an empty object', async function() {
+    assert.deepStrictEqual(await schema.normalizeValue(EMPTY), {});
   });
 
   it('should pass through plain objects unchanged', async function() {

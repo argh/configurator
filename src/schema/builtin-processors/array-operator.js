@@ -1,5 +1,6 @@
 import { parse } from '../helpers/stringify.js';
 import { ConstraintError } from '../schema-errors.js';
+import { EMPTY } from '../constants.js';
 
 /**
  * ## $array
@@ -16,7 +17,7 @@ export const ARRAY_OPERATOR = {
   keyword: 'array',
 
   process: (value, _, location) => {
-    if (value === true) {
+    if (value === EMPTY) {
       value = [];
     }
     else if (value === '*') {

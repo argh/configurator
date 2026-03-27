@@ -1,5 +1,6 @@
 import { ConstraintError } from '../schema-errors.js';
 import { stringify } from '../helpers/stringify.js';
+import { EMPTY } from '../constants.js';
 
 /**
  * ## $string
@@ -18,6 +19,9 @@ export const STRING_OPERATOR = {
     }
     else if (value === null || value === undefined) {
       throw new ConstraintError(`Invalid string`, {value})
+    }
+    else if (value === EMPTY) {
+      return '';
     }
     else if (typeof value === 'object') {
       if (value instanceof Date) return value.toISOString();

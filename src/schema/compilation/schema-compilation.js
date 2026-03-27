@@ -114,7 +114,7 @@ export function validateSchema(schema, _, location) {
     throw new SchemaCompilationError(`No discriminator defined for union`, {location});
   }
 
-  if (schema.hasChildren && schema.options.type !== 'object' && schema.options.type !== 'array' && schema.options.type !== 'any') {
+  if (schema.hasChildren && (!schema.options.container || (schema.options.type !== 'object' && schema.options.type !== 'array' && schema.options.type !== 'any'))) {
     throw new SchemaCompilationError(`Schema defines child properties but does not identify as a container`, {location});
   }
 

@@ -1,6 +1,7 @@
 import { TraversalState } from '../traversal-state.js';
 import { SchemaError } from '../../schema-errors.js';
 import { CompiledSchema } from '../../compiled-schema.js';
+import { EMPTY } from '../../constants.js';
 
 
 /**
@@ -20,7 +21,7 @@ export function preparePending(state) {
     }
   }
 
-  if (state.isContainer) {
+  if (state.hasChildren) {
     if (state.pending !== undefined) {
       return state; // use existing
     }
@@ -35,7 +36,7 @@ export function preparePending(state) {
     }
 
     // create an empty container
-    const normalized = schema._normalizeValue(true, state.target, state.location, state.options);
+    const normalized = schema._normalizeValue(EMPTY, state.target, state.location, state.options);
 
     if (normalized instanceof Promise) {
       return normalized.then(normalized => {
