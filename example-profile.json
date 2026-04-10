@@ -1,0 +1,1 @@
+{"user":{"nickname":"bob","cheeses":["brie","stilton"]},"work":{"operations":[{"type":"seek","x":10,"y":5},{"type":"punch","punchCount":4},{"type":"read","readLength":2},{"type":"seek","y":6},{"type":"punch"}]}}

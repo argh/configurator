@@ -54,5 +54,8 @@
     "typedoc-plugin-markdown": "^4.9.0",
     "typedoc-plugin-missing-exports": "^4.1.2",
     "typescript": "~5.8"
+  },
+  "dependencies": {
+    "@versionzero/schema": "^0.2.1-main.21"
   }
 }
