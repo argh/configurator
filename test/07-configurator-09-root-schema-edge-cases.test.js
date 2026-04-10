@@ -1,6 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { Schema } from '../src/schema/schema.js';
+import { Schema } from '@versionzero/schema';
 import { Configurator } from '../src/configurator.js';
 import { ObjectSource } from '../src/configuration-sources/index.js';
 

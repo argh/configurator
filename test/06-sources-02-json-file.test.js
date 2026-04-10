@@ -1,7 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { Schema } from '../src/schema/schema.js';
-import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { Schema, SchemaResolver } from '@versionzero/schema';
 import { JsonFileSource } from '../src/configuration-sources/json-file-source.js';
 import { ConfiguratorError } from '../src/errors.js';
 import { promises as fs } from 'fs';

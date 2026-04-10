@@ -1,4 +1,5 @@
-import { Configurator, ConfiguratorError, Schema } from '../src/index.js';
+import { Configurator, ConfiguratorError } from '../src/index.js';
+import { Schema } from '@versionzero/schema';
 
 // This example shows how to use selectors to define a command hierarchy.
 

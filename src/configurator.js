@@ -1,9 +1,6 @@
 import { promises as fs } from 'fs';
 
-import { Schema } from './schema/schema.js';
-import { CompiledSchema } from './schema/compiled-schema.js';
-import { SchemaResolver } from './schema/schema-resolver.js';
-import { SchemaLocation } from './schema/schema-location.js';
+import { Schema, CompiledSchema, SchemaResolver, SchemaLocation } from '@versionzero/schema';
 import {
   ConfigurationSource,
   CommandLineSource,
@@ -13,8 +10,7 @@ import {
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './errors.js';
 
-import { stringify } from './schema/helpers/stringify.js';
-import { existingAssignment } from './schema/helpers/assignments.js';
+import { stringify, existingAssignment } from '@versionzero/schema/helpers';
 import { toPascalCase } from './utils.js';
 
 
@@ -403,7 +399,7 @@ export class Configurator {
         .meta('hidden'));
   }
 
-  /** @import { ConfigureOptions, SerializeOptions } from './schema/types.js' */
+  /** @import { ConfigureOptions, SerializeOptions } from '@versionzero/schema/types' */
 
   /**
    * Dump formatted configuration to stdout or file

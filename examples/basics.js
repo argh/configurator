@@ -1,4 +1,5 @@
-import { Configurator, SchemaResolver, Schema, ConfiguratorError } from '../src/index.js';
+import { Configurator, ConfiguratorError } from '../src/index.js';
+import { Schema, SchemaResolver } from '@versionzero/schema';
 
 const appName = 'basics';
 

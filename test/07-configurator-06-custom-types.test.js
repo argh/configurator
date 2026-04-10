@@ -2,8 +2,7 @@
 
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
-import { Schema, SchemaPolicy } from '../src/schema/schema.js';
-import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { Schema, SchemaPolicy, SchemaResolver } from '@versionzero/schema';
 
 describe('Configurator - Custom Types Integration', function() {
 

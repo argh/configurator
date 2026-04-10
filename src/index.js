@@ -3,13 +3,10 @@
 
 export { Configurator } from './configurator.js';
 export { ConfigurationSource } from './configuration-sources/configuration-source.js';
-export { CompiledSchema } from './schema/compiled-schema.js';
-export { Schema } from './schema/schema.js';
 export { ConfiguratorError } from './errors.js'
-export { SchemaResolver } from './schema/schema-resolver.js';
-export { SchemaLocation } from './schema/schema-location.js';
-export { EMPTY } from './schema/constants.js';
+
+// Re-export from schema for backward compatibility
+export { CompiledSchema, Schema, SchemaPolicy, SchemaError, SchemaResolver, SchemaLocation, EMPTY } from '@versionzero/schema';
 
 export * as sources from './configuration-sources/index.js';
 export * as utils from './utils.js';
-

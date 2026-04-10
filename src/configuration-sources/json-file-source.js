@@ -3,7 +3,7 @@ import { ConfigurationSource } from './configuration-source.js';
 import { ConfiguratorError } from '../errors.js';
 import { promises as fs } from 'fs';
 import { text } from 'node:stream/consumers';
-/** @import {CompiledSchema} from '../schema/compiled-schema.js' */
+/** @import {CompiledSchema} from '@versionzero/schema' */
 
 
 /**

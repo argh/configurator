@@ -1,6 +1,6 @@
 import assert from "node:assert";
 //import { SchemaLocation } from "./schema/schema-location.js";
-import { stringify } from './schema/helpers/stringify.js';
+import { stringify } from '@versionzero/schema/helpers';
 import { isPlainObject } from './utils.js';
 
 

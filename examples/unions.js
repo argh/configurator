@@ -1,4 +1,5 @@
-import { Configurator, ConfiguratorError, Schema } from '../src/index.js';
+import { Configurator, ConfiguratorError } from '../src/index.js';
+import { Schema } from '@versionzero/schema';
 
 const appName = 'cheese';
 
@@ -175,7 +176,7 @@ schema.property('cheese', unionCheeseSchema);
 // -m sheep -t crumbly -a          -> roquefort
 // -b -r none -m cow               -> gorgonzola
 
-import {stringify} from '../src/schema/helpers/stringify.js';
+import {stringify} from '@versionzero/schema/helpers';
 try {
 
   const context = (process.env.CONFIGURATOR_TEST === 'true')?

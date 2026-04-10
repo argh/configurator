@@ -1,7 +1,8 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
-import { Configurator, SchemaResolver, Schema, ConfiguratorError } from '../src/index.js';
+import { Configurator, ConfiguratorError } from '../src/index.js';
+import { Schema, SchemaResolver } from '@versionzero/schema';
 import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
 import { isConstructor, isTruthy, toConstantCase } from '../src/utils.js';
 

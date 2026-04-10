@@ -1,7 +1,7 @@
 
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
-import { Schema } from '../src/schema/schema.js';
+import { Schema } from '@versionzero/schema';
 import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
 
 describe('Configurator - Conditions Integration', function() {

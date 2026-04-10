@@ -1,7 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { Schema } from '../src/schema/schema.js';
-import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { Schema, SchemaResolver } from '@versionzero/schema';
 import { CommandLineSource, CommandLineError } from '../src/configuration-sources/command-line-source.js';
 
 describe('Sources - CommandLineSource - Selectors', function() {

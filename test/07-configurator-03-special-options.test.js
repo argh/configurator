@@ -1,7 +1,7 @@
 
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
-import { Schema } from '../src/schema/schema.js';
+import { Schema } from '@versionzero/schema';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';

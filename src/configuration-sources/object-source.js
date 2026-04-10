@@ -1,5 +1,5 @@
 import { ConfigurationSource } from './configuration-source.js'
-/** @import {CompiledSchema} from '../schema/compiled-schema.js' */
+/** @import {CompiledSchema} from '@versionzero/schema' */
 
 /**
  * ObjectSource - load configuration assignments from an object

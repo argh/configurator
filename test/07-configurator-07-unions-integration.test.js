@@ -1,8 +1,7 @@
 
 import { strict as assert } from 'assert';
 import { Configurator } from '../src/configurator.js';
-import { Schema } from '../src/schema/schema.js';
-import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { Schema, SchemaResolver } from '@versionzero/schema';
 
 describe('Configurator - Unions Integration', function() {
 

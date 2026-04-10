@@ -1,7 +1,6 @@
 
 import { strict as assert } from 'assert';
-import { Schema } from '../src/schema/schema.js';
-import { SchemaResolver } from '../src/schema/schema-resolver.js';
+import { Schema, SchemaResolver } from '@versionzero/schema';
 import { ObjectSource } from '../src/configuration-sources/object-source.js';
 
 describe('Sources - ObjectSource', function() {

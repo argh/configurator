@@ -56,6 +56,6 @@
     "typescript": "~5.8"
   },
   "dependencies": {
-    "@versionzero/schema": "^0.2.1-main.21"
+    "@versionzero/schema": "^0.2.1-main.23"
   }
 }

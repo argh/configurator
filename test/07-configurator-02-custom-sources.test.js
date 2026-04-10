@@ -2,7 +2,7 @@
 import { strict as assert } from 'assert';
 import { setTimeout } from 'node:timers/promises';
 import { Configurator } from '../src/configurator.js';
-import { Schema } from '../src/schema/schema.js';
+import { Schema } from '@versionzero/schema';
 import { ConfigurationSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
 import { toConstantCase } from '../src/utils.js';
 
