@@ -68,7 +68,7 @@ schema.property('server', s('object')
   .property('protocol', s('string')
     .validator({$in: ['https', 'http']})
     .meta('description', 'health check protocol')
-    .meta('advanced')  // default value for metadata is
+    .meta('advanced')  // default value for metadata is "true"
   )
 );
 
