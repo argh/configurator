@@ -16,7 +16,7 @@
 
     "declaration": true,
     "emitDeclarationOnly": true,
-    "outFile": "types.d.ts",
+    "outDir": "types",
     //"declarationMap": true
   },
   "include": ["src/**/*"],

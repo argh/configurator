@@ -14,6 +14,8 @@ import { stringify } from '@versionzero/schema/helpers';
 import { toPascalCase, existingAssignment } from './utils.js';
 
 
+
+
 const MODULE_INFO = {
   name: 'configurator',
   schema: new Schema().meta('internal')
@@ -97,7 +99,7 @@ export class Configurator {
   _findSpecialConfiguratorSchema(metadataValue) {
     // todo - this is gross, figure out a better approach?
     const propertySchemas = (this._schema instanceof CompiledSchema)
-                            ? this._schema.propertyEntries.map(e => e[1])
+                            ? Array.from(this._schema.propertyEntries).map(e => e[1])
                             : Object.values(this._schema.properties);
 
     for (const schema of propertySchemas ) {
@@ -190,7 +192,11 @@ export class Configurator {
   }
 
 
-
+  /**
+   * @typedef {object} ConfigureOptions
+   * @property {boolean} [strict]
+   * @property {boolean} [deep]
+   */
 
   /**
    * Main entry point.  Load configuration assignments from all defined sources,
@@ -204,13 +210,12 @@ export class Configurator {
   async configure(context, options = {}) {
     const configurationContext = {...context};
 
-    const strict = options?.strict ?? true;
-    const deep = options?.deep ?? false;
+    const strict = options.strict ?? true;
 
     const schema = await this._resolver.compile(this._schema);
     const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
 
-    const configuration = await schema.processAssignments(assignments, undefined,{strict, deep, ...options})
+    const configuration = await schema.processAssignments(assignments, undefined,{...options, strict})
 
     const dumpContextName = this._specialContextNames['dump'];
     if (dumpContextName && configurationContext[dumpContextName]) {
@@ -399,7 +404,11 @@ export class Configurator {
         .meta('hidden'));
   }
 
-  /** @import { ConfigureOptions, SerializeOptions } from '@versionzero/schema/types' */
+  /**
+   * @typedef {object} DumpOptions
+   * @property {boolean} [strict]
+   * @property {number} [space]
+   */
 
   /**
    * Dump formatted configuration to stdout or file
@@ -410,19 +419,22 @@ export class Configurator {
    * @param {CompiledSchema} schema
    * @param {object} config - configuration object to dump
    * @param {string} destination - path to write, or "-" for stdout
-   * @param {SerializeOptions} [serializeOptions] -
+   * @param {DumpOptions} [options] -
    * @returns {Promise<void>}
    *
    */
-  async dump(schema, config, destination, serializeOptions) {
+  async dump(schema, config, destination, options = {}) {
 
-    const serialized = await schema.serialize(config, {...serializeOptions});
+    const strict = options.strict ?? false;
+    const space = options.space ?? 2
+
+    const serialized = await schema.serialize(config, {strict});
 
     if (serialized === undefined) {
       throw new ConfiguratorError('Empty configuration');
     }
 
-    const formattedConfig = stringify(serialized, {space: 2});
+    const formattedConfig = stringify(serialized, {space});
     if (destination === '-') {
       try {
         console.log(formattedConfig);

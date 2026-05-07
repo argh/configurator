@@ -315,3 +315,38 @@ jobs:
             See [CHANGELOG.md](CHANGELOG.md) for details.
           draft: false
           prerelease: false
+      # ── Slack build notification ─────────────────────────────
+      - name: Capture failure logs
+        id: failure-logs
+        if: always() && failure() && github.event_name == 'push'
+        run: |
+          LOGS=$(gh run view ${{ github.run_id }} --log-failed 2>/dev/null | tail -30 || echo "Could not retrieve logs")
+          # Store in env file to handle multiline safely
+          echo "FAILURE_LOGS<<GHEOF" >> $GITHUB_ENV
+          echo "$LOGS" >> $GITHUB_ENV
+          echo "GHEOF" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Slack
+        if: always() && github.event_name == 'push'
+        run: |
+          STATUS="${{ job.status }}"
+          VERSION="${{ steps.version.outputs.new_version }}"
+          PACKAGE="${{ steps.package-info.outputs.name }}"
+          BRANCH="${{ github.ref_name }}"
+          COMMIT_MSG=$(git log -1 --format='%s' ${{ github.sha }})
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [[ "$STATUS" == "success" ]]; then
+            HEADER="\`$PACKAGE@$VERSION\` ($BRANCH) — $COMMIT_MSG — <$RUN_URL|details>"
+            TEXT=":bananadance: $HEADER"
+          else
+            HEADER="~\`$PACKAGE@$VERSION\`~ ($BRANCH) — $COMMIT_MSG — <$RUN_URL|details>"
+            TEXT=":this-is-fine: $HEADER"
+            if [[ -n "$FAILURE_LOGS" ]]; then
+              TEXT="$TEXT\n\`\`\`\n${FAILURE_LOGS}\n\`\`\`"
+            fi
+          fi
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            --data "$(jq -n --arg text "$TEXT" '{text: $text}')"
