@@ -1,5 +1,4 @@
-import { Configurator, ConfiguratorError } from '../src/index.js';
-import { Schema, SchemaResolver } from '@versionzero/schema';
+import { Configurator, ConfiguratorError, Schema, SchemaResolver } from '@versionzero/configurator';
 
 const appName = 'basics';
 
@@ -46,6 +45,7 @@ schema.property(appName,
         .required()
         .property('*', new Schema('MagicCode').validator({$matches: /^[^q]+$/}))
         .meta('description', 'magic secret codes')
+        .meta('valueDescription', '{codes...} (alphanumeric, no q!)')
         .validator({'$length': {min: 2}})
     )
 )

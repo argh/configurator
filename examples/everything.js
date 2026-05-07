@@ -1,9 +1,8 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
-import { Configurator, ConfiguratorError } from '../src/index.js';
-import { Schema, SchemaResolver } from '@versionzero/schema';
-import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '../src/configuration-sources/index.js';
+import { Configurator, ConfiguratorError, Schema, SchemaResolver } from '@versionzero/configurator';
+import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '@versionzero/configurator/sources';
 import { isConstructor, isTruthy, toConstantCase } from '../src/utils.js';
 
 // This example aggregates (almost) everything you can do with Configurator into one
@@ -579,7 +578,7 @@ catch (error) {
     else {
       console.error(`Configuration error: ${error.message}`)
     }
-    console.error(`Specify --halp to list available command line options.  (Yes, "halp".)`)
+    console.error(`Specify --halp to list available command line options.  (Yes, "halp".)`)  // overridden above!
   }
   else {
     console.error(error);

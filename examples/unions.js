@@ -1,5 +1,4 @@
-import { Configurator, ConfiguratorError } from '../src/index.js';
-import { Schema } from '@versionzero/schema';
+import { Schema, Configurator, ConfiguratorError } from '@versionzero/configurator';
 
 const appName = 'cheese';
 
@@ -19,11 +18,9 @@ const cheeses = [
   { name: 'Emmental', milk: 'cow', texture: 'hard', aged: true, holes: true, blue: false, rind: 'natural', stinkLevel: 2 },
   { name: 'Gorgonzola', milk: 'cow', texture: 'crumbly', aged: true, holes: false, blue: true, rind: 'none', stinkLevel: 6 },
   { name: 'Stilton', milk: 'cow', texture: 'crumbly', aged: true, holes: false, blue: true, rind: 'natural', stinkLevel: 6 },
-
   { name: 'Roquefort', milk: 'sheep', texture: 'crumbly', aged: true, holes: false, blue: true, rind: 'none', stinkLevel: 7 },
   { name: 'Feta', milk: 'sheep', texture: 'crumbly', aged: false, holes: false, blue: false, rind: 'none', stinkLevel: 3 },
   { name: 'Manchego', milk: 'sheep', texture: 'hard', aged: true, holes: false, blue: false, rind: 'natural', stinkLevel: 2 },
-
   { name: 'Mozzarella', milk: 'buffalo', texture: 'soft', aged: false, holes: false, blue: false, rind: 'none', stinkLevel: 1 },
   { name: 'Chèvre', milk: 'goat', texture: 'soft', aged: false, holes: false, blue: false, rind: 'none', stinkLevel: 4 },
 ];
@@ -157,7 +154,7 @@ for (const cheese of cheeses) {
 //unionCheeseSchema.values(cheeses);
 schema.property('cheese', unionCheeseSchema);
 
-// Command line is hard-coded below, edit/remove for experimentation.
+// Unit tests receive a hard-coded version of the context.
 //
 // You can try the first three tests via the command-line with settings like:
 // --test1-name brie or --t2n cheddar
@@ -189,7 +186,7 @@ try {
 
   const configuration = await new Configurator({schema})
     .configure(context);
-  //console.log(stringify(configuration, null, 2));
+
   console.log(stringify(configuration, {space: 2}));
 }
 catch (error) {

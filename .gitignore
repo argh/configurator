@@ -19,3 +19,4 @@ docs-output-md-contributors/
 processors-output-md/
 benchmark/
 dev-scripts/
+.mdrun/

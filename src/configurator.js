@@ -10,8 +10,8 @@ import {
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './errors.js';
 
-import { stringify, existingAssignment } from '@versionzero/schema/helpers';
-import { toPascalCase } from './utils.js';
+import { stringify } from '@versionzero/schema/helpers';
+import { toPascalCase, existingAssignment } from './utils.js';
 
 
 const MODULE_INFO = {

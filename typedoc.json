@@ -3,10 +3,7 @@
   "entryPoints": [
     "src/index.js",
     "src/configuration-sources/index.js",
-    "src/utils.js",
-    "src/schema/builtin-processors/index.js",
-    "src/schema/builtin-schemas/**",
-    "src/schema/types.js"
+    "src/utils.js"
   ],
   "entryPointStrategy": "expand",
   "out": "docs-output",

@@ -14,11 +14,12 @@
     "types": ["node", "mocha"],
     "useUnknownInCatchVariables": false,
 
-    //"declaration": true,
-    //"emitDeclarationOnly": true,
-    //"outDir": "types",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outFile": "types.d.ts",
     //"declarationMap": true
   },
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "test",
@@ -27,6 +28,8 @@
     "docs-output",
     "docs-output-contributors",
     ".c8",
-    "benchmark"
+    "benchmark",
+    "scripts",
+    "dev-scripts"
   ]
 }

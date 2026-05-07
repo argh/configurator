@@ -1,5 +1,4 @@
-import { Configurator, ConfiguratorError } from '../src/index.js';
-import { Schema } from '@versionzero/schema';
+import { Configurator, ConfiguratorError, Schema } from '@versionzero/configurator';
 
 // This example shows how to use selectors to define a command hierarchy.
 
@@ -44,14 +43,14 @@ rootSchema.property('cloud', cloudSchema);
 // STORAGE COMMAND
 
 // From the schema's perspective, there isn't actually anything particularly special about commands.  There is just
-// a field that has a "selector:true" set on it, and a linked child schema at the same level.
+// a property that has a "selector" option set on it, and a linked child schema at the same level.
 //
 // The magic comes to play only in how CommandLineSource interprets these settings:
 //
-// 1. Child schemas that link up to a field via "selector" define the possible command assignments
+// 1. Child schemas that link up to a property via "selector" define the possible command assignments
 //    via the "selection" (which defaults to the child name if omitted).
 // 2. A schema condition is automatically created that only enables the child schema if the command value
-//    (the selector field) matches the selection.
+//    (the selector property) matches the selection.
 // 3. During argument parsing, once a selector has been set, CommandLineSource constrains the following available options
 //    (and their names) to the linked child selection schema.  Higher-level options are not available once a
 //    selection has been specified.
@@ -83,6 +82,10 @@ cloudSchema.property('storage', storageSchema);
 
 
 // STORAGE SUB-COMMANDS
+//
+// (Notice how "bucket" is redefined individually per subcommand;
+// we'll use a different approach for "compute" to demonstrate how
+// to avoid this.)
 
 storageSchema.property('list', new Schema('object')
   .selection(true)
@@ -143,35 +146,30 @@ const computeSchema = new Schema('object')
 
 cloudSchema.property('compute', computeSchema);
 
-// You can use a schema as a template for children (but this can make it awkward to set selection, so you
-// will probably want to ensure that child names work for your command values.)
-// Note that "debug" is set to inherit, so if set in the top-level schema, each child command inherits the value.
-// ("De-normalizing" settings can often be simpler than trying to provide ways to provide access to a common setting
-// throughout the application.)
-
+// To avoid repetition, you can reuse a shared schema, just be careful to make a copy if you need to extend it!
 const computeCommandSchema = new Schema('object')
-  .selection(true)
+  .selection()  // this will look dynamically at wherever this schema is attached at runtime for the property name!
   .property('cluster', new Schema('string')
     .meta('description', 'compute cluster name')
     .validator('$alphanum')
     .required()
   )
-  .property('debug', Schema.inherit());
+  .property('debug', Schema.inherit());  // each child inherits this (de-normalizing for convenience!)
 
 
 // COMPUTE SUB-COMMANDS
 
 computeSchema
-  .property('create', computeCommandSchema.clone())
-  .property('destroy', computeCommandSchema.clone())
-  .property('describe', computeCommandSchema.clone()
+  .property('create', computeCommandSchema)
+  .property('destroy', computeCommandSchema)
+  .property('describe', computeCommandSchema.clone()  // copy to avoid mutating the shared schema!
     .property('id', new Schema('string')
       .meta('description', 'compute instance id')
       .validator('$uuid')
       .required()
     )
   )
-  .property('instances', computeCommandSchema.clone()
+  .property('instances', new Schema(computeCommandSchema) // another way to make a copy
     .property('filter', new Schema('string')
       .validator({$in: ['running', 'stopped', 'all', 'long-text', 'otherstuff', 'chopchop', 'keepgoing', 'long', 'wtf', 'this-is-silly']})
       .meta('description', 'compute instance filter, but maybe the description is really long and needs to be wrapped')
@@ -191,6 +189,7 @@ computeSchema
     )
   );
 
+// context is hard-coded for examples when running automated tests:
 const context = (process.env.CONFIGURATOR_TEST === 'true')?
   {
     appName,
