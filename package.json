@@ -1,6 +1,6 @@
 {
   "name": "@versionzero/configurator",
-  "version": "0.2.1-main.23",
+  "version": "0.2.1-main.25",
   "description": "A simple configuration utility for Node.js",
   "main": "./src/index.js",
   "exports": {
