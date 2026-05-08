@@ -3,7 +3,7 @@ import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
 import { Configurator, ConfiguratorError, Schema, SchemaResolver } from '@versionzero/configurator';
 import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '@versionzero/configurator/sources';
-import { isConstructor, isTruthy, toConstantCase } from '../src/utils.js';
+import { isConstructor, isTruthy, toConstantCase } from '@versionzero/schema/helpers';
 
 // This example aggregates (almost) everything you can do with Configurator into one
 // extremely contrived demo.

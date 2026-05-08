@@ -9,4 +9,4 @@ export { ConfiguratorError } from './errors.js'
 export { CompiledSchema, Schema, SchemaPolicy, SchemaError, SchemaResolver, SchemaLocation, EMPTY } from '@versionzero/schema';
 
 export * as sources from './configuration-sources/index.js';
-export * as utils from './utils.js';
+

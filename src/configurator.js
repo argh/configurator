@@ -10,10 +10,7 @@ import {
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './errors.js';
 
-import { stringify } from '@versionzero/schema/helpers';
-import { toPascalCase, existingAssignment } from './utils.js';
-
-
+import { stringify, toPascalCase } from '@versionzero/schema/helpers';
 
 
 const MODULE_INFO = {
@@ -462,3 +459,30 @@ export class Configurator {
     return "Configurator";
   }
 }
+
+/**
+ *
+ * @param {Map<string,any>} assignments
+ * @param {string} path
+ * @returns {boolean}
+ * @internal
+ */
+function existingAssignment(assignments, path) {
+  const parts = path.split('.');
+
+  function check(prefix, index) {
+    if (index >= parts.length) {
+      return false;
+    }
+    const property = parts[index];
+
+    const p = prefix ? `${prefix}.${property}` : property;
+
+    if (assignments.has(p)) {
+      return true;
+    }
+    return check(p, index + 1);
+  }
+  return check('', 0);
+}
+

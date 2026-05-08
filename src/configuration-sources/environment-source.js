@@ -1,9 +1,7 @@
-import { toCamelCase, toConstantCase } from '../utils.js';
-
 import { ConfigurationSource } from './configuration-source.js'
 import { ConfiguratorError } from '../errors.js';
-
-/** @import {CompiledSchema} from '@versionzero/schema' */
+import { CompiledSchema } from '@versionzero/schema';
+import { toCamelCase, toConstantCase } from '@versionzero/schema/helpers';
 
 /**
  * EnvironmentSource - load configuration assignments from environment variables

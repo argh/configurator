@@ -1,7 +1,8 @@
-import { isFalseyKeyword, isTruthy, isTruthyKeyword, toCamelCase, toKebabCase } from '../utils.js';
+
 import { ConfigurationSource } from './configuration-source.js';
 import { ConfiguratorError } from '../errors.js';
 import { CompiledSchema } from '@versionzero/schema';
+import { isFalseyKeyword, isTruthy, isTruthyKeyword, toCamelCase, toKebabCase } from '@versionzero/schema/helpers';
 
 /**
  * CommandLineSource - parse configuration assignments from the command line

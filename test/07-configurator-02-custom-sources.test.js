@@ -4,7 +4,7 @@ import { setTimeout } from 'node:timers/promises';
 import { Configurator } from '../src/configurator.js';
 import { Schema } from '@versionzero/schema';
 import { ConfigurationSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
-import { toConstantCase } from '../src/utils.js';
+import { toConstantCase } from '@versionzero/schema/helpers';
 
 describe('Configurator - Custom Sources', function() {
 
