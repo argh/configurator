@@ -6,50 +6,14 @@ import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource
 import { isConstructor, isTruthy, toConstantCase } from '@versionzero/schema/helpers';
 
 // This example aggregates (almost) everything you can do with Configurator into one
-// extremely contrived demo.
+// extremely contrived demo.  See the Schema repo (https://github.com/argh/schema)
+// and docs site (https://docs.v0.net/schema) for explanations on the features used
+// in this example.
 
-// SCHEMAS AND VALUE PROCESSORS
 const resolver = new SchemaResolver();
 
-// In addition to defining structure, Schemas may define optional handlers, several of which are called
-// during the process of converting an input value into an output value:
-//
-// * condition   - check whether to process the current schema or ignore it
-// * normalizer  - ensure the input is in a canonical input format
-// * transformer - convert the normalized input format to the output format
-// * validator   - ensure the output format meets specified constraints
-// * serializer  - convert the output format back to a serializable (e.g. json) input format
-//
-// Handlers are built as a pipeline of value processor functions.  The built-in schemas for basic types
-// are almost entirely defined by their handler pipelines.  Your custom schemas can augment these
-// basic handler pipelines, or you can define your own from scratch.
-//
-// Value processors in all the handler pipelines all share the the same call signature:
-//
-//   output = processor(input, target, location, options)
-//
-// where "input" is the value being specified in the assignment, "target" is
-// the current value of the entire configuration object being built, "location" contains the
-// traversal location within the schema hierarchy of the current input and schema, as well as
-// where the value will eventually be written within the target.  Options are passed through
-// from the top-level call that invoked the processor.  (Many handlers only need the first argument!)
-//
-// Processors may be synchronous (return value directly) or asynchronous (return a Promise that resolves to the value).
-// The schema internals attempt to maintain fully synchronous processor call chains until a Promise is returned,
-// at which point they switch to async processing.
-//
-// Normalizers, transformers, validators, and serializers must either:
-// 1. Return a (potentially altered) value
-// 2. Return undefined if the value cannot (currently) be provided
-// 3. Throw an error if there is a fundamental problem with the provided value or the current state.
-//    (Conditions should return true if the schema should be processed, false otherwise.)
-//
-// In most cases, handler calls that return undefined (and conditions that return false) will be retried
-// until a value is resolved or the configuration has stabilized.  This allows types to be defined where
-// their value is dynamic or depends on other aspects of the configuration state.
-
-// Here is an example of a schema that can accept either a positive number,
-// an ISO string, or the string "now" to indicate the current time should be used:
+// First we'll define an example of a timestamp schema that can accept either a positive number,
+// an ISO string, or the string "now" to indicate the current time should be used.
 
 resolver.registerSchema('timestamp', new Schema('any')
   .normalizer((value) => {
