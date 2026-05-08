@@ -1,4 +1,4 @@
-import { ConfigurationSource } from './configuration-source.js'
+import { ConfigurationSource, DefaultSequence } from './configuration-source.js'
 import { ConfiguratorError } from '../errors.js';
 import { CompiledSchema } from '@versionzero/schema';
 import { toCamelCase, toConstantCase } from '@versionzero/schema/helpers';
@@ -29,7 +29,7 @@ import { toCamelCase, toConstantCase } from '@versionzero/schema/helpers';
  */
 export class EnvironmentSource extends ConfigurationSource {
   constructor(options = {}) {
-    super({...options, name: 'environment-source', sequence: options.sequence || ConfigurationSource.DefaultSequence.ENVIRONMENT});
+    super({...options, name: 'environment-source', sequence: options.sequence || DefaultSequence.ENVIRONMENT});
 
     this.contextName = options?.contextName ?? 'env'
   }

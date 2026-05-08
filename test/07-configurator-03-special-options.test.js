@@ -5,6 +5,7 @@ import { Schema } from '@versionzero/schema';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { DefaultSequence } from '../src/configuration-sources/index.js';
 
 describe('Configurator - Special Options', function() {
 
@@ -401,7 +402,7 @@ describe('Configurator - Special Options', function() {
         new EnvironmentSource(),
         new CommandLineSource(),
         new JsonFileSource({ contextName: 'profilePath' }),  // Match custom context
-        new ObjectSource({ contextName: 'overrides', sequence: ConfigurationSource.DefaultSequence.OVERRIDES })
+        new ObjectSource({ contextName: 'overrides', sequence: DefaultSequence.OVERRIDES })
       ];
 
       const configurator = new Configurator({ schema, sources });

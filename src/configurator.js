@@ -6,7 +6,8 @@ import {
   CommandLineSource,
   EnvironmentSource,
   ObjectSource,
-  JsonFileSource
+  JsonFileSource,
+  DefaultSequence
 } from './configuration-sources/index.js';
 import { ConfiguratorError } from './errors.js';
 
@@ -145,7 +146,7 @@ export class Configurator {
       new EnvironmentSource(),                                                                 // 400
       new CommandLineSource(),                                                                 // 600
       new JsonFileSource({contextName: configContextName}),                                    // 900
-      new ObjectSource({contextName: 'overrides', sequence: ConfigurationSource.DefaultSequence.OVERRIDES})  // 1000
+      new ObjectSource({contextName: 'overrides', sequence: DefaultSequence.OVERRIDES})  // 1000
     ];
   }
 

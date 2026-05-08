@@ -1,5 +1,5 @@
-import { ConfigurationSource } from './configuration-source.js'
-/** @import {CompiledSchema} from '@versionzero/schema' */
+import { ConfigurationSource, DefaultSequence } from './configuration-source.js';
+import { CompiledSchema } from '@versionzero/schema';
 
 /**
  * ObjectSource - load configuration assignments from an object
@@ -18,7 +18,7 @@ import { ConfigurationSource } from './configuration-source.js'
 export class ObjectSource extends ConfigurationSource
 {
   constructor(options = {}) {
-    super({...options, name: 'object-source', sequence: options?.sequence || ConfigurationSource.DefaultSequence.APP_DEFAULTS});
+    super({...options, name: 'object-source', sequence: options?.sequence || DefaultSequence.APP_DEFAULTS});
     this.contextName = options?.contextName ?? 'data';
   }
 

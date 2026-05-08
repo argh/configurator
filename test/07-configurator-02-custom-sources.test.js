@@ -3,7 +3,12 @@ import { strict as assert } from 'assert';
 import { setTimeout } from 'node:timers/promises';
 import { Configurator } from '../src/configurator.js';
 import { Schema } from '@versionzero/schema';
-import { ConfigurationSource, EnvironmentSource, CommandLineSource } from '../src/configuration-sources/index.js';
+import {
+  ConfigurationSource,
+  EnvironmentSource,
+  CommandLineSource,
+  DefaultSequence
+} from '../src/configuration-sources/index.js';
 import { toConstantCase } from '@versionzero/schema/helpers';
 
 describe('Configurator - Custom Sources', function() {
@@ -297,7 +302,7 @@ describe('Configurator - Custom Sources', function() {
     it('should implement a secrets source like everything.js', async function() {
       class FakeSecretsSource extends ConfigurationSource {
         constructor() {
-          super({ name: 'fake-secrets', sequence: ConfigurationSource.DefaultSequence.SECRETS });
+          super({ name: 'fake-secrets', sequence: DefaultSequence.SECRETS });
           this.secrets = {
             'APP_USER_TOKEN': 'secret-token-123',
             'APP_API_KEY': 'secret-key-456'
@@ -411,7 +416,7 @@ describe('Configurator - Custom Sources', function() {
     it('should handle lazy values that wait for dependencies', async function() {
       class DependentSecretsSource extends ConfigurationSource {
         constructor() {
-          super({ name: 'dependent-secrets', sequence: ConfigurationSource.DefaultSequence.SECRETS });
+          super({ name: 'dependent-secrets', sequence: DefaultSequence.SECRETS });
         }
 
         async load(schema, context) {

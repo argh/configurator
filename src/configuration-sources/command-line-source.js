@@ -1,5 +1,5 @@
 
-import { ConfigurationSource } from './configuration-source.js';
+import { ConfigurationSource, DefaultSequence } from './configuration-source.js';
 import { ConfiguratorError } from '../errors.js';
 import { CompiledSchema } from '@versionzero/schema';
 import { isFalseyKeyword, isTruthy, isTruthyKeyword, toCamelCase, toKebabCase } from '@versionzero/schema/helpers';
@@ -51,7 +51,7 @@ export class CommandLineSource extends ConfigurationSource
    * @param {CommandLineSourceOptions} [options]
    */
   constructor(options = {}) {
-    super({...options, name: 'command-line-source', sequence: options.sequence || ConfigurationSource.DefaultSequence.ARGUMENTS});
+    super({...options, name: 'command-line-source', sequence: options.sequence || DefaultSequence.ARGUMENTS});
 
     this.contextName = options.contextName ?? 'argv'
   }

@@ -1,5 +1,5 @@
 import { ObjectSource } from './object-source.js';
-import { ConfigurationSource } from './configuration-source.js';
+import { DefaultSequence } from './configuration-source.js';
 import { ConfiguratorError } from '../errors.js';
 import { promises as fs } from 'fs';
 import { text } from 'node:stream/consumers';
@@ -21,7 +21,7 @@ export class JsonFileSource extends ObjectSource {
     super(
       {
         ...options,
-        sequence: options?.sequence || ConfigurationSource.DefaultSequence.CONFIGURATION,
+        sequence: options?.sequence || DefaultSequence.CONFIGURATION,
         contextName: options?.contextName ?? 'config'
       })
   }

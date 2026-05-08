@@ -2,7 +2,7 @@ import { stat, writeFile } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import * as path from 'node:path';
 import { Configurator, ConfiguratorError, Schema, SchemaResolver } from '@versionzero/configurator';
-import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource } from '@versionzero/configurator/sources';
+import { ConfigurationSource, ObjectSource, EnvironmentSource, CommandLineSource, JsonFileSource, DefaultSequence } from '@versionzero/configurator/sources';
 import { isConstructor, isTruthy, toConstantCase } from '@versionzero/schema/helpers';
 
 // This example aggregates (almost) everything you can do with Configurator into one
@@ -430,7 +430,7 @@ class FakeSecretsSource extends ConfigurationSource {
     // use for a reasonable prioritization sequence, with some additional values (e.g. "SECRETS") that
     // are frequent points of extension.
 
-    super({name: 'fake-secrets-source', sequence: ConfigurationSource.DefaultSequence.SECRETS});
+    super({name: 'fake-secrets-source', sequence: DefaultSequence.SECRETS});
 
     this.secrets = {
       'APP_USER_TOKEN': 'a0b1c3d4e5f6',
@@ -501,7 +501,7 @@ const sources = [
   new EnvironmentSource(),
   new CommandLineSource(),
   new JsonFileSource({contextName: 'profilePath'}),
-  new ObjectSource({sequence: ConfigurationSource.DefaultSequence.OVERRIDES, contextName: 'overrides'}),
+  new ObjectSource({sequence: DefaultSequence.OVERRIDES, contextName: 'overrides'}),
 ];
 
 // This demonstrates a Configurator being provided all custom values, even redefining the default config file field name:
