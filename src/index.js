@@ -5,7 +5,7 @@ export { Configurator } from './configurator.js';
 export { ConfigurationSource } from './configuration-sources/configuration-source.js';
 export { ConfiguratorError } from './errors.js'
 
-// Re-export from schema for backward compatibility
+// Re-export for convenience
 export { CompiledSchema, Schema, SchemaPolicy, SchemaError, SchemaResolver, SchemaLocation, EMPTY } from '@versionzero/schema';
 
 export * as sources from './configuration-sources/index.js';

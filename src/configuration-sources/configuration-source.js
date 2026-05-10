@@ -1,5 +1,5 @@
 import { ConfiguratorError } from '../errors.js';
-import {CompiledSchema} from '@versionzero/schema'
+import { CompiledSchema } from '@versionzero/schema'
 
 /**
  * Configuration source abstract base class - all sources should implement this

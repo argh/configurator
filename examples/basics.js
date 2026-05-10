@@ -1,5 +1,59 @@
 import { Configurator, ConfiguratorError, Schema, SchemaResolver } from '@versionzero/configurator';
 
+
+const schemax = new Schema('object')
+  .property('version', Schema.literal('1.0.1').meta('internal').validator('$semver'))
+  .property('prod', new Schema('boolean')
+    .meta('description', 'enforce production rules')
+    .default(process.env['NODE_ENV'] === 'production')
+  )
+  .property('server', new Schema('object')
+      .property('token', new Schema('string')
+        .required()
+        .validator('$base64')
+        .meta('description', 'auth token')
+        .meta('secret')
+        .serializer('****')
+      )
+      .property('url', new Schema('string')
+        .default('http://127.0.0.1:3000')
+        .meta('valueDescription', 'url')
+        .meta('description', 'address (must be https in prod)')
+        .validator('$url')
+        .validator({$or: [
+            {$eq: [{$reference: '/prod'}, false]},
+            {$matches: /https:.+/}
+          ]}
+        )
+      )
+    )
+
+
+const configuration = await new Configurator({schema:schemax}).configure(
+  {
+    argv: ['--help', 'advanced']
+//    argv: ['--server-url', 'https://prod.example.com', '-p', '--st', 'bGVtbWUgaW4h']
+  }
+)
+/*
+Usage: command [options]
+  --config (-C) [path|-]         - load configuration from file (or - for stdin)
+  --help (-h) [advanced]         - display help information
+  --prod (-p) [true|false]       - enforce production rules (default:false)
+  --server-token (--st) <base64> - auth token (required)
+  --server-url (--su) url        - address (must be https in prod)
+                                   (default:http://127.0.0.1:3000)
+
+{
+  server: { token: 'bGVtbWUgaW4h', url: 'https://prod.example.com/' },
+  prod: true,
+  version: '1.0.1'
+}
+
+ */
+console.log(configuration);
+
+
 const appName = 'basics';
 
 // Root schema

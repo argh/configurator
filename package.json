@@ -11,10 +11,6 @@
     "./sources": {
       "default": "./src/configuration-sources/index.js",
       "types": "./types/configuration-sources/index.d.ts"
-    },
-    "./utils": {
-      "default": "./src/utils.js",
-      "types": "./types/utils.js"
     }
   },
   "repository": {
@@ -64,6 +60,6 @@
     "typescript": "~5.8"
   },
   "dependencies": {
-    "@versionzero/schema": "^0.2.1-main.55"
+    "@versionzero/schema": "^0.2.1-main.57"
   }
 }

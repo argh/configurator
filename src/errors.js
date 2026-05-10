@@ -51,9 +51,9 @@ export class ConfiguratorError extends Error {
   get name() {
     return this.constructor.name;
   }
-  //  get stack() {
-  //    return "";
-  //  }
+  get stack() {
+    return "";
+  }
 
   set stack(str) {}
 

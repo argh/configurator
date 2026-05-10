@@ -3,7 +3,7 @@ import { DefaultSequence } from './configuration-source.js';
 import { ConfiguratorError } from '../errors.js';
 import { promises as fs } from 'fs';
 import { text } from 'node:stream/consumers';
-/** @import {CompiledSchema} from '@versionzero/schema' */
+import {CompiledSchema} from '@versionzero/schema';
 
 
 /**
