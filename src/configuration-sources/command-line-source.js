@@ -38,6 +38,7 @@ import { isFalseyKeyword, isTruthy, isTruthyKeyword, toCamelCase, toKebabCase } 
  * - `internal`          - do not generate a command-line option at all
  * - `description`       - help description of the property
  * - `valueDescription`  - help description of the value and its constraints
+ * - `defaultValueDescription` - help description of the default value (set to empty string to suppress default)
  */
 export class CommandLineSource extends ConfigurationSource
 {
@@ -97,6 +98,7 @@ export class CommandLineSource extends ConfigurationSource
             const selection = (childSchema.selection === true)? propertyName : childSchema.selection;
 
             const childSelectionContext = new ParsingContext(appName, ctx, childPath);
+            childSelectionContext.description = childSchema.metadata.description;
             walk(childSchema, childPath, childSelectionContext);
             ctx.selectionContextMap.set(selection, childSelectionContext);
           }
@@ -133,7 +135,7 @@ export class CommandLineSource extends ConfigurationSource
    */
   async load(schema, context, loadOptions) {
     const appName = context?.appName;
-    
+
     const argv = context[this.contextName] ?? process.argv;
 
 // Skip 'node' and script name if this looks like process.argv
@@ -467,7 +469,7 @@ export class CommandLineSource extends ConfigurationSource
         usageLine += ` ${ctx.general.valueDescription}`;
       }
 
-      cl.push([usageLine]);
+      cl.push(ctx.description ? [usageLine, ctx.description] : [usageLine]);
 
       if (ctx.clOptions.size) {
 
@@ -512,8 +514,19 @@ export class CommandLineSource extends ConfigurationSource
             markers.push('required');
           }
           if (clOptionData.schema.options.default !== undefined) {
-            // todo - format default values via the type formatter
-            markers.push(`default:${clOptionData.schema.options.default}`);
+            let defaultDescription = clOptionData.schema.metadata.defaultValueDescription;
+            if (defaultDescription === undefined) {
+              if (typeof clOptionData.schema.options.default === 'function') {
+                defaultDescription = 'dynamic';
+              }
+              else {
+                // typically set during compilation
+                defaultDescription = `${clOptionData.schema.options.default}`;
+              }
+            }
+            if (defaultDescription?.length) {
+              markers.push(`default:${defaultDescription}`);
+            }
           }
 
           // Add advanced marker if needed
@@ -683,6 +696,7 @@ class ParsingContext {
     this.clOptions = new Map();
     this.clAliases = new Map();
     this.clFlags = new Map();
+    this.description = undefined;
   }
 
   setSelector(path, schema) {

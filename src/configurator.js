@@ -210,17 +210,25 @@ export class Configurator {
 
     const strict = options.strict ?? true;
 
-    const schema = await this._resolver.compile(this._schema);
-    const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
+    try {
+      const schema = this._resolver.compile(this._schema);
+      const assignments = await this.loadSourceAssignments(schema, configurationContext, strict);
 
-    const configuration = await schema.processAssignments(assignments, undefined,{...options, strict})
+      const configuration = await schema.processAssignments(assignments, undefined, {...options, strict})
 
-    const dumpContextName = this._specialContextNames['dump'];
-    if (dumpContextName && configurationContext[dumpContextName]) {
-      await this.dump(schema, configuration, configurationContext[dumpContextName]);
+      const dumpContextName = this._specialContextNames['dump'];
+      if (dumpContextName && configurationContext[dumpContextName]) {
+        await this.dump(schema, configuration, configurationContext[dumpContextName]);
+      }
+
+      return configuration;
     }
-
-    return configuration;
+    catch (error) {
+      if (error instanceof ConfiguratorError) {
+        Error.captureStackTrace(error, this.configure);
+      }
+      throw error;
+    }
   }
 
   /**

@@ -20,3 +20,4 @@ processors-output-md/
 benchmark/
 dev-scripts/
 .mdrun/
+types/

@@ -5,8 +5,6 @@ export { Configurator } from './configurator.js';
 export { ConfigurationSource } from './configuration-sources/configuration-source.js';
 export { ConfiguratorError } from './errors.js'
 
-// Re-export for convenience
-export { CompiledSchema, Schema, SchemaPolicy, SchemaError, SchemaResolver, SchemaLocation, EMPTY } from '@versionzero/schema';
-
-export * as sources from './configuration-sources/index.js';
+// Re-export schema classes for convenience; helpers and sources available via subpath exports
+export * from '@versionzero/schema';
 

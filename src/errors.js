@@ -9,16 +9,15 @@ export class ConfiguratorError extends Error {
    * @param {any} [data.value]
    * @param {number} [data.code]
    * @param {Array<Error>} [data.errors]
-   * @param {boolean} [preserveStack]
    */
-  constructor(message, data, preserveStack = false) {
+  constructor(message, data) {
     // noinspection JSCheckFunctionSignatures
 
     /** @type {Error|undefined} */
     const cause = data?.cause
       ? data.cause instanceof Error
         ? data.cause
-        : new ConfiguratorError(data.cause, undefined, false)
+        : new ConfiguratorError(data.cause, undefined)
       : undefined;
 
     super(message, cause ? { cause } : undefined);
@@ -37,11 +36,6 @@ export class ConfiguratorError extends Error {
       this.__proto__ = actualProto;
     }
 
-    if (!preserveStack) {
-      // @ts-ignore
-      //      delete this.stack;
-    }
-
     if (data?.cause && !super.cause) {
       // should be set on super, but just in case...
       this.cause = data.cause;
@@ -51,15 +45,6 @@ export class ConfiguratorError extends Error {
   get name() {
     return this.constructor.name;
   }
-  get stack() {
-    return "";
-  }
-
-  set stack(str) {}
-
-  //  get cause() {
-  //    return super.cause ?? this.data?.cause;
-  //  }
 
   toString() {
     if (this.message) {
