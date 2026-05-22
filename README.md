@@ -9,7 +9,7 @@ For full documentation, see <https://docs.v0.net/configurator>.
 
 ## Requirements
 
-- NodeJS 22.22.0+
+- NodeJS 20.9.0+
 - ESM Modules only
 
 ## Philosophy

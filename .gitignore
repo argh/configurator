@@ -7,10 +7,6 @@ yarn-debug.log*
 yarn-error.log*
 .nyc_output/
 .idea/
-node_modules/
-coverage/
-.nyc_output/
-.DS_Store
 .c8/
 docs-output/
 docs-output-contributors/
