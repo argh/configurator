@@ -220,6 +220,9 @@ jobs:
       - name: Build
         run: npm run build --if-present
 
+      - name: Types
+        run: npm run build:types --if-present
+
       - name: Extract package info
         id: package
         run: |
