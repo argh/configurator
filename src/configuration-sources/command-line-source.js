@@ -5,7 +5,7 @@ import { CompiledSchema } from '@versionzero/schema';
 import { isFalseyKeyword, isTruthy, isTruthyKeyword, toCamelCase, toKebabCase } from '@versionzero/schema/helpers';
 
 /**
- * CommandLineSource - parse configuration assignments from the command line
+ * `CommandLineSource` - parse configuration assignments from the command line
  *
  * This source converts the schema into a set of kebab-cased options, aliases, and flags.
  * If an appName is provided in the context, and it matches a top-level property name, this is truncated for
@@ -44,7 +44,7 @@ export class CommandLineSource extends ConfigurationSource
 {
   /**
    * @typedef {object} CommandLineSourceOptions
-   * @property {number} [sequence] - Sequence number of the source.  Defaults to ARGUMENTS (currently 500).
+   * @property {number} [sequence] - Sequence number of the source.  Defaults to `ARGUMENTS` (currently `500`).
    * @property {string} [contextName] - Name of the property (default:"argv") in the context object that contains the command line arguments
    */
 

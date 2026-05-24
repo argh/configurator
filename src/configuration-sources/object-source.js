@@ -2,7 +2,7 @@ import { ConfigurationSource, DefaultSequence } from './configuration-source.js'
 import { CompiledSchema } from '@versionzero/schema';
 
 /**
- * ObjectSource - load configuration assignments from an object
+ * `ObjectSource` - load configuration assignments from an object
  *
  * The object passed in the context is checked against the configuration schema.
  * If the schema defines child properties, then the object's children are recursively

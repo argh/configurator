@@ -6,15 +6,15 @@ import { toCamelCase, toConstantCase } from '@versionzero/schema/helpers';
 /**
  * EnvironmentSource - load configuration assignments from environment variables
  *
- * Given "server.host", we will load SERVER_HOST.
+ * Given `"server.host"`, we will load `SERVER_HOST`.
  *
- * It's a good idea to pass in an appName prefix to ensure you don't accidentally load
- * random environment variables that might collide (e.g. "DEBUG" or "VERBOSE").
+ * It's a good idea to pass in an `appName` prefix to ensure you don't accidentally load
+ * random environment variables that might collide (e.g. `"DEBUG"` or `"VERBOSE"`).
  * (In strict mode, encountering an unexpected environment variable will throw.)
- * Given "example" as the appName with "server.host", the variable loaded is EXAMPLE_SERVER_HOST.
+ * Given `"example"` as the `appName` with `"server.host"`, the variable loaded is `EXAMPLE_SERVER_HOST`.
  *
  * If your schema has a top-level child with the same property name as the app name, the
- * prefix is truncated for aesthetics (e.g. to avoid having EXAMPLE_EXAMPLE_SERVER_HOST).
+ * prefix is truncated for aesthetics (e.g. to avoid having `EXAMPLE_EXAMPLE_SERVER_HOST`).
  * (This could lead to some ambiguity between identically named root and app child properties!)
  *
  * Due to the possibility of wildcards in the schema, we can't just determine all
@@ -22,8 +22,8 @@ import { toCamelCase, toConstantCase } from '@versionzero/schema/helpers';
  * a given environment variable can be mapped back to the schema.  This process
  * assumes that the property names are in camelCase.
  *
- * There is thus also an ambiguity between whether EXAMPLE_SERVER_HOST should be interpreted
- * as example.server.host or example.serverHost.  The algorithm tries to resolve this
+ * There is thus also an ambiguity between whether `EXAMPLE_SERVER_HOST` should be interpreted
+ * as `example.server.host` or `example.serverHost`.  The algorithm tries to resolve this
  * ambiguity by incrementally "growing" the number of words camelCased until it finds
  * a match.  (Actually defining both would be a true ambiguity, so... don't do that!)
  */
@@ -37,11 +37,11 @@ export class EnvironmentSource extends ConfigurationSource {
   /**
    * load - return a map of assignments parsed from environment variables
    *
-   * Defaults to using process.env, but you can pass in an object in the context
-   * (default key: "env") containing variables in the same format.
+   * Defaults to using `process.env`, but you can pass in an object in the context
+   * (default key: `"env"`) containing variables in the same format.
    *
    * @param {CompiledSchema} schema
-   * @param {object} context - collection of source-specific fields (argv, env, etc.)
+   * @param {object} context - collection of source-specific fields (`argv`, `env`, etc.)
    * @param {object} [options] - load options
    * @returns {Promise<Map<string,any>>} Parsed configuration object
    */

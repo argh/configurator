@@ -7,9 +7,9 @@ import {CompiledSchema} from '@versionzero/schema';
 
 
 /**
- * JsonFileSource - load assignments from a JSON formatted configuration file, or stdin if passed "-"
+ * `JsonFileSource` - load assignments from a JSON formatted configuration file, or stdin if passed "-"
  *
- * This leverages ObjectSource once the data has been pulled in.
+ * This leverages `ObjectSource` once the data has been pulled in.
  *
  * Multiple configuration file sources may exist; each needs to examine the path / file and independently
  * decide whether they will handle it.  By contract, when a configuration file source reads the file,
